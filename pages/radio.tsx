@@ -4,9 +4,7 @@ import MatrixBackground from '@/components/MatrixBackground';
 import MusicPlayer from '@/components/MusicPlayer';
 
 const playlist = [
-  '/music/1.mp3',
-  '/music/2.mp3',
-  '/music/3.mp3'
+  '1.mp3'
 ];
 
 export default function Livestream() {

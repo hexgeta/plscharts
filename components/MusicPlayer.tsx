@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { getAudioUrl, testSupabaseConnection } from '@/utils/supabaseStorage';
 
 interface MusicPlayerProps {
   playlist: string[];
@@ -8,16 +9,40 @@ interface MusicPlayerProps {
 export default function MusicPlayer({ playlist, autoPlay = false }: MusicPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [audioUrls, setAudioUrls] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement>(null);
   const fadeInterval = useRef<NodeJS.Timeout>();
 
+  useEffect(() => {
+    const init = async () => {
+      const isConnected = await testSupabaseConnection();
+      if (!isConnected) {
+        console.error('Failed to connect to Supabase storage');
+        return;
+      }
+
+      setIsLoading(true);
+      const urls = await Promise.all(
+        playlist.map(async (fileName) => {
+          const url = await getAudioUrl(fileName);
+          return url || '';
+        })
+      );
+      setAudioUrls(urls.filter(url => url !== ''));
+      setIsLoading(false);
+    };
+
+    init();
+  }, [playlist]);
+
   // Handle autoPlay
   useEffect(() => {
-    if (autoPlay && !isPlaying && audioRef.current) {
+    if (autoPlay && !isPlaying && audioRef.current && !isLoading) {
       fadeAudio(true);
       setIsPlaying(true);
     }
-  }, [autoPlay]);
+  }, [autoPlay, isLoading]);
 
   const fadeAudio = (fadeIn: boolean) => {
     if (!audioRef.current) return;
@@ -69,7 +94,7 @@ export default function MusicPlayer({ playlist, autoPlay = false }: MusicPlayerP
   };
 
   const handleTrackEnd = () => {
-    setCurrentTrackIndex((prevIndex) => (prevIndex + 1) % playlist.length);
+    setCurrentTrackIndex((prevIndex) => (prevIndex + 1) % audioUrls.length);
   };
 
   // Cleanup on unmount
@@ -91,6 +116,10 @@ export default function MusicPlayer({ playlist, autoPlay = false }: MusicPlayerP
     }
   }, [currentTrackIndex]);
 
+  if (isLoading || audioUrls.length === 0) {
+    return null;
+  }
+
   return (
     <div className="fixed bottom-2 right-2 z-20">
       <button
@@ -107,7 +136,7 @@ export default function MusicPlayer({ playlist, autoPlay = false }: MusicPlayerP
         )}
       </button>
       <audio ref={audioRef} onEnded={handleTrackEnd}>
-        <source src={playlist[currentTrackIndex]} type="audio/mp3" />
+        <source src={audioUrls[currentTrackIndex]} type="audio/mp3" />
         Your browser does not support the audio element.
       </audio>
     </div>
