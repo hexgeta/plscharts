@@ -32,8 +32,8 @@ const NavigationBar = () => {
             <Link href="/prices" className="text-[rgb(153,153,153)] hover:text-gray-300">$ Prices</Link>
             <Link href="/leagues" className="text-[rgb(153,153,153)] hover:text-gray-300">♆ Leagues</Link>
             <Link href="/gas" className="text-[rgb(153,153,153)] hover:text-gray-300">≋ Gas</Link>
-            <Link href="https://app.piteas.io/#/swap?inputCurrency=PLS&outputCurrency=0x0d86EB9f43C57f6FF3BC9E23D8F9d82503f0e84b" className="text-[rgb(153,153,153)] hover:text-gray-300">⇋ Buy</Link>
-            <Link href="https://portfolio.lookintomaxi.com/" className="text-[rgb(153,153,153)] hover:text-gray-300">⊟ Portfolio</Link>
+            <Link href="https://app.piteas.io/#/swap?inputCurrency=PLS&outputCurrency=0x0d86EB9f43C57f6FF3BC9E23D8F9d82503f0e84b" target="_blank" className="text-[rgb(153,153,153)] hover:text-gray-300">⇋ Buy</Link>
+            <Link href="https://portfolio.lookintomaxi.com/" target="_blank" className="text-[rgb(153,153,153)] hover:text-gray-300">⊟ Portfolio</Link>
           </div>
         </div>
         <div className="hidden lg:flex items-center">
@@ -77,8 +77,9 @@ const NavigationBar = () => {
               <Link href="/prices" className="block text-white/80 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>Prices</Link>
               <Link href="/leagues" className="block text-white/80 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>Leagues</Link>
               <Link href="/gas" className="block text-white/80 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>Gas</Link>              
-              <Link href="https://app.piteas.io/#/swap?inputCurrency=PLS&outputCurrency=0x0d86EB9f43C57f6FF3BC9E23D8F9d82503f0e84b" className="block text-white/80 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>Buy</Link>
-              <Link href="https://portfolio.lookintomaxi.com/" className="block text-white/80 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>Portfolio</Link>
+              <Link href="https://app.piteas.io/#/swap?inputCurrency=PLS&outputCurrency=0x0d86EB9f43C57f6FF3BC9E23D8F9d82503f0e84b" target="_blank" rel="noopener noreferrer" className="block text-white/80 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>Buy</Link>
+              <Link href="/radio" target="_blank" rel="noopener noreferrer" className="block text-white/80 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>Radio</Link>
+              <Link href="https://portfolio.lookintomaxi.com/" target="_blank" rel="noopener noreferrer" className="block text-white/80 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>Portfolio</Link>
             </motion.div>
           </motion.div>
         )}

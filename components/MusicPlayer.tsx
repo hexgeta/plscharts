@@ -94,7 +94,13 @@ export default function MusicPlayer({ playlist, autoPlay = false }: MusicPlayerP
   };
 
   const handleTrackEnd = () => {
-    setCurrentTrackIndex((prevIndex) => (prevIndex + 1) % audioUrls.length);
+    // If we're at the last track, go back to the first one
+    if (currentTrackIndex === audioUrls.length - 1) {
+      setCurrentTrackIndex(0);
+    } else {
+      // Otherwise, go to next track
+      setCurrentTrackIndex(currentTrackIndex + 1);
+    }
   };
 
   // Cleanup on unmount
@@ -106,7 +112,7 @@ export default function MusicPlayer({ playlist, autoPlay = false }: MusicPlayerP
     };
   }, []);
 
-  // Handle track changes
+  // Handle track changes and ensure continuous play
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.load();
