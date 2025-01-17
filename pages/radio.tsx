@@ -30,7 +30,7 @@ export default function Livestream() {
       {!hasEntered && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center gap-4">
           <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 text-center">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">MAXI Volume™</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">MAXI Volume Radio™</h1>
             <p className="text-center text-gray-400 mb-8 max-w-xs">
               Celebrating the cheapest t-shares in Hexico to some sweet tunes
             </p>

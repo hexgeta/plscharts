@@ -93,16 +93,6 @@ export default function MusicPlayer({ playlist, autoPlay = false }: MusicPlayerP
     }
   };
 
-  const handleTrackEnd = () => {
-    // If we're at the last track, go back to the first one
-    if (currentTrackIndex === audioUrls.length - 1) {
-      setCurrentTrackIndex(0);
-    } else {
-      // Otherwise, go to next track
-      setCurrentTrackIndex(currentTrackIndex + 1);
-    }
-  };
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -111,16 +101,6 @@ export default function MusicPlayer({ playlist, autoPlay = false }: MusicPlayerP
       }
     };
   }, []);
-
-  // Handle track changes and ensure continuous play
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.load();
-      if (isPlaying) {
-        fadeAudio(true);
-      }
-    }
-  }, [currentTrackIndex]);
 
   if (isLoading || audioUrls.length === 0) {
     return null;
@@ -141,7 +121,7 @@ export default function MusicPlayer({ playlist, autoPlay = false }: MusicPlayerP
           <div className="ml-[2px] w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-current border-b-[8px] border-b-transparent"></div>
         )}
       </button>
-      <audio ref={audioRef} onEnded={handleTrackEnd}>
+      <audio ref={audioRef} loop>
         <source src={audioUrls[currentTrackIndex]} type="audio/mp3" />
         Your browser does not support the audio element.
       </audio>
