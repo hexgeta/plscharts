@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import CryptoDashboard from '@/components/crypto-dashboard';
 import MatrixBackground from '@/components/MatrixBackground';
 import MusicPlayer from '@/components/MusicPlayer';
+import TimeDisplay from '@/components/TimeDisplay';
 
 const playlist = [
   '1.mp3'
@@ -19,8 +20,9 @@ export default function Livestream() {
   return (
     <div className="radio-page min-h-screen">
       <div className="relative z-10 min-h-screen w-full flex items-start md:items-center justify-center p-4 pt-2 md:py-4">
-        <div className="w-full max-w-6xl md:-mt-4">
+        <div className="w-full max-w-6xl md:-mt-">
           <MatrixBackground />
+          <TimeDisplay />
           <CryptoDashboard />
         </div>
       </div>
