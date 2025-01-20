@@ -6,7 +6,9 @@ const Footer = () => {
     <footer className="w-full bg-black px-4 border-t border-[rgba(255,255,255,0.2)] py-8">
       <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12">
         <div className="col-span-1">
-          <h3 className="text-s font-semibold mb-2 break-all">LOOKINTOMAXI 2024</h3>
+          <h3 className="text-s font-semibold mb-2 break-all">
+            LOOKINTOMAXI {new Date().getFullYear()}
+          </h3>
           <p className="text-sm">Donation address:</p>
           <p className="text-sm break-all text-[rgb(153,153,153)] hover:text-gray-300 cursor-pointer max-w-[170px]" onClick={() => navigator.clipboard.writeText('0x1F12DAE5450522b445Fe1882C4F8D2Cf67B38a43')}>
             0x1F12DAE5450522b445Fe1882C4F8D2Cf67B38a43
