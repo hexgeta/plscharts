@@ -26,7 +26,7 @@ export default function TimeDisplay() {
   }, []);
 
   return (
-    <div className="text-center mb-4">
+    <div className="text-center ml-0">
       <p className="text-[#666] text-sm tracking-wider flex justify-center items-center gap-1">
         <span>{currentDate}</span>
         <span className="flex">

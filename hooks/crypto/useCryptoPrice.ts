@@ -5,8 +5,18 @@ export function useCryptoPrice(symbol: string) {
   const { data, error, isLoading } = useSWR(
     symbol ? `crypto/price/${symbol}` : null,
     async () => {
-      console.log(`Fetching price for ${symbol}`)
+      const startTime = new Date()
+      console.log(`Fetching price for ${symbol} at ${startTime.toISOString()}`)
       
+      // Use our cached API for HEX
+      if (symbol === 'pHEX') {
+        const response = await fetch('/api/prices/hex')
+        const data = await response.json()
+        if (data.error) throw new Error(data.error)
+        return data
+      }
+
+      // Regular fetching for other tokens
       const tokenConfig = TOKEN_CONSTANTS[symbol]
       if (!tokenConfig?.PAIR) {
         throw new Error(`No pair configuration found for ${symbol}`)
@@ -30,13 +40,12 @@ export function useCryptoPrice(symbol: string) {
 
       const pair = data.pairs[0]
       const price = pair.priceUsd ? parseFloat(pair.priceUsd) : 0
-      
       const priceChange24h = pair.priceChange?.h24 ? parseFloat(pair.priceChange.h24) / 100 : 0
       
-      console.log(`Debug data for ${symbol}:`, {
-        rawPriceChange: pair.priceChange?.h24,
-        adjustedPriceChange: priceChange24h,
-        fullPairData: pair
+      console.log(`Price update for ${symbol}:`, {
+        price,
+        fetchTime: new Date().toISOString(),
+        fetchDuration: new Date().getTime() - startTime.getTime()
       })
       
       return {
@@ -47,9 +56,9 @@ export function useCryptoPrice(symbol: string) {
       }
     },
     {
-      refreshInterval: 30000,
+      refreshInterval: 1000, // Back to 500ms (2 updates per second)
       revalidateOnFocus: true,
-      dedupingInterval: 5000,
+      dedupingInterval: 500,
     }
   )
 

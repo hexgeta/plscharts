@@ -258,6 +258,12 @@ export const TOKEN_CONSTANTS = {
       pairAddress: '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
       chain: 'ethereum'
     }
+  },
+  'TRUMP': {
+    PAIR: {
+      chain: 'solana',
+      pairAddress: 'A8nPhpCJqtqHdqUk35Uj9Hy2YsGXFkCZGuNwvkD3k7VC'
+    }
   }
 }
 

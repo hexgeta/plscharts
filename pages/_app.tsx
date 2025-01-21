@@ -8,7 +8,7 @@ import { useRouter } from 'next/router';
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const isLivestreamPage = router.pathname === '/radio';
+  const isLivestreamPage = router.pathname === '/radio' || router.pathname === '/liveprices';
 
   return (
     <div>
