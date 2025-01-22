@@ -8,7 +8,7 @@ import { formatNumber } from '@/utils/format'
 const CONFIG = {
   PRICE_NOISE: 0.4,    // Increased for ETH's larger price movements
   UPDATE_INTERVAL: 150,     // Visual updates every 100ms for smooth display
-  MOMENTUM_FACTOR: 0.7,     // How much previous movement influences next movement (0-1)
+  MOMENTUM_FACTOR: 0.8,     // How much previous movement influences next movement (0-1)
   STILL_CHANCE: 0.25,      // Chance of staying still on each update (0-1)
 }
 
