@@ -1,10 +1,9 @@
 'use client'
 
 import React, { useState } from 'react';
-import MatrixBackground from '@/components/MatrixBackground';
 import MusicPlayer from '@/components/MusicPlayer';
 import TimeDisplay from '@/components/TimeDisplay';
-import LiveHexPrice from '@/components/LiveHexPrice';
+import LiveEthPrice from '@/components/LiveEthPrice';
 
 const playlist = [
   '2.mp3'
@@ -25,7 +24,7 @@ export default function Livestream() {
         <div className="w-full max-w-6xl min-w-[960px]">
           <TimeDisplay />
           <div className="">
-            <LiveHexPrice />
+            <LiveEthPrice />
           </div>
         </div>
       </div>
@@ -35,9 +34,9 @@ export default function Livestream() {
       {!hasEntered && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center gap-4">
           <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 text-center">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">Live Price Radio™</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">ETH Price Radio™</h1>
             <p className="text-center text-gray-400 mb-8 max-w-xs">
-              Celebrating our addiction to watching crypto prices to tunes.
+              Celebrating our addiction to watching ETH prices to tunes.
             </p>
             <button 
               onClick={handleEnter}
