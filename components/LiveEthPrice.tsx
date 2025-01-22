@@ -7,7 +7,7 @@ import { formatNumber } from '@/utils/format'
 // Configuration
 const CONFIG = {
   PRICE_NOISE: 0.4,    // Increased for ETH's larger price movements
-  UPDATE_INTERVAL: 150,     // Visual updates every 100ms for smooth display
+  UPDATE_INTERVAL: 150,     // Now in milliseconds
   MOMENTUM_FACTOR: 0.8,     // How much previous movement influences next movement (0-1)
   STILL_CHANCE: 0.25,      // Chance of staying still on each update (0-1)
 }
@@ -40,34 +40,41 @@ export default function LiveEthPrice() {
   useEffect(() => {
     if (!CONFIG.PRICE_NOISE || !realPrice.current) return
 
+    let lastUpdateTime = performance.now()
+    
     const generatePriceNoise = () => {
-      // Chance to stay still
-      if (Math.random() < CONFIG.STILL_CHANCE) {
-        return;
+      const now = performance.now()
+      
+      // Check if enough time has passed since last update
+      if (now - lastUpdateTime >= CONFIG.UPDATE_INTERVAL) {
+        // Chance to stay still
+        if (Math.random() >= CONFIG.STILL_CHANCE) {
+          // Generate new noise with momentum from previous noise
+          const randomNoise = (Math.random() - 0.5) * CONFIG.PRICE_NOISE
+          const momentumNoise = (lastNoise.current * CONFIG.MOMENTUM_FACTOR) + 
+                               (randomNoise * (1 - CONFIG.MOMENTUM_FACTOR))
+          
+          lastNoise.current = momentumNoise
+          const newPrice = realPrice.current + momentumNoise
+          
+          // Only change color if the price differs at 2 decimal places
+          const formattedNewPrice = newPrice.toFixed(2)
+          const formattedLastPrice = lastPrice.current.toFixed(2)
+          
+          if (formattedNewPrice !== formattedLastPrice) {
+            const isIncreasing = parseFloat(formattedNewPrice) > parseFloat(formattedLastPrice)
+            setPriceColor(isIncreasing ? 'text-[#01FF55]' : 'text-red-500')
+          }
+          
+          lastPrice.current = newPrice
+          setDisplayPrice(newPrice)
+        }
+        lastUpdateTime = now
       }
-
-      // Generate new noise with momentum from previous noise
-      const randomNoise = (Math.random() - 0.5) * CONFIG.PRICE_NOISE
-      const momentumNoise = (lastNoise.current * CONFIG.MOMENTUM_FACTOR) + 
-                           (randomNoise * (1 - CONFIG.MOMENTUM_FACTOR))
-      
-      lastNoise.current = momentumNoise
-      const newPrice = realPrice.current + momentumNoise
-      
-      // Only change color if the price differs at 2 decimal places
-      const formattedNewPrice = newPrice.toFixed(2)
-      const formattedLastPrice = lastPrice.current.toFixed(2)
-      
-      if (formattedNewPrice !== formattedLastPrice) {
-        const isIncreasing = parseFloat(formattedNewPrice) > parseFloat(formattedLastPrice)
-        setPriceColor(isIncreasing ? 'text-[#01FF55]' : 'text-red-500')
-      }
-      
-      lastPrice.current = newPrice
-      setDisplayPrice(newPrice)
     }
 
-    const interval = setInterval(generatePriceNoise, CONFIG.UPDATE_INTERVAL)
+    // Run the interval more frequently than the desired update interval
+    const interval = setInterval(generatePriceNoise, 50)
     return () => clearInterval(interval)
   }, [realPrice.current])
 
