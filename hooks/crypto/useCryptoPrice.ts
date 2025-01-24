@@ -1,3 +1,5 @@
+'use client'
+
 import useSWR from 'swr'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 
@@ -56,7 +58,7 @@ export function useCryptoPrice(symbol: string) {
       }
     },
     {
-      refreshInterval: 1000, // Back to 500ms (2 updates per second)
+      refreshInterval: 1000,
       revalidateOnFocus: true,
       dedupingInterval: 500,
     }

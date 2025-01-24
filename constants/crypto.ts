@@ -16,7 +16,7 @@ export const TOKEN_LOGOS: { [key: string]: string } = {
 }
 
 // Token-specific constants
-export const TOKEN_CONSTANTS = {
+export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
   pHEX: {
     PAIR: {
       pairAddress: '0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65',
@@ -263,6 +263,18 @@ export const TOKEN_CONSTANTS = {
     PAIR: {
       chain: 'solana',
       pairAddress: 'A8nPhpCJqtqHdqUk35Uj9Hy2YsGXFkCZGuNwvkD3k7VC'
+    }
+  },
+  'pDAI': {
+    PAIR: {
+      chain: 'pulsechain',
+      pairAddress: '0xfC64556FAA683e6087F425819C7Ca3C558e13aC1'
+    }
+  },
+  'WBTC': {
+    PAIR: {
+      chain: 'pulsechain',
+      pairAddress: '0x46E27Ea3A035FfC9e6d6D56702CE3D208FF1e58c'
     }
   }
 }
