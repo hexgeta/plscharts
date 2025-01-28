@@ -8,7 +8,7 @@ import DiscountChartEMAXI from '@/components/DiscountChartEMAXI';
 import DiscountChartEDECI from '@/components/DiscountChartEDECI';
 import DiscountChartELUCKY from '@/components/DiscountChartELUCKY';
 import DiscountChartETRIO from '@/components/DiscountChartETRIO'; 
-
+import DiscountChartEBASE from '@/components/DiscountChartEBASE';
 const DeltaDiscounts = () => {
   return (
     <div className="p-2 sm:p-4">
@@ -27,9 +27,9 @@ const DeltaDiscounts = () => {
         <div>
           <DiscountChartTRIO title="pTrio 🎲" />
         </div>
-        {/* <div>
+        <div>
           <DiscountChartBASE title="pBase 🟠" />
-        </div> */}
+        </div>
         <div>
           <DiscountChartEMAXI title="eMaxi Ⓜ️" />
         </div>
@@ -41,6 +41,9 @@ const DeltaDiscounts = () => {
         </div>
         <div>
           <DiscountChartETRIO title="eTrio 🎲" />
+        </div>
+        <div>
+          <DiscountChartEBASE title="eBase 🟠" />
         </div>
       </div>
     </div>

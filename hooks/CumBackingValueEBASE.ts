@@ -12,23 +12,23 @@ interface StakePeriod {
   stakePrinciple: number;
 }
 
-export const CumBackingValueBASE = () => {
+export const CumBackingValueEBASE = () => {
   // Fetch HEX daily stats for yield calculations
   const { data: hexData, error: hexError } = useSWR(
-    'https://hexdailystats.com/fulldatapulsechain',
+    'https://hexdailystats.com/fulldata',
     fetcher
   );
 
   // Fetch price data from Supabase
   const { data: priceData, error: priceError } = useSWR(
-    'price_data_base',
+    'price_data_ebase',
     async () => {
-      console.log('Fetching BASE price data...');
+      console.log('Fetching EBASE price data...');
       const { data, error } = await supabase
         .from('historic_prices')
-        .select('date, hex_price, ehex_price, base_price')
-        .gte('date', '2022-09-27') // First BASE launch date
-        .not('base_price', 'is', null)
+        .select('date, hex_price, ehex_price, ebase_price')
+        .gte('date', '2022-09-27') // First EBASE launch date
+        .not('ebase_price', 'is', null)
         .order('date', { ascending: true });
       
       if (error) throw error;
@@ -44,7 +44,7 @@ export const CumBackingValueBASE = () => {
       priceData.map(day => [
         new Date(day.date).toISOString().split('T')[0],
         {
-          priceRatio: parseFloat(day.base_price) / (day.hex_price ? parseFloat(day.hex_price) : parseFloat(day.ehex_price))
+          priceRatio: parseFloat(day.ebase_price) / parseFloat(day.ehex_price)
         }
       ])
     );
@@ -52,22 +52,22 @@ export const CumBackingValueBASE = () => {
     // Define all stake periods
     const stakePeriods: StakePeriod[] = [
       {
-        startDate: TOKEN_CONSTANTS.pBASE.STAKE_START_DATE,
-        endDate: TOKEN_CONSTANTS.pBASE.STAKE_END_DATE,
-        tshares: TOKEN_CONSTANTS.pBASE.TSHARES || 0,
-        stakePrinciple: TOKEN_CONSTANTS.pBASE.STAKE_PRINCIPLE || 0
+        startDate: TOKEN_CONSTANTS.eBASE.STAKE_START_DATE,
+        endDate: TOKEN_CONSTANTS.eBASE.STAKE_END_DATE,
+        tshares: TOKEN_CONSTANTS.eBASE.TSHARES || 0,
+        stakePrinciple: TOKEN_CONSTANTS.eBASE.STAKE_PRINCIPLE || 0
       },
       {
-        startDate: TOKEN_CONSTANTS.pBASE2.STAKE_START_DATE,
-        endDate: TOKEN_CONSTANTS.pBASE2.STAKE_END_DATE,
-        tshares: TOKEN_CONSTANTS.pBASE2.TSHARES || 0,
-        stakePrinciple: TOKEN_CONSTANTS.pBASE2.STAKE_PRINCIPLE || 0
+        startDate: TOKEN_CONSTANTS.eBASE2.STAKE_START_DATE,
+        endDate: TOKEN_CONSTANTS.eBASE2.STAKE_END_DATE,
+        tshares: TOKEN_CONSTANTS.eBASE2.TSHARES || 0,
+        stakePrinciple: TOKEN_CONSTANTS.eBASE2.STAKE_PRINCIPLE || 0
       },
       {
-        startDate: TOKEN_CONSTANTS.pBASE3.STAKE_START_DATE,
-        endDate: TOKEN_CONSTANTS.pBASE3.STAKE_END_DATE,
-        tshares: TOKEN_CONSTANTS.pBASE3.TSHARES || 0,
-        stakePrinciple: TOKEN_CONSTANTS.pBASE3.STAKE_PRINCIPLE || 0
+        startDate: TOKEN_CONSTANTS.eBASE3.STAKE_START_DATE,
+        endDate: TOKEN_CONSTANTS.eBASE3.STAKE_END_DATE,
+        tshares: TOKEN_CONSTANTS.eBASE3.TSHARES || 0,
+        stakePrinciple: TOKEN_CONSTANTS.eBASE3.STAKE_PRINCIPLE || 0
       }
     ];
 
@@ -146,4 +146,4 @@ export const CumBackingValueBASE = () => {
     error: hexError || priceError,
     isLoading: !hexData || !priceData
   };
-};
+}; 

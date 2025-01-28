@@ -3,21 +3,23 @@ import {
   LineChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer
 } from 'recharts';
 import { Skeleton } from "@/components/ui/skeleton2";
-import { CumBackingValueBASE } from '@/hooks/CumBackingValueBASE';
+import { CumBackingValueEBASE } from '@/hooks/CumBackingValueEBASE';
 
 interface Props {
   title: string;
 }
 
-function DiscountChartBASE({ title }: Props) {
-  const { data, error, isLoading } = CumBackingValueBASE();
+function DiscountChartEBASE({ title }: Props) {
+  const { data, error, isLoading } = CumBackingValueEBASE();
   
   console.log('Chart Data:', {
     isLoading,
     error,
     dataLength: data?.length,
     firstFewItems: data?.slice(0, 5),
-    lastFewItems: data?.slice(-5)
+    lastFewItems: data?.slice(-5),
+    lastDate: data?.length > 0 ? new Date(data[data.length - 1].date).toISOString() : null,
+    allDates: data?.map(d => new Date(d.date).toISOString())
   });
 
   useEffect(() => {
@@ -209,4 +211,4 @@ function DiscountChartBASE({ title }: Props) {
   );
 }
 
-export default DiscountChartBASE; 
+export default DiscountChartEBASE; 
