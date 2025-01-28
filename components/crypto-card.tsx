@@ -1,12 +1,13 @@
 import Image from 'next/image'
 import { Card } from "@/components/ui/card"
 import { TokenData } from '@/types/crypto'
-import { TOKEN_LOGOS } from '@/constants/crypto'
+import { TOKEN_LOGOS, TOKEN_CONSTANTS } from '@/constants/crypto'
 import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice'
 import { useCryptoRatio } from '@/hooks/crypto/useCryptoRatio'
 import { useBackingValue } from '@/hooks/crypto/useBackingValue'
 import { formatNumber, formatPrice, formatHexRatio, formatBacking } from '@/utils/format'
 import { Skeleton } from '@/components/ui/skeleton2'
+import { calculateStakeProgress } from '@/utils/stakeProgress'
 
 interface CryptoCardProps {
   data: TokenData
@@ -24,6 +25,47 @@ function convertSymbol(symbol: string): string {
 function getPriceChangeColor(change: number): string {
   if (Math.abs(change * 100) < 1) return 'text-zinc-500'
   return change >= 0 ? 'text-[#01FF55]' : 'text-red-500'
+}
+
+function StakeProgressBar({ symbol }: { symbol: string }) {
+  const tokenConfig = TOKEN_CONSTANTS[symbol]
+  if (!tokenConfig?.STAKE_TYPE) return null
+
+  // Get dates based on stake type
+  let startDate: Date
+  let endDate: Date
+
+  if (tokenConfig.STAKE_TYPE === 'rolling') {
+    // For rolling stakes, find the latest stake's dates
+    const relatedStakes = tokenConfig.RELATED_STAKES || []
+    const latestStake = relatedStakes
+      .map(stakeSymbol => TOKEN_CONSTANTS[stakeSymbol])
+      .sort((a, b) => {
+        if (!a?.STAKE_END_DATE || !b?.STAKE_END_DATE) return 0
+        return new Date(b.STAKE_END_DATE).getTime() - new Date(a.STAKE_END_DATE).getTime()
+      })[0]
+
+    if (!latestStake?.STAKE_START_DATE || !latestStake?.STAKE_END_DATE) return null
+    startDate = latestStake.STAKE_START_DATE
+    endDate = latestStake.STAKE_END_DATE
+  } else {
+    // For fixed stakes (MAXI), use its own dates
+    if (!tokenConfig.STAKE_START_DATE || !tokenConfig.STAKE_END_DATE) return null
+    startDate = tokenConfig.STAKE_START_DATE
+    endDate = tokenConfig.STAKE_END_DATE
+  }
+  
+  const progress = calculateStakeProgress(startDate, endDate)
+
+  return (
+    <div className="relative h-[3px] my-2">
+      <div className="absolute inset-0 bg-[#23411F] rounded-full" />
+      <div 
+        className="absolute inset-y-0 left-0 bg-[#70D668] rounded-full" 
+        style={{ width: `${progress}%` }} 
+      />
+    </div>
+  )
 }
 
 export function CryptoCard({ data, variant = 'default' }: CryptoCardProps) {
@@ -117,7 +159,7 @@ export function CryptoCard({ data, variant = 'default' }: CryptoCardProps) {
         </div>
         {showBacking && (
           <>
-            <hr className="border-zinc-800 my-2" />
+            <StakeProgressBar symbol={data.symbol} />
             {!hasBackingData || backingLoading ? (
               <div className="space-y-2 text-sm text-zinc-500">
                 <Skeleton>Stake backing: 1.92</Skeleton>
