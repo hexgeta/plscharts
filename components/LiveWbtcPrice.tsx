@@ -113,7 +113,8 @@ export default function LiveWbtcPrice() {
             value={Math.abs(currentPrice)}
             format={{ 
               style: 'currency', 
-              currency: 'USD', 
+              currency: 'USD',
+              currencyDisplay: 'narrowSymbol',
               minimumFractionDigits: CONFIG.PRICE_DECIMALS, 
               maximumFractionDigits: CONFIG.PRICE_DECIMALS 
             }}

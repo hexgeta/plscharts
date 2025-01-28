@@ -1,5 +1,19 @@
 import { PairData } from '@/types/crypto'
 
+export interface TokenConfig {
+  PAIR: {
+    chain: 'pulsechain' | 'ethereum' | 'solana';
+    pairAddress: string;
+  };
+  LAUNCH_DATE?: Date;
+  TSHARES?: number;
+  STAKE_PRINCIPLE?: number;
+  TOKEN_SUPPLY?: number;
+  STAKE_START_DATE?: Date;
+  STAKE_END_DATE?: Date;
+  TOTAL_STAKED_DAYS?: number;
+}
+
 export const TOKEN_LOGOS: { [key: string]: string } = {
   'HEX': '/coin-logos/HEX.svg',
   'MAXI': '/coin-logos/maxi/MAXI.svg',
@@ -13,6 +27,8 @@ export const TOKEN_LOGOS: { [key: string]: string } = {
   'HDRN': '/coin-logos/HDRN.svg',
   'ICOSA': '/coin-logos/ICOSA.svg',
   'INC': '/coin-logos/INC.svg',
+  'pDAI': '/coin-logos/pDAI.svg',
+  'pWBTC': '/coin-logos/pWBTC.svg',
 }
 
 // Token-specific constants
@@ -29,7 +45,7 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
       chain: 'ethereum'
     }
   },
-  pMAXI: {
+  pMAXI: { 
     LAUNCH_DATE: new Date('2022-05-01'),
     TSHARES: 42104.44,
     STAKE_PRINCIPLE: 294323603.77,
@@ -55,6 +71,10 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
       chain: 'ethereum'
     }
   },
+// MAXI BURNS (Accounted for already)
+// 1M from the Hedron Deployer after the WAATSA mints, Aug-17-2022 03:30:01 AM UTC
+//~18.77M during the TEAM minting, Sep-27-2022 12:01:47 AM UTC
+
   pDECI: {
     LAUNCH_DATE: new Date('2022-09-27'),
     STAKE_PRINCIPLE: 565991988,

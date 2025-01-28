@@ -85,7 +85,7 @@ export function useBackingValue(token: string) {
         const backingStakeYield = payoutSum * (tokenConfig.TSHARES || 0)
         const stakePrinciple = tokenConfig.STAKE_PRINCIPLE || 0
         const backingStakeValue = stakePrinciple + backingStakeYield
-        const backingStakeRatio = stakePrinciple > 0 ? backingStakeValue / stakePrinciple : 0
+        const backingStakeRatio = tokenConfig.TOKEN_SUPPLY > 0 ? backingStakeValue / tokenConfig.TOKEN_SUPPLY : 0
 
         // Use eHEX price for Ethereum tokens, pHEX price for Pulsechain tokens
         const hexPrice = isEthereumToken ? eHexPrice : pHexPrice
