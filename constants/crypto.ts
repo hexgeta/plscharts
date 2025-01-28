@@ -5,12 +5,15 @@ export interface TokenConfig {
     chain: 'pulsechain' | 'ethereum' | 'solana';
     pairAddress: string;
   };
+  STAKE_TYPE: 'rolling' | 'fixed';
+  RELATED_STAKES?: string[];
+  CURRENT_ACTIVE_STAKE?: string;
   LAUNCH_DATE?: Date;
   TSHARES?: number;
   STAKE_PRINCIPLE?: number;
   TOKEN_SUPPLY?: number;
-  STAKE_START_DATE?: Date;
-  STAKE_END_DATE?: Date;
+  STAKE_START_DATE: Date;
+  STAKE_END_DATE: Date;
   TOTAL_STAKED_DAYS?: number;
 }
 
@@ -45,7 +48,8 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
       chain: 'ethereum'
     }
   },
-  pMAXI: { 
+  pMAXI: {
+    STAKE_TYPE: 'fixed',
     LAUNCH_DATE: new Date('2022-05-01'),
     TSHARES: 42104.44,
     STAKE_PRINCIPLE: 294323603.77,
@@ -59,6 +63,7 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     }
   },
   eMAXI: {
+    STAKE_TYPE: 'fixed',
     LAUNCH_DATE: new Date('2022-05-01'),
     TSHARES: 42104.44,
     STAKE_PRINCIPLE: 294323603.77,
@@ -76,6 +81,9 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
 //~18.77M during the TEAM minting, Sep-27-2022 12:01:47 AM UTC
 
   pDECI: {
+    STAKE_TYPE: 'rolling',
+    RELATED_STAKES: ['pDECI'],
+    CURRENT_ACTIVE_STAKE: 'pDECI',
     LAUNCH_DATE: new Date('2022-09-27'),
     STAKE_PRINCIPLE: 565991988,
     TOKEN_SUPPLY: 565991988,
@@ -89,6 +97,9 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     }
   },
   eDECI: {
+    STAKE_TYPE: 'rolling',
+    RELATED_STAKES: ['eDECI'],
+    CURRENT_ACTIVE_STAKE: 'eDECI',
     LAUNCH_DATE: new Date('2022-09-27'),
     STAKE_PRINCIPLE: 565991988,
     TOKEN_SUPPLY: 565991988,
@@ -102,6 +113,9 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     }
   },
   pLUCKY: {
+    STAKE_TYPE: 'rolling',
+    RELATED_STAKES: ['pLUCKY'],
+    CURRENT_ACTIVE_STAKE: 'pLUCKY',
     LAUNCH_DATE: new Date('2022-09-27'),
     STAKE_PRINCIPLE: 74985502,
     TOKEN_SUPPLY: 74985502,
@@ -115,6 +129,9 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     }
   },
   eLUCKY: {
+    STAKE_TYPE: 'rolling',
+    RELATED_STAKES: ['eLUCKY'],
+    CURRENT_ACTIVE_STAKE: 'eLUCKY',
     LAUNCH_DATE: new Date('2022-09-27'),
     STAKE_PRINCIPLE: 74985502,
     TOKEN_SUPPLY: 74985502,
@@ -128,6 +145,9 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     }
   },
   pTRIO: {
+    STAKE_TYPE: 'rolling',
+    RELATED_STAKES: ['pTRIO'],
+    CURRENT_ACTIVE_STAKE: 'pTRIO',
     LAUNCH_DATE: new Date('2022-09-27'),
     STAKE_PRINCIPLE: 69617911,
     TOKEN_SUPPLY: 69617911,
@@ -141,6 +161,9 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     }
   },
   eTRIO: {
+    STAKE_TYPE: 'rolling',
+    RELATED_STAKES: ['eTRIO'],
+    CURRENT_ACTIVE_STAKE: 'eTRIO',
     LAUNCH_DATE: new Date('2022-09-27'),
     STAKE_PRINCIPLE: 69617911,
     TOKEN_SUPPLY: 69617911,
@@ -153,7 +176,10 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
       chain: 'pulsechain'
     }
   },
-  pBASE: {
+  'pBASE': {
+    STAKE_TYPE: 'rolling',
+    RELATED_STAKES: ['pBASE', 'pBASE2', 'pBASE3'],
+    CURRENT_ACTIVE_STAKE: 'pBASE2',
     LAUNCH_DATE: new Date('2022-09-27'),
     STAKE_PRINCIPLE: 100033101,
     TOKEN_SUPPLY: 100033101,
@@ -166,7 +192,10 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
       chain: 'pulsechain'
     }
   },
-  eBASE: {
+  'eBASE': {
+    STAKE_TYPE: 'rolling',
+    RELATED_STAKES: ['eBASE', 'eBASE2', 'eBASE3'],
+    CURRENT_ACTIVE_STAKE: 'eBASE2',
     LAUNCH_DATE: new Date('2022-09-27'),
     STAKE_PRINCIPLE: 100033101,
     TOKEN_SUPPLY: 100033101,
@@ -181,7 +210,7 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
   },
   pBASE2: {
     LAUNCH_DATE: new Date('2023-10-10'),
-    STAKE_PRINCIPLE: 109163369,
+    STAKE_PRINCIPLE: 109163369.06540806,
     TOKEN_SUPPLY: 97197332,
     TSHARES: 4532.11,
     STAKE_START_DATE: new Date('2023-10-10'),
@@ -193,9 +222,10 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     }
   },
   eBASE2: {
+    STAKE_TYPE: 'rolling',
     LAUNCH_DATE: new Date('2023-10-10'),
-    STAKE_PRINCIPLE: 94725486,
-    TOKEN_SUPPLY: 84316269,
+    STAKE_PRINCIPLE: 94725486.32257561,
+    TOKEN_SUPPLY: 84316269, 
     TSHARES: 3917.41,
     STAKE_START_DATE: new Date('2023-10-10'),
     STAKE_END_DATE: new Date('2024-10-13'),
@@ -206,12 +236,12 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     }
   },
   pBASE3: {
-    LAUNCH_DATE: new Date('2022-09-27'),
-    STAKE_PRINCIPLE: 0,
+    LAUNCH_DATE: new Date('2024-09-23'),
+    STAKE_PRINCIPLE: 67444991.8094404,
     TOKEN_SUPPLY: 54165743.289,
-    TSHARES: 0,
-    STAKE_START_DATE: new Date('2023-10-10'),
-    STAKE_END_DATE: new Date('2024-10-13'),
+    TSHARES: 2232.801612927137,
+    STAKE_START_DATE: new Date('2024-09-23'),
+    STAKE_END_DATE: new Date('2025-10-27'),
     TOTAL_STAKED_DAYS: 369,
     PAIR: {
       pairAddress: '0xb39490b46d02146f59e80c6061bb3e56b824d672',
@@ -219,12 +249,13 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     }
   },
   eBASE3: {
-    LAUNCH_DATE: new Date('2022-09-27'),
-    STAKE_PRINCIPLE: 0,
+    STAKE_TYPE: 'rolling',
+    LAUNCH_DATE: new Date('2024-10-26'),
+    STAKE_PRINCIPLE: 88475347.99948653,
     TOKEN_SUPPLY: 70668766.59912861,
-    TSHARES: 0,
-    STAKE_START_DATE: new Date('2023-10-10'),
-    STAKE_END_DATE: new Date('2024-10-13'),
+    TSHARES: 2939.965758095464,
+    STAKE_START_DATE: new Date('2024-10-26'),
+    STAKE_END_DATE: new Date('2025-10-30'),
     TOTAL_STAKED_DAYS: 369,
     PAIR: {
       pairAddress: '0x7b33fe2C4f48da97dc2BAa1f32f869c50Dc1dF85',
@@ -288,7 +319,7 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
   'pDAI': {
     PAIR: {
       chain: 'pulsechain',
-      pairAddress: '0xfC64556FAA683e6087F425819C7Ca3C558e13aC1'
+      pairAddress: '0xFC64556FAA683e6087F425819C7Ca3C558e13aC1'
     }
   },
   'WBTC': {
