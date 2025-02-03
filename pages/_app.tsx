@@ -14,7 +14,11 @@ function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isLivestreamPage = router.pathname === '/radio' || router.pathname === '/liveprices' || router.pathname === '/ethprices' || router.pathname === '/plsprices' || router.pathname === '/pdaiprices' || router.pathname === '/wbtcprices';
 
-  if (MAINTENANCE_MODE) {
+  // Check if we're on the private subdomain
+  const isPrivateAccess = typeof window !== 'undefined' && window.location.hostname === 'private.lookintomaxi.com';
+
+  // Show maintenance page only if maintenance mode is on AND we're not on private subdomain
+  if (MAINTENANCE_MODE && !isPrivateAccess) {
     return (
       <>
         <Head>
