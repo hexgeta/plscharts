@@ -35,6 +35,12 @@ function MyApp({ Component, pageProps }: AppProps) {
       <Head>
         <title>LookIntoMaxi Ⓜ️🛡️🍀🎲🟠</title>
         <meta name="description" content="Don't fade liquid hex stakes bro - This is a Maximus Dao stats & charts site. Earn passive yield in your cold hardware wallet & sell at any time!" />
+        {isPrivateAccess && (
+          <>
+            <meta name="robots" content="noindex, nofollow" />
+            <meta name="googlebot" content="noindex, nofollow" />
+          </>
+        )}
       </Head>
       {!isLivestreamPage && <NavigationBar />}
       <div className="App">

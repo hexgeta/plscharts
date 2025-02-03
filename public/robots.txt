@@ -1,3 +1,16 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /sitemap*
+Disallow: /*.xml$
+
+# Block private subdomain completely
+User-agent: *
+Disallow: /
+Host: private.lookintomaxi.com
+
+# Block all known sitemap paths
+Disallow: /sitemap.xml
+Disallow: /sitemap_index.xml
+Disallow: /sitemaps/
+Disallow: /sitemap/
