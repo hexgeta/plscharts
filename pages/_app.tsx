@@ -5,10 +5,26 @@ import NavigationBar from '../components/NavBar';
 import Footer from '../components/Footer';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import MaintenancePage from '../components/MaintenancePage';
+
+// Set this to true to enable maintenance mode
+const MAINTENANCE_MODE = true;
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isLivestreamPage = router.pathname === '/radio' || router.pathname === '/liveprices' || router.pathname === '/ethprices' || router.pathname === '/plsprices' || router.pathname === '/pdaiprices' || router.pathname === '/wbtcprices';
+
+  if (MAINTENANCE_MODE) {
+    return (
+      <>
+        <Head>
+          <title>Maintenance - LookIntoMaxi Ⓜ️🛡️🍀🎲🟠</title>
+          <meta name="description" content="Site is currently under maintenance." />
+        </Head>
+        <MaintenancePage />
+      </>
+    );
+  }
 
   return (
     <div>
