@@ -398,7 +398,7 @@ const TshareProjectionLeagues: React.FC = () => {
     <div className="w-full h-[450px] my-10 relative">
       <div className="w-full h-full p-5 bg-black border border-white/20 rounded-[15px] text-white">
         <div className="flex justify-between items-center px-4 mb-4">
-          <h2 className="text-2xl font-bold">T-Share Projection Leagues</h2>
+          <h2 className="text-2xl font-bold">T-Share Projected Leagues</h2>
         </div>
         
         {!isChartReady ? (
@@ -541,6 +541,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 labelFormatter={formatDate}
               />
               <Legend content={customLegend} />
+              {/* T-Share supply lines - render these first so they're underneath */}
               <Area 
                 type="monotone" 
                 dataKey="tshareRateHEX" 
@@ -595,113 +596,114 @@ const TshareProjectionLeagues: React.FC = () => {
                 hide={!visibleLines.projectedEHEX}
                 isAnimationActive={false}
               />
+              {/* League lines - render these last so they're on top */}
               <Area 
                 type="monotone" 
                 dataKey="leagueTrident" 
                 name="🔱 10% League"
-                stroke="#FFD700"
+                stroke="rgba(255, 215, 0, 0.4)"
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
                 dataKey="leagueWhale" 
                 name="🐋 1% League"
-                stroke="#87CEEB"
+                stroke="rgba(135, 206, 235, 0.4)"
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
                 dataKey="leagueShark" 
                 name="🦈 0.1% League"
-                stroke="#98FB98"
+                stroke="rgba(152, 251, 152, 0.4)"
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
                 dataKey="leagueDolphin" 
                 name="🐬 0.01% League"
-                stroke="#FFA07A"
+                stroke="rgba(255, 160, 122, 0.4)"
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
                 dataKey="leagueSquid" 
                 name="🦑 0.001% League"
-                stroke="#DDA0DD"
+                stroke="rgba(221, 160, 221, 0.4)"
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
                 dataKey="leagueTurtle" 
                 name="🐢 0.0001% League"
-                stroke="#F0E68C"
+                stroke="rgba(240, 230, 140, 0.4)"
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
                 dataKey="leagueCrab" 
                 name="🦀 0.00001% League"
-                stroke="#B8860B"
+                stroke="rgba(184, 134, 11, 0.4)"
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
                 dataKey="leagueShrimp" 
                 name="🦐 0.000001% League"
-                stroke="#CD853F"
+                stroke="rgba(205, 133, 63, 0.4)"
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
                 dataKey="leagueShell" 
                 name="🐚 0.0000001% League"
-                stroke="#DAA520"
+                stroke="rgba(218, 165, 32, 0.4)"
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -714,6 +716,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -726,6 +729,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -738,6 +742,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -750,6 +755,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -762,6 +768,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -774,6 +781,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -786,6 +794,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -798,6 +807,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -810,6 +820,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateEHEX}
               />
               <Area 
                 type="monotone" 
@@ -819,9 +830,9 @@ const TshareProjectionLeagues: React.FC = () => {
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -831,9 +842,9 @@ const TshareProjectionLeagues: React.FC = () => {
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -843,9 +854,9 @@ const TshareProjectionLeagues: React.FC = () => {
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -855,9 +866,9 @@ const TshareProjectionLeagues: React.FC = () => {
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -867,9 +878,9 @@ const TshareProjectionLeagues: React.FC = () => {
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -879,9 +890,9 @@ const TshareProjectionLeagues: React.FC = () => {
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -891,9 +902,9 @@ const TshareProjectionLeagues: React.FC = () => {
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -903,9 +914,9 @@ const TshareProjectionLeagues: React.FC = () => {
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -915,9 +926,9 @@ const TshareProjectionLeagues: React.FC = () => {
                 fill="none"
                 dot={false} 
                 strokeWidth={1}
-                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -930,6 +941,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -942,6 +954,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -954,6 +967,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -966,6 +980,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -978,6 +993,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -990,6 +1006,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -1002,6 +1019,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -1014,6 +1032,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
               <Area 
                 type="monotone" 
@@ -1026,6 +1045,7 @@ const TshareProjectionLeagues: React.FC = () => {
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
+                hide={!visibleLines.tshareRateHEX}
               />
             </AreaChart>
           </ResponsiveContainer>
