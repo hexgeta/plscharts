@@ -1,5 +1,5 @@
 import '../styles/global.css';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { AppProps } from 'next/app';
 import NavigationBar from '../components/NavBar';
 import Footer from '../components/Footer';
@@ -12,10 +12,25 @@ const MAINTENANCE_MODE = true;
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const isLivestreamPage = router.pathname === '/radio' || router.pathname === '/liveprices' || router.pathname === '/ethprices' || router.pathname === '/plsprices' || router.pathname === '/pdaiprices' || router.pathname === '/wbtcprices';
+  const [isPrivateAccess, setIsPrivateAccess] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Check if we're on the private subdomain
-  const isPrivateAccess = typeof window !== 'undefined' && window.location.hostname === 'private.lookintomaxi.com';
+  const isLivestreamPage = router.pathname === '/radio' || 
+                          router.pathname === '/liveprices' || 
+                          router.pathname === '/ethprices' || 
+                          router.pathname === '/plsprices' || 
+                          router.pathname === '/pdaiprices' || 
+                          router.pathname === '/wbtcprices';
+
+  useEffect(() => {
+    setIsMounted(true);
+    const hostname = window.location.hostname;
+    setIsPrivateAccess(hostname === 'private.lookintomaxi.com' || hostname === 'localhost');
+  }, []);
+
+  if (!isMounted) {
+    return null;
+  }
 
   // Show maintenance page only if maintenance mode is on AND we're not on private subdomain
   if (MAINTENANCE_MODE && !isPrivateAccess) {

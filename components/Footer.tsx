@@ -23,6 +23,7 @@ const Footer = () => {
             <li><Link href="/hex-gains" className="text-[rgb(153,153,153)] hover:text-gray-300">HEX Xs from Low</Link></li>
             <li><Link href="/liquidity" className="text-[rgb(153,153,153)] hover:text-gray-300">HEX Liquidity</Link></li>
             <li><Link href="/ratios" className="text-[rgb(153,153,153)] hover:text-gray-300">Price Ratios</Link></li>
+            <li><Link href="/tshares" className="text-[rgb(153,153,153)] hover:text-gray-300">T-Share Supply</Link></li>
           </ul>
         </div>
         <div className="col-span-1">
