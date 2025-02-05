@@ -8,7 +8,7 @@ import { useRouter } from 'next/router';
 import MaintenancePage from '../components/MaintenancePage';
 
 // Set this to true to enable maintenance mode
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
