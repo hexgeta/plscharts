@@ -73,7 +73,7 @@ export const CumBackingValueLUCKY = () => {
       // Calculate daily yield using payoutPerTshareHEX
       const dailyYield = day.payoutPerTshareHEX * TSHARES || 0;
       cumulativeYield += dailyYield;
-      const yieldAdjustedBacking = (cumulativeYield + STAKE_PRINCIPLE) / STAKE_PRINCIPLE;
+      const yieldAdjustedBacking = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_CONSTANTS.pLUCKY.TOKEN_SUPPLY;
 
       // Get price ratio from Supabase data
       const dateKey = new Date(day.date).toISOString().split('T')[0];
