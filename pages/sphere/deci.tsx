@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { CumBackingValueMAXI } from '../hooks/CumBackingValueMAXI';
+import { CumBackingValueDECI } from '@/hooks/CumBackingValueDECI';
 import Image from 'next/image';
 import { TOKEN_LOGOS } from '@/constants/crypto';
 import MusicPlayer from '@/components/MusicPlayer';
 import React from 'react';
 
 const playlist = [
-  '3.mp3'
+  'deci.mp3'
 ];
 
 // Configuration object for all adjustable parameters
@@ -45,7 +45,7 @@ export default function YieldSphere() {
   const [shouldPlayMusic, setShouldPlayMusic] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const { data: yieldData, isLoading } = CumBackingValueMAXI();
+  const { data: yieldData, isLoading } = CumBackingValueDECI();
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const [currentDate, setCurrentDate] = useState<string>('');
   const [currentYield, setCurrentYield] = useState<number>(0);
@@ -62,18 +62,18 @@ export default function YieldSphere() {
    const [settings, setSettings] = useState<VisualizationSettings>({
     // Sphere Configuration
     radius: 3,
-    spiralPoints: 5555,
+    spiralPoints: 3696,
     spiralTurns: 1000,
     
     // Animation Settings
-    progressSpeed: 0.2,
+    progressSpeed: 0.1,
     rotationSpeedX: -0.4,
     rotationSpeedY: 0.5,
     rotationSpeedZ: 0.8,
     globalRotationSpeed: 0.4,
     
     // Visual Settings
-    baseColorHex: '#3991ED',
+    baseColorHex: '#FF0000', // Red color for DECI
     inactiveOpacity: 0.1,
     inactiveColorHex: '#fff',
     
@@ -290,19 +290,19 @@ export default function YieldSphere() {
       <div className="absolute top-4 left-4 text-white z-10 bg-black/20 backdrop-blur-sm p-4 rounded-xl border-2 border-white/10">
         <div className="flex items-center gap-2">
           <Image
-            src={TOKEN_LOGOS['MAXI']}
-            alt="MAXI logo"
+            src={TOKEN_LOGOS['DECI']}
+            alt="DECI logo"
             width={24}
             height={24}
             className="rounded-full"
           />
-          <h1 className="text-2xl font-bold">pMAXI</h1>
+          <h1 className="text-2xl font-bold">pDECI</h1>
         </div>
         <p>Visualizing cumulative yield accumulation</p>
         {currentDate && (
           <div className="mt-4 space-y-2">
             <p>Date: {currentDate}</p>
-            <p>1 MAXI = {currentYield.toFixed(4)} HEX</p>
+            <p>1 DECI = {currentYield.toFixed(4)} HEX</p>
             <p>Day: {currentDay} / {availableDays} of {settings.spiralPoints}</p>
             <div className="w-full bg-white/30 h-2 rounded-full overflow-hidden">
               <div 
@@ -314,142 +314,15 @@ export default function YieldSphere() {
               <span>Current Progress</span>
               <span>{((currentDay / settings.spiralPoints) * 100).toFixed(2)}%</span>
             </div>
-            {/*
-            <div className="w-full bg-white/30 h-1 rounded-full mt-1 overflow-hidden">
-              <div 
-                className="h-full bg-white/50 rounded-full"
-                style={{ width: `${(availableDays / settings.spiralPoints) * 100}%` }}
-              />
-            </div> */}
-            {/* <div className="flex justify-between text-xs text-white/70">
-              <span>Available Data</span>
-              <span>{((availableDays / settings.spiralPoints) * 100).toFixed(2)}%</span>
-            </div> */}
           </div>
         )}
       </div>
-      
-      {/* Control Panel
-      <div className={`absolute top-4 right-4 bg-black/20 backdrop-blur-sm p-4 rounded-xl border-2 border-white/10 text-white z-10 transition-all duration-300 ${isPanelCollapsed ? 'w-14' : 'w-80'}`}>
-        <button 
-          onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
-          className={`absolute ${isPanelCollapsed ? 'inset-0 w-full h-full flex items-center justify-center' : 'top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full'}`}
-        >
-          <span className={`${isPanelCollapsed ? 'text-white/70 text-lg' : ''}`}>
-            {isPanelCollapsed ? '←' : '→'}
-          </span>
-        </button>
-        
-        {!isPanelCollapsed && (
-          <>
-            <h2 className="text-lg font-bold mb-4">Control Console</h2>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="block text-sm">Progress Speed</label>
-                  <span className="text-sm">{((settings.progressSpeed * 10000000) / 1000000).toFixed(1)}M x</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.01"
-                  max="0.2"
-                  step="0.001"
-                  value={settings.progressSpeed}
-                  onChange={(e) => updateSetting('progressSpeed', parseFloat(e.target.value))}
-                  className="w-full bg-white/20 rounded-lg appearance-none h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="block text-sm">Global Rotation Speed</label>
-                  <span className="text-sm">{settings.globalRotationSpeed.toFixed(1)}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={settings.globalRotationSpeed}
-                  onChange={(e) => updateSetting('globalRotationSpeed', parseFloat(e.target.value))}
-                  className="w-full bg-white/20 rounded-lg appearance-none h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="block text-sm">X-Axis Rotation</label>
-                  <span className="text-sm">{settings.rotationSpeedX.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="-1"
-                  max="1"
-                  step="0.1"
-                  value={settings.rotationSpeedX}
-                  onChange={(e) => updateSetting('rotationSpeedX', parseFloat(e.target.value))}
-                  className="w-full bg-white/20 rounded-lg appearance-none h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="block text-sm">Y-Axis Rotation</label>
-                  <span className="text-sm">{settings.rotationSpeedY.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="-1"
-                  max="1"
-                  step="0.1"
-                  value={settings.rotationSpeedY}
-                  onChange={(e) => updateSetting('rotationSpeedY', parseFloat(e.target.value))}
-                  className="w-full bg-white/20 rounded-lg appearance-none h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="block text-sm">Z-Axis Rotation</label>
-                  <span className="text-sm">{settings.rotationSpeedZ.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="-1"
-                  max="1"
-                  step="0.1"
-                  value={settings.rotationSpeedZ}
-                  onChange={(e) => updateSetting('rotationSpeedZ', parseFloat(e.target.value))}
-                  className="w-full bg-white/20 rounded-lg appearance-none h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="block text-sm">Inactive Opacity</label>
-                  <span className="text-sm">{settings.inactiveOpacity.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={settings.inactiveOpacity}
-                  onChange={(e) => updateSetting('inactiveOpacity', parseFloat(e.target.value))}
-                  className="w-full bg-white/20 rounded-lg appearance-none h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                />
-              </div>
-            </div>
-          </>
-        )}
-      </div> */}
 
       {/* Overlay */}
       {!hasEntered && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center gap-4 cursor-default">
           <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 text-center">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">MAXI Yield Sphere</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">DECI Yield Sphere</h1>
             <p className="text-center text-gray-400 mb-8 max-w-xs">
               Visualizing cumulative yield accumulation to some sweet tunes.
             </p>
