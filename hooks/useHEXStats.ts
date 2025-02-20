@@ -24,6 +24,9 @@ interface HEXStats {
   totalStakerCount: number;
 }
 
+const OA_TSHARES_PLS = 26482068;
+const OA_TSHARES_ETH = 26155727;
+
 const fetcher = async (url: string) => {
   const res = await fetch(url);
   const data = await res.json();
@@ -38,7 +41,10 @@ export function usePulseHEXStats() {
   );
 
   return {
-    stats: data,
+    stats: {
+      ...data,
+      totalTshares: data?.totalTshares ? data.totalTshares - OA_TSHARES_PLS : 0
+    },
     isLoading,
     error
   };
@@ -51,7 +57,10 @@ export function useEthereumHEXStats() {
   );
 
   return {
-    stats: data,
+    stats: {
+      ...data,
+      totalTshares: data?.totalTshares ? data.totalTshares - OA_TSHARES_ETH : 0
+    },
     isLoading,
     error
   };
@@ -63,7 +72,8 @@ export function useTotalTShares() {
   const { stats: ethereumStats, isLoading: ethereumLoading } = useEthereumHEXStats();
 
   const isLoading = pulsechainLoading || ethereumLoading;
-  const totalTShares = !isLoading ? (pulsechainStats?.totalTshares || 0) + (ethereumStats?.totalTshares || 0) : 0;
+  const totalTShares = !isLoading ? 
+    ((pulsechainStats?.totalTshares || 0) + (ethereumStats?.totalTshares || 0)) : 0;
 
   return {
     totalTShares,
