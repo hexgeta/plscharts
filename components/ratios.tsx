@@ -50,20 +50,20 @@ const coins: CoinOption[] = [
   { id: 'sol', name: 'SOL', color: '#14F195', priceKey: 'sol_price' },
   { id: 'xrp', name: 'XRP', color: '#fff', priceKey: 'xrp_price' },
   { id: 'bnb', name: 'BNB', color: '#F3BA2F', priceKey: 'bnb_price' },
-  { id: 'doge', name: 'DOGE', color: '#C2A633', priceKey: 'doge_price' },
-  { id: 'ada', name: 'ADA', color: '#0033AD', priceKey: 'ada_price' },
-  { id: 'tron', name: 'TRX', color: '#FF0013', priceKey: 'trx_price' },
-  { id: 'avax', name: 'AVAX', color: '#E84142', priceKey: 'avax_price' },
-  { id: 'link', name: 'LINK', color: '#2A5ADA', priceKey: 'link_price' },
-  { id: 'shib', name: 'SHIB', color: '#FFA409', priceKey: 'shib_price' },
-  { id: 'ton', name: 'TON', color: '#0098EA', priceKey: 'ton_price' },
-  { id: 'xlm', name: 'XLM', color: '#14B6E7', priceKey: 'xlm_price' },
+  { id: 'doge', name: 'DOGE', color: '#C2A633', priceKey: 'dogecoin_price' },
+  { id: 'ada', name: 'ADA', color: '#0033AD', priceKey: 'cardano_price' },
+  { id: 'tron', name: 'TRX', color: '#FF0013', priceKey: 'tron_price' },
+  { id: 'avax', name: 'AVAX', color: '#E84142', priceKey: 'avalanche_price' },
+  { id: 'link', name: 'LINK', color: '#2A5ADA', priceKey: 'chainlink_price' },
+  { id: 'shib', name: 'SHIB', color: '#FFA409', priceKey: 'shibainu_price' },
+  { id: 'ton', name: 'TON', color: '#0098EA', priceKey: 'toncoin_price' },
+  { id: 'xlm', name: 'XLM', color: '#14B6E7', priceKey: 'stellar_price' },
   { id: 'sui', name: 'SUI', color: '#6FBCF0', priceKey: 'sui_price' },
-  { id: 'dot', name: 'DOT', color: '#E6007A', priceKey: 'dot_price' },
-  { id: 'hbar', name: 'HBAR', color: '#00ADED', priceKey: 'hbar_price' },
-  { id: 'bch', name: 'BCH', color: '#8DC351', priceKey: 'bch_price' },
+  { id: 'dot', name: 'DOT', color: '#E6007A', priceKey: 'polkadot_price' },
+  { id: 'hbar', name: 'HBAR', color: '#00ADED', priceKey: 'hedera_price' },
+  { id: 'bch', name: 'BCH', color: '#8DC351', priceKey: 'bitcoincash_price' },
   { id: 'pepe', name: 'PEPE', color: '#00B84C', priceKey: 'pepe_price' },
-  { id: 'uni', name: 'UNI', color: '#FF007A', priceKey: 'uni_price' }
+  { id: 'uni', name: 'UNI', color: '#FF007A', priceKey: 'uniswap_price' }
 ];
 
 const formatDateForURL = (date: Date) => {
@@ -310,16 +310,16 @@ const TokenRatioChart: React.FC = () => {
       ) : (
         <div className="w-full h-full p-5 bg-black border border-white/20 rounded-xl text-white">
           <div className="flex flex-col gap-4 mb-8">
-            <div className="flex items-start justify-end px-10">
-              <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center px-4 sm:px-10">
+              <div className="flex flex-col lg:flex-row items-center gap-4 max-w-[900px] w-full">
                 {/* Date Range Pickers */}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center gap-2 justify-center lg:flex-1">
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-[140px] sm:w-[180px] justify-start text-left font-normal bg-black border-white/20 text-white",
+                          "w-[200px] justify-start text-left font-normal bg-black border-white/20 text-white",
                           "hover:bg-black hover:border-white/20 hover:text-white",
                           !startDate && "text-muted-foreground"
                         )}
@@ -373,14 +373,14 @@ const TokenRatioChart: React.FC = () => {
                     </PopoverContent>
                   </Popover>
 
-                  <span className="text-white/60">to</span>
+                  <span className="text-white/60 w-[40px] text-center">to</span>
 
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-[140px] sm:w-[180px] justify-start text-left font-normal bg-black border-white/20 text-white",
+                          "w-[200px] justify-start text-left font-normal bg-black border-white/20 text-white",
                           "hover:bg-black hover:border-white/20 hover:text-white",
                           !endDate && "text-muted-foreground"
                         )}
@@ -435,62 +435,65 @@ const TokenRatioChart: React.FC = () => {
                   </Popover>
                 </div>
 
-                <Select value={numeratorCoin} onValueChange={setNumeratorCoin}>
-                  <SelectTrigger className="w-[140px] bg-black border-white/20 text-white hover:bg-black/90">
-                    <SelectValue placeholder="Select token" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-black border border-white/20">
-                    {coins.map((coin) => (
-                      <SelectItem 
-                        key={coin.id} 
-                        value={coin.id}
-                        className="text-white hover:bg-gray-900 focus:bg-gray-900 focus:text-white cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: coin.color }}
-                          />
-                          <span>{coin.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Token Selectors */}
+                <div className="flex flex-col sm:flex-row items-center gap-2 justify-center lg:flex-1">
+                  <Select value={numeratorCoin} onValueChange={setNumeratorCoin}>
+                    <SelectTrigger className="w-[200px] bg-black border-white/20 text-white hover:bg-black/90">
+                      <SelectValue placeholder="Select token" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-black border border-white/20">
+                      {coins.map((coin) => (
+                        <SelectItem 
+                          key={coin.id} 
+                          value={coin.id}
+                          className="text-white hover:bg-gray-900 focus:bg-gray-900 focus:text-white cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: coin.color }}
+                            />
+                            <span>{coin.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                <button
-                  onClick={handleSwapPair}
-                  className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-colors flex-shrink-0"
-                  title="Swap tokens"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 17h16M4 17l4 4M4 17l4-4" />
-                    <path d="M20 7H4M20 7l-4 4M20 7l-4-4" />
-                  </svg>
-                </button>
+                  <button
+                    onClick={handleSwapPair}
+                    className="p-2 w-[40px] h-[40px] text-gray-400 hover:text-white transition-colors flex-shrink-0 flex items-center justify-center"
+                    title="Swap tokens"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 17h16M4 17l4 4M4 17l4-4" />
+                      <path d="M20 7H4M20 7l-4 4M20 7l-4-4" />
+                    </svg>
+                  </button>
 
-                <Select value={denominatorCoin} onValueChange={setDenominatorCoin}>
-                  <SelectTrigger className="w-[140px] bg-black border-white/20 text-white hover:bg-black/90">
-                    <SelectValue placeholder="Select token" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-black border border-white/20">
-                    {coins.map((coin) => (
-                      <SelectItem 
-                        key={coin.id} 
-                        value={coin.id}
-                        className="text-white hover:bg-gray-900 focus:bg-gray-900 focus:text-white cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: coin.color }}
-                          />
-                          <span>{coin.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Select value={denominatorCoin} onValueChange={setDenominatorCoin}>
+                    <SelectTrigger className="w-[200px] bg-black border-white/20 text-white hover:bg-black/90">
+                      <SelectValue placeholder="Select token" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-black border border-white/20">
+                      {coins.map((coin) => (
+                        <SelectItem 
+                          key={coin.id} 
+                          value={coin.id}
+                          className="text-white hover:bg-gray-900 focus:bg-gray-900 focus:text-white cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: coin.color }}
+                            />
+                            <span>{coin.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>
