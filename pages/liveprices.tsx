@@ -7,7 +7,10 @@ import TimeDisplay from '@/components/TimeDisplay';
 import LiveHexPrice from '@/components/LiveHexPrice';
 
 const playlist = [
-  '2.mp3'
+  'trio.mp3',
+  'deci.mp3',
+  'maxi.mp3'
+
 ];
 
 export default function Livestream() {

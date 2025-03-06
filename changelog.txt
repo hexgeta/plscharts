@@ -1,0 +1,12 @@
+# Changelog
+
+## [2024-03-06]
+- Fixed TypeScript errors in splash-cursor.tsx by adding proper type assertions for WebGL contexts
+- Created demo component in app/code/demo.tsx
+- Added proper type assertions for WebGLRenderingContext and WebGL2RenderingContext
+- Fixed type safety issues with WebGL context initialization
+
+[2024-03-06] Added new features:
+- Created new globe-demo page (/pages/globe-demo.tsx)
+- Implemented interactive 3D globe visualization
+- Added responsive layout with dark theme and descriptive content 
