@@ -373,7 +373,7 @@ const TokenRatioChart: React.FC = () => {
                     </PopoverContent>
                   </Popover>
 
-                  <span className="text-white/60 w-[40px] text-center">to</span>
+                  <span className="hidden sm:block text-white/60 w-[40px] text-center">to</span>
 
                   <Popover>
                     <PopoverTrigger asChild>
@@ -462,7 +462,7 @@ const TokenRatioChart: React.FC = () => {
 
                   <button
                     onClick={handleSwapPair}
-                    className="p-2 w-[40px] h-[40px] text-gray-400 hover:text-white transition-colors flex-shrink-0 flex items-center justify-center"
+                    className="hidden sm:flex p-2 w-[40px] h-[40px] text-gray-400 hover:text-white transition-colors flex-shrink-0 items-center justify-center"
                     title="Swap tokens"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -512,7 +512,7 @@ const TokenRatioChart: React.FC = () => {
                   right: 20, 
                   left: 20, 
                   bottom: window.innerWidth < 768 
-                    ? 280  // mobile
+                    ? 220  // mobile
                     : window.innerWidth < 1024 
                       ? 110  // tablet
                       : 100   // desktop
