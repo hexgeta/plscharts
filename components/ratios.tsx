@@ -304,14 +304,14 @@ const TokenRatioChart: React.FC = () => {
   }
 
   return (
-    <div className="w-full h-[700px] my-10 relative">
+    <div className="w-full h-[700px] my-20 relative">
       {!isChartReady ? (
         <Skeleton variant="chart" />
       ) : (
         <div className="w-full h-full p-5 bg-black border border-white/20 rounded-xl text-white">
           <div className="flex flex-col gap-4 mb-8">
             <div className="flex items-center justify-center px-4 sm:px-10">
-              <div className="flex flex-col lg:flex-row items-center gap-4 max-w-[900px] w-full">
+              <div className="flex flex-col lg:flex-row items-center gap-4 max-w-[1200px] w-full py-4">
                 {/* Date Range Pickers */}
                 <div className="flex flex-col sm:flex-row items-center gap-2 justify-center lg:flex-1">
                   <Popover>
@@ -507,7 +507,16 @@ const TokenRatioChart: React.FC = () => {
             <ResponsiveContainer width="100%" height="90%">
               <LineChart
                 data={data}
-                margin={{ top: 20, right: 20, left: 20, bottom: 40 }}
+                margin={{ 
+                  top: 0, 
+                  right: 20, 
+                  left: 20, 
+                  bottom: window.innerWidth < 768 
+                    ? 280  // mobile
+                    : window.innerWidth < 1024 
+                      ? 110  // tablet
+                      : 100   // desktop
+                }}
               >
                 <CartesianGrid 
                   strokeDasharray="3 3" 
