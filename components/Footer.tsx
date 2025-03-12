@@ -17,19 +17,21 @@ const Footer = () => {
         <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">More charts</h3>
           <ul className="text-sm space-y-1">
-            <li><Link href="/vs-hex" className="text-[rgb(153,153,153)] hover:text-gray-300">BTC vs ETH vs HEX Visual</Link></li>
-            <li><Link href="/crypto-gains" className="text-[rgb(153,153,153)] hover:text-gray-300">Crypto Xs from HEX Low</Link></li>
+            {/* <li><Link href="/vs-hex" className="text-[rgb(153,153,153)] hover:text-gray-300">BTC vs ETH vs HEX Visual</Link></li> */}
             <li><Link href="/combined-hex" className="text-[rgb(153,153,153)] hover:text-gray-300">Combined HEX Price</Link></li>
-            <li><Link href="/hex-gains" className="text-[rgb(153,153,153)] hover:text-gray-300">HEX Xs from Low</Link></li>
             <li><Link href="/liquidity" className="text-[rgb(153,153,153)] hover:text-gray-300">HEX Liquidity</Link></li>
-            <li><Link href="/ratios" className="text-[rgb(153,153,153)] hover:text-gray-300">Price Ratios</Link></li>
+            <li><Link href="/ratios" className="text-[rgb(153,153,153)] hover:text-gray-300">Crypto Ratios</Link></li>
             <li><Link href="/tshares" className="text-[rgb(153,153,153)] hover:text-gray-300">T-Share Supply</Link></li>
-            <li><Link href="/sphere" className="text-[rgb(153,153,153)] hover:text-gray-300">MAXI Sphere</Link></li>
+
+            <li><Link href="/crypto-gains" className="text-[rgb(153,153,153)] hover:text-gray-300">Crypto Gains</Link></li>
+            <li><Link href="/sphere/maxi" className="text-[rgb(153,153,153)] hover:text-gray-300">MAXI Sphere</Link></li>
+
+            <li><Link href="/hex-gains" className="text-[rgb(153,153,153)] hover:text-gray-300">HEX Gains</Link></li>
 
           </ul>
         </div>
         <div className="col-span-1">
-          <h3 className="text-s font-semibold mb-2">More links</h3>
+          <h3 className="text-s font-semibold mb-2">Links</h3>
           <ul className="text-sm space-y-1">
           <li><Link href="https://www.maximusdao.com/" className="text-[rgb(153,153,153)] hover:text-gray-300">Official site</Link></li>
             <li><Link href="https://docs.lookintomaxi.com/" className="text-[rgb(153,153,153)] hover:text-gray-300">Docs</Link></li>

@@ -1,4 +1,4 @@
-import '../styles/global.css';
+import '@/styles/global.css';
 import React, { useEffect, useState } from 'react';
 import type { AppProps } from 'next/app';
 import NavigationBar from '../components/NavBar';

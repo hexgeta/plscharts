@@ -5,15 +5,15 @@ export interface TokenConfig {
     chain: 'pulsechain' | 'ethereum' | 'solana';
     pairAddress: string;
   };
-  STAKE_TYPE: 'rolling' | 'fixed';
+  STAKE_TYPE?: 'rolling' | 'fixed';
   RELATED_STAKES?: string[];
   CURRENT_ACTIVE_STAKE?: string;
   LAUNCH_DATE?: Date;
   TSHARES?: number;
   STAKE_PRINCIPLE?: number;
   TOKEN_SUPPLY?: number;
-  STAKE_START_DATE: Date;
-  STAKE_END_DATE: Date;
+  STAKE_START_DATE?: Date;
+  STAKE_END_DATE?: Date;
   TOTAL_STAKED_DAYS?: number;
 }
 
@@ -24,6 +24,7 @@ export const TOKEN_LOGOS: { [key: string]: string } = {
   'LUCKY': '/coin-logos/maxi/LUCKY.svg',
   'TRIO': '/coin-logos/maxi/TRIO.svg',
   'BASE': '/coin-logos/maxi/BASE.svg',
+  'TBC': '/coin-logos/maxi/TBC.svg',
   'PLS': '/coin-logos/PLS.svg',
   'PLSX': '/coin-logos/PLSX.svg',
   'WETH': '/coin-logos/WETH.svg',
@@ -40,13 +41,15 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     PAIR: {
       pairAddress: '0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65',
       chain: 'pulsechain'
-    }
+    },
+    STAKE_TYPE: 'rolling'
   },
   eHEX: {
     PAIR: {
       pairAddress: '0x9e0905249ceefffb9605e034b534544684a58be6',
       chain: 'ethereum'
-    }
+    },
+    STAKE_TYPE: 'rolling'
   },
   pMAXI: {
     STAKE_TYPE: 'fixed',
@@ -262,6 +265,19 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
       chain: 'pulsechain'
     }
   },
+  eTBC: {
+    STAKE_TYPE: 'rolling',
+    LAUNCH_DATE: new Date('2024-05-01'),
+    TSHARES: 100,
+    STAKE_PRINCIPLE: 100000000,
+    TOKEN_SUPPLY: 100000000,
+    STAKE_START_DATE: new Date('2024-05-01'),
+    STAKE_END_DATE: new Date('2039-07-16'),
+    TOTAL_STAKED_DAYS: 5555,
+    PAIR: {
+      pairAddress: '0x0000000000000000000000000000000000000000',
+      chain: 'ethereum'
+    },
   PLS: {
     PAIR: {
       pairAddress: '0xe56043671df55de5cdf8459710433c10324de0ae',
@@ -296,7 +312,8 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     PAIR: {
       pairAddress: '0xe5bb65e7a384D2671C96cfE1Ee9663F7B03a573e',
       chain: 'pulsechain'
-    }
+    },
+    STAKE_TYPE: 'rolling'
   },
   eICOSA: {
     PAIR: {
@@ -327,6 +344,7 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
       chain: 'pulsechain',
       pairAddress: '0x46E27Ea3A035FfC9e6d6D56702CE3D208FF1e58c'
     }
+  }
   }
 }
 

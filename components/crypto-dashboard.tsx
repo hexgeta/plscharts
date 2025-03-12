@@ -34,6 +34,13 @@ export default function CryptoDashboard() {
           <CryptoCard data={{ symbol: "eTRIO" }} />
           <CryptoCard data={{ symbol: "eBASE" }} />
         </div>
+
+        {/* TBC card on its own row
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div>
+            <CryptoCard data={{ symbol: "eTBC" }} />
+          </div>
+        </div> */}
       </div>
     </div>
   )

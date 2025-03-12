@@ -1,6 +1,6 @@
 export interface TokenData {
   symbol: string
-  price: number
+  price?: number
 }
 
 export interface ApiTokenData {

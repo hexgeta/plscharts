@@ -318,11 +318,9 @@ const TshareChart: React.FC = () => {
               <YAxis 
                 yAxisId="tshares"
                 stroke="#888" 
-                domain={[8000000, 'auto']}
                 allowDataOverflow={true}
                 axisLine={false}
                 tickLine={{ stroke: '#888', strokeWidth: 0 }}
-                ticks={[8000000, 8500000, 9000000, 9500000, 10000000]}
                 tick={{ fill: '#888', fontSize: 12 }}
                 tickFormatter={(value) => {
                   if (value >= 1000000) {

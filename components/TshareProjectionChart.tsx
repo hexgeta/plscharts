@@ -280,12 +280,10 @@ const TshareProjectionChart: React.FC = () => {
               />
               <YAxis 
                 stroke="#888" 
-                domain={[0, 12000000]}
                 allowDataOverflow={true}
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#888', fontSize: 12 }}
-                ticks={[0, 2000000, 4000000, 6000000, 8000000, 10000000, 12000000]}
                 tickFormatter={(value) => {
                   if (value >= 1000000) {
                     return `${(value / 1000000).toFixed(0)}M`;
