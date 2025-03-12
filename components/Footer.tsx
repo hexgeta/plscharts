@@ -27,7 +27,7 @@ const Footer = () => {
             <li><Link href="/sphere/maxi" className="text-[rgb(153,153,153)] hover:text-gray-300">MAXI Sphere</Link></li>
 
             <li><Link href="/hex-gains" className="text-[rgb(153,153,153)] hover:text-gray-300">HEX Gains</Link></li>
-
+            <li><Link href="/oa-stakes" className="text-[rgb(153,153,153)] hover:text-gray-300">OA Stakes</Link></li>
           </ul>
         </div>
         <div className="col-span-1">
