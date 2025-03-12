@@ -37,14 +37,15 @@ interface LeagueRequirement {
   };
 }
 
-const calculateTokensForTShares = (targetTShares: number, tokenTShares: number, tokenSupply: number): string => {
+const calculateTokensForTShares = (targetTShares: number, tokenTShares: number | undefined, tokenSupply: number | undefined): string => {
+  if (!tokenTShares || !tokenSupply) return "n/a";
   const tokensNeeded = (targetTShares / tokenTShares) * tokenSupply;
   if (tokensNeeded > tokenSupply) return "n/a";
   return tokensNeeded.toLocaleString('en-US', { maximumFractionDigits: 0 });
 };
 
-const calculateValue = (tokens: string, price: number): string => {
-  if (tokens === "n/a") return "n/a";
+const calculateValue = (tokens: string, price: number | undefined): string => {
+  if (tokens === "n/a" || !price) return "n/a";
   const value = parseFloat(tokens.replace(/,/g, '')) * price;
   return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 };
@@ -70,10 +71,66 @@ export function LeaguesTableTShares() {
   const { priceData: trioPrice } = useCryptoPrice("pTRIO");
   const { priceData: basePrice } = useCryptoPrice("pBASE");
 
-  if (isLoading) {
+  if (isLoading || !stats) {
     return (
       <div className="w-full py-4 px-1 xs:px-8">
-        <Skeleton variant="table" />
+        <div className="rounded-lg overflow-x-auto border border-[#333]">
+          <div className="min-w-[800px]">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-[#333] hover:bg-transparent">
+                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
+                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
+                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
+                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
+                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
+                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
+                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
+                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array(10).fill(0).map((_, index) => (
+                  <TableRow key={index} className="border-b border-[#333] hover:bg-[#1a1a1a]">
+                    <TableCell className="text-center"><Skeleton className="h-8 w-8 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-6 w-24 mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
     );
   }

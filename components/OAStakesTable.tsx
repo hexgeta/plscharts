@@ -477,15 +477,18 @@ export default function OAStakesTable() {
 
       {isLoading && page === 1 ? (
         <div className="rounded-lg border border-[#333] overflow-hidden">
-          <div className="min-w-[800px]">
-            <div className="p-4">
-              <div className="space-y-3">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-[90%]" />
-                <Skeleton className="h-4 w-[80%]" />
-                <Skeleton className="h-4 w-[95%]" />
-                <Skeleton className="h-4 w-[85%]" />
-              </div>
+          <div className="space-y-4 p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-4 w-full">
+              <Skeleton className="h-10 w-full sm:w-[180px]" />
+              <Skeleton className="h-10 w-full sm:w-[300px]" />
+            </div>
+            <div className="space-y-3">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
             </div>
           </div>
         </div>
