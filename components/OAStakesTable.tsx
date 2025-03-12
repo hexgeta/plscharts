@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useCryptoPrice } from "@/hooks/crypto/useCryptoPrice";
 import { Skeleton } from "@/components/ui/skeleton2";
 import Link from 'next/link';
@@ -12,6 +12,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatePickerWithRange } from "./ui/date-range-picker";
+import { DateRange } from "react-day-picker";
+import { addDays } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface StakeData {
   id: string;
@@ -244,11 +255,75 @@ const formatAddress = (address: string) => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
+const ROWS_PER_PAGE = 10;
+const DEFAULT_START_DATE = new Date('2025-02-05');
+
 export default function OAStakesTable() {
   const [stakes, setStakes] = useState<StakeData[]>([]);
+  const [displayedStakes, setDisplayedStakes] = useState<StakeData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended'>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: DEFAULT_START_DATE,
+    to: addDays(DEFAULT_START_DATE, 30)
+  });
   const { priceData } = useCryptoPrice('pHEX');
+
+  // Function to filter stakes based on status and date range
+  const filterStakes = useCallback((allStakes: StakeData[]) => {
+    return allStakes.filter(stake => {
+      // Status filter
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'active' && !stake.isActive) return false;
+        if (statusFilter === 'ended' && stake.isActive) return false;
+      }
+
+      // Date filter
+      if (dateRange?.from || dateRange?.to) {
+        const stakeStartDate = new Date(Number(stake.startDay) * 86400000 + new Date('2019-12-03').getTime());
+        if (dateRange?.from && stakeStartDate < dateRange.from) return false;
+        if (dateRange?.to && stakeStartDate > dateRange.to) return false;
+      }
+
+      return true;
+    });
+  }, [statusFilter, dateRange]);
+
+  // Function to load more stakes
+  const loadMore = useCallback(() => {
+    const filteredStakes = filterStakes(stakes);
+    const start = (page - 1) * ROWS_PER_PAGE;
+    const end = start + ROWS_PER_PAGE;
+    const newStakes = filteredStakes.slice(start, end);
+    
+    // Sort all stakes by date and then by principle
+    const sortedStakes = [...displayedStakes, ...newStakes].sort((a, b) => {
+      // First sort by startDay (descending)
+      const startDayDiff = Number(b.startDay) - Number(a.startDay);
+      if (startDayDiff !== 0) return startDayDiff;
+      
+      // Then sort by stakedHearts (descending) as secondary criteria
+      return Number(b.stakedHearts) - Number(a.stakedHearts);
+    });
+    
+    setDisplayedStakes(sortedStakes);
+    setHasMore(end < filteredStakes.length);
+  }, [page, stakes, filterStakes, displayedStakes]);
+
+  // Reset displayed stakes when filters change
+  useEffect(() => {
+    setDisplayedStakes([]);
+    setPage(1);
+    setHasMore(true);
+  }, [statusFilter, dateRange]);
+
+  // Load more stakes when page changes
+  useEffect(() => {
+    loadMore();
+  }, [page, loadMore]);
 
   useEffect(() => {
     const fetchStakes = async () => {
@@ -343,7 +418,14 @@ export default function OAStakesTable() {
         });
 
         const combinedStakes = [...ethStakes, ...plsStakes]
-          .sort((a, b) => Number(b.startDay) - Number(a.startDay));
+          .sort((a, b) => {
+            // First sort by startDay (descending)
+            const startDayDiff = Number(b.startDay) - Number(a.startDay);
+            if (startDayDiff !== 0) return startDayDiff;
+            
+            // Then sort by stakedHearts (descending) as secondary criteria
+            return Number(b.stakedHearts) - Number(a.stakedHearts);
+          });
 
         console.log('Combined stakes count:', combinedStakes.length);
 
@@ -359,83 +441,157 @@ export default function OAStakesTable() {
     fetchStakes();
   }, []);
 
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight * 1.5 && hasMore && !isLoading) {
+      setPage(prev => prev + 1);
+    }
+  }, [hasMore, isLoading]);
+
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
   return (
     <div className="w-full py-4 px-1 xs:px-8">
-      <div className="rounded-lg overflow-x-auto border border-[#333]">
-        <div className="min-w-[800px]">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-4 w-full">
+        <Select
+          value={statusFilter}
+          onValueChange={(value: 'all' | 'active' | 'ended') => setStatusFilter(value)}
+        >
+          <SelectTrigger className="w-full sm:w-[180px] bg-black text-white border border-white/20 hover:bg-[#1a1a1a] focus:ring-0 focus:ring-offset-0">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent className="bg-black border border-white/20">
+            <SelectItem value="all" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">All Stakes</SelectItem>
+            <SelectItem value="active" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">Active Stakes</SelectItem>
+            <SelectItem value="ended" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">Ended Stakes</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="w-full sm:w-auto">
+          <DatePickerWithRange
+            date={dateRange}
+            setDate={setDateRange}
+          />
+        </div>
+      </div>
+
+      {isLoading && page === 1 ? (
+        <div className="rounded-lg border border-[#333] overflow-hidden">
+          <div className="min-w-[800px]">
+            <div className="p-4">
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-[90%]" />
+                <Skeleton className="h-4 w-[80%]" />
+                <Skeleton className="h-4 w-[95%]" />
+                <Skeleton className="h-4 w-[85%]" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div 
+          className="rounded-lg border border-[#333] overflow-x-auto"
+          onScroll={handleScroll}
+        >
           <Table>
             <TableHeader>
               <TableRow className="border-b border-[#333] hover:bg-transparent">
                 <TableHead className="text-gray-400 font-800 text-center">#</TableHead>
                 <TableHead className="text-gray-400 font-800 text-center">Chain</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center">Status</TableHead>
                 <TableHead className="text-gray-400 font-800 text-center">Start Date</TableHead>
                 <TableHead className="text-gray-400 font-800 text-center">End Date</TableHead>
                 <TableHead className="text-gray-400 font-800 text-center">Length</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center">Status</TableHead>
                 <TableHead className="text-gray-400 font-800 text-center">Address</TableHead>
                 <TableHead className="text-gray-400 font-800 text-center">Principle</TableHead>
                 <TableHead className="text-gray-400 font-800 text-center">T-Shares</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                Array(5).fill(0).map((_, i) => (
-                  <TableRow key={i} className="border-b border-[#333]">
-                    <TableCell colSpan={9}>
-                      <Skeleton className="h-4 w-full bg-gray-700" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                stakes.map((stake, index) => (
-                  <TableRow 
-                    key={stake.id} 
-                    className={`border-b border-[#333] hover:bg-[#1a1a1a] ${stake.isActive ? "" : "opacity-50"}`}
-                  >
-                    <TableCell className="text-white text-center">{index + 1}</TableCell>
-                    <TableCell className="text-white text-center">
-                      <span className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${stake.chain === 'ETH' ? 'border border-[#00FFFF]/50 bg-[#00FFFF]/10 text-[#00FFFF]' : 'border border-[#9945FF]/50 bg-[#9945FF]/10 text-[#9945FF]'}`}>
-                        {stake.chain}
+              {displayedStakes.map((stake, index) => (
+                <TableRow 
+                  key={stake.id} 
+                  className={cn(
+                    "border-b border-[#333] hover:bg-[#1a1a1a] transition-all duration-300",
+                    stake.isActive ? "" : "opacity-50"
+                  )}
+                  style={{
+                    animation: 'fadeIn 0.5s ease-in-out',
+                    animationFillMode: 'both'
+                  }}
+                >
+                  <TableCell className="text-white text-center transition-all duration-300">{index + 1}</TableCell>
+                  <TableCell className="text-white text-center transition-all duration-300">
+                    <span className={cn(
+                      "inline-block px-2 py-1 rounded-md text-xs font-medium transition-all duration-300",
+                      stake.chain === 'ETH' 
+                        ? 'border border-[#00FFFF]/50 bg-[#00FFFF]/10 text-[#00FFFF]' 
+                        : 'border border-[#9945FF]/50 bg-[#9945FF]/10 text-[#9945FF]'
+                    )}>
+                      {stake.chain}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-white text-center transition-all duration-300">
+                    {stake.isActive ? 
+                      <span className="inline-block px-2 py-1 rounded-md text-xs font-medium border border-green-500/50 bg-green-500/10 text-green-400 transition-all duration-300">
+                        Active
+                      </span> : 
+                      <span className="inline-block px-2 py-1 rounded-md text-xs font-medium border border-gray-500/50 bg-gray-500/10 text-gray-400 transition-all duration-300">
+                        Ended
                       </span>
-                    </TableCell>
-                    <TableCell className="text-white text-center">{formatDate(stake.startDay)}</TableCell>
-                    <TableCell className="text-white text-center">{formatDate(stake.endDay)}</TableCell>
-                    <TableCell className="text-white text-center">{stake.stakedDays} D</TableCell>
-                    <TableCell className="text-white text-center">
-                      {stake.isActive ? 
-                        <span className="inline-block px-2 py-1 rounded-md text-xs font-medium border border-green-500/50 bg-green-500/10 text-green-400">
-                          Active
-                        </span> : 
-                        <span className="inline-block px-2 py-1 rounded-md text-xs font-medium border border-gray-500/50 bg-gray-500/10 text-gray-400">
-                          Ended
-                        </span>
-                      }
-                    </TableCell>
-                    <TableCell className="text-white text-center">
-                      <Link 
-                        href={`https://hexscout.com/${stake.address}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline hover:text-white/80 text-white"
-                      >
-                        {formatAddress(stake.address)}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-white text-center">
-                      {formatNumber(Number(stake.stakedHearts) / 1e8)} HEX
-                    </TableCell>
-                    <TableCell className="text-white text-center">
-                      {formatNumber(Number(stake.stakeTShares) / 1e12)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+                    }
+                  </TableCell>
+                  <TableCell className="text-white text-center transition-all duration-300">{formatDate(stake.startDay)}</TableCell>
+                  <TableCell className="text-white text-center transition-all duration-300">{formatDate(stake.endDay)}</TableCell>
+                  <TableCell className="text-white text-center transition-all duration-300">{stake.stakedDays} D</TableCell>
+                  <TableCell className="text-white text-center transition-all duration-300">
+                    <Link 
+                      href={`https://hexscout.com/${stake.address}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-white/80 text-white transition-all duration-300"
+                    >
+                      {formatAddress(stake.address)}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-white text-center transition-all duration-300">
+                    {formatNumber(Number(stake.stakedHearts) / 1e8)} HEX
+                  </TableCell>
+                  <TableCell className="text-white text-center transition-all duration-300">
+                    {formatNumber(Number(stake.stakeTShares))}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
+
+          {hasMore && (
+            <div className="p-4 text-center border-t border-[#333]">
+              {isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-[200px] mx-auto" />
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">Scroll to load more stakes...</p>
+              )}
+            </div>
+          )}
         </div>
-      </div>
+      )}
+
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
