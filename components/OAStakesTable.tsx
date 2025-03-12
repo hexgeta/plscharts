@@ -266,8 +266,8 @@ export default function OAStakesTable() {
   const [hasMore, setHasMore] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: DEFAULT_START_DATE,
-    to: addDays(DEFAULT_START_DATE, 30)
+    from: new Date(2025, 1, 12), // February 12th, 2025 (month is 0-indexed)
+    to: new Date() // Today's date
   });
   const { priceData } = useCryptoPrice('pHEX');
 
@@ -291,18 +291,33 @@ export default function OAStakesTable() {
     });
   }, [statusFilter, dateRange]);
 
+  // Add window scroll handler
+  useEffect(() => {
+    const handleWindowScroll = () => {
+      const scrollPosition = window.innerHeight + window.scrollY;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Load more when user scrolls to 80% of the way down
+      if (scrollPosition >= documentHeight * 0.8 && hasMore && !isLoading) {
+        setPage(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('scroll', handleWindowScroll);
+    return () => window.removeEventListener('scroll', handleWindowScroll);
+  }, [hasMore, isLoading]);
+
   // Function to load more stakes
   const loadMore = useCallback(() => {
     const filteredStakes = filterStakes(stakes);
     const start = (page - 1) * ROWS_PER_PAGE;
-    const end = start + ROWS_PER_PAGE;
+    const end = page * ROWS_PER_PAGE;
     
-    // Instead of appending to existing stakes, we'll slice the entire filtered set
-    // This ensures we don't get duplicates when changing pages
-    const newDisplayedStakes = filteredStakes.slice(0, end);
+    // Get new chunk of stakes
+    const newStakes = filteredStakes.slice(0, end);
     
     // Sort all stakes by date and then by principle
-    const sortedStakes = newDisplayedStakes.sort((a, b) => {
+    const sortedStakes = newStakes.sort((a, b) => {
       // First sort by startDay (descending)
       const startDayDiff = Number(b.startDay) - Number(a.startDay);
       if (startDayDiff !== 0) return startDayDiff;
@@ -324,15 +339,20 @@ export default function OAStakesTable() {
 
   // Load more stakes when page changes
   useEffect(() => {
-    loadMore();
-  }, [page, loadMore]);
+    if (!isLoading) {
+      loadMore();
+    }
+  }, [page, loadMore, isLoading]);
 
   useEffect(() => {
     const fetchStakes = async () => {
       try {
         setIsLoading(true);
         const currentDay = calculateCurrentHexDay();
+        console.log('Current HEX day:', currentDay);
+        
         const addresses = OA_ADDRESSES.map(addr => addr.toLowerCase()).join('","');
+        console.log('Total addresses to query:', OA_ADDRESSES.length);
         
         const fetchAllStakesFromChain = async (url: string, chain: 'ETH' | 'PLS') => {
           let allStakes: any[] = [];
@@ -360,24 +380,31 @@ export default function OAStakesTable() {
             }`;
 
             try {
-              console.log(`Fetching stakes from ${chain}, skip: ${skip}`);
+              console.log(`[${chain}] Fetching stakes, skip: ${skip}`);
               const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query }),
               });
 
+              if (!response.ok) {
+                console.error(`[${chain}] HTTP error:`, response.status, response.statusText);
+                const text = await response.text();
+                console.error(`[${chain}] Response body:`, text);
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+
               const result = await response.json();
-              console.log(`${chain} response:`, result);
+              console.log(`[${chain}] Response status:`, response.status);
               
               if (result.errors) {
-                console.error(`${chain} query errors:`, result.errors);
+                console.error(`[${chain}] GraphQL errors:`, result.errors);
                 hasMore = false;
                 return allStakes;
               }
 
               const fetchedStakes = result.data?.stakeStarts || [];
-              console.log(`${chain} fetched ${fetchedStakes.length} stakes`);
+              console.log(`[${chain}] Fetched ${fetchedStakes.length} stakes`);
               
               if (fetchedStakes.length > 0) {
                 allStakes = [...allStakes, ...fetchedStakes];
@@ -386,12 +413,12 @@ export default function OAStakesTable() {
                 hasMore = false;
               }
             } catch (error) {
-              console.error(`Error fetching ${chain} stakes:`, error);
+              console.error(`[${chain}] Error fetching stakes:`, error);
               hasMore = false;
             }
           }
           
-          console.log(`Total ${chain} stakes found: ${allStakes.length}`);
+          console.log(`[${chain}] Total stakes found: ${allStakes.length}`);
           return allStakes.map((stake: any) => {
             const stakeEndDay = Number(stake.startDay) + Number(stake.stakedDays);
             return {
@@ -409,14 +436,16 @@ export default function OAStakesTable() {
         };
 
         // Fetch stakes from both chains
+        console.log('Starting to fetch stakes from both chains...');
         const [ethStakes, plsStakes] = await Promise.all([
           fetchAllStakesFromChain(SUBGRAPH_URLS.ETH, 'ETH'),
           fetchAllStakesFromChain(SUBGRAPH_URLS.PLS, 'PLS')
         ]);
 
-        console.log('Stakes summary:', {
+        console.log('Stakes fetched:', {
           ethStakesCount: ethStakes.length,
-          plsStakesCount: plsStakes.length
+          plsStakesCount: plsStakes.length,
+          totalStakes: ethStakes.length + plsStakes.length
         });
 
         const combinedStakes = [...ethStakes, ...plsStakes]
@@ -429,26 +458,23 @@ export default function OAStakesTable() {
             return Number(b.stakedHearts) - Number(a.stakedHearts);
           });
 
-        console.log('Combined stakes count:', combinedStakes.length);
+        console.log('Combined and sorted stakes:', {
+          totalStakes: combinedStakes.length,
+          firstStakeDate: combinedStakes[0]?.startDay ? formatDate(combinedStakes[0].startDay) : 'N/A',
+          lastStakeDate: combinedStakes[combinedStakes.length - 1]?.startDay ? formatDate(combinedStakes[combinedStakes.length - 1].startDay) : 'N/A'
+        });
 
         setStakes(combinedStakes);
         setIsLoading(false);
       } catch (err) {
-        console.error('Error fetching stakes:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Error in fetchStakes:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred while fetching stakes');
         setIsLoading(false);
       }
     };
 
     fetchStakes();
   }, []);
-
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
-    if (scrollHeight - scrollTop <= clientHeight * 1.5 && hasMore && !isLoading) {
-      setPage(prev => prev + 1);
-    }
-  }, [hasMore, isLoading]);
 
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
@@ -473,6 +499,7 @@ export default function OAStakesTable() {
           <DatePickerWithRange
             date={dateRange}
             setDate={setDateRange}
+            className="bg-black text-white hover:bg-[#1a1a1a] focus:ring-0 focus:ring-offset-0"
           />
         </div>
       </div>
@@ -497,7 +524,6 @@ export default function OAStakesTable() {
       ) : (
         <div 
           className="rounded-lg border border-[#333] overflow-x-auto"
-          onScroll={handleScroll}
         >
           <Table>
             <TableHeader>
