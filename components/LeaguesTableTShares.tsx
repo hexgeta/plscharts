@@ -71,6 +71,21 @@ export function LeaguesTableTShares() {
   const { priceData: trioPrice } = useCryptoPrice("pTRIO");
   const { priceData: basePrice } = useCryptoPrice("pBASE");
 
+  const SkeletonHeaderCell = () => (
+    <TableHead className="text-gray-400 font-800 text-center">
+      <Skeleton className="h-6 w-20 mx-auto" />
+    </TableHead>
+  );
+
+  const SkeletonValueCell = () => (
+    <TableCell className="text-center">
+      <div className="flex flex-col items-center gap-1">
+        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-4 w-16" />
+      </div>
+    </TableCell>
+  );
+
   if (isLoading || !stats) {
     return (
       <div className="w-full py-4 px-1 xs:px-8">
@@ -79,52 +94,26 @@ export function LeaguesTableTShares() {
             <Table>
               <TableHeader>
                 <TableRow className="border-b border-[#333] hover:bg-transparent">
-                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
-                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
-                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
-                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
-                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
-                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
-                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
-                  <TableHead className="text-gray-400 font-800 text-center"><Skeleton className="h-6 w-20 mx-auto" /></TableHead>
+                  {Array(8).fill(0).map((_, index) => (
+                    <SkeletonHeaderCell key={index} />
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array(10).fill(0).map((_, index) => (
-                  <TableRow key={index} className="border-b border-[#333] hover:bg-[#1a1a1a]">
-                    <TableCell className="text-center"><Skeleton className="h-8 w-8 mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Skeleton className="h-6 w-24 mx-auto" /></TableCell>
+                {Array(10).fill(0).map((_, rowIndex) => (
+                  <TableRow key={rowIndex} className="border-b border-[#333] hover:bg-[#1a1a1a]">
                     <TableCell className="text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <Skeleton className="h-6 w-24" />
-                        <Skeleton className="h-4 w-16" />
-                      </div>
+                      <Skeleton className="h-8 w-8 mx-auto" />
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <Skeleton className="h-6 w-24" />
-                        <Skeleton className="h-4 w-16" />
-                      </div>
+                      <Skeleton className="h-6 w-16 mx-auto" />
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <Skeleton className="h-6 w-24" />
-                        <Skeleton className="h-4 w-16" />
-                      </div>
+                      <Skeleton className="h-6 w-24 mx-auto" />
                     </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <Skeleton className="h-6 w-24" />
-                        <Skeleton className="h-4 w-16" />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <Skeleton className="h-6 w-24" />
-                        <Skeleton className="h-4 w-16" />
-                      </div>
-                    </TableCell>
+                    {Array(5).fill(0).map((_, cellIndex) => (
+                      <SkeletonValueCell key={cellIndex} />
+                    ))}
                   </TableRow>
                 ))}
               </TableBody>

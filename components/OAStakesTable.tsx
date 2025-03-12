@@ -40,7 +40,6 @@ const OA_ADDRESSES = [
   // ETH 555 stakes 13 march 2025ish
   "0x0153ea02bedcc77f2f927f6e136e58e29a08011b",
   "0x0547ed8e18b34985eaeee94bd8dd79c4b94c7282",
-  "0x0612c1e6d59d45cc7a07475640eaee0ba46f414a",
   "0x0966e294c217ea07de9c3c24d95ea23d38fbeca5",
   "0x0db21d5d0ab1192aab5d426cd557018e9e6c37be",
   "0x0eb3705f4f5dd3cfe8f6669fa2b9124094b89647",
@@ -297,10 +296,13 @@ export default function OAStakesTable() {
     const filteredStakes = filterStakes(stakes);
     const start = (page - 1) * ROWS_PER_PAGE;
     const end = start + ROWS_PER_PAGE;
-    const newStakes = filteredStakes.slice(start, end);
+    
+    // Instead of appending to existing stakes, we'll slice the entire filtered set
+    // This ensures we don't get duplicates when changing pages
+    const newDisplayedStakes = filteredStakes.slice(0, end);
     
     // Sort all stakes by date and then by principle
-    const sortedStakes = [...displayedStakes, ...newStakes].sort((a, b) => {
+    const sortedStakes = newDisplayedStakes.sort((a, b) => {
       // First sort by startDay (descending)
       const startDayDiff = Number(b.startDay) - Number(a.startDay);
       if (startDayDiff !== 0) return startDayDiff;
@@ -311,7 +313,7 @@ export default function OAStakesTable() {
     
     setDisplayedStakes(sortedStakes);
     setHasMore(end < filteredStakes.length);
-  }, [page, stakes, filterStakes, displayedStakes]);
+  }, [page, stakes, filterStakes]);
 
   // Reset displayed stakes when filters change
   useEffect(() => {
