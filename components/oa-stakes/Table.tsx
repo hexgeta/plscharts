@@ -222,12 +222,13 @@ const calculateCurrentHexDay = () => {
   const HEX_LAUNCH_DATE = new Date('2019-12-03T00:00:00Z').getTime();
   const SECONDS_PER_DAY = 86400;
   const currentTimestamp = Date.now();
-  return Math.floor((currentTimestamp - HEX_LAUNCH_DATE) / (SECONDS_PER_DAY * 1000)) - 2;
+  return Math.floor((currentTimestamp - HEX_LAUNCH_DATE) / (SECONDS_PER_DAY * 1000));
 };
 
 const calculateDaysUntilMaturity = (endDay: string) => {
   const currentDay = calculateCurrentHexDay();
-  const daysLeft = Number(endDay) - currentDay;
+  const adjustedEndDay = Number(endDay) - 2;  // Adjust end day by 2 days to match the date formatting
+  const daysLeft = adjustedEndDay - currentDay;
   return daysLeft > 0 ? daysLeft : 0;
 };
 
