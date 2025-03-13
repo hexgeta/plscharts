@@ -23,6 +23,7 @@ import { DatePickerWithRange } from "./ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface StakeData {
   id: string;
@@ -244,14 +245,20 @@ const formatDate = (hexDay: string) => {
 };
 
 const formatNumber = (value: number | string, decimals = 1) => {
-  const num = typeof value === 'string' ? Number(value) : value;
-  if (num >= 1000000000) {
-    return `${(num / 1000000000).toFixed(decimals)} B`;
-  } else if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(decimals)} M`;
-  } else if (num >= 1000) {
-    return `${(num / 1000).toFixed(decimals)} K`;
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  
+  if (isNaN(num)) return '0';
+  
+  if (num >= 1_000_000_000) {
+    return `${(num / 1_000_000_000).toFixed(decimals)}B`;
   }
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(decimals)}M`;
+  }
+  if (num >= 1_000) {
+    return `${(num / 1_000).toFixed(decimals)}K`;
+  }
+  
   return num.toFixed(decimals);
 };
 
@@ -262,7 +269,7 @@ const formatAddress = (address: string) => {
 const ROWS_PER_PAGE = 10;
 const DEFAULT_START_DATE = new Date('2025-02-05');
 
-export default function OAStakesTable() {
+const OAStakesTable: React.FC = () => {
   const [stakes, setStakes] = useState<StakeData[]>([]);
   const [displayedStakes, setDisplayedStakes] = useState<StakeData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -272,7 +279,7 @@ export default function OAStakesTable() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended'>('all');
   const [chainFilter, setChainFilter] = useState<'all' | 'ETH' | 'PLS'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(2025, 1, 12), // February 12th, 2025 (month is 0-indexed)
+    from: new Date(2025, 1, 1), // February 1st, 2025 (month is 0-indexed)
     to: new Date() // Today's date
   });
   const { priceData: pHexPrice } = useCryptoPrice('pHEX');
@@ -301,14 +308,42 @@ export default function OAStakesTable() {
     });
   }, [statusFilter, chainFilter, dateRange]);
 
-  // Add window scroll handler
+  // Effect for loading more stakes when page changes
+  useEffect(() => {
+    if (stakes.length > 0) {
+      const filteredStakes = filterStakes(stakes);
+      const start = (page - 1) * ROWS_PER_PAGE;
+      const end = page * ROWS_PER_PAGE;
+      
+      // Get new chunk of stakes
+      const newStakes = filteredStakes.slice(0, end);
+      
+      // Sort all stakes by date and then by principle
+      const sortedStakes = newStakes.sort((a, b) => {
+        // First sort by startDay (descending)
+        const startDayDiff = Number(b.startDay) - Number(a.startDay);
+        if (startDayDiff !== 0) return startDayDiff;
+        
+        // Then sort by stakedHearts (descending) as secondary criteria
+        return Number(b.stakedHearts) - Number(a.stakedHearts);
+      });
+      
+      setDisplayedStakes(sortedStakes);
+      setHasMore(end < filteredStakes.length);
+      setIsLoading(false);
+    }
+  }, [page, stakes, filterStakes]);
+
+  // Effect for scroll handling
   useEffect(() => {
     const handleWindowScroll = () => {
+      if (isLoading || !hasMore) return;
+      
       const scrollPosition = window.innerHeight + window.scrollY;
       const documentHeight = document.documentElement.scrollHeight;
       
       // Load more when user scrolls to 80% of the way down
-      if (scrollPosition >= documentHeight * 0.8 && hasMore && !isLoading) {
+      if (scrollPosition >= documentHeight * 0.8) {
         setPage(prev => prev + 1);
       }
     };
@@ -317,42 +352,12 @@ export default function OAStakesTable() {
     return () => window.removeEventListener('scroll', handleWindowScroll);
   }, [hasMore, isLoading]);
 
-  // Function to load more stakes
-  const loadMore = useCallback(() => {
-    const filteredStakes = filterStakes(stakes);
-    const start = (page - 1) * ROWS_PER_PAGE;
-    const end = page * ROWS_PER_PAGE;
-    
-    // Get new chunk of stakes
-    const newStakes = filteredStakes.slice(0, end);
-    
-    // Sort all stakes by date and then by principle
-    const sortedStakes = newStakes.sort((a, b) => {
-      // First sort by startDay (descending)
-      const startDayDiff = Number(b.startDay) - Number(a.startDay);
-      if (startDayDiff !== 0) return startDayDiff;
-      
-      // Then sort by stakedHearts (descending) as secondary criteria
-      return Number(b.stakedHearts) - Number(a.stakedHearts);
-    });
-    
-    setDisplayedStakes(sortedStakes);
-    setHasMore(end < filteredStakes.length);
-  }, [page, stakes, filterStakes]);
-
   // Reset displayed stakes when filters change
   useEffect(() => {
     setDisplayedStakes([]);
     setPage(1);
     setHasMore(true);
-  }, [statusFilter, dateRange]);
-
-  // Load more stakes when page changes
-  useEffect(() => {
-    if (!isLoading) {
-      loadMore();
-    }
-  }, [page, loadMore, isLoading]);
+  }, [statusFilter, chainFilter, dateRange]);
 
   useEffect(() => {
     const fetchStakes = async () => {
@@ -494,10 +499,156 @@ export default function OAStakesTable() {
     return `$${formatNumber(value, 2)}`;
   };
 
+  // Calculate summary statistics
+  const calculateSummaryStats = useCallback(() => {
+    const filteredStakes = stakes.filter(stake => {
+      const matchesChain = chainFilter === 'all' || stake.chain === chainFilter;
+      const matchesStatus = statusFilter === 'all' || 
+        (statusFilter === 'active' && stake.isActive) || 
+        (statusFilter === 'ended' && !stake.isActive);
+      
+      if (!dateRange?.from || !dateRange?.to) return matchesChain && matchesStatus;
+      
+      const stakeStartDate = new Date(formatDate(stake.startDay));
+      const filterStartDate = dateRange.from;
+      const filterEndDate = dateRange.to;
+      
+      return matchesChain && 
+             matchesStatus && 
+             stakeStartDate >= filterStartDate && 
+             stakeStartDate <= filterEndDate;
+    });
+
+    if (!filteredStakes.length) return {
+      stakeCount: 0,
+      walletCount: 0,
+      totalHexStaked: { ETH: 0, PLS: 0 },
+      averageStakeSize: 0,
+      averageStakeLength: 0
+    };
+
+    const activeStakes = filteredStakes.filter(stake => stake.isActive);
+    const totalStakeLength = activeStakes.reduce((sum, stake) => sum + Number(stake.stakedDays), 0);
+    const averageStakeLength = activeStakes.length > 0 ? totalStakeLength / activeStakes.length : 0;
+    
+    const activeEthStakes = activeStakes.filter(stake => stake.chain === 'ETH');
+    const activePlsStakes = activeStakes.filter(stake => stake.chain === 'PLS');
+    
+    const totalHexStakedETH = activeEthStakes.reduce((sum, stake) => {
+      const hexAmount = Number(stake.stakedHearts) / 1e8;
+      return sum + hexAmount;
+    }, 0);
+    
+    const totalHexStakedPLS = activePlsStakes.reduce((sum, stake) => {
+      const hexAmount = Number(stake.stakedHearts) / 1e8;
+      return sum + hexAmount;
+    }, 0);
+    
+    const uniqueWallets = new Set(activeStakes.map(stake => stake.address));
+    const totalActiveStakes = activeStakes.length;
+    
+    return {
+      stakeCount: totalActiveStakes,
+      walletCount: uniqueWallets.size,
+      totalHexStaked: {
+        ETH: totalHexStakedETH,
+        PLS: totalHexStakedPLS
+      },
+      averageStakeSize: totalActiveStakes > 0 ? (totalHexStakedETH + totalHexStakedPLS) / totalActiveStakes : 0,
+      averageStakeLength
+    };
+  }, [stakes, chainFilter, statusFilter, dateRange]);
+
+  const summaryStats = calculateSummaryStats();
+
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
   return (
     <div className="w-full py-4 px-1 xs:px-8">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        {isLoading ? (
+          <>
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-0">
+                <div className="skeleton h-[104px] w-full" />
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-0">
+                <div className="skeleton h-[104px] w-full" />
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-0">
+                <div className="skeleton h-[104px] w-full" />
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-0">
+                <div className="skeleton h-[104px] w-full" />
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-0">
+                <div className="skeleton h-[104px] w-full" />
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-4">
+                <p className="text-gray-400 text-sm">Total Active Stake Count</p>
+                <p className="text-2xl font-bold text-white">{formatNumber(summaryStats.stakeCount, 0)}</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-4">
+                <p className="text-gray-400 text-sm">Wallet Count</p>
+                <p className="text-2xl font-bold text-white">{formatNumber(summaryStats.walletCount, 0)}</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-4">
+                <p className="text-gray-400 text-sm">Total HEX Staked</p>
+                <p className="text-2xl font-bold text-white">{formatNumber(summaryStats.totalHexStaked.ETH + summaryStats.totalHexStaked.PLS)} HEX</p>
+                <p className="text-gray-400 text-sm">
+                  {(eHexPrice?.price && pHexPrice?.price) ? 
+                    `$${formatNumber((summaryStats.totalHexStaked.ETH * eHexPrice.price) + (summaryStats.totalHexStaked.PLS * pHexPrice.price))}` 
+                    : '-'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-4">
+                <p className="text-gray-400 text-sm">Average Stake Size</p>
+                <p className="text-2xl font-bold text-white">{formatNumber(summaryStats.averageStakeSize)} HEX</p>
+                <p className="text-gray-400 text-sm">
+                  {(eHexPrice?.price && pHexPrice?.price) ? 
+                    `$${formatNumber(summaryStats.averageStakeSize * ((eHexPrice.price + pHexPrice.price) / 2))}` 
+                    : '-'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black border border-white/20">
+              <CardContent className="p-4">
+                <p className="text-gray-400 text-sm">Average Stake Length</p>
+                <p className="text-2xl font-bold text-white">{Math.round(summaryStats.averageStakeLength)} D</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4 mb-4">
         <div className="flex flex-row gap-4 w-full sm:w-auto">
           <div className="w-1/2 sm:w-auto">
@@ -570,8 +721,7 @@ export default function OAStakesTable() {
                 <TableHead className="text-gray-400 font-800 text-center w-[100px] whitespace-nowrap">Length</TableHead>
                 <TableHead className="text-gray-400 font-800 text-center w-[100px] whitespace-nowrap">Days Left</TableHead>
                 <TableHead className="text-gray-400 font-800 text-center w-[120px] whitespace-nowrap">Address</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center w-[120px] whitespace-nowrap">Principle</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center w-[120px] whitespace-nowrap">T-Shares</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[400px] whitespace-nowrap">Principle</TableHead>                <TableHead className="text-gray-400 font-800 text-center w-[120px] whitespace-nowrap">T-Shares</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -666,4 +816,6 @@ export default function OAStakesTable() {
       `}</style>
     </div>
   );
-}
+};
+
+export default OAStakesTable;

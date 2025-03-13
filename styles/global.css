@@ -21,6 +21,17 @@
   );
 }
 
+.skeleton-dark {
+  @apply bg-zinc-900 bg-[length:200%_100%] animate-shine;
+  background-image: linear-gradient(
+    110deg,
+    rgb(24, 24, 27) 8%,     /* Base color (zinc-900) */
+    rgb(63, 63, 70) 18%,    /* Shine color (zinc-700) - more visible */
+    rgb(24, 24, 27) 33%     /* Back to base color */
+  );
+  animation: shine 1.5s infinite linear;  /* Slower animation for more visible effect */
+}
+
 @keyframes shine {
   to {
     background-position-x: -200%;
