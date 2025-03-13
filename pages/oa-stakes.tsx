@@ -106,7 +106,7 @@ const OAStakesPage: NextPage = () => {
       <Chart 
         stakes={stakes}
         isLoading={isLoading}
-        title="Stakes Over Time"
+        title="OA Stakes Over Time"
         chainFilter={chainFilter}
         statusFilter={statusFilter}
         dateRange={dateRange}
