@@ -10,3 +10,23 @@
 - Created new globe-demo page (/pages/globe-demo.tsx)
 - Implemented interactive 3D globe visualization
 - Added responsive layout with dark theme and descriptive content 
+
+## [2024-03-13] - Component Restructuring
+
+### Added
+- Created new `/components/oa-stakes` directory for better organization
+- Added `Filters.tsx` component to handle all filtering logic
+- Added `SummaryCards.tsx` component for statistics display
+- Created `index.ts` for clean exports
+
+### Changed
+- Moved `OAStakesChart.tsx` to `components/oa-stakes/Chart.tsx`
+- Moved `OAStakesTable.tsx` to `components/oa-stakes/Table.tsx`
+- Updated `pages/oa-stakes.tsx` to use new component structure
+- Simplified imports using index exports
+
+### Improvements
+- Better component organization and separation of concerns
+- More maintainable file structure
+- Cleaner code with dedicated components for each feature
+- Improved reusability of components 

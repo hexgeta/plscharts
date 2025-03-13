@@ -19,11 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DatePickerWithRange } from "./ui/date-range-picker";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
+import OAStakesChart from "./Chart";
 
 interface StakeData {
   id: string;
@@ -269,21 +270,47 @@ const formatAddress = (address: string) => {
 const ROWS_PER_PAGE = 10;
 const DEFAULT_START_DATE = new Date('2025-02-05');
 
-const OAStakesTable: React.FC = () => {
+interface Props {
+  chainFilter: 'all' | 'ETH' | 'PLS';
+  statusFilter: 'all' | 'active' | 'ended';
+  dateRange: DateRange | undefined;
+  onChainFilterChange: (value: 'all' | 'ETH' | 'PLS') => void;
+  onStatusFilterChange: (value: 'all' | 'active' | 'ended') => void;
+  onDateRangeChange: (value: DateRange | undefined) => void;
+  onStakesChange?: (stakes: StakeData[]) => void;
+  onLoadingChange?: (isLoading: boolean) => void;
+}
+
+export const OAStakesTable = ({
+  chainFilter,
+  statusFilter,
+  dateRange,
+  onChainFilterChange,
+  onStatusFilterChange,
+  onDateRangeChange,
+  onStakesChange,
+  onLoadingChange
+}: Props) => {
   const [stakes, setStakes] = useState<StakeData[]>([]);
-  const [displayedStakes, setDisplayedStakes] = useState<StakeData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayedStakes, setDisplayedStakes] = useState<StakeData[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended'>('all');
-  const [chainFilter, setChainFilter] = useState<'all' | 'ETH' | 'PLS'>('all');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(2025, 1, 1), // February 1st, 2025 (month is 0-indexed)
-    to: new Date() // Today's date
-  });
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const { priceData: pHexPrice } = useCryptoPrice('pHEX');
   const { priceData: eHexPrice } = useCryptoPrice('eHEX');
+
+  // Update parent component's stakes state
+  useEffect(() => {
+    onStakesChange?.(stakes);
+  }, [stakes, onStakesChange]);
+
+  // Update parent component's loading state
+  useEffect(() => {
+    onLoadingChange?.(isLoading);
+  }, [isLoading, onLoadingChange]);
 
   // Function to filter stakes based on status, chain and date range
   const filterStakes = useCallback((allStakes: StakeData[]) => {
@@ -565,130 +592,6 @@ const OAStakesTable: React.FC = () => {
 
   return (
     <div className="w-full py-4 px-1 xs:px-8">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        {isLoading ? (
-          <>
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-0">
-                <div className="skeleton h-[104px] w-full" />
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-0">
-                <div className="skeleton h-[104px] w-full" />
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-0">
-                <div className="skeleton h-[104px] w-full" />
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-0">
-                <div className="skeleton h-[104px] w-full" />
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-0">
-                <div className="skeleton h-[104px] w-full" />
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          <>
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-4">
-                <p className="text-gray-400 text-sm">Total Active Stake Count</p>
-                <p className="text-2xl font-bold text-white">{formatNumber(summaryStats.stakeCount, 0)}</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-4">
-                <p className="text-gray-400 text-sm">Wallet Count</p>
-                <p className="text-2xl font-bold text-white">{formatNumber(summaryStats.walletCount, 0)}</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-4">
-                <p className="text-gray-400 text-sm">Total HEX Staked</p>
-                <p className="text-2xl font-bold text-white">{formatNumber(summaryStats.totalHexStaked.ETH + summaryStats.totalHexStaked.PLS)} HEX</p>
-                <p className="text-gray-400 text-sm">
-                  {(eHexPrice?.price && pHexPrice?.price) ? 
-                    `$${formatNumber((summaryStats.totalHexStaked.ETH * eHexPrice.price) + (summaryStats.totalHexStaked.PLS * pHexPrice.price))}` 
-                    : '-'}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-4">
-                <p className="text-gray-400 text-sm">Average Stake Size</p>
-                <p className="text-2xl font-bold text-white">{formatNumber(summaryStats.averageStakeSize)} HEX</p>
-                <p className="text-gray-400 text-sm">
-                  {(eHexPrice?.price && pHexPrice?.price) ? 
-                    `$${formatNumber(summaryStats.averageStakeSize * ((eHexPrice.price + pHexPrice.price) / 2))}` 
-                    : '-'}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black border border-white/20">
-              <CardContent className="p-4">
-                <p className="text-gray-400 text-sm">Average Stake Length</p>
-                <p className="text-2xl font-bold text-white">{Math.round(summaryStats.averageStakeLength)} D</p>
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4 mb-4">
-        <div className="flex flex-row gap-4 w-full sm:w-auto">
-          <div className="w-1/2 sm:w-auto">
-            <Select
-              value={chainFilter}
-              onValueChange={(value: 'all' | 'ETH' | 'PLS') => setChainFilter(value)}
-            >
-              <SelectTrigger className="w-full bg-black border border-white/20 text-white hover:bg-[#1a1a1a] hover:border-white/20 hover:text-white rounded-[6px]">
-                <SelectValue placeholder="All Chains" />
-              </SelectTrigger>
-              <SelectContent className="bg-black border border-white/20 rounded-[6px]">
-                <SelectItem value="all" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">All Chains</SelectItem>
-                <SelectItem value="ETH" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">ETH</SelectItem>
-                <SelectItem value="PLS" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">PLS</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="w-1/2 sm:w-auto">
-            <Select
-              value={statusFilter}
-              onValueChange={(value: 'all' | 'active' | 'ended') => setStatusFilter(value)}
-            >
-              <SelectTrigger className="w-full bg-black border border-white/20 text-white hover:bg-[#1a1a1a] hover:border-white/20 hover:text-white rounded-[6px]">
-                <SelectValue placeholder="All Stakes" />
-              </SelectTrigger>
-              <SelectContent className="bg-black border border-white/20 rounded-[6px]">
-                <SelectItem value="all" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">All Stakes</SelectItem>
-                <SelectItem value="active" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">Active Stakes</SelectItem>
-                <SelectItem value="ended" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">Ended Stakes</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="w-full sm:w-auto">
-          <DatePickerWithRange date={dateRange} setDate={setDateRange} className="w-full" />
-        </div>
-      </div>
-
       {isLoading && page === 1 ? (
         <div className="rounded-lg border border-[#333] overflow-hidden">
           <div className="space-y-4 p-4">
@@ -707,9 +610,7 @@ const OAStakesTable: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div 
-          className="rounded-lg border border-[#333] overflow-x-auto"
-        >
+        <div className="rounded-lg border border-[#333] overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-b border-[#333] hover:bg-transparent">
@@ -816,6 +717,6 @@ const OAStakesTable: React.FC = () => {
       `}</style>
     </div>
   );
-};
+}
 
 export default OAStakesTable;
