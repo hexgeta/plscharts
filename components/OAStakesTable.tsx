@@ -223,27 +223,32 @@ const calculateCurrentHexDay = () => {
   return Math.floor((currentTimestamp - HEX_LAUNCH_DATE) / (SECONDS_PER_DAY * 1000)) - 2;
 };
 
+const calculateDaysUntilMaturity = (endDay: string) => {
+  const currentDay = calculateCurrentHexDay();
+  const daysLeft = Number(endDay) - currentDay;
+  return daysLeft > 0 ? daysLeft : 0;
+};
+
 const formatDate = (hexDay: string) => {
   // HEX launch date in UTC
   const HEX_LAUNCH_DATE = new Date('2019-12-03T00:00:00.000Z');
   const date = new Date(HEX_LAUNCH_DATE.getTime() + ((parseInt(hexDay) - 2) * 24 * 60 * 60 * 1000));
   
   // Format in UTC to avoid timezone shifts
-  return date.toLocaleDateString('en-GB', { 
-    day: '2-digit',
-    month: '2-digit',
+  return date.toLocaleDateString('en-US', { 
+    month: 'short',
+    day: 'numeric',
     year: 'numeric',
     timeZone: 'UTC'
-  }).replace(/\//g, '.');
+  });
 };
 
 const formatNumber = (value: number | string, decimals = 1) => {
   const num = typeof value === 'string' ? Number(value) : value;
-  console.log('Formatting number:', { input: value, parsed: num });
   if (num >= 1000000000) {
-    return `${(num / 1000000000).toFixed(0)} B`;
+    return `${(num / 1000000000).toFixed(decimals)} B`;
   } else if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(0)} M`;
+    return `${(num / 1000000).toFixed(decimals)} M`;
   } else if (num >= 1000) {
     return `${(num / 1000).toFixed(decimals)} K`;
   }
@@ -265,13 +270,15 @@ export default function OAStakesTable() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended'>('all');
+  const [chainFilter, setChainFilter] = useState<'all' | 'ETH' | 'PLS'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(2025, 1, 12), // February 12th, 2025 (month is 0-indexed)
     to: new Date() // Today's date
   });
-  const { priceData } = useCryptoPrice('pHEX');
+  const { priceData: pHexPrice } = useCryptoPrice('pHEX');
+  const { priceData: eHexPrice } = useCryptoPrice('eHEX');
 
-  // Function to filter stakes based on status and date range
+  // Function to filter stakes based on status, chain and date range
   const filterStakes = useCallback((allStakes: StakeData[]) => {
     return allStakes.filter(stake => {
       // Status filter
@@ -279,6 +286,9 @@ export default function OAStakesTable() {
         if (statusFilter === 'active' && !stake.isActive) return false;
         if (statusFilter === 'ended' && stake.isActive) return false;
       }
+
+      // Chain filter
+      if (chainFilter !== 'all' && stake.chain !== chainFilter) return false;
 
       // Date filter
       if (dateRange?.from || dateRange?.to) {
@@ -289,7 +299,7 @@ export default function OAStakesTable() {
 
       return true;
     });
-  }, [statusFilter, dateRange]);
+  }, [statusFilter, chainFilter, dateRange]);
 
   // Add window scroll handler
   useEffect(() => {
@@ -476,31 +486,55 @@ export default function OAStakesTable() {
     fetchStakes();
   }, []);
 
+  const formatHexValue = (amount: string, chain: 'ETH' | 'PLS') => {
+    const numericAmount = Number(amount) / 1e8; // Convert from Hearts to HEX
+    const price = chain === 'ETH' ? eHexPrice?.price : pHexPrice?.price;
+    if (!price) return '';
+    const value = numericAmount * price;
+    return `$${formatNumber(value, 2)}`;
+  };
+
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
   return (
     <div className="w-full py-4 px-1 xs:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-4 w-full">
-        <Select
-          value={statusFilter}
-          onValueChange={(value: 'all' | 'active' | 'ended') => setStatusFilter(value)}
-        >
-          <SelectTrigger className="w-full sm:w-[180px] bg-black text-white border border-white/20 hover:bg-[#1a1a1a] focus:ring-0 focus:ring-offset-0">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent className="bg-black border border-white/20">
-            <SelectItem value="all" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">All Stakes</SelectItem>
-            <SelectItem value="active" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">Active Stakes</SelectItem>
-            <SelectItem value="ended" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">Ended Stakes</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col sm:flex-row gap-4 mb-4">
+        <div className="flex flex-row gap-4 w-full sm:w-auto">
+          <div className="w-1/2 sm:w-auto">
+            <Select
+              value={chainFilter}
+              onValueChange={(value: 'all' | 'ETH' | 'PLS') => setChainFilter(value)}
+            >
+              <SelectTrigger className="w-full bg-black border border-white/20 text-white hover:bg-[#1a1a1a] hover:border-white/20 hover:text-white rounded-[6px]">
+                <SelectValue placeholder="All Chains" />
+              </SelectTrigger>
+              <SelectContent className="bg-black border border-white/20 rounded-[6px]">
+                <SelectItem value="all" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">All Chains</SelectItem>
+                <SelectItem value="ETH" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">ETH</SelectItem>
+                <SelectItem value="PLS" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">PLS</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-1/2 sm:w-auto">
+            <Select
+              value={statusFilter}
+              onValueChange={(value: 'all' | 'active' | 'ended') => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-full bg-black border border-white/20 text-white hover:bg-[#1a1a1a] hover:border-white/20 hover:text-white rounded-[6px]">
+                <SelectValue placeholder="All Stakes" />
+              </SelectTrigger>
+              <SelectContent className="bg-black border border-white/20 rounded-[6px]">
+                <SelectItem value="all" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">All Stakes</SelectItem>
+                <SelectItem value="active" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">Active Stakes</SelectItem>
+                <SelectItem value="ended" className="text-white hover:bg-[#1a1a1a] focus:bg-[#1a1a1a] focus:text-white">Ended Stakes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         <div className="w-full sm:w-auto">
-          <DatePickerWithRange
-            date={dateRange}
-            setDate={setDateRange}
-            className="bg-black text-white hover:bg-[#1a1a1a] focus:ring-0 focus:ring-offset-0"
-          />
+          <DatePickerWithRange date={dateRange} setDate={setDateRange} className="w-full" />
         </div>
       </div>
 
@@ -528,15 +562,16 @@ export default function OAStakesTable() {
           <Table>
             <TableHeader>
               <TableRow className="border-b border-[#333] hover:bg-transparent">
-                <TableHead className="text-gray-400 font-800 text-center">#</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center">Chain</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center">Status</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center">Start Date</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center">End Date</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center">Length</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center">Address</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center">Principle</TableHead>
-                <TableHead className="text-gray-400 font-800 text-center">T-Shares</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[40px] whitespace-nowrap">#</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[80px] whitespace-nowrap">Chain</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[80px] whitespace-nowrap">Status</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[120px] whitespace-nowrap">Start Date</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[120px] whitespace-nowrap">End Date</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[100px] whitespace-nowrap">Length</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[100px] whitespace-nowrap">Days Left</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[120px] whitespace-nowrap">Address</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[120px] whitespace-nowrap">Principle</TableHead>
+                <TableHead className="text-gray-400 font-800 text-center w-[120px] whitespace-nowrap">T-Shares</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -577,6 +612,9 @@ export default function OAStakesTable() {
                   <TableCell className="text-white text-center transition-all duration-300">{formatDate(stake.endDay)}</TableCell>
                   <TableCell className="text-white text-center transition-all duration-300">{stake.stakedDays} D</TableCell>
                   <TableCell className="text-white text-center transition-all duration-300">
+                    {stake.isActive ? `${calculateDaysUntilMaturity(stake.endDay)} D` : '-'}
+                  </TableCell>
+                  <TableCell className="text-white text-center transition-all duration-300">
                     <Link 
                       href={`https://hexscout.com/${stake.address}`}
                       target="_blank"
@@ -586,11 +624,14 @@ export default function OAStakesTable() {
                       {formatAddress(stake.address)}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-white text-center transition-all duration-300">
-                    {formatNumber(Number(stake.stakedHearts) / 1e8)} HEX
+                  <TableCell className="text-center">
+                    <div>{formatNumber(Number(stake.stakedHearts) / 1e8)} HEX</div>
+                    <div className="text-gray-400 text-xs mt-0.5">
+                      {formatHexValue(stake.stakedHearts, stake.chain)}
+                    </div>
                   </TableCell>
                   <TableCell className="text-white text-center transition-all duration-300">
-                    {formatNumber(Number(stake.stakeTShares))}
+                    {formatNumber(Number(stake.stakeTShares), 2)}
                   </TableCell>
                 </TableRow>
               ))}

@@ -32,7 +32,7 @@ export function DatePickerWithRange({
             className={cn(
               "w-full sm:w-[260px] justify-start text-left font-normal",
               "bg-black border-white/20 text-white",
-              "hover:bg-black hover:border-white/20 hover:text-white",
+              "hover:bg-[#1a1a1a] hover:border-white/20 hover:text-white",
               !date && "text-muted-foreground"
             )}
           >
