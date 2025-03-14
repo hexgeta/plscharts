@@ -9,7 +9,7 @@ const OAStakesPage: NextPage = () => {
   const [chainFilter, setChainFilter] = useState<'all' | 'ETH' | 'PLS'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(2025, 1, 1),
-    to: new Date()
+    to: new Date(Date.now() + (2 * 24 * 60 * 60 * 1000))
   });
   const [isLoading, setIsLoading] = useState(true);
   const [stakes, setStakes] = useState<any[]>([]);

@@ -227,7 +227,7 @@ const calculateCurrentHexDay = () => {
 
 const calculateDaysUntilMaturity = (endDay: string) => {
   const currentDay = calculateCurrentHexDay();
-  const adjustedEndDay = Number(endDay) - 2;  // Adjust end day by 2 days to match the date formatting
+  const adjustedEndDay = Number(endDay) - 1;  // Adjust end day by 2 days to match the date formatting
   const daysLeft = adjustedEndDay - currentDay;
   return daysLeft > 0 ? daysLeft : 0;
 };
@@ -235,7 +235,7 @@ const calculateDaysUntilMaturity = (endDay: string) => {
 const formatDate = (hexDay: string) => {
   // HEX launch date in UTC
   const HEX_LAUNCH_DATE = new Date('2019-12-03T00:00:00.000Z');
-  const date = new Date(HEX_LAUNCH_DATE.getTime() + ((parseInt(hexDay) - 2) * 24 * 60 * 60 * 1000));
+  const date = new Date(HEX_LAUNCH_DATE.getTime() + ((parseInt(hexDay) - 1) * 24 * 60 * 60 * 1000));
   
   // Format in UTC to avoid timezone shifts
   return date.toLocaleDateString('en-US', { 

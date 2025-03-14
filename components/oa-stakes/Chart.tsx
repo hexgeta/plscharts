@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import { Skeleton } from "@/components/ui/skeleton2";
 import { useCryptoPrice } from "@/hooks/crypto/useCryptoPrice";
@@ -34,6 +34,7 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
   const [chartData, setChartData] = useState<any[]>([]);
   const { priceData: pHexPrice } = useCryptoPrice('pHEX');
   const { priceData: eHexPrice } = useCryptoPrice('eHEX');
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
     if (stakes.length > 0) {
@@ -99,8 +100,8 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
       // Fill in the actual stake data
       filteredStakes.forEach(stake => {
         // Add 2 days to correct the offset
-        const startDate = new Date(Number(stake.startDay) * 86400000 + new Date('2019-12-03').getTime() - (2 * 86400000));
-        const endDate = new Date(Number(stake.endDay) * 86400000 + new Date('2019-12-03').getTime() - (2 * 86400000));
+        const startDate = new Date(Number(stake.startDay) * 86400000 + new Date('2019-12-03').getTime() - (1 * 86400000));
+        const endDate = new Date(Number(stake.endDay) * 86400000 + new Date('2019-12-03').getTime() - (1 * 86400000));
         const startDateKey = format(startDate, 'yyyy-MM-dd');
         const endDateKey = format(endDate, 'yyyy-MM-dd');
         
@@ -223,6 +224,18 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
               strokeDasharray="3 3" 
               stroke="rgba(136, 136, 136, 0.2)" 
               vertical={false} 
+            />
+            <ReferenceLine
+              x={today}
+              stroke="#FFD700"
+              strokeWidth={2}
+              strokeDasharray="3 3"
+              label={{
+                value: 'Today',
+                position: 'top',
+                fill: '#FFD700',
+                fontSize: 12
+              }}
             />
             <XAxis 
               dataKey="dateStr"
