@@ -20,7 +20,8 @@ function MyApp({ Component, pageProps }: AppProps) {
                           router.pathname === '/ethprices' || 
                           router.pathname === '/plsprices' || 
                           router.pathname === '/pdaiprices' || 
-                          router.pathname === '/wbtcprices';
+                          router.pathname === '/wbtcprices' ||
+                          router.pathname === '/hero';
 
   useEffect(() => {
     setIsMounted(true);
