@@ -280,6 +280,7 @@ const HEXLiquidityChart: React.FC = () => {
                 dot={false} 
                 strokeWidth={2}
                 connectNulls={true}
+                hide={!visibleLines.liquidityPulseX_HEX}
               />
               <Line 
                 yAxisId="right"
@@ -290,6 +291,7 @@ const HEXLiquidityChart: React.FC = () => {
                 dot={false} 
                 strokeWidth={2}
                 connectNulls={true}
+                hide={!visibleLines.pricePulseX}
               />
               <Line 
                 yAxisId="dollarLiquidity"
