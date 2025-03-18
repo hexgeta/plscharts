@@ -164,32 +164,33 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
         display: 'flex', 
         justifyContent: 'center', 
         width: '100%',
-        marginTop: '35px'
+        marginTop: '50px'
       }}
       className="hidden md:flex"
       >
         <ul style={{ 
           listStyle: 'none', 
           padding: 0, 
-          display: 'flex',
-          flexWrap: 'wrap', 
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, auto)',
+          gap: '8px 14px',  // 8px vertical gap, 24px horizontal gap
           justifyContent: 'center',
-          gap: '15px'
+          alignItems: 'center'
         }}>
           <li style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ color: '#00FFFF', fontSize: '28px' }}>●</span>
+            <span style={{ color: '#00FFFF', fontSize: '24px', lineHeight: '1' }}>●</span>
             <span style={{ color: '#fff', fontSize: '12px' }}>ETH Stakes Started</span>
           </li>
           <li style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ color: '#9945FF', fontSize: '28px' }}>●</span>
+            <span style={{ color: '#9945FF', fontSize: '24px', lineHeight: '1' }}>●</span>
             <span style={{ color: '#fff', fontSize: '12px' }}>PLS Stakes Started</span>
           </li>
           <li style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ color: '#00FFFF', fontSize: '28px', opacity: 0.4 }}>●</span>
+            <span style={{ color: '#00FFFF', fontSize: '24px', lineHeight: '1', opacity: 0.4 }}>●</span>
             <span style={{ color: '#fff', fontSize: '12px' }}>ETH Stakes Ending</span>
           </li>
           <li style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ color: '#9945FF', fontSize: '28px', opacity: 0.4 }}>●</span>
+            <span style={{ color: '#9945FF', fontSize: '24px', lineHeight: '1', opacity: 0.4 }}>●</span>
             <span style={{ color: '#fff', fontSize: '12px' }}>PLS Stakes Ending</span>
           </li>
         </ul>
@@ -199,7 +200,7 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
 
   if (isLoading) {
     return (
-      <div className="w-full h-[450px] my-2 relative">
+      <div className="w-full h-[600px] my-8 relative">
         <div className="w-full h-full p-5 border border-white/20 rounded-[15px]">
           <Skeleton variant="chart" className="w-full h-full" />
         </div>
@@ -208,17 +209,26 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
   }
 
   return (
-    <div className="w-full h-[450px] my-2 relative">
+    <div className="w-full h-[600px] my-8 relative">
       <div className="w-full h-full p-5 border border-white/20 rounded-[15px]">
-        <h2 className="text-left text-white text-2xl mb-0 ml-10">
+        <h2 className="text-left text-white text-2xl mb-4 ml-10">
           {title}
         </h2>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="90%">
           <BarChart 
             data={chartData}
-            margin={{ top: 30, right: 40, left: 40, bottom: 80 }}
-            barCategoryGap={1}
-            barGap={0}
+            margin={{ 
+              top: 20, 
+              right: 30, 
+              left: 50, 
+              bottom: window.innerWidth < 768 
+                ? 0  // mobile
+                : window.innerWidth < 1024 
+                  ? 0  // tablet
+                  : 0   // desktop
+            }}
+            barCategoryGap={2}
+            barGap={1}
           >
             <CartesianGrid 
               strokeDasharray="3 3" 
@@ -241,13 +251,13 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
               dataKey="dateStr"
               axisLine={{ stroke: '#888', strokeWidth: 0 }}
               tickLine={false}
-              tick={{ fill: '#888', fontSize: 14, dy: 10 }}
+              tick={{ fill: '#888', fontSize: 12, dy: 10 }}
               ticks={[chartData[0]?.dateStr, chartData[chartData.length - 1]?.dateStr]}
               tickFormatter={formatDate}
               label={{ 
                 value: 'DATE', 
                 position: 'bottom',
-                offset: 20,
+                offset: 15,
                 style: { 
                   fill: '#888',
                   fontSize: 12,
@@ -257,13 +267,13 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
             <YAxis 
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#888', fontSize: 14 }}
+              tick={{ fill: '#888', fontSize: 12, dx: -10 }}
               tickFormatter={(value) => formatNumber(value)}
               label={{ 
                 value: 'HEX', 
                 position: 'left',
                 angle: -90,
-                offset: 0,
+                offset: 15,
                 style: { 
                   fill: '#888',
                   fontSize: 12,
@@ -286,7 +296,7 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
                 const chain = name.includes('ETH') ? 'ETH' : 'PLS';
                 const price = chain === 'ETH' ? eHexPrice?.price : pHexPrice?.price;
                 const usdValue = price ? value * price : 0;
-                const isEnd = name.includes('End');  // Check for 'End' in the data key name
+                const isEnd = name.includes('End');
                 const color = chain === 'ETH' ? '#00FFFF' : '#9945FF';
                 const opacity = isEnd ? 0.5 : 1;
                 
@@ -307,13 +317,7 @@ function OAStakesChart({ stakes, isLoading, title, chainFilter, statusFilter, da
                 return [<span style={{ color, opacity }}>{formattedValue}</span>, ''];
               }}
               separator=""
-              labelFormatter={(label) => {
-                const item = chartData.find(d => d.dateStr === label);
-                if (!item) return formatDate(label);
-                
-                // Always show the date, regardless of activity
-                return formatDate(label);
-              }}
+              labelFormatter={(label) => formatDate(label)}
               cursor={{ fill: 'rgba(255, 255, 255, 0.1)' }}
             />
             <Legend content={customLegend} />
