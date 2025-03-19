@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -9,13 +9,42 @@ interface Props {
   title: string;
 }
 
-function DiscountChartEMAXI({ title }: Props) {
+function DiscountChartMAXI({ title }: Props) {
   const { data, error, isLoading } = CumBackingValueMAXI();
   
+  console.log('Chart Data:', {
+    isLoading,
+    error,
+    dataLength: data?.length,
+    firstFewItems: data?.slice(0, 5),
+    lastFewItems: data?.slice(-5)
+  });
+
+  useEffect(() => {
+    if (data && data.length > 0) {
+      console.log('Data received in chart:', {
+        firstPoint: data[0],
+        lastPoint: data[data.length - 1],
+        sampleDiscount: data.map(d => d.discount).filter(d => d !== null).slice(0, 5)
+      });
+    }
+  }, [data]);
+
   const [visibleLines, setVisibleLines] = useState({
     backingRatio: true,
     discount: true
   });
+
+  // Format data for the chart
+  const chartData = useMemo(() => {
+    if (!data) return [];
+    return data.map(item => ({
+      ...item,
+      date: new Date(item.date),
+      discount: item.discount || null,
+      backingRatio: item.backingRatio || null
+    }));
+  }, [data]);
 
   const handleLegendClick = (dataKey: string) => {
     setVisibleLines(prev => ({
@@ -28,6 +57,9 @@ function DiscountChartEMAXI({ title }: Props) {
     const { payload } = props;
     
     if (payload && data?.length > 0) {
+      const latestData = data[data.length - 1];
+      console.log('Latest data point:', latestData);
+
       return (
         <div style={{ 
           display: 'flex', 
@@ -79,6 +111,7 @@ function DiscountChartEMAXI({ title }: Props) {
   };
 
   if (error) {
+    console.error('Chart Error:', error);
     return <div>Error loading data</div>;
   }
 
@@ -92,7 +125,7 @@ function DiscountChartEMAXI({ title }: Props) {
             {title}
           </h2>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 30, right: 20, left: 20, bottom: 30 }}>
+            <LineChart data={chartData} margin={{ top: 30, right: 20, left: 20, bottom: 30 }}>
               <CartesianGrid 
                 strokeDasharray="3 3" 
                 stroke="rgba(136, 136, 136, 0.2)" 
@@ -103,7 +136,7 @@ function DiscountChartEMAXI({ title }: Props) {
                 axisLine={{ stroke: '#888', strokeWidth: 0 }}
                 tickLine={false}
                 tick={{ fill: '#888', fontSize: 14, dy: 5 }}
-                ticks={[data[0]?.date, data[data.length - 1]?.date]}
+                ticks={[chartData[0]?.date, chartData[chartData.length - 1]?.date]}
                 tickFormatter={(value) => {
                   const date = new Date(value);
                   return date.toLocaleDateString('en-US', { 
@@ -174,8 +207,8 @@ function DiscountChartEMAXI({ title }: Props) {
                 name="Market Price Ratio"
                 dot={false} 
                 strokeWidth={2} 
-                stroke="#3991ED" 
-                activeDot={{ r: 4, fill: '#3991ED', stroke: 'white' }}
+                stroke="#3b82f6" 
+                activeDot={{ r: 4, fill: '#3b82f6', stroke: 'white' }}
                 hide={!visibleLines.discount}
               />
             </LineChart>
@@ -186,4 +219,4 @@ function DiscountChartEMAXI({ title }: Props) {
   );
 }
 
-export default DiscountChartEMAXI;
+export default DiscountChartMAXI;

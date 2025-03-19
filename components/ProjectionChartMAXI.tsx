@@ -354,7 +354,7 @@ function ProjectionChartMAXI({
       ) : (
         <div style={{ width: '100%', height: '100%', padding: '20px', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '15px' }}>
           <h2 style={{ textAlign: 'left', color: 'white', fontSize: '24px', marginBottom: '0px', marginLeft: '40px'}}>
-            {title}</h2>
+            {title} (Original)</h2>
           <ResponsiveContainer width="100%" height="100%" debounce={1}>
             <LineChart data={data} margin={{ top: 30, right: 20, left: 20, bottom: 60 }}>
               <CartesianGrid 
