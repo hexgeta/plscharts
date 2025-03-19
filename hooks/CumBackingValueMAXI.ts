@@ -5,6 +5,20 @@ import { supabase } from '@/supabaseClient';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
+interface PriceData {
+  date: string;
+  hex_price: string;
+  ehex_price: string;
+  maxi_price: string;
+}
+
+interface ProcessedDataPoint {
+  day: number;
+  date: string;
+  backingRatio: number;
+  discount: number | null;
+}
+
 export const CumBackingValueMAXI = () => {
   // Fetch HEX daily stats for yield calculations
   const { data: hexData, error: hexError } = useSWR(
@@ -13,7 +27,7 @@ export const CumBackingValueMAXI = () => {
   );
 
   // Fetch price data from Supabase
-  const { data: priceData, error: priceError } = useSWR(
+  const { data: priceData, error: priceError } = useSWR<PriceData[]>(
     'price_data_maxi',
     async () => {
       const { data, error } = await supabase
@@ -31,45 +45,46 @@ export const CumBackingValueMAXI = () => {
   const processedData = useMemo(() => {
     if (!hexData || !priceData) return [];
 
-    // Create a map of dates to price ratios from Supabase data
-    const priceMap = new Map(
-      priceData.map(day => [
-        new Date(day.date).toISOString().split('T')[0],
-        {
-          // If hex_price is null, use ehex_price instead
-          priceRatio: parseFloat(day.maxi_price) / (day.hex_price ? parseFloat(day.hex_price) : parseFloat(day.ehex_price))
-        }
-      ])
-    );
+    // Ensure TOKEN_CONSTANTS are defined
+    if (!TOKEN_CONSTANTS?.pMAXI?.TSHARES || 
+        !TOKEN_CONSTANTS?.pMAXI?.STAKE_PRINCIPLE || 
+        !TOKEN_CONSTANTS?.pMAXI?.STAKE_START_DATE || 
+        !TOKEN_CONSTANTS?.pMAXI?.TOKEN_SUPPLY) {
+      console.error('Missing required TOKEN_CONSTANTS');
+      return [];
+    }
 
-    const TSHARES = TOKEN_CONSTANTS.pMAXI.TSHARES; // 42104.44
-    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.pMAXI.STAKE_PRINCIPLE; // 294323603.77
-    const START_DATE = TOKEN_CONSTANTS.pMAXI.STAKE_START_DATE; // May 1st 2022
+    const TSHARES = TOKEN_CONSTANTS.pMAXI.TSHARES;
+    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.pMAXI.STAKE_PRINCIPLE;
+    const START_DATE = TOKEN_CONSTANTS.pMAXI.STAKE_START_DATE;
+    const TOKEN_SUPPLY = TOKEN_CONSTANTS.pMAXI.TOKEN_SUPPLY;
 
     // Process HEX daily stats data
     const sortedData = hexData
-      .filter((day: any) => new Date(day.date) >= START_DATE)
+      .filter((day: any) => START_DATE && new Date(day.date) >= START_DATE)
       .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     let cumulativeYield = 0;
+    const startDate = new Date('2022-05-01');
 
-    return sortedData.map((day: any) => {
-      // Calculate daily yield using payoutPerTshareHEX
-      const dailyYield = day.payoutPerTshareHEX * TSHARES || 0;
+    return sortedData.map((day: any): ProcessedDataPoint => {
+      const dailyYield = (day.payoutPerTshareHEX * TSHARES) || 0;
       cumulativeYield += dailyYield;
-      const yieldAdjustedBacking = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_CONSTANTS.pMAXI.TOKEN_SUPPLY;
+      const backingRatio = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_SUPPLY;
 
-      // Get price ratio from Supabase data
-      const dateKey = new Date(day.date).toISOString().split('T')[0];
-      const priceData = priceMap.get(dateKey);
+      const currentDate = new Date(day.date);
+      const dayNumber = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 881;
+
+      // Calculate price ratio
+      const maxiPrice = parseFloat(priceData.find(p => p.date === day.date)?.maxi_price || '0');
+      const hexPrice = parseFloat(priceData.find(p => p.date === day.date)?.hex_price || priceData.find(p => p.date === day.date)?.ehex_price || '0');
+      const priceRatio = hexPrice !== 0 ? maxiPrice / hexPrice : null;
 
       return {
-        date: new Date(day.date),
-        discount: priceData?.priceRatio,
-        backingValue: 1,
-        backingRatio: yieldAdjustedBacking,
-        dailyYield,
-        cumulativeYield
+        day: dayNumber,
+        date: day.date,
+        backingRatio,
+        discount: priceRatio
       };
     });
 

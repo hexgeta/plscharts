@@ -1,6 +1,6 @@
 import React from 'react';
 import ProjectionChartMAXI from '../components/ProjectionChartMAXI';
-import ProjectionChartMAXI2 from '../components/ProjectionChartMAXIV2';
+import ExtendedProjectionChart from '../components/ProjectionChartMAXI2';
 import ProjectionChartDECI from '../components/ProjectionChartDECI';
 import ProjectionChartLUCKY from '../components/ProjectionChartLUCKY';
 import ProjectionChartTRIO from '../components/ProjectionChartTRIO';
@@ -15,7 +15,7 @@ const ProjectionsPage = () => {
       </p>
       <div>
         <ProjectionChartMAXI/>
-        <ProjectionChartMAXI2/>
+        <ExtendedProjectionChart/>
         <ProjectionChartDECI/>
         <ProjectionChartLUCKY/>
         <ProjectionChartTRIO/>
