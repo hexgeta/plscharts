@@ -24,8 +24,8 @@ interface HEXStats {
   totalStakerCount: number;
 }
 
-const OA_TSHARES_PLS = 26482068;
-const OA_TSHARES_ETH = 26155727;
+const OA_TSHARES_PLS = 35482068;
+const OA_TSHARES_ETH = 35155727;
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
