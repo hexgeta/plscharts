@@ -340,9 +340,6 @@ export const TransactionsTable: React.FC<Props> = ({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="text-center text-gray-400">
-            Found {transactions.length} transactions
-          </div>
         <div className="rounded-lg border border-[#333] overflow-x-auto">
           <Table>
             <TableHeader>

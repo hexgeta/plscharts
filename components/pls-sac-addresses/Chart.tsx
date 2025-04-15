@@ -5,7 +5,6 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import { Skeleton } from "@/components/ui/skeleton2";
-import { useCryptoPrice } from "@/hooks/crypto/useCryptoPrice";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 
@@ -38,27 +37,10 @@ function TransactionsChart({ transactions, isLoading, dateRange }: Props) {
   const [chartData, setChartData] = useState<any[]>([]);
   const today = new Date();
   today.setHours(23, 59, 59, 999);
-  const { priceData: ethPrice } = useCryptoPrice('WETH');
 
   const formatNumber = (value: number) => {
     if (value === 0) return '0';
     return `${value.toFixed(0)} ETH`;
-  };
-
-  const formatHexValue = (amount: number) => {
-    if (!ethPrice?.price) return '';
-    const value = amount * ethPrice.price;
-    return `$${value >= 1_000_000 ? `${(value / 1_000_000).toFixed(2)}M` : value >= 1_000 ? `${(value / 1_000).toFixed(2)}K` : value.toFixed(2)}`;
-  };
-
-  const formatDollarValue = (ethAmount: number) => {
-    if (!ethPrice?.price) return '$...';
-    const value = Math.abs(ethAmount) * ethPrice.price;
-    return value >= 1_000_000 
-      ? `$${(value / 1_000_000).toFixed(2)}M` 
-      : value >= 1_000 
-      ? `$${(value / 1_000).toFixed(2)}K` 
-      : `$${value.toFixed(2)}`;
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {

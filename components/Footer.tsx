@@ -28,6 +28,8 @@ const Footer = () => {
 
             <li><Link href="/hex-gains" className="text-[rgb(153,153,153)] hover:text-gray-300">HEX Gains</Link></li>
             <li><Link href="/oa-stakes" className="text-[rgb(153,153,153)] hover:text-gray-300">OA Stakes</Link></li>
+            <li><Link href="/pls-sac" className="text-[rgb(153,153,153)] hover:text-gray-300">PLS Sac Wallets</Link></li>
+
           </ul>
         </div>
         <div className="col-span-1">
