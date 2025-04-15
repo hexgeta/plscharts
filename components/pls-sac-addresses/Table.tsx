@@ -214,6 +214,15 @@ export const TransactionsTable: React.FC<Props> = ({
   const [totalFetched, setTotalFetched] = useState(0);
   const { priceData: ethPrice } = useCryptoPrice('WETH');
 
+  // Check for API key early
+  useEffect(() => {
+    if (!ETHERSCAN_API_KEY) {
+      setError('Etherscan API key not found. Please check your environment variables.');
+      setIsLoading(false);
+      return;
+    }
+  }, []);
+
   // Update parent loading state
   useEffect(() => {
     onLoadingChange?.(isLoading);
@@ -223,28 +232,56 @@ export const TransactionsTable: React.FC<Props> = ({
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
+        // Don't fetch if we don't have an API key
+        if (!ETHERSCAN_API_KEY) {
+          return;
+        }
+
         setIsLoading(true);
         setError(null);
 
         // Fetch transactions for all addresses in parallel
         const allTransactionsPromises = TRACKED_ADDRESSES.map(async ({ address, label }) => {
-          const response = await fetch(
-            `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=10000&sort=desc&apikey=${ETHERSCAN_API_KEY}`
-          );
+          try {
+            const response = await fetch(
+              `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=10000&sort=desc&apikey=${ETHERSCAN_API_KEY}`
+            );
 
-          const data = await response.json();
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-          if (data.status === '1' && Array.isArray(data.result)) {
-            return data.result.map((tx: any) => ({
-              ...tx,
-              reference: address,
-              label: label
-            }));
+            const data = await response.json();
+
+            if (data.status === '0') {
+              console.error(`API Error for ${address}:`, data.message || 'Unknown error');
+              return [];
+            }
+
+            if (data.status === '1' && Array.isArray(data.result)) {
+              return data.result.map((tx: any) => ({
+                ...tx,
+                reference: address,
+                label: label
+              }));
+            }
+
+            return [];
+          } catch (err) {
+            console.error(`Error fetching transactions for ${address}:`, err);
+            return [];
           }
-          return [];
         });
 
         const results = await Promise.all(allTransactionsPromises);
+        
+        // Check if we got any results at all
+        if (results.every(result => result.length === 0)) {
+          setError('No transaction data available. Please try again later.');
+          setIsLoading(false);
+          return;
+        }
+
         const allTransactions = results.flat();
 
         // Filter out transactions where Pls Sac is the recipient and transactions < 0.1 ETH
