@@ -1,12 +1,25 @@
 import type { NextPage } from 'next';
 import { useState } from 'react';
-import { TransactionsTable, Filters } from '@/components/pls-sac-addresses';
+import { TransactionsTable, Filters, Chart } from '@/components/pls-sac-addresses';
 import { DateRange } from 'react-day-picker';
+
+interface Transaction {
+  hash: string;
+  from: string;
+  to: string;
+  value: string;
+  timeStamp: string;
+  blockNumber: string;
+  isError?: string;
+  reference: string;
+  label: string;
+}
 
 const PLSSacAddressesPage: NextPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [walletFilter, setWalletFilter] = useState<'all' | 'main' | 'daughter1' | 'daughter2'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   return (
     <div className="p-2 sm:p-4">
@@ -23,11 +36,19 @@ const PLSSacAddressesPage: NextPage = () => {
         onDateRangeChange={setDateRange}
       /> */}
 
+      {/* Chart */}
+      <Chart 
+        transactions={transactions}
+        isLoading={isLoading}
+        dateRange={dateRange}
+      />
+
       {/* Table */}
       <TransactionsTable 
         onLoadingChange={setIsLoading}
         walletFilter={walletFilter}
         dateRange={dateRange}
+        onTransactionsChange={setTransactions}
       />
     </div>
   );

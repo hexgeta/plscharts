@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    serverActions: true,
+  },
+  images: {
+    domains: ['raw.githubusercontent.com'],
+  },
   trailingSlash: true,
   webpack: (config) => {
     config.module.rules.push({

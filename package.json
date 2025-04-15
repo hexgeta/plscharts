@@ -1,8 +1,13 @@
 {
-  "name": "my-react-app",
+  "name": "lookintomaxi",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
     "@hookform/resolvers": "^3.10.0",
@@ -81,11 +86,6 @@
     "wagmi": "^2.12.29",
     "web3": "^4.16.0",
     "zod": "^3.24.1"
-  },
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
   },
   "devDependencies": {
     "@types/react": "18.2.55",

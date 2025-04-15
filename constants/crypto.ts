@@ -323,7 +323,7 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
   },
   WETH: {
     PAIR: {
-      pairAddress: '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
+      pairAddress: '0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8',
       chain: 'ethereum'
     }
   },

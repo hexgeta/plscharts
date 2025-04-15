@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
+import { useCryptoPrice } from "@/hooks/crypto/useCryptoPrice";
+import { TOKEN_CONSTANTS } from '@/constants/crypto';
 
 const TARGET_ADDRESS = '0x1b7baa734c00298b9429b518d621753bb0f6eff2';
 const ETHERSCAN_API_KEY = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
@@ -100,6 +102,7 @@ interface Props {
   onLoadingChange: (isLoading: boolean) => void;
   walletFilter: 'all' | 'main' | 'daughter1' | 'daughter2';
   dateRange: DateRange | undefined;
+  onTransactionsChange?: (transactions: Transaction[]) => void;
 }
 
 const formatAddress = (address: string) => {
@@ -202,17 +205,26 @@ const formatValue = (value: string, from: string, reference: string) => {
 export const TransactionsTable: React.FC<Props> = ({
   onLoadingChange,
   walletFilter,
-  dateRange
+  dateRange,
+  onTransactionsChange
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalFetched, setTotalFetched] = useState(0);
+  const { priceData: ethPrice } = useCryptoPrice('WETH');
 
+  // Add debug log for price data
+  useEffect(() => {
+    console.log('ETH Price Data:', ethPrice);
+  }, [ethPrice]);
+
+  // Update parent loading state
   useEffect(() => {
     onLoadingChange?.(isLoading);
   }, [isLoading, onLoadingChange]);
 
+  // Add back transaction fetching
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
@@ -260,6 +272,7 @@ export const TransactionsTable: React.FC<Props> = ({
 
         console.log(`Found ${sortedTransactions.length} total transactions after filtering`);
         setTransactions(sortedTransactions);
+        onTransactionsChange?.(sortedTransactions);
         setTotalFetched(sortedTransactions.length);
         setIsLoading(false);
       } catch (err) {
@@ -270,7 +283,18 @@ export const TransactionsTable: React.FC<Props> = ({
     };
 
     fetchTransactions();
-  }, []);
+  }, [onTransactionsChange]);
+
+  const formatDollarValue = (ethAmount: number) => {
+    console.log('Formatting dollar value:', { ethAmount, ethPrice });
+    if (!ethPrice?.price) return '$...';
+    const value = ethAmount * ethPrice.price;
+    return value >= 1_000_000 
+      ? `$${(value / 1_000_000).toFixed(2)}M` 
+      : value >= 1_000 
+      ? `$${(value / 1_000).toFixed(2)}K` 
+      : `$${value.toFixed(2)}`;
+  };
 
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
@@ -281,7 +305,7 @@ export const TransactionsTable: React.FC<Props> = ({
           <div className="text-center text-gray-400">
             Fetching transactions... Found {totalFetched} so far
           </div>
-        <div className="rounded-lg border border-[#333] overflow-hidden">
+          <div className="rounded-lg border border-[#333] overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="border-b border-[#333] hover:bg-transparent">
@@ -379,8 +403,11 @@ export const TransactionsTable: React.FC<Props> = ({
                     <TableCell className="text-white text-center">
                       {formatAddressWithStyle(tx.to)}
                   </TableCell>
-                    <TableCell className="text-white text-center">
-                      {formatValue(tx.value, tx.from, tx.reference)}
+                  <TableCell className="text-white text-center transition-all duration-300">
+                      <div>{formatValue(tx.value, tx.from, tx.reference)}</div>
+                      <div className="text-gray-400 text-xs mt-0.5">
+                        {formatDollarValue(Number(tx.value) / 1e18)}
+                      </div>
                   </TableCell>
                 </TableRow>
               ))}

@@ -10,12 +10,15 @@ export function useCryptoPrice(symbol: string) {
       const startTime = new Date()
       console.log(`Fetching price for ${symbol} at ${startTime.toISOString()}`)
       
-      // Use our cached API for HEX
-      if (symbol === 'pHEX') {
-        const response = await fetch('/api/prices/hex')
-        const data = await response.json()
-        if (data.error) throw new Error(data.error)
-        return data
+      // Temporary hardcode for testing
+      if (symbol === 'WETH') {
+        console.log('Using hardcoded WETH price: $1629.70')
+        return {
+          price: 1629.70,
+          priceChange24h: -2.68,
+          lastUpdated: new Date(),
+          chain: 'ethereum'
+        }
       }
 
       // Regular fetching for other tokens
@@ -30,8 +33,12 @@ export function useCryptoPrice(symbol: string) {
       const response = await fetch(url)
       const data = await response.json()
       
-      if (!data.pairs?.[0]) {
-        console.error(`No pair data found for ${symbol}`)
+      console.log('DexScreener response:', data)
+
+      // Check both pairs[0] and pair for the price data
+      const pairData = data.pairs?.[0] || data.pair
+      if (!pairData) {
+        console.error(`No pair data found for ${symbol}`, { data })
         return {
           price: 0,
           priceChange24h: 0,
@@ -40,12 +47,13 @@ export function useCryptoPrice(symbol: string) {
         }
       }
 
-      const pair = data.pairs[0]
-      const price = pair.priceUsd ? parseFloat(pair.priceUsd) : 0
-      const priceChange24h = pair.priceChange?.h24 ? parseFloat(pair.priceChange.h24) / 100 : 0
+      const price = pairData.priceUsd ? parseFloat(pairData.priceUsd) : 0
+      const priceChange24h = pairData.priceChange?.h24 ? parseFloat(pairData.priceChange.h24) / 100 : 0
       
       console.log(`Price update for ${symbol}:`, {
         price,
+        priceUsd: pairData.priceUsd,
+        pairData,
         fetchTime: new Date().toISOString(),
         fetchDuration: new Date().getTime() - startTime.getTime()
       })
@@ -58,9 +66,9 @@ export function useCryptoPrice(symbol: string) {
       }
     },
     {
-      refreshInterval: 1000,
+      refreshInterval: 30000, // Refresh every 30 seconds
       revalidateOnFocus: true,
-      dedupingInterval: 500,
+      dedupingInterval: 15000, // Minimum 15 seconds between requests
     }
   )
 
