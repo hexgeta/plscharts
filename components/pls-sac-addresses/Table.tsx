@@ -214,11 +214,6 @@ export const TransactionsTable: React.FC<Props> = ({
   const [totalFetched, setTotalFetched] = useState(0);
   const { priceData: ethPrice } = useCryptoPrice('WETH');
 
-  // Add debug log for price data
-  useEffect(() => {
-    console.log('ETH Price Data:', ethPrice);
-  }, [ethPrice]);
-
   // Update parent loading state
   useEffect(() => {
     onLoadingChange?.(isLoading);
@@ -286,15 +281,22 @@ export const TransactionsTable: React.FC<Props> = ({
   }, [onTransactionsChange]);
 
   const formatDollarValue = (ethAmount: number) => {
-    console.log('Formatting dollar value:', { ethAmount, ethPrice });
+    // Always show loading state if price isn't available yet
     if (!ethPrice?.price) return '$...';
-    const value = ethAmount * ethPrice.price;
+    const value = Math.abs(ethAmount) * ethPrice.price;
     return value >= 1_000_000 
       ? `$${(value / 1_000_000).toFixed(2)}M` 
       : value >= 1_000 
       ? `$${(value / 1_000).toFixed(2)}K` 
       : `$${value.toFixed(2)}`;
   };
+
+  // Add debug log for price data
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log('ETH Price Data:', ethPrice);
+    }
+  }, [ethPrice]);
 
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
