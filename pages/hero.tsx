@@ -1,7 +1,17 @@
 import { Metadata } from 'next'
-import SimpleSphere from "./sphere/maxi"
+import dynamic from 'next/dynamic'
 import { PooledStakes } from '@/components/PooledStakes'
-import MusicPlayer from '@/components/MusicPlayer'
+
+// Dynamically import components that need client-side rendering
+const SimpleSphere = dynamic(() => import("./sphere/maxi"), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-black" />
+})
+
+const MusicPlayer = dynamic(() => import('@/components/MusicPlayer'), {
+  ssr: false,
+  loading: () => null
+})
 
 export const metadata: Metadata = {
   title: 'MAXI Yield Sphere',
@@ -10,6 +20,15 @@ export const metadata: Metadata = {
 
 // Hide navigation for this page
 export const hideNav = true
+
+// Add getServerSideProps to ensure proper SSR
+export async function getServerSideProps() {
+  return {
+    props: {
+      // Add any props you need here
+    }
+  }
+}
 
 export default function HeroSectionDemo() {
   return (

@@ -30,3 +30,81 @@
 - More maintainable file structure
 - Cleaner code with dedicated components for each feature
 - Improved reusability of components 
+
+## 2024-03-21
+- Updated pages/pls-sac-addresses.tsx to use new components from pls-sac-addresses folder
+- Changed component imports from oa-stakes to pls-sac-addresses
+- Updated page title and descriptions to reflect PLS SAC addresses
+- Renamed page component to PLSSacAddressesPage
+- Updated chart title to "PLS SAC Stakes Over Time"
+
+## 2024-03-21 - Transaction Table Update
+- Converted Table.tsx to fetch on-chain transactions instead of GraphQL data
+- Added ethers.js integration for blockchain interaction
+- Updated table columns to show transaction details (hash, from, to, value, etc.)
+- Added chain-specific RPC endpoints for ETH and PLS
+- Simplified page layout to focus on transaction data
+- Added chain filter toggle between ETH and PLS networks
+- Updated component exports in index.ts
+
+## 2024-03-21 - Bug Fixes
+- Fixed TypeScript errors in Table.tsx
+- Removed unused code and dependencies
+- Simplified component props
+- Added proper type definitions for transactions
+- Fixed ethers.js integration
+- Cleaned up component structure
+- Removed duplicate code
+- Updated page component to match new table props
+
+[2024-03-21]
+- Switched to using Adamant ETH transactions storage API
+- Removed direct blockchain querying
+- Added support for both native and ERC20 transactions
+- Updated transaction interface to match API response format
+- Added transaction type column (Native/ERC20)
+- Improved error handling for API requests
+- Simplified data fetching logic
+- Removed ethers.js dependency
+
+## 2024-03-21 - Transaction Table Update
+- Updated Table.tsx to use proper ethers.js typing
+- Added Transaction interface for better type safety
+- Fixed block fetching logic to use getBlock with transactions
+- Improved type assertions for transaction processing
+- Added proper error handling and loading states
+- Fixed toLowerCase error by adding proper null checks for transaction addresses
+- Added safe handling of undefined addresses with fallback values
+- Optimized address comparison logic
+- Extended transaction history to cover 12 months instead of 10,000 blocks
+- Added chain-specific block time calculations (ETH: 15s, PLS: 2s)
+- Improved error handling with try-catch blocks and chunk recovery
+- Added rate limiting protection with delays between chunk processing
+- Optimized chunk sizes for different chains (ETH: 10, PLS: 50)
+- Increased maximum transaction limit to 1000
+- Changed default chain to ETH in pls-sac-addresses page
+- Added detailed console logging for transaction processing
+- Added chain identifier to all console messages
+- Improved loading skeleton UI to match OA Stakes table
+- Added transaction details to console logs
+- Added progress tracking for block processing
+- Optimized transaction scanning for addresses with few transactions
+- Added initial transaction count check to avoid unnecessary scanning
+- Implemented progressive block range expansion
+- Reduced initial scan range to 10,000 blocks
+- Added early exit when no transactions are found
+- Improved block processing efficiency by scanning one block at a time
+- Added smart backtracking to find older transactions 
+
+## [2024-03-21] - Etherscan API Integration
+- Switched to using Etherscan/Pulsescan APIs for transaction fetching
+- Added support for normal, internal, and ERC20 transactions
+- Improved transaction type display with colored badges
+- Added proper value formatting for different token decimals
+- Added failed transaction indication with reduced opacity
+- Added parallel fetching of different transaction types
+- Added sorting by timestamp for all transaction types
+- Updated transaction interface to match Etherscan API response
+- Added environment variable support for API keys
+- Improved error handling and loading states
+- Added visual indicators for transaction types (Normal/Internal/ERC20) 
