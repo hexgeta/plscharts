@@ -25,16 +25,16 @@ const PLSSacAddressesPage: NextPage = () => {
     <div className="p-2 sm:p-4">
       <h1 className="text-2xl font-bold mt-10 mb-4 text-center">PLS SAC Address Transactions</h1>
       <p className="text-white/60 text-center mb-8">
-        View the main transactions from the Pls Sac address & 2 of its daughter addresses. It excludes user input sac funds and focuses solely on the sac addess owner's actions. It also excludes ERC20 & gas transactions.
+        View the main transaction movements from the Pls Sac address & its many daughter addresses. It excludes user input sac funds and focuses solely on the sac addess owner's actions. It also excludes ERC20 & gas transactions.
       </p>
 
-      {/* Filters
+      {/* Filters */}
       <Filters
         walletFilter={walletFilter}
         dateRange={dateRange}
         onWalletFilterChange={setWalletFilter}
         onDateRangeChange={setDateRange}
-      /> */}
+      />
 
       {/* Chart */}
       <Chart 
