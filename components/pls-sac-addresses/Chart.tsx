@@ -7,7 +7,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton2";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
-import { useCryptoPrice } from "@/hooks/crypto/useCryptoPrice";
+import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice'
 import { formatNumber } from "@/utils/format";
 
 interface Transaction {
@@ -63,20 +63,39 @@ const WALLET_COLORS = {
   'Daughter 30': '#7B68EE'
 };
 
-function TransactionsChart({ transactions, isLoading, dateRange }: Props) {
+export function TransactionsChart({ transactions, isLoading: tableLoading, dateRange }: Props) {
+  const { priceData, isLoading: priceLoading } = useCryptoPrice('WETH');
   const [chartData, setChartData] = useState<any[]>([]);
-  const { priceData: ethPrice } = useCryptoPrice('WETH');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const today = new Date();
   today.setHours(23, 59, 59, 999);
 
+  const wethPrice = priceData?.price || null;
+  const isLoading = tableLoading || priceLoading;
+
+  const formatValue = (value: number) => {
+    if (priceLoading || !wethPrice) return `${value.toFixed(2)} ETH`;
+    const usdValue = value * wethPrice;
+    return `${usdValue.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    })} (${value.toFixed(2)} ETH)`;
+  };
+
   const formatEthValue = (value: number) => {
-    const prefix = value >= 0 ? '+' : '';
-    return `${prefix}${Math.round(value)} ETH`;
+    const absValue = Math.abs(value);
+    if (absValue >= 1000000) {
+      return `${(absValue / 1000000).toFixed(2)}M ETH`;
+    }
+    if (absValue >= 1000) {
+      return `${(absValue / 1000).toFixed(2)}K ETH`;
+    }
+    return `${absValue.toFixed(2)} ETH`;
   };
 
   const formatDollarValue = (ethAmount: number) => {
-    if (!ethPrice?.price) return '$...';
-    const value = Math.abs(ethAmount) * ethPrice.price;
+    if (priceLoading || !wethPrice) return '';
+    const value = Math.abs(ethAmount) * wethPrice;
     if (value >= 1000000) {
       return `$${(value / 1000000).toFixed(2)}M`;
     } else if (value >= 1000) {
@@ -110,7 +129,7 @@ function TransactionsChart({ transactions, isLoading, dateRange }: Props) {
             <div key={index} className="mb-1">
               <p style={{ color: entry.color }} className="flex flex-col">
                 <span className="text-base font-medium">{formatEthValue(entry.value)}</span>
-                <span className="text-xs opacity-80">{formatDollarValue(entry.value)}</span>
+                {wethPrice && <span className="text-xs opacity-80">{formatDollarValue(entry.value)}</span>}
               </p>
             </div>
           ))}
@@ -233,7 +252,7 @@ function TransactionsChart({ transactions, isLoading, dateRange }: Props) {
               domain={['auto', 'auto']}
               allowDataOverflow={false}
               label={{ 
-                value: 'ETH', 
+                value: 'Amount (ETH)', 
                 position: 'left',
                 angle: -90,
                 offset: 15,

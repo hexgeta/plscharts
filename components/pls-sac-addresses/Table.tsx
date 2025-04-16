@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
-import { useCryptoPrice } from "@/hooks/crypto/useCryptoPrice";
+import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
 
 const TARGET_ADDRESS = '0x1b7baa734c00298b9429b518d621753bb0f6eff2';
@@ -511,17 +511,26 @@ const fetchWithRetry = async (url: string, retries = 3, delayMs = 2000): Promise
   throw new Error('Max retries reached');
 };
 
-export const TransactionsTable: React.FC<Props> = ({
-  onLoadingChange,
-  walletFilter,
-  dateRange,
-  onTransactionsChange
-}) => {
+export function TransactionsTable({ onLoadingChange, walletFilter, dateRange, onTransactionsChange }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalFetched, setTotalFetched] = useState(0);
-  const { priceData: ethPrice } = useCryptoPrice('WETH');
+  const { priceData, isLoading: priceLoading, error: priceError } = useCryptoPrice('WETH');
+  
+  // Debug logs for price data
+  useEffect(() => {
+    console.log('RAW_DEXSCREENER_TABLE_DEBUG:', {
+      priceData,
+      priceLoading,
+      priceError,
+      hasPrice: Boolean(priceData?.price),
+      priceValue: priceData?.price,
+      tokenConfig: TOKEN_CONSTANTS['WETH']
+    });
+  }, [priceData, priceLoading, priceError]);
+
+  const wethPrice = priceData?.price || null;
 
   // Check for API key early
   useEffect(() => {
@@ -534,8 +543,8 @@ export const TransactionsTable: React.FC<Props> = ({
 
   // Update parent loading state
   useEffect(() => {
-    onLoadingChange?.(isLoading);
-  }, [isLoading, onLoadingChange]);
+    onLoadingChange?.(isLoading || priceLoading);
+  }, [isLoading, priceLoading, onLoadingChange]);
 
   // Add back transaction fetching
   useEffect(() => {
@@ -646,9 +655,8 @@ export const TransactionsTable: React.FC<Props> = ({
   }, [onTransactionsChange]);
 
   const formatDollarValue = (ethAmount: number) => {
-    // Always show loading state if price isn't available yet
-    if (!ethPrice?.price) return '$...';
-    const value = Math.abs(ethAmount) * ethPrice.price;
+    if (priceLoading || !wethPrice) return '$...';
+    const value = Math.abs(ethAmount) * wethPrice;
     return value >= 1_000_000 
       ? `$${(value / 1_000_000).toFixed(2)}M` 
       : value >= 1_000 
@@ -659,18 +667,18 @@ export const TransactionsTable: React.FC<Props> = ({
   // Add debug log for price data
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      console.log('ETH Price Data:', ethPrice);
+      console.log('WETH Price:', wethPrice);
     }
-  }, [ethPrice]);
+  }, [wethPrice]);
 
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
   return (
     <div className="w-full py-4 px-1 xs:px-8">
-      {isLoading ? (
+      {(isLoading || priceLoading) ? (
         <div className="space-y-4">
           <div className="text-center text-gray-400">
-            Fetching transactions... Found {totalFetched} so far
+            {isLoading ? `Fetching transactions... Found ${totalFetched} so far` : 'Loading price data...'}
           </div>
           <div className="rounded-lg border border-[#333] overflow-hidden">
             <Table>
@@ -782,6 +790,6 @@ export const TransactionsTable: React.FC<Props> = ({
       )}
     </div>
   );
-};
+}
 
 export default TransactionsTable;

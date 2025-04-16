@@ -75,8 +75,8 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     STAKE_END_DATE: new Date('2037-07-16'),
     TOTAL_STAKED_DAYS: 5555,
     PAIR: {
-      pairAddress: '0x2ae4517B2806b84A576C10F698d6567CE80A6490',
-      chain: 'ethereum'
+      pairAddress: '0xFD309d27B4cb4F5C869ee53E5D0fCc5654d3bb01',
+      chain: 'pulsechain'
     }
   },
 // MAXI BURNS (Accounted for already)
@@ -277,7 +277,8 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
     PAIR: {
       pairAddress: '0x0000000000000000000000000000000000000000',
       chain: 'ethereum'
-    },
+    }
+  },
   PLS: {
     PAIR: {
       pairAddress: '0xe56043671df55de5cdf8459710433c10324de0ae',
@@ -323,28 +324,27 @@ export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
   },
   WETH: {
     PAIR: {
-      pairAddress: '0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8',
+      pairAddress: '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
       chain: 'ethereum'
     }
   },
-  'TRUMP': {
+  TRUMP: {
     PAIR: {
       chain: 'solana',
       pairAddress: 'A8nPhpCJqtqHdqUk35Uj9Hy2YsGXFkCZGuNwvkD3k7VC'
     }
   },
-  'pDAI': {
+  pDAI: {
     PAIR: {
       chain: 'pulsechain',
       pairAddress: '0xFC64556FAA683e6087F425819C7Ca3C558e13aC1'
     }
   },
-  'WBTC': {
+  WBTC: {
     PAIR: {
       chain: 'pulsechain',
       pairAddress: '0x46E27Ea3A035FfC9e6d6D56702CE3D208FF1e58c'
     }
-  }
   }
 }
 

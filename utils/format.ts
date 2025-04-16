@@ -3,20 +3,23 @@ export function formatNumber(value: number, options: {
   suffix?: string,
   decimals?: number,
   compact?: boolean,
-  percentage?: boolean
+  percentage?: boolean,
+  alreadyPercentage?: boolean
 } = {}) {
   const { 
     prefix = '', 
     suffix = '',
     decimals = 2,
     compact = false,
-    percentage = false
+    percentage = false,
+    alreadyPercentage = false
   } = options
 
   let formattedValue = value
   
   if (percentage) {
-    formattedValue = value * 100
+    // If the value is already a percentage (like from DexScreener), don't multiply by 100
+    formattedValue = alreadyPercentage ? value : value * 100
     return prefix + new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals

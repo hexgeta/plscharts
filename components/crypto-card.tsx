@@ -107,7 +107,7 @@ export function CryptoCard({ data, variant = 'default' }: CryptoCardProps) {
                     {priceData.price === 0 ? "N/A" : formatPrice(priceData.price)}
                   </div>
                   <div className={`text-xs font-bold ${getPriceChangeColor(priceData.priceChange24h)}`}>
-                    {priceData.price === 0 ? "" : formatNumber(priceData.priceChange24h, { decimals: 1, percentage: true })}
+                    {priceData.price === 0 ? "" : formatNumber(priceData.priceChange24h, { decimals: 1, percentage: true, alreadyPercentage: true })}
                   </div>
                 </div>
               )}
@@ -145,7 +145,7 @@ export function CryptoCard({ data, variant = 'default' }: CryptoCardProps) {
                 {priceData.price === 0 ? "N/A" : formatPrice(priceData.price)}
               </div>
               <div className={`text-xs font-bold ${getPriceChangeColor(priceData.priceChange24h)}`}>
-                {priceData.price === 0 ? "" : formatNumber(priceData.priceChange24h, { decimals: 1, percentage: true })}
+                {priceData.price === 0 ? "" : formatNumber(priceData.priceChange24h, { decimals: 1, percentage: true, alreadyPercentage: true })}
               </div>
             </div>
           )}
