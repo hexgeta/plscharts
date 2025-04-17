@@ -9,16 +9,16 @@ export default function AuthCallback() {
     const handleCallback = async () => {
       const supabase = createClient();
       try {
-        // Get the redirect path from the URL
-        const redirectPath = router.query.redirect as string || '/';
-        const decodedRedirect = decodeURIComponent(redirectPath);
-
         // Check if we have a session
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          // If we have a session, redirect to the return path
-          router.push(decodedRedirect);
+          // Get the stored redirect path
+          const redirectPath = localStorage.getItem('authRedirectPath') || '/';
+          // Clear the stored path
+          localStorage.removeItem('authRedirectPath');
+          // Redirect to the stored path
+          router.push(redirectPath);
         } else {
           // If no session, redirect to home
           router.push('/');
@@ -29,11 +29,11 @@ export default function AuthCallback() {
       }
     };
 
-    // Only run the callback handler if we have query parameters
-    if (router.isReady) {
+    // Only run the callback handler if we're on the client side
+    if (typeof window !== 'undefined' && router.isReady) {
       handleCallback();
     }
-  }, [router.isReady, router.query]);
+  }, [router.isReady]);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">

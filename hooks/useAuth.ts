@@ -50,7 +50,6 @@ export const useAuth = () => {
       if (typeof window === 'undefined') return;
 
       const supabase = createClient();
-      const currentPath = window.location.pathname;
       await supabase.auth.signOut();
       setUser(null);
       setIsAuthenticated(false);
@@ -67,12 +66,16 @@ export const useAuth = () => {
       // Only run on client-side
       if (typeof window === 'undefined') return;
 
-      const supabase = createClient();
+      // Store the current path for redirect after auth
       const currentPath = window.location.pathname;
+      localStorage.setItem('authRedirectPath', currentPath);
+
+      const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'twitter',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(currentPath)}`
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'tweet.read users.read'
         }
       });
       

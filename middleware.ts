@@ -1,21 +1,41 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { PROTECTED_PAGES } from './config/protected-pages';
+import { isHandleWhitelisted } from './config/whitelisted-handles';
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
-
-  // Protected routes that require authentication
-  const protectedRoutes = ['/gas', '/delta-discounts'];
-  if (protectedRoutes.includes(req.nextUrl.pathname) && !session) {
-    return NextResponse.redirect(new URL('/', req.url));
+  // Early return if not a protected page
+  if (!PROTECTED_PAGES.includes(req.nextUrl.pathname)) {
+    return NextResponse.next();
   }
 
-  return res;
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
+  
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      // If no session, redirect to home
+      return NextResponse.redirect('/');
+    }
+
+    // Check if the user's Twitter handle is whitelisted
+    const twitterHandle = session.user?.user_metadata?.user_name;
+    if (!twitterHandle || !isHandleWhitelisted(twitterHandle)) {
+      // If handle is not whitelisted, redirect to home
+      return NextResponse.redirect('/');
+    }
+
+    return res;
+  } catch (error) {
+    console.error('Middleware error:', error);
+    // In case of error, redirect to home
+    return NextResponse.redirect('/');
+  }
 }
 
 export const config = {
-  matcher: ['/gas', '/delta-discounts'],
+  matcher: PROTECTED_PAGES,
 }; 
