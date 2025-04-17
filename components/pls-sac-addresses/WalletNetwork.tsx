@@ -1,6 +1,8 @@
+'use client';
+
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { ForceGraph3D } from 'react-force-graph';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 interface Transaction {
   hash: string;
@@ -19,99 +21,215 @@ interface Props {
   isLoading: boolean;
 }
 
-const WALLET_COLORS = {
-  'Main Sac': '#FFFF00',
-  'Daughter 1': '#00FFFF',
-  'Daughter 2': '#FF00FF',
-  'Daughter 3': '#00FF00',
-  'Daughter 4': '#FF8C00',
-  'Daughter 5': '#4B0082',
-  'Daughter 6': '#FF1493',
-  'Daughter 7': '#20B2AA',
-  'Daughter 8': '#BA55D3',
-  'Daughter 9': '#F0E68C',
-  'Daughter 10': '#98FB98',
-  'Daughter 11': '#FFA07A',
-  'Daughter 12': '#9370DB',
-  'Daughter 13': '#3CB371',
-  'Daughter 14': '#FFB6C1',
-  'Daughter 15': '#BDB76B',
-  'Daughter 16': '#20B2AA',
-  'Daughter 17': '#FF69B4',
-  'Daughter 18': '#7B68EE',
-  'Daughter 19': '#00CED1',
-  'Daughter 20': '#DEB887',
-  'Daughter 21': '#00FFFF',
-  'Daughter 22': '#9932CC',
-  'Daughter 23': '#FF7F50',
-  'Daughter 24': '#8FBC8F',
-  'Daughter 25': '#E6E6FA',
-  'Daughter 26': '#B8860B',
-  'Daughter 27': '#98FB98',
-  'Daughter 28': '#CD853F',
-  'Daughter 29': '#FFB6C1',
-  'Daughter 30': '#7B68EE'
+interface Node {
+  id: string;
+  position: THREE.Vector3;
+  velocity: THREE.Vector3;
+  mesh: THREE.Mesh;
+  label: string;
+}
+
+interface Link {
+  source: Node;
+  target: Node;
+  line: THREE.Line;
+  value: number;
+}
+
+const COLORS = {
+  'Main Sac': 0xFFFF00,
+  'Daughter 1': 0x00FFFF,
+  'Daughter 2': 0xFF00FF,
+  'Daughter 3': 0x00FF00,
+  'Daughter 4': 0xFF8C00,
+  'Daughter 5': 0x4B0082,
+  'Daughter 6': 0xFF1493,
+  'Daughter 7': 0x20B2AA,
+  'Daughter 8': 0xBA55D3,
+  'Daughter 9': 0xF0E68C,
+  'Daughter 10': 0x98FB98,
+  'Daughter 11': 0xFFA07A,
+  'Daughter 12': 0x9370DB,
+  'Daughter 13': 0x3CB371,
+  'Daughter 14': 0xFFB6C1,
+  'Daughter 15': 0xBDB76B,
+  'Daughter 16': 0x20B2AA,
+  'Daughter 17': 0xFF69B4,
+  'Daughter 18': 0x7B68EE,
+  'Daughter 19': 0x00CED1,
+  'Daughter 20': 0xDEB887,
+  'Daughter 21': 0x00FFFF,
+  'Daughter 22': 0x9932CC,
+  'Daughter 23': 0xFF7F50,
+  'Daughter 24': 0x8FBC8F,
+  'Daughter 25': 0xE6E6FA,
+  'Daughter 26': 0xB8860B,
+  'Daughter 27': 0x98FB98,
+  'Daughter 28': 0xCD853F,
+  'Daughter 29': 0xFFB6C1,
+  'Daughter 30': 0x7B68EE
 };
 
 export function WalletNetwork({ transactions, isLoading }: Props) {
-  const processTransactions = (transactions: Transaction[]) => {
-    const nodes = new Map();
-    const links = new Map();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<{
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    renderer: THREE.WebGLRenderer;
+    controls: OrbitControls;
+    nodes: Map<string, Node>;
+    links: Link[];
+  }>();
 
-    // First pass: Create nodes
+  // Initialize Three.js scene
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Setup scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    // Setup camera
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      containerRef.current.clientWidth / containerRef.current.clientHeight,
+      0.1,
+      1000
+    );
+    camera.position.z = 50;
+
+    // Setup renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    containerRef.current.appendChild(renderer.domElement);
+
+    // Setup controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // Store references
+    sceneRef.current = {
+      scene,
+      camera,
+      renderer,
+      controls,
+      nodes: new Map(),
+      links: []
+    };
+
+    // Handle window resize
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      camera.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Animation loop
+    const animate = () => {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (containerRef.current) {
+        containerRef.current.removeChild(renderer.domElement);
+      }
+      renderer.dispose();
+    };
+  }, []);
+
+  // Update network when transactions change
+  useEffect(() => {
+    if (!sceneRef.current || !transactions.length) return;
+
+    const { scene, nodes, links } = sceneRef.current;
+
+    // Clear previous nodes and links
+    nodes.forEach(node => scene.remove(node.mesh));
+    links.forEach(link => scene.remove(link.line));
+    nodes.clear();
+    links.length = 0;
+
+    // Create nodes
+    const uniqueWallets = new Set<string>();
     transactions.forEach(tx => {
-      if (!nodes.has(tx.label)) {
-        nodes.set(tx.label, {
-          id: tx.label,
-          name: tx.label,
-          val: 1, // Size of node
-          color: WALLET_COLORS[tx.label as keyof typeof WALLET_COLORS],
-          totalValue: 0
+      uniqueWallets.add(tx.label);
+    });
+
+    // Create node meshes
+    Array.from(uniqueWallets).forEach((label, index) => {
+      const geometry = new THREE.SphereGeometry(1, 32, 32);
+      const material = new THREE.MeshBasicMaterial({
+        color: COLORS[label as keyof typeof COLORS] || 0xFFFFFF
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+
+      // Position nodes in a circle
+      const angle = (index / uniqueWallets.size) * Math.PI * 2;
+      const radius = 20;
+      mesh.position.x = Math.cos(angle) * radius;
+      mesh.position.y = Math.sin(angle) * radius;
+
+      scene.add(mesh);
+
+      nodes.set(label, {
+        id: label,
+        position: mesh.position,
+        velocity: new THREE.Vector3(),
+        mesh,
+        label
+      });
+    });
+
+    // Create links
+    transactions.forEach(tx => {
+      const sourceNode = nodes.get(tx.label);
+      const targetNode = Array.from(nodes.values()).find(
+        node => node.id === tx.to || node.id === tx.from
+      );
+
+      if (sourceNode && targetNode) {
+        const value = parseFloat(tx.value) / 1e18;
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+          sourceNode.position,
+          targetNode.position
+        ]);
+        const material = new THREE.LineBasicMaterial({
+          color: 0xFFFFFF,
+          opacity: 0.2,
+          transparent: true
+        });
+        const line = new THREE.Line(geometry, material);
+        scene.add(line);
+
+        links.push({
+          source: sourceNode,
+          target: targetNode,
+          line,
+          value
         });
       }
     });
 
-    // Second pass: Create links and update node values
-    transactions.forEach(tx => {
-      const value = Number(tx.value) / 1e18;
-      const fromNode = tx.label;
-      const toLabel = Object.entries(WALLET_COLORS).find(
-        ([_, addr]) => addr.toLowerCase() === tx.to.toLowerCase()
-      )?.[0];
+  }, [transactions]);
 
-      if (fromNode && toLabel) {
-        const linkId = `${fromNode}-${toLabel}`;
-        const reverseLinkId = `${toLabel}-${fromNode}`;
-
-        if (!links.has(linkId) && !links.has(reverseLinkId)) {
-          links.set(linkId, {
-            source: fromNode,
-            target: toLabel,
-            value,
-          });
-        } else {
-          const existingLink = links.get(linkId) || links.get(reverseLinkId);
-          if (existingLink) {
-            existingLink.value += value;
-          }
-        }
-
-        // Update node values
-        const node = nodes.get(fromNode);
-        if (node) {
-          node.totalValue += value;
-          node.val = Math.log(node.totalValue + 1) + 1; // Logarithmic scaling
-        }
-      }
-    });
-
-    return {
-      nodes: Array.from(nodes.values()),
-      links: Array.from(links.values())
-    };
-  };
-
-  const graphData = processTransactions(transactions);
+  if (isLoading) {
+    return (
+      <div className="w-full h-[600px] my-8 relative">
+        <div className="w-full h-full p-5 border border-white/20 rounded-[15px] bg-black/40">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-white">Loading network visualization...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-[600px] my-8 relative">
@@ -119,22 +237,7 @@ export function WalletNetwork({ transactions, isLoading }: Props) {
         <h2 className="text-left text-white text-2xl mb-4 ml-10">
           Wallet Network Activity
         </h2>
-        <ForceGraph3D
-          graphData={graphData}
-          nodeLabel="name"
-          nodeColor="color"
-          nodeVal="val"
-          linkWidth={1}
-          linkColor={() => '#ffffff'}
-          backgroundColor="#00000000"
-          linkOpacity={0.2}
-          nodeOpacity={0.9}
-          nodeResolution={8}
-          linkDirectionalParticles={2}
-          linkDirectionalParticleWidth={0.5}
-          linkDirectionalParticleSpeed={0.005}
-          controlType="orbit"
-        />
+        <div ref={containerRef} className="w-full h-[500px]" />
       </div>
     </div>
   );

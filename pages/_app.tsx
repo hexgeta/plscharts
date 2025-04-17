@@ -1,11 +1,12 @@
 import '@/styles/global.css';
 import React, { useEffect, useState } from 'react';
 import type { AppProps } from 'next/app';
-import NavigationBar from '../components/NavBar';
+import AuthNavBar from '../components/AuthNavBar';
 import Footer from '../components/Footer';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import MaintenancePage from '../components/MaintenancePage';
+import { MusicProvider } from '../contexts/MusicContext';
 
 // Set this to true to enable maintenance mode
 const MAINTENANCE_MODE = false;
@@ -47,7 +48,7 @@ function MyApp({ Component, pageProps }: AppProps) {
   }
 
   return (
-    <div>
+    <MusicProvider>
       <Head>
         <title>LookIntoMaxi Ⓜ️🛡️🍀🎲🟠</title>
         <meta name="description" content="Don't fade liquid hex stakes bro - This is a Maximus Dao stats & charts site. Earn passive yield in your cold hardware wallet & sell at any time!" />
@@ -58,12 +59,12 @@ function MyApp({ Component, pageProps }: AppProps) {
           </>
         )}
       </Head>
-      {!isLivestreamPage && <NavigationBar />}
+      {!isLivestreamPage && <AuthNavBar />}
       <div className="App">
         <Component {...pageProps} />
       </div>
       {!isLivestreamPage && <Footer/>}
-    </div>
+    </MusicProvider>
   );
 }
 

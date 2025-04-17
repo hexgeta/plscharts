@@ -5,6 +5,7 @@ import ProjectionChartDECI from '../components/ProjectionChartDECI';
 import ProjectionChartLUCKY from '../components/ProjectionChartLUCKY';
 import ProjectionChartTRIO from '../components/ProjectionChartTRIO';
 import ProjectionChartBASE from '../components/ProjectionChartBASE';  
+import { withAuth } from '@/components/withAuth';
 
 const ProjectionsPage = () => {
   return (
@@ -25,4 +26,4 @@ const ProjectionsPage = () => {
   );
 };
 
-export default ProjectionsPage;
+export default withAuth(ProjectionsPage);

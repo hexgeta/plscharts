@@ -3,8 +3,9 @@ import { LeaguesTableEToken } from "@/components/LeaguesTableEToken";
 import { LeaguesTableTShares } from "@/components/LeaguesTableTShares";
 import { LeaguesTableETShares } from "@/components/LeaguesTableETShares";
 import Head from 'next/head';
+import { withAuth } from '@/components/withAuth';
 
-export default function LeaguesPage() {
+const LeaguesPage = () => {
   return (
     <div className="p-2 sm:p-4">
       <h1 className="text-2xl font-bold mt-10 mb-4 text-center">Leagues</h1>
@@ -31,4 +32,6 @@ export default function LeaguesPage() {
       </div>
     </div>
   );
-} 
+};
+
+export default withAuth(LeaguesPage); 

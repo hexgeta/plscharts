@@ -33,7 +33,7 @@ export const TOKEN_LOGOS: { [key: string]: string } = {
   'INC': '/coin-logos/INC.svg',
   'pDAI': '/coin-logos/pDAI.svg',
   'pWBTC': '/coin-logos/pWBTC.svg',
-}
+} as const;
 
 // Token-specific constants
 export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {

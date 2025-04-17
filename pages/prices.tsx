@@ -2,6 +2,7 @@ import React from 'react';
 import PriceChart from '../components/AllPrices';
 import PriceChartPLS from '../components/AllPricesPLS';
 import PriceChartETH from '../components/AllPricesETH';
+import { withAuth } from '@/components/withAuth';
 
 const PricesPage = () => {
   return (
@@ -17,4 +18,4 @@ const PricesPage = () => {
   );
 };
 
-export default PricesPage;
+export default withAuth(PricesPage);

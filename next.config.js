@@ -5,7 +5,7 @@ const nextConfig = {
     serverActions: true,
   },
   images: {
-    domains: ['raw.githubusercontent.com'],
+    domains: ['raw.githubusercontent.com', 'pbs.twimg.com'],
   },
   trailingSlash: true,
   webpack: (config) => {

@@ -1,6 +1,7 @@
 import type { NextPage } from 'next';
 import { useState } from 'react';
 import { TransactionsTable, Filters, Chart } from '@/components/pls-sac-addresses';
+import { WalletNetwork } from '@/components/pls-sac-addresses/WalletNetwork';
 import { DateRange } from 'react-day-picker';
 
 interface Transaction {
@@ -17,7 +18,6 @@ interface Transaction {
 
 const PLSSacAddressesPage: NextPage = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [walletFilter, setWalletFilter] = useState<'all' | 'main' | 'daughter1' | 'daughter2'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
@@ -30,11 +30,15 @@ const PLSSacAddressesPage: NextPage = () => {
 
       {/* Filters */}
       <Filters
-        walletFilter={walletFilter}
         dateRange={dateRange}
-        onWalletFilterChange={setWalletFilter}
         onDateRangeChange={setDateRange}
       />
+
+      {/* Network Visualization
+      <WalletNetwork 
+        transactions={transactions}
+        isLoading={isLoading}
+      /> */}
 
       {/* Chart */}
       <Chart 
@@ -46,7 +50,6 @@ const PLSSacAddressesPage: NextPage = () => {
       {/* Table */}
       <TransactionsTable 
         onLoadingChange={setIsLoading}
-        walletFilter={walletFilter}
         dateRange={dateRange}
         onTransactionsChange={setTransactions}
       />

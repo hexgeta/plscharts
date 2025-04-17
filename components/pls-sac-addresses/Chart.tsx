@@ -31,6 +31,7 @@ interface Props {
 // Update the color scheme to include all daughters
 const WALLET_COLORS = {
   'Main Sac': '#FFFF00',
+  // 'Plsx Sac': '#FF1493',
   'Daughter 1': '#00FFFF',  // 0x1b7baa734c00298b9429b518d621753bb0f6eff2
   'Daughter 2': '#FF00FF',  // 0x799bdc3f2075230ff85ec6767eaaa92365fdde0b
   'Daughter 3': '#00FF00',
@@ -74,27 +75,28 @@ export function TransactionsChart({ transactions, isLoading: tableLoading, dateR
   const isLoading = tableLoading || priceLoading;
 
   const formatValue = (value: number) => {
-    if (priceLoading || !wethPrice) return `${value.toFixed(2)} ETH`;
+    if (priceLoading || !wethPrice) return `${value.toFixed(2)} WETH`;
     const usdValue = value * wethPrice;
     return `${usdValue.toLocaleString('en-US', {
       style: 'currency',
       currency: 'USD',
-    })} (${value.toFixed(2)} ETH)`;
+    })} (${value.toFixed(2)} WETH)`;
   };
 
   const formatEthValue = (value: number) => {
+    if (priceLoading || !wethPrice) return '...';
     const absValue = Math.abs(value);
     if (absValue >= 1000000) {
-      return `${(absValue / 1000000).toFixed(2)}M ETH`;
+      return `${(absValue / 1000000).toFixed(2)}M`;
     }
     if (absValue >= 1000) {
-      return `${(absValue / 1000).toFixed(2)}K ETH`;
+      return `${(absValue / 1000).toFixed(2)}K`;
     }
-    return `${absValue.toFixed(2)} ETH`;
+    return absValue.toFixed(2);
   };
 
   const formatDollarValue = (ethAmount: number) => {
-    if (priceLoading || !wethPrice) return '';
+    if (priceLoading || !wethPrice) return '$...';
     const value = Math.abs(ethAmount) * wethPrice;
     if (value >= 1000000) {
       return `$${(value / 1000000).toFixed(2)}M`;
@@ -106,10 +108,17 @@ export function TransactionsChart({ transactions, isLoading: tableLoading, dateR
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      // First filter out zero values, then sort by sign (positive first) and then by absolute magnitude
-      const sortedPayload = [...payload]
+      // First filter out zero values and consolidate duplicate values
+      const consolidatedValues = payload
         .filter(entry => entry.value !== 0)
-        .sort((a, b) => {
+        .reduce((acc: any[], entry: any) => {
+          const existingEntry = acc.find(e => Math.abs(e.value) === Math.abs(entry.value));
+          if (!existingEntry) {
+            acc.push(entry);
+          }
+          return acc;
+        }, [])
+        .sort((a: any, b: any) => {
           // First sort by sign (positive before negative)
           if (a.value >= 0 && b.value < 0) return -1;
           if (a.value < 0 && b.value >= 0) return 1;
@@ -125,7 +134,7 @@ export function TransactionsChart({ transactions, isLoading: tableLoading, dateR
           padding: '10px'
         }}>
           <p className="text-white mb-2" style={{ fontSize: '14px' }}>{formatDate(label)}</p>
-          {sortedPayload.map((entry: any, index: number) => (
+          {consolidatedValues.map((entry: any, index: number) => (
             <div key={index} className="mb-1">
               <p style={{ color: entry.color }} className="flex flex-col">
                 <span className="text-base font-medium">{formatEthValue(entry.value)}</span>
@@ -142,6 +151,7 @@ export function TransactionsChart({ transactions, isLoading: tableLoading, dateR
   useEffect(() => {
     if (transactions.length > 0) {
       const dailyTotals = new Map();
+      const processedTxs = new Map(); // Track processed transactions by date and address
       
       let minDate = dateRange?.from || new Date(3000, 0, 1);
       let maxDate = dateRange?.to || today;
@@ -179,6 +189,13 @@ export function TransactionsChart({ transactions, isLoading: tableLoading, dateR
         const entry = dailyTotals.get(dateKey);
         
         if (entry && tx.label in WALLET_COLORS) {
+          // Create a unique key for this transaction in this date
+          const txKey = `${dateKey}-${tx.hash}-${tx.label}`;
+          
+          // Skip if we've already processed this transaction for this date and label
+          if (processedTxs.has(txKey)) return;
+          processedTxs.set(txKey, true);
+          
           const value = Number(tx.value) / 1e18;
           const isOutgoing = tx.from.toLowerCase() === tx.reference.toLowerCase();
           const adjustedValue = isOutgoing ? -value : value;
@@ -252,7 +269,7 @@ export function TransactionsChart({ transactions, isLoading: tableLoading, dateR
               domain={['auto', 'auto']}
               allowDataOverflow={false}
               label={{ 
-                value: 'Amount (ETH)', 
+                value: 'ETH', 
                 position: 'left',
                 angle: -90,
                 offset: 15,

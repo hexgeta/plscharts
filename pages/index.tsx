@@ -1,13 +1,9 @@
-import React from 'react';
-import Link from 'next/link';
-import CryptoDashboard from '@/components/crypto-dashboard';
+import { PooledStakes, SphereLayout } from '@/components/features/pooled-stakes';
 
-const Home = () => {
+export default function Home() {
   return (
-    <div className="p-6 sm:p-6 my-2 sm:my-4">
-      <CryptoDashboard/>
-    </div>
+    <SphereLayout>
+      <PooledStakes />
+    </SphereLayout>
   );
-};
-
-export default Home;
+}

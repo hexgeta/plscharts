@@ -1,13 +1,17 @@
 "use client"
 
 import React from 'react';
-import GasTable from '../components/GasTable';
-import GasTableEth from '../components/GasTableEth';
-import GasTableComparison from '../components/GasTableComparison';
-import GasTableYearlySummary from '../components/GasTableYearlySummary';
-import GasTableYearlySummaryPLS from '../components/GasTableYearlySummaryPLS';
+import dynamic from 'next/dynamic';
+import { withAuth } from '@/components/withAuth';
 
-const GasPage: React.FC = () => {
+// Dynamically import components to prevent loading when not authenticated
+const GasTable = dynamic(() => import('../components/GasTable'), { ssr: false });
+const GasTableEth = dynamic(() => import('../components/GasTableEth'), { ssr: false });
+const GasTableComparison = dynamic(() => import('../components/GasTableComparison'), { ssr: false });
+const GasTableYearlySummary = dynamic(() => import('../components/GasTableYearlySummary'), { ssr: false });
+const GasTableYearlySummaryPLS = dynamic(() => import('../components/GasTableYearlySummaryPLS'), { ssr: false });
+
+const GasPage = () => {
   return (
     <div className="p-2 sm:p-4">
       <h1 className="text-2xl font-bold mt-10 mb-4 text-center">Gas</h1>
@@ -35,4 +39,4 @@ const GasPage: React.FC = () => {
   );
 };
 
-export default GasPage; 
+export default withAuth(GasPage); 

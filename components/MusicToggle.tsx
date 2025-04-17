@@ -32,7 +32,7 @@ export function MusicToggle() {
   return (
     <button
       onClick={toggleMusic}
-      className="fixed top-6 right-6 z-20 p-3 rounded-full bg-black/30 backdrop-blur-sm border border-white/10 hover:bg-black/40 transition-colors"
+      className="fixed top-6 right-6 z-999 p-3 rounded-full bg-black/30 backdrop-blur-sm border border-white/10 hover:bg-black/40 transition-colors"
       aria-label="Toggle music"
     >
       {isPlaying ? (

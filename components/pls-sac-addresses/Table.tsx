@@ -50,6 +50,10 @@ const TRACKED_ADDRESSES: AddressConfig[] = [
     address: '0x9Cd83BE15a79646A3D22B81fc8dDf7B7240a62cB',
     label: 'Main Sac'
   },
+  // {
+  //   address: '0x075e72a5edf65f0a5f44699c7654c1a76941ddc8',
+  //   label: 'Plsx Sac'
+  // },
   {
     address: '0x1b7baa734c00298b9429b518d621753bb0f6eff2',
     label: 'Daughter 1'
@@ -180,6 +184,12 @@ const ADDRESS_COLORS = {
     text: 'text-[#FFFF00]',
     hoverText: 'hover:text-[#FFFF80]'
   },
+  // '0x075e72a5edf65f0a5f44699c7654c1a76941ddc8': {
+  //   border: 'border-[#FF1493]/50',
+  //   bg: 'bg-[#FF1493]/10',
+  //   text: 'text-[#FF1493]',
+  //   hoverText: 'hover:text-[#FF69B4]'
+  // },
   '0x1b7baa734c00298b9429b518d621753bb0f6eff2': {
     border: 'border-[#00FFFF]/50',
     bg: 'bg-[#00FFFF]/10',
@@ -389,7 +399,6 @@ const PLS_SAC_ADDRESS = '0x9Cd83BE15a79646A3D22B81fc8dDf7B7240a62cB';
 
 interface Props {
   onLoadingChange: (isLoading: boolean) => void;
-  walletFilter: 'all' | 'main' | 'daughter1' | 'daughter2';
   dateRange: DateRange | undefined;
   onTransactionsChange?: (transactions: Transaction[]) => void;
 }
@@ -404,6 +413,10 @@ const formatAddress = (address: string) => {
   // Then check for PLS Sac
   if (address?.toLowerCase() === PLS_SAC_ADDRESS.toLowerCase()) {
     return 'Pls Sac';
+  }
+  // Check for Plsx Sac
+  if (address?.toLowerCase() === '0x075e72a5edf65f0a5f44699c7654c1a76941ddc8'.toLowerCase()) {
+    return 'Plsx Sac';
   }
   return `${address?.slice(0, 6)}...${address?.slice(-4)}`;
 };
@@ -511,7 +524,7 @@ const fetchWithRetry = async (url: string, retries = 3, delayMs = 2000): Promise
   throw new Error('Max retries reached');
 };
 
-export function TransactionsTable({ onLoadingChange, walletFilter, dateRange, onTransactionsChange }: Props) {
+export function TransactionsTable({ onLoadingChange, dateRange, onTransactionsChange }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

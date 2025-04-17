@@ -18,7 +18,7 @@ export function PooledStakes() {
   const { priceData: hexPrice } = useCryptoPrice('pHEX');
 
   return (
-    <div className="w-full max-w-6xl mx-auto rounded-3xl p-4 bg-black/30 backdrop-blur-sm border-2 border-white/10 h-auto">
+    <div className="w-full max-w-6xl mx-auto rounded-3xl p-4 bg-black/5 backdrop-blur-sm border-2 border-white/10 h-auto">
       <div className="overflow-x-auto">
         <div className="min-w-[900px]">
           <table className="w-full">
@@ -61,7 +61,7 @@ export function PooledStakes() {
                   <tr key={token} className="border-t border-white/5 hover:bg-white/5 transition-colors">
                     <td className="py-3 text-center">
                       <div className="flex justify-center">
-                        <Image 
+                        <Image
                           src={TOKEN_LOGOS[token.replace('p', '').replace('e', '')]}
                           alt={token}
                           width={32}

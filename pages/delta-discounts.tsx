@@ -9,6 +9,8 @@ import DiscountChartEDECI from '@/components/DiscountChartEDECI';
 import DiscountChartELUCKY from '@/components/DiscountChartELUCKY';
 import DiscountChartETRIO from '@/components/DiscountChartETRIO'; 
 import DiscountChartEBASE from '@/components/DiscountChartEBASE';
+import { withAuth } from '@/components/withAuth';
+
 const DeltaDiscounts = () => {
   return (
     <div className="p-2 sm:p-4">
@@ -50,4 +52,4 @@ const DeltaDiscounts = () => {
   );
 };
 
-export default DeltaDiscounts;
+export default withAuth(DeltaDiscounts);
