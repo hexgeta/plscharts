@@ -16,23 +16,27 @@ export async function middleware(req: NextRequest) {
   try {
     const { data: { session } } = await supabase.auth.getSession();
 
+    // Create base URL for redirects
+    const baseUrl = new URL('/', req.url).toString();
+
     if (!session) {
       // If no session, redirect to home
-      return NextResponse.redirect('/');
+      return NextResponse.redirect(baseUrl);
     }
 
     // Check if the user's Twitter handle is whitelisted
     const twitterHandle = session.user?.user_metadata?.user_name;
     if (!twitterHandle || !isHandleWhitelisted(twitterHandle)) {
       // If handle is not whitelisted, redirect to home
-      return NextResponse.redirect('/');
+      return NextResponse.redirect(baseUrl);
     }
 
     return res;
   } catch (error) {
     console.error('Middleware error:', error);
     // In case of error, redirect to home
-    return NextResponse.redirect('/');
+    const baseUrl = new URL('/', req.url).toString();
+    return NextResponse.redirect(baseUrl);
   }
 }
 
