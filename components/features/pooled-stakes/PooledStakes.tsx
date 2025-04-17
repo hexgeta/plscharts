@@ -64,7 +64,7 @@ export function PooledStakes() {
                         <Image
                           src={TOKEN_LOGOS[token.replace('p', '').replace('e', '')]}
                           alt={token}
-                          width={32}
+                          width={31}
                           height={32}
                           className="rounded-full"
                         />
