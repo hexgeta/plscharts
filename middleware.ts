@@ -5,7 +5,7 @@ import { PROTECTED_PAGES } from './config/protected-pages';
 import { isHandleWhitelisted } from './config/whitelisted-handles';
 
 export async function middleware(req: NextRequest) {
-  // Early return if not a protected page
+  // Early return if not a protected pages
   if (!PROTECTED_PAGES.includes(req.nextUrl.pathname)) {
     return NextResponse.next();
   }
