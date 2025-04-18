@@ -1,7 +1,7 @@
 import React from 'react';
-import UKMarginalTaxRateChart from '../components/uktax';
-import PortugalTaxRateChart from '../components/portugaltax';
-import JapaneseTaxRateChart from '../components/japantax';
+import UKMarginalTaxRateChart from '@/components/uktax';
+import PortugalTaxRateChart from '@/components/portugaltax';
+import JapaneseTaxRateChart from '@/components/japantax';
 
 const UKTax = () => {
   return (
