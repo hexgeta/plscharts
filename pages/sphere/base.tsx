@@ -62,7 +62,7 @@ export default function YieldSphere() {
    const [settings, setSettings] = useState<VisualizationSettings>({
     // Sphere Configuration
     radius: 3,
-    spiralPoints: 1107,
+    spiralPoints: 369,
     spiralTurns: 1000,
     
     // Animation Settings

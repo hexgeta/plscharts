@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/hooks/useAuth';
-import { PooledStakes, SphereLayout } from '@/components/features/pooled-stakes';
+import { PooledStakes, SphereLayout } from '@/components/login-page/pooled-stakes';
 
 export default function LoginPage() {
   const router = useRouter();

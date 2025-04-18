@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { CumBackingValueDECI } from '@/hooks/CumBackingValueDECI';
-import Image from 'next/image';
-import { TOKEN_LOGOS } from '@/constants/crypto';
-import MusicPlayer from '@/components/MusicPlayer';
 import React from 'react';
+import MusicPlayer from '@/components/MusicPlayer';
+import { CumBackingValueMAXI } from '@/hooks/CumBackingValueMAXI';
+import { CumBackingValueDECI } from '@/hooks/CumBackingValueDECI';
+import { CumBackingValueLUCKY } from '@/hooks/CumBackingValueLUCKY';
+import { CumBackingValueTRIO } from '@/hooks/CumBackingValueTRIO';
+import { CumBackingValueBASE } from '@/hooks/CumBackingValueBASE';
 
-const playlist = [
-  'deci.mp3'
-];
-
-interface VisualizationSettings {
+export interface VisualizationSettings {
   radius: number;
   spiralPoints: number;
   spiralTurns: number;
@@ -30,60 +28,53 @@ interface VisualizationSettings {
   rotationZ: number;
 }
 
-interface SimpleSphereProps {
-  startAnimation?: boolean;
+export type SphereType = 'MAXI' | 'DECI' | 'LUCKY' | 'TRIO' | 'BASE';
+
+interface VisualizationSphereProps {
+  settings: VisualizationSettings;
+  type: SphereType;
+  showMusicPlayer?: boolean;
 }
 
-export default function SimpleSphere({ startAnimation = false }: SimpleSphereProps) {
+const useYieldData = (type: SphereType) => {
+  const result = (() => {
+    switch (type) {
+      case 'MAXI':
+        return CumBackingValueMAXI();
+      case 'DECI':
+        return CumBackingValueDECI();
+      case 'LUCKY':
+        return CumBackingValueLUCKY();
+      case 'TRIO':
+        return CumBackingValueTRIO();
+      case 'BASE':
+        return CumBackingValueBASE();
+    }
+  })();
+  
+  return {
+    data: result?.data || [],
+    isLoading: result?.isLoading || false
+  };
+};
+
+export default function VisualizationSphere({ settings, type, showMusicPlayer = true }: VisualizationSphereProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const { data: yieldData, isLoading } = CumBackingValueDECI();
+  const { data: yieldData, isLoading } = useYieldData(type);
   const [currentDate, setCurrentDate] = useState<string>('');
   const [currentYield, setCurrentYield] = useState<number>(0);
   const [currentDay, setCurrentDay] = useState<number>(0);
   const [availableDays, setAvailableDays] = useState<number>(0);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [canStartAnimation, setCanStartAnimation] = useState(false);
   const animationFrameRef = useRef<number>();
   const currentDayRef = useRef<number>(0);
   const lastUpdateTime = useRef<number>(0);
   const UPDATE_INTERVAL = 50;
 
-  const [settings] = useState<VisualizationSettings>({
-    radius: 3,
-    spiralPoints: 1111,
-    spiralTurns: 1000,
-    progressSpeed: 0.15,
-    rotationSpeedX: -0.4,
-    rotationSpeedY: 0.5,
-    rotationSpeedZ: 0.8,
-    globalRotationSpeed: 0.4,
-    baseColorHex: '#FF0000',
-    inactiveOpacity: 0.1,
-    inactiveColorHex: '#fff',
-    cameraDistance: 8,
-    fieldOfView: 45,
-    rotationX: -350,
-    rotationY: 100,
-    rotationZ: 90
-  });
-
-  // Only set canStartAnimation when all data is loaded and startAnimation is true
   useEffect(() => {
-    if (!isLoading && yieldData && yieldData.length > 0 && startAnimation && isLoaded) {
-      setCanStartAnimation(true);
-    }
-  }, [isLoading, yieldData, startAnimation, isLoaded]);
-
-  useEffect(() => {
-    if (!mountRef.current || isLoading || !yieldData || yieldData.length === 0 || !canStartAnimation) return;
+    if (!mountRef.current || isLoading || !yieldData || yieldData.length === 0) return;
 
     setAvailableDays(yieldData.length);
-    
-    // Add a small delay to ensure components are loaded
-    const timer = setTimeout(() => {
-      setIsLoaded(true);
-    }, 500);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
@@ -96,6 +87,12 @@ export default function SimpleSphere({ startAnimation = false }: SimpleSpherePro
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+    mountRef.current.appendChild(renderer.domElement);
+
+    // Clear any existing canvas
+    while (mountRef.current.firstChild) {
+      mountRef.current.removeChild(mountRef.current.firstChild);
+    }
     mountRef.current.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -224,20 +221,17 @@ export default function SimpleSphere({ startAnimation = false }: SimpleSpherePro
         mountRef.current.removeChild(renderer.domElement);
       }
       window.removeEventListener('resize', handleResize);
-      clearTimeout(timer);
     };
-  }, [settings, yieldData, isLoading, availableDays, canStartAnimation]);
+  }, [settings, yieldData, isLoading, availableDays]);
 
   return (
     <div className="w-full h-full relative">
-      <div className={`w-full h-full transition-opacity duration-1000 ${canStartAnimation ? 'opacity-100' : 'opacity-0'}`}>
-        <div ref={mountRef} className="w-full h-full" />
-      </div>
-
-      {/* Music Player */}
-      <div className="absolute bottom-4 right-4 z-10">
-        <MusicPlayer playlist={playlist} autoPlay={canStartAnimation} />
-      </div>
+      <div ref={mountRef} className="w-full h-full" />
+      {showMusicPlayer && (
+        <div className="absolute bottom-4 right-4">
+          <MusicPlayer playlist={[`${String(type).toLowerCase()}.mp3`]} autoPlay={false} />
+        </div>
+      )}
     </div>
   );
 } 

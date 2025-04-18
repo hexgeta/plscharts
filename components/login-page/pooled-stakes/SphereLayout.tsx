@@ -1,30 +1,17 @@
 import { ReactNode, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { useMusic } from '../../../contexts/MusicContext';
-import { usePooledStakesData } from '../../../hooks/usePooledStakesData';
+import { useMusic } from '@/contexts/MusicContext';
+import { usePooledStakesData } from '@/hooks/usePooledStakesData';
+import { VisualizationSettings, SphereType } from '@/components/login-page/VisualizationSphere';
+import {
+  MAXI_SPHERE_CONFIG,
+  DECI_SPHERE_CONFIG,
+  LUCKY_SPHERE_CONFIG,
+  TRIO_SPHERE_CONFIG,
+  BASE_SPHERE_CONFIG
+} from '@/components/login-page/sphereConfigs';
 
-// Sphere components with consistent loading states
-const MaxiSphere = dynamic(() => import("../../../pages/sphere-2/maxi"), {
-  ssr: false,
-  loading: () => <div className="w-full h-full bg-black" />
-});
-
-const TrioSphere = dynamic(() => import("../../../pages/sphere-2/trio"), {
-  ssr: false,
-  loading: () => <div className="w-full h-full bg-black" />
-});
-
-const LuckySphere = dynamic(() => import("../../../pages/sphere-2/lucky"), {
-  ssr: false,
-  loading: () => <div className="w-full h-full bg-black" />
-});
-
-const DeciSphere = dynamic(() => import("../../../pages/sphere-2/deci"), {
-  ssr: false,
-  loading: () => <div className="w-full h-full bg-black" />
-});
-
-const BaseSphere = dynamic(() => import("../../../pages/sphere-2/base"), {
+const VisualizationSphere = dynamic(() => import('@/components/login-page/VisualizationSphere'), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-black" />
 });
@@ -39,27 +26,60 @@ interface SphereLayoutProps {
   showMusicPlayer?: boolean;
 }
 
-const SPHERES = [
-  { component: MaxiSphere, music: 'maxi.mp3' },
-  { component: TrioSphere, music: 'trio.mp3' },
-  { component: LuckySphere, music: 'lucky.mp3' },
-  { component: DeciSphere, music: 'deci.mp3' },
-  { component: BaseSphere, music: 'base.mp3' },
+interface SphereConfig {
+  settings: VisualizationSettings;
+  type: SphereType;
+  music: string;
+}
+
+const SPHERES: SphereConfig[] = [
+  { 
+    settings: MAXI_SPHERE_CONFIG,
+    type: 'MAXI',
+    music: 'maxi.mp3'
+  },
+  { 
+    settings: DECI_SPHERE_CONFIG,
+    type: 'DECI',
+    music: 'deci.mp3'
+  },
+  { 
+    settings: LUCKY_SPHERE_CONFIG,
+    type: 'LUCKY',
+    music: 'lucky.mp3'
+  },
+  { 
+    settings: TRIO_SPHERE_CONFIG,
+    type: 'TRIO',
+    music: 'trio.mp3'
+  },
+  { 
+    settings: BASE_SPHERE_CONFIG,
+    type: 'BASE',
+    music: 'base2.mp3'
+  }
 ];
 
 export default function SphereLayout({ children, showMusicPlayer = true }: SphereLayoutProps) {
   const [showSplash, setShowSplash] = useState(true);
-  const [selectedSphere, setSelectedSphere] = useState(SPHERES[0]);
+  const [sphereIndex] = useState(() => Math.floor(Math.random() * SPHERES.length));
   const [startAnimation, setStartAnimation] = useState(false);
   const [shouldPlayMusic, setShouldPlayMusic] = useState(false);
   const { setIsPlaying, setCurrentTrack } = useMusic();
-  const { isLoading: isTableLoading } = usePooledStakesData();
+  const { data: rawSphereData, isLoading: isTableLoading } = usePooledStakesData();
+
+  // Transform data to match VisualizationSphere format
+  const sphereData = rawSphereData?.map(stake => ({
+    date: new Date(stake.length * 24 * 60 * 60 * 1000).toISOString(),
+    backingRatio: stake.backing
+  })) || [];
+
+  // Effect to set initial music track
+  useEffect(() => {
+    setCurrentTrack(SPHERES[sphereIndex].music);
+  }, [sphereIndex, setCurrentTrack]);
 
   useEffect(() => {
-    // Always use MAXI sphere
-    setSelectedSphere(SPHERES[0]);
-    setCurrentTrack(SPHERES[0].music);
-
     // Check if we should skip splash screen
     const hasSeenSplash = localStorage.getItem('hasSeenSplash');
     if (hasSeenSplash) {
@@ -76,7 +96,7 @@ export default function SphereLayout({ children, showMusicPlayer = true }: Spher
     setShouldPlayMusic(true);
   };
 
-  const SelectedSphereComponent = selectedSphere.component;
+  const currentSphere = SPHERES[sphereIndex];
 
   if (showSplash) {
     return (
@@ -102,7 +122,11 @@ export default function SphereLayout({ children, showMusicPlayer = true }: Spher
         {/* Sphere visualization as background */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-full h-full">
-            <SelectedSphereComponent startAnimation={startAnimation} />
+            <VisualizationSphere 
+              settings={currentSphere.settings}
+              type={currentSphere.type}
+              showMusicPlayer={false}
+            />
           </div>
         </div>
 
@@ -128,7 +152,7 @@ export default function SphereLayout({ children, showMusicPlayer = true }: Spher
       {showMusicPlayer && (
         <div className="fixed bottom-20 right-4 z-[999]">
           <MusicPlayer 
-            playlist={[selectedSphere.music]} 
+            playlist={[currentSphere.music]} 
             autoPlay={shouldPlayMusic} 
           />
         </div>

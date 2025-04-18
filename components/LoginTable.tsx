@@ -7,7 +7,7 @@ import Image from 'next/image';
 
 const TOKENS = ['pMAXI', 'pDECI', 'pLUCKY', 'pTRIO', 'pBASE'];
 
-export function PooledStakes() {
+export function LoginTable() {
   // Move all hooks to the top level
   const priceDataMap = Object.fromEntries(
     TOKENS.map(token => [token, useCryptoPrice(token)])

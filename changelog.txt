@@ -108,3 +108,9 @@
 - Added environment variable support for API keys
 - Improved error handling and loading states
 - Added visual indicators for transaction types (Normal/Internal/ERC20) 
+
+## [2024-03-27]
+- Renamed `PooledStakes` component to `LoginTable` in components/login-page/pooled-stakes/login-table.tsx to match the file name
+- Updated imports and exports in index.ts and pages/index.tsx to use the renamed `LoginTable` component
+- Modified SphereLayout to start with a random sphere instead of always starting with MAXI
+- Restored sphere-2 directory with individual sphere components (MAXI, DECI, LUCKY, TRIO, BASE) and their specific configurations 

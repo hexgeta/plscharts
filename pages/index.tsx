@@ -1,9 +1,9 @@
-import { PooledStakes, SphereLayout } from '@/components/features/pooled-stakes';
+import { LoginTable, SphereLayout } from '@/components/login-page/pooled-stakes';
 
 export default function Home() {
   return (
     <SphereLayout>
-      <PooledStakes />
+      <LoginTable />
     </SphereLayout>
   );
 }
