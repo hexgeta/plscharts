@@ -3,7 +3,7 @@ import { VisualizationSettings } from './VisualizationSphere';
 export const MAXI_SPHERE_CONFIG: VisualizationSettings = {
   radius: 3,
   spiralPoints: 5555,
-  spiralTurns: 10,
+  spiralTurns: 1000,
   progressSpeed: 0.2,
   rotationSpeedX: -0.4,
   rotationSpeedY: 0.5,
