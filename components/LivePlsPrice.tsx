@@ -14,7 +14,6 @@ const CONFIG = {
 }
 
 function getPriceChangeColor(change: number): string {
-  if (Math.abs(change * 100) < 1) return 'text-zinc-500'
   return change >= 0 ? 'text-[#01FF55]' : 'text-red-500'
 }
 
@@ -122,7 +121,8 @@ export default function LivePlsPrice() {
             value={Math.abs(currentPrice)}
             format={{ 
               style: 'currency', 
-              currency: 'USD', 
+              currency: 'USD',
+              currencyDisplay: 'narrowSymbol',
               minimumFractionDigits: CONFIG.DECIMAL_PLACES, 
               maximumFractionDigits: CONFIG.DECIMAL_PLACES 
             }}
@@ -130,8 +130,8 @@ export default function LivePlsPrice() {
           />
         </div>
         {priceData?.priceChange24h !== undefined && (
-          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange24h)}`}>
-            {priceData.priceChange24h >= 0 ? '+' : ''}{formatNumber(priceData.priceChange24h, { decimals: 1, percentage: true })}
+          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange24h / 100)}`}>
+            {priceData.priceChange24h >= 0 ? '+' : ''}{formatNumber(priceData.priceChange24h / 100, { decimals: 1, percentage: true })}
           </div>
         )}
       </div>
