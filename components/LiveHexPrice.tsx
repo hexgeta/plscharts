@@ -119,8 +119,8 @@ export default function LiveHexPrice() {
           />
         </div>
         {priceData?.priceChange24h !== undefined && (
-          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange24h)}`}>
-            {formatNumber(priceData.priceChange24h, { decimals: 1, percentage: true })}
+          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange24h / 100)}`}>
+            {formatNumber(priceData.priceChange24h / 100, { decimals: 1, percentage: true })}
           </div>
         )}
       </div>
