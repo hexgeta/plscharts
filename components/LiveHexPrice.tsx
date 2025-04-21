@@ -114,8 +114,9 @@ export default function LiveHexPrice() {
         <div className={`${priceColor} text-7xl font-bold tabular-nums w-[350px] text-left`}>
           <NumberFlow
             value={Math.abs(currentPrice)}
-            format={{ style: 'currency', currency: 'USD', minimumFractionDigits: 6, maximumFractionDigits: 6 }}
+            format={{ style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol',              minimumFractionDigits: 6, maximumFractionDigits: 6 }}
             animated={false}
+            
           />
         </div>
         {priceData?.priceChange24h !== undefined && (
