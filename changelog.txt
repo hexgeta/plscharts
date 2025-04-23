@@ -114,3 +114,13 @@
 - Updated imports and exports in index.ts and pages/index.tsx to use the renamed `LoginTable` component
 - Modified SphereLayout to start with a random sphere instead of always starting with MAXI
 - Restored sphere-2 directory with individual sphere components (MAXI, DECI, LUCKY, TRIO, BASE) and their specific configurations 
+
+## 2024-03-26
+- Created new StatsTable component based on LoginTable
+- Added comprehensive token statistics display for both PulseChain and Ethereum networks
+- Updated stats page to use the new StatsTable component
+- Added chain switching functionality
+- Added additional columns: Supply, T-Shares, Principal
+- Improved table styling and responsiveness
+- Added loading states with skeletons for better UX
+- Added Dexscreener links for tokens with valid pair addresses 

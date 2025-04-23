@@ -1,15 +1,16 @@
 import React from 'react';
 import Link from 'next/link';
 import CryptoDashboard from '@/components/crypto-dashboard';
+import { TopStats } from '@/components/stats-tables/TopStats';
 import { withAuth } from '@/components/withAuth';
 
-
-const Dashboard = () => {
+const Stats = () => {
   return (
-    <div className="p-6 sm:p-6 my-2 sm:my-4">
-      <CryptoDashboard/>
+    <div className="p-6 sm:p-6 my-2 sm:my-4 space-y-8">
+      <CryptoDashboard />
+      <TopStats />
     </div>
   );
 };
 
-export default withAuth(Dashboard);
+export default withAuth(Stats);

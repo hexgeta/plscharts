@@ -135,8 +135,12 @@ export function LoginTable() {
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-1">
-                          {formatNumber(backingData?.backingStakeRatio || 0, { decimals: 2 })}
-                          <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
+                          {!backingData || backingData.backingStakeRatio === null ? "N/A" : (
+                            <>
+                              {formatNumber(backingData.backingStakeRatio, { decimals: 2 })}
+                              <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
+                            </>
+                          )}
                         </div>
                       )}
                     </td>
@@ -147,7 +151,7 @@ export function LoginTable() {
                         </div>
                       ) : (
                         <span className={backingData?.backingDiscount ? (backingData.backingDiscount < 0 ? 'text-red-500' : 'text-[#01FF55]') : ''}>
-                          {backingData?.backingDiscount === null ? "N/A" : formatNumber(backingData?.backingDiscount || 0, { decimals: 0, percentage: true })}
+                          {!backingData || backingData.backingDiscount === null ? "N/A" : formatNumber(backingData.backingDiscount, { decimals: 0, percentage: true })}
                         </span>
                       )}
                     </td>
