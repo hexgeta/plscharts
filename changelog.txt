@@ -124,3 +124,14 @@
 - Improved table styling and responsiveness
 - Added loading states with skeletons for better UX
 - Added Dexscreener links for tokens with valid pair addresses 
+
+[2024-03-21] MAXI Sphere Updates
+- Restructured maxi.tsx to match deci.tsx implementation
+- Set spiralPoints to 5555 to match MAXI stake length
+- Updated color scheme to MAXI blue (#3991ED)
+- Added performance optimizations for color calculations
+- Improved camera controls and animation settings
+- Added collapsible stats panel with yield information
+- Implemented proper cleanup and error handling
+- Added entrance screen with MAXI logo
+- Optimized animation frame handling for smoother performance 

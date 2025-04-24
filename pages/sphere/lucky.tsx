@@ -320,8 +320,8 @@ export default function YieldSphere() {
 
       {/* Overlay */}
       {!hasEntered && (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center gap-4 cursor-default">
-          <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 text-center">
+        <div className="fixed inset-0 bg-black z-[9999] flex flex-col items-center justify-center gap-4 cursor-default" style={{ position: 'fixed' }}>
+          <div className="flex flex-col items-center justify-center text-white text-center">
             <h1 className="text-3xl md:text-4xl font-bold mb-4">LUCKY Yield Sphere</h1>
             <p className="text-center text-gray-400 mb-8 max-w-xs">
               Visualizing cumulative yield accumulation to some sweet tunes.

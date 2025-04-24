@@ -21,7 +21,7 @@ const Footer = () => {
             <li><Link href="/tshares" className="text-[rgb(153,153,153)] hover:text-gray-300">T-Share Supply</Link></li>
 
             <li><Link href="/crypto-gains" className="text-[rgb(153,153,153)] hover:text-gray-300">Crypto Gains</Link></li>
-            <li><Link href="/sphere/maxi" className="text-[rgb(153,153,153)] hover:text-gray-300">MAXI Sphere</Link></li>
+            <li><Link href="/sphere" className="text-[rgb(153,153,153)] hover:text-gray-300">MAXI Sphere</Link></li>
 
             <li><Link href="/hex-gains" className="text-[rgb(153,153,153)] hover:text-gray-300">HEX Gains</Link></li>
             <li><Link href="/oa-stakes" className="text-[rgb(153,153,153)] hover:text-gray-300">OA Stakes</Link></li>
