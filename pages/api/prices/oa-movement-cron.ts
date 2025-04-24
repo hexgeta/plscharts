@@ -15,6 +15,7 @@ const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY
 const resendApiKey = process.env.RESEND_API_KEY
 const toEmail = process.env.TO_EMAIL
 const fromEmail = process.env.FROM_EMAIL
+const cronSecret = process.env.CRON_SECRET
 
 interface Transaction {
   hash: string
@@ -132,7 +133,13 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (!apiKey || !resendApiKey || !toEmail || !fromEmail || !address) {
+  // Check for authentication
+  const authHeader = req.headers.authorization
+  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ message: 'Unauthorized' })
+  }
+
+  if (!apiKey || !resendApiKey || !toEmail || !fromEmail || !address || !cronSecret) {
     return res
       .status(500)
       .json({ message: 'Missing required environment variables' })

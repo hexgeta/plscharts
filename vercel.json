@@ -5,7 +5,10 @@
       "maxDuration": 10
     }
   },
-  "crons": {
-    "monitor-transactions": "*/5 * * * *"
-  }
+  "crons": [
+    {
+      "path": "/api/prices/oa-movement-cron",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 } 
