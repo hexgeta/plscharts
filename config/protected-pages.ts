@@ -6,6 +6,4 @@ export const PROTECTED_PAGES = [
   '/prices',
   '/leagues',
   '/stats',
-  '/pls-sac',
-  '/oa-stakes'
 ]; 

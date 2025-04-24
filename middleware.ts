@@ -41,14 +41,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/gas',
-    '/delta-discounts',
-    '/projections',
-    '/prices',
-    '/leagues',
-    '/stats',
-    '/pls-sac',
-    '/oa-stakes'
-  ]
+  matcher: PROTECTED_PAGES,
 }; 
