@@ -10,7 +10,7 @@ const MONITORING_CONFIG = {
   INCOMING_ONLY: false      // If true, only monitor incoming transactions
 }
 
-const address = '0x1F12DAE5450522b445Fe1882C4F8D2Cf67B38a43'
+const address = process.env.MONITORED_ADDRESS
 const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY
 const resendApiKey = process.env.RESEND_API_KEY
 const toEmail = process.env.TO_EMAIL
@@ -132,7 +132,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (!apiKey || !resendApiKey || !toEmail || !fromEmail) {
+  if (!apiKey || !resendApiKey || !toEmail || !fromEmail || !address) {
     return res
       .status(500)
       .json({ message: 'Missing required environment variables' })

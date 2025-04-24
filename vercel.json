@@ -1,8 +1,11 @@
 {
-  "cron": [
-    {
-      "path": "/api/prices/oa-movement-cron",
-      "schedule": "*/5 * * * *"
+  "version": 2,
+  "functions": {
+    "api/prices/oa-movement-cron.ts": {
+      "maxDuration": 10
     }
-  ]
+  },
+  "crons": {
+    "monitor-transactions": "*/5 * * * *"
+  }
 } 
