@@ -5,5 +5,5 @@ export const PROTECTED_PAGES = [
   '/projections',
   '/prices',
   '/leagues',
-  '/stats',
+  '/stats'
 ]; 
