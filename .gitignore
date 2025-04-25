@@ -34,4 +34,7 @@ yarn-error.log*
 
 # TypeScript
 *.tsbuildinfo
-next-env.d.ts 
+next-env.d.ts
+
+# Private configuration
+config/whitelisted-emails.private.ts 

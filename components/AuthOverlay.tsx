@@ -1,22 +1,17 @@
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 
 interface AuthOverlayProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 // Helper function to get page name from path
 const getPageName = (path: string): string => {
-  // Remove leading slash and split by remaining slashes
-  const parts = path.replace(/^\//, '').split('/');
-  if (parts[0] === '') return 'this page';
-  
-  // Convert kebab-case to Title Case
-  return parts[0].split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  return path.substring(1).split('-').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
 };
 
 const DummyTable = () => (
@@ -64,47 +59,35 @@ const DummyContent = () => (
 );
 
 const AuthOverlay = ({ children }: AuthOverlayProps) => {
-  const { signIn, isAuthenticated } = useAuth();
+  const { signIn } = useAuth();
   const router = useRouter();
   const pageName = getPageName(router.pathname);
 
-  if (isAuthenticated) {
-    return <>{children}</>;
-  }
-
   return (
-    <div className="min-h-screen bg-black relative">
-      {/* Blurred background content */}
-      <div className="blur-md pointer-events-none opacity-50">
-        <DummyContent />
-      </div>
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="bg-[#111111] p-8 rounded-xl border border-white/10 max-w-md w-full mx-4 relative backdrop-blur-xl">
+        <h2 className="text-2xl font-bold text-white mb-2 text-center">Sign in to access {pageName}</h2>
+        <p className="text-gray-400 mb-6 text-center text-sm">
+          Connect with your X account to access elite stats & charts.
+        </p>
 
-      {/* Auth overlay */}
-      <div className="fixed inset-0 z-101 flex items-center justify-center bg-black/20">
-        <div className="bg-[#111111] p-8 rounded-xl border border-white/10 max-w-md w-full mx-4 relative backdrop-blur-xl">
-          <h2 className="text-2xl font-bold text-white mb-2 text-center">Sign in to access {pageName}</h2>
-          <p className="text-gray-400 mb-6 text-center text-sm">
-            Connect with your X account to elite stats & charts.
+        <button
+          onClick={signIn}
+          className="w-full bg-white hover:bg-gray-100 text-black px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+          Sign in with X
+        </button>
+
+        <div className="mt-6 text-center">
+          <p className="text-xs text-gray-500">
+            By signing in you agree to our{' '}
+            <Link href="/terms-and-conditions" className="text-blue-500 hover:text-blue-400">Terms</Link>
+            {' '}and{' '}
+            <Link href="/privacy-policy" className="text-blue-500 hover:text-blue-400">Privacy Policy</Link>
           </p>
-
-          <button
-            onClick={signIn}
-            className="w-full bg-white hover:bg-gray-100 text-black px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
-            Sign in with X
-          </button>
-
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
-              By signing in you agree to our{' '}
-              <Link href="/terms-and-conditions" className="text-blue-500 hover:text-blue-400">Terms</Link>
-              {' '}and{' '}
-              <Link href="/privacy-policy" className="text-blue-500 hover:text-blue-400">Privacy Policy</Link>
-            </p>
-          </div>
         </div>
       </div>
     </div>

@@ -3,7 +3,6 @@ export const PROTECTED_PAGES = [
   '/gas',
   '/delta-discounts',
   '/projections',
-  '/prices',
   '/leagues',
   '/stats'
 ]; 

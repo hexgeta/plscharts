@@ -1,19 +1,16 @@
-// List of whitelisted Twitter handles (without @ symbol)
-export const WHITELISTED_HANDLES: string[] = [
-  '*' // Temporarily whitelist all handles
-  // Add specific handles later like:
-  // 'handle1',
-  // 'handle2',
-];
+// List of whitelisted email addresses
+import { WHITELISTED_EMAILS_LIST } from './whitelisted-emails.private';
 
-// Helper function to check if a handle is whitelisted
-export const isHandleWhitelisted = (handle: string): boolean => {
-  // If '*' is in the whitelist, allow all handles
-  if (WHITELISTED_HANDLES.includes('*')) {
-    return true;
-  }
-  
-  // Convert handle to lowercase for case-insensitive comparison
-  const normalizedHandle = handle.toLowerCase().replace('@', '');
-  return WHITELISTED_HANDLES.map(h => h.toLowerCase()).includes(normalizedHandle);
+// In production, use comma-separated emails from environment variable
+// In development, fall back to the private file
+export const WHITELISTED_EMAILS: string[] = 
+  process.env.WHITELISTED_EMAILS 
+    ? process.env.WHITELISTED_EMAILS.split(',').map(email => email.trim())
+    : (WHITELISTED_EMAILS_LIST || []);
+
+// Helper function to check if an email is whitelisted
+export const isEmailWhitelisted = (email: string): boolean => {
+  // Convert email to lowercase for case-insensitive comparison
+  const normalizedEmail = email.toLowerCase();
+  return WHITELISTED_EMAILS.map(e => e.toLowerCase()).includes(normalizedEmail);
 }; 
