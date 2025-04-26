@@ -2,10 +2,10 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { PROTECTED_PAGES } from './config/protected-pages';
-import { isHandleWhitelisted } from './config/whitelisted-handles';
+import { isEmailWhitelisted } from './config/whitelisted-handles';
 
 export async function middleware(req: NextRequest) {
-  // Early return if not a protected pages
+  // Early return if not a protected page
   if (!PROTECTED_PAGES.includes(req.nextUrl.pathname)) {
     return NextResponse.next();
   }
@@ -24,11 +24,11 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(baseUrl);
     }
 
-    // Check if the user's Twitter handle is whitelisted
-    const twitterHandle = session.user?.user_metadata?.user_name;
-    if (!twitterHandle || !isHandleWhitelisted(twitterHandle)) {
-      // If handle is not whitelisted, redirect to home
-      return NextResponse.redirect(baseUrl);
+    // Check if the user's email is whitelisted
+    const userEmail = session.user?.email;
+    if (!userEmail || !isEmailWhitelisted(userEmail)) {
+      // If email is not whitelisted, allow access but content will be hidden by PaywallOverlay
+      return res;
     }
 
     return res;
