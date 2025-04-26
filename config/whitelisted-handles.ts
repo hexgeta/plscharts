@@ -1,5 +1,5 @@
 // List of whitelisted email addresses
-const whitelistEnv = process.env.NEXT_PUBLIC_WHITELISTED_EMAILS || process.env.WHITELISTED_EMAILS;
+const whitelistEnv = process.env.WHITELISTED_EMAILS;
 
 export const WHITELISTED_EMAILS: string[] = 
   whitelistEnv

@@ -135,3 +135,16 @@
 - Implemented proper cleanup and error handling
 - Added entrance screen with MAXI logo
 - Optimized animation frame handling for smoother performance 
+
+2024-03-27
+- Removed NEXT_PUBLIC_ prefix from WHITELISTED_EMAILS environment variable in whitelisted-handles.ts
+- Created new API endpoint at /api/whitelist/check for checking whitelist status
+- Created useWhitelist hook for client-side whitelist checking 
+
+## [2024-03-26]
+### Changed
+- Updated middleware.ts to use direct API call for whitelist checking instead of isEmailWhitelisted function
+- Installed next-auth package for JWT handling
+- Improved error handling in middleware to redirect to home page on errors
+- Added proper session handling with next-auth/jwt
+- Maintained protected pages configuration for consistent access control 

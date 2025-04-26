@@ -1,42 +1,50 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 import { PROTECTED_PAGES } from './config/protected-pages';
-import { isEmailWhitelisted } from './config/whitelisted-handles';
 
-export async function middleware(req: NextRequest) {
-  // Early return if not a protected page
-  if (!PROTECTED_PAGES.includes(req.nextUrl.pathname)) {
+export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  
+  // Check if the page is protected
+  if (!PROTECTED_PAGES.includes(path)) {
     return NextResponse.next();
   }
 
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
-  
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get the user's session
+    const session = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    });
 
-    // Create base URL for redirects
-    const baseUrl = new URL('/', req.url).toString();
-
-    if (!session) {
-      // If no session, redirect to home
-      return NextResponse.redirect(baseUrl);
+    // If no session, allow access but content will be hidden behind auth overlay
+    if (!session?.email) {
+      return NextResponse.next();
     }
 
-    // Check if the user's email is whitelisted
-    const userEmail = session.user?.email;
-    if (!userEmail || !isEmailWhitelisted(userEmail)) {
-      // If email is not whitelisted, allow access but content will be hidden by PaywallOverlay
-      return res;
+    // Check whitelist status
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/whitelist/check`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: session.email }),
+    });
+
+    const { isWhitelisted } = await response.json();
+
+    // If not whitelisted, allow access but content will be hidden behind paywall
+    if (!isWhitelisted) {
+      return NextResponse.next();
     }
 
-    return res;
+    // If whitelisted, allow full access
+    return NextResponse.next();
   } catch (error) {
     console.error('Middleware error:', error);
-    // In case of error, redirect to home
-    const baseUrl = new URL('/', req.url).toString();
-    return NextResponse.redirect(baseUrl);
+    // On error, redirect to home page
+    return NextResponse.redirect(new URL('/', request.url));
   }
 }
 
