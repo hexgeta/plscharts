@@ -148,3 +148,13 @@
 - Improved error handling in middleware to redirect to home page on errors
 - Added proper session handling with next-auth/jwt
 - Maintained protected pages configuration for consistent access control 
+
+[2024-04-26] Added eHEX Transactions Page
+- Created new page at pages/ehex-transactions.tsx
+- Created new components in components/ehex-transactions/
+  - Filters.tsx - Date range filter component
+  - Chart.tsx - Transaction volume chart component
+  - Table.tsx - Transaction table component
+  - WalletNetwork.tsx - Network visualization component
+  - index.ts - Component exports
+- Set up basic structure for tracking eHEX transactions for address 0x705C053d69eB3B8aCc7C404690bD297700cCf169 
