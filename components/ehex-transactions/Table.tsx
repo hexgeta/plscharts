@@ -95,6 +95,7 @@ export const TransactionsTable: React.FC<TableProps> = ({
           return;
         }
         const sells = data.result.filter((tx: EtherscanERC20Tx) => tx.from.toLowerCase() === TARGET_ADDRESS.toLowerCase())
+          .filter((tx: EtherscanERC20Tx) => tx.to.toLowerCase() !== '0x1715a3e4a142d8b698131108995174f37aeba10d')
           .map((tx: EtherscanERC20Tx) => ({ ...tx, direction: 'sell' as const }));
         setTransactions(sells);
         onTransactionsChange(sells);

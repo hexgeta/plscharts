@@ -36,24 +36,12 @@ const BankXPage: NextPage = () => {
   useEffect(() => {
     const fetchBalances = async () => {
       try {
-        const ETHERSCAN_API_KEY = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
-        // eHEX
-        const ehexUrl = `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${BANKX_CONTRACT}&address=${TARGET_ADDRESS}&tag=latest&apikey=${ETHERSCAN_API_KEY}`;
-        const ehexRes = await fetch(ehexUrl);
-        const ehexData = await ehexRes.json();
-        setBalance(ehexData.status === '1' && ehexData.result ? Number(ehexData.result) / 1e8 : 0);
-        // ETH
-        const ethUrl = `https://api.etherscan.io/api?module=account&action=balance&address=${TARGET_ADDRESS}&tag=latest&apikey=${ETHERSCAN_API_KEY}`;
-        const ethRes = await fetch(ethUrl);
-        const ethData = await ethRes.json();
-        setEthBalance(ethData.status === '1' && ethData.result ? Number(ethData.result) / 1e18 : 0);
-        // USDC (6 decimals)
-        const USDC_CONTRACT = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-        const usdcUrl = `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${USDC_CONTRACT}&address=${TARGET_ADDRESS}&tag=latest&apikey=${ETHERSCAN_API_KEY}`;
-        const usdcRes = await fetch(usdcUrl);
-        const usdcData = await usdcRes.json();
-        setUsdcBalance(usdcData.status === '1' && usdcData.result ? Number(usdcData.result) / 1e6 : 0);
-      } catch {
+        const res = await fetch('/api/bankx-balances');
+        const data = await res.json();
+        setBalance(data.ehex ?? 0);
+        setEthBalance(data.eth ?? 0);
+        setUsdcBalance(data.usdc ?? 0);
+      } catch (err) {
         setBalance(0);
         setEthBalance(0);
         setUsdcBalance(0);
@@ -71,11 +59,15 @@ const BankXPage: NextPage = () => {
     return num.toFixed(decimals);
   };
 
+  // Calculate total eHEX sold
+  const totalEhexSold = transactions.reduce((acc, tx) => acc + (Number(tx.value) / Math.pow(10, 8)), 0);
+  const totalEhexSoldUsd = ehexPrice ? totalEhexSold * ehexPrice : null;
+
   return (
     <div className="p-2 sm:p-4">
       <h1 className="text-2xl font-bold mt-10 mb-4 text-center">BankX Dump Tracker</h1>
       <p className="text-white/60 text-center mb-8">
-        Tracks eHEX sells from the BankX wallet 0x705C053d69eB3B8aCc7C404690bD297700cCf169 on Ethereum.
+        Tracks eHEX sells from the BankX wallet 0x705C053d69eB3B8aCc7C404690bD297700cCf169 on Ethereum USD Values based on today's price.
       </p>
 
       {/* Summary Cards */}
@@ -97,6 +89,12 @@ const BankXPage: NextPage = () => {
           value={`${formatNumber(usdcBalance, 2)} USDC`}
           usdValue={usdcBalance ? `$${formatNumber(usdcBalance, 2)}` : '-'}
           isLoading={usdcPriceLoading}
+        />
+        <SummaryCard
+          title="Total eHEX Sold"
+          value={`${formatNumber(totalEhexSold, 0)} eHEX`}
+          usdValue={totalEhexSoldUsd ? `$${formatNumber(totalEhexSoldUsd, 2)}` : '-'}
+          isLoading={ehexPriceLoading || isLoading}
         />
       </div>
 

@@ -158,3 +158,6 @@
   - WalletNetwork.tsx - Network visualization component
   - index.ts - Component exports
 - Set up basic structure for tracking eHEX transactions for address 0x705C053d69eB3B8aCc7C404690bD297700cCf169 
+
+- Created Next.js API route (pages/api/bankx-balances.ts) to fetch eHEX, ETH, and USDC balances from Etherscan, with 60s in-memory caching.
+- Updated pages/bankx.tsx to fetch balances from the new API route instead of directly from Etherscan, preventing ETH balance reset to 0 and improving reliability. 
