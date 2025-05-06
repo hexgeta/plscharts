@@ -147,6 +147,15 @@ export default async function handler(
 
   try {
     const transactions = await fetchTransactions(address, apiKey)
+    const currentTime = new Date().toLocaleString('en-US', { 
+      timeZone: 'America/New_York',
+      hour12: true,
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric'
+    })
     
     // Filter for incoming transactions if configured
     const relevantTransactions = MONITORING_CONFIG.INCOMING_ONLY 
@@ -162,28 +171,40 @@ export default async function handler(
       return isNew
     })
 
-    if (newTransactions.length > 0) {
-      const resend = new Resend(resendApiKey)
-      
-      // Send email for new transactions
-      const emailResponse = await resend.emails.send({
-        from: fromEmail,
-        to: toEmail,
-        subject: `📬 New ${newTransactions.length > 1 ? 'Transactions' : 'Transaction'} Detected`,
-        html: `
-          <h2>New ${newTransactions.length > 1 ? 'Transactions' : 'Transaction'} for ${address}</h2>
+    const resend = new Resend(resendApiKey)
+    
+    // Send email regardless of transaction status
+    const emailResponse = await resend.emails.send({
+      from: fromEmail,
+      to: toEmail,
+      subject: `🔍 Transaction Check - ${currentTime}`,
+      html: `
+        <h2>Transaction Check Report</h2>
+        <p><strong>Time:</strong> ${currentTime}</p>
+        <p><strong>Address Monitored:</strong> ${address}</p>
+        <p><strong>Status:</strong> ${newTransactions.length > 0 ? 'New Transactions Found!' : 'No New Transactions'}</p>
+        ${newTransactions.length > 0 ? `
+          <h3>New Transactions:</h3>
           ${newTransactions.map(tx => formatTransactionDetails(tx)).join('<hr/>')}
-        `,
-      })
+        ` : `
+          <p>No new transactions were found in this check. Monitoring continues...</p>
+          <p>Monitoring Settings:</p>
+          <ul>
+            <li>ETH Transfers: ${MONITORING_CONFIG.ETH_TRANSFERS ? '✅' : '❌'}</li>
+            <li>ERC20 Transfers: ${MONITORING_CONFIG.ERC20_TRANSFERS ? '✅' : '❌'}</li>
+            <li>NFT Transfers: ${MONITORING_CONFIG.NFT_TRANSFERS ? '✅' : '❌'}</li>
+            <li>Contract Interactions: ${MONITORING_CONFIG.CONTRACT_INTERACTIONS ? '✅' : '❌'}</li>
+            <li>Incoming Only: ${MONITORING_CONFIG.INCOMING_ONLY ? '✅' : '❌'}</li>
+          </ul>
+        `}
+      `,
+    })
 
-      return res.status(200).json({ 
-        message: 'Email sent for new transactions', 
-        count: newTransactions.length,
-        response: emailResponse 
-      })
-    }
-
-    return res.status(200).json({ message: 'No new transactions' })
+    return res.status(200).json({ 
+      message: 'Check completed and email sent',
+      transactionsFound: newTransactions.length,
+      response: emailResponse 
+    })
   } catch (error) {
     console.error('Error:', error)
     return res.status(500).json({ message: 'Failed to process transactions', error: error.message })

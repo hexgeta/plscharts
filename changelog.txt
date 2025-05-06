@@ -203,3 +203,10 @@
 [2024-03-27] Simplified CORS configuration in /pages/api/tokens/index.ts:
 - Removed domain restrictions to allow access from any origin
 - Maintained rate limiting at 10 requests per minute per IP 
+
+[2024-03-19] Modified OA Movement Cron
+- Updated oa-movement-cron.ts to send transaction check emails regardless of finding new transactions
+- Added monitoring configuration status to email content
+- Maintained all transaction monitoring logic for future use
+- Added detailed status reporting in emails (monitored address, monitoring settings)
+- Set cron job to run every 5 minutes for testing purposes 
