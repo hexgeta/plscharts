@@ -168,3 +168,38 @@
 - Banner includes link to login with X
 - Banner only shows for non-logged in users
 - Uses backdrop blur and semi-transparent background to match site theme 
+
+[2024-03-27] Modified gasSavingPercentage in /pages/api/tokens/index.ts to round to 2 decimal places for better readability and consistency 
+
+[2024-03-27] Removed launchDate field from /pages/api/tokens/index.ts API response to simplify the data structure 
+
+[2024-03-27] Modified date formatting in /pages/api/tokens/index.ts to only show the date portion without time 
+
+[2024-03-27] Restructured date fields in /pages/api/tokens/index.ts to be grouped under a 'dates' object for better organization 
+
+[2024-03-27] Restructured API response in /pages/api/tokens/index.ts to use nested objects:
+- Added 'stake' object for stake-related data (principal, tShares, days, progress)
+- Added 'token' object for token-related data (supply, price, costPerTShare)
+- Added 'gas' object for gas-related data (units and savings)
+- Renamed some fields for clarity and consistency 
+
+[2024-03-27] Renamed soloStakeUnits to equivalentSoloStakeUnits in /pages/api/tokens/index.ts for better clarity 
+
+[2024-03-27] Added daysLeft field to stake object in /pages/api/tokens/index.ts, calculated as daysTotal - daysSinceStart (minimum 0) 
+
+[2024-03-27] Modified progressPercentage and costPerTShare in /pages/api/tokens/index.ts to round to 2 decimal places for consistency 
+
+[2024-03-27] Renamed costPerTShare to costPerTShareUSD in /pages/api/tokens/index.ts to be more explicit about the currency unit 
+
+[2024-03-27] Modified principal and supply values in /pages/api/tokens/index.ts to round to 2 decimal places for consistency 
+
+[2024-03-27] Removed lastUpdated and apiVersion fields from /pages/api/tokens/index.ts API response to simplify the output 
+
+[2024-03-27] Updated API rate limiting and CORS in /pages/api/tokens/index.ts:
+- Reduced rate limit to 10 requests per minute per IP
+- Added flexible domain matching for CORS
+- Added more example domains in the configuration 
+
+[2024-03-27] Simplified CORS configuration in /pages/api/tokens/index.ts:
+- Removed domain restrictions to allow access from any origin
+- Maintained rate limiting at 10 requests per minute per IP 
