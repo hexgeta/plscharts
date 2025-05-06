@@ -67,8 +67,8 @@ const AuthOverlay = ({ children }: AuthOverlayProps) => {
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="bg-[#111111] p-8 rounded-xl border border-white/10 max-w-md w-full mx-4 relative backdrop-blur-xl">
         <h2 className="text-2xl font-bold text-white mb-2 text-center">Sign in to access {pageName}</h2>
-        <p className="text-gray-400 mb-6 text-center text-sm">
-          Connect with your X account to access elite stats & charts.
+        <p className="text-gray-400 mb-6 text-center text-m">
+          Login via X and purchase for $99 for lifetime access.
         </p>
 
         <button

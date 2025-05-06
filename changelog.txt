@@ -161,3 +161,10 @@
 
 - Created Next.js API route (pages/api/bankx-balances.ts) to fetch eHEX, ETH, and USDC balances from Etherscan, with 60s in-memory caching.
 - Updated pages/bankx.tsx to fetch balances from the new API route instead of directly from Etherscan, preventing ETH balance reset to 0 and improving reliability. 
+
+[2024-03-19] Added login banner for non-authenticated users
+- Created new LoginBanner component in components/ui/login-banner.tsx
+- Added banner to SphereLayout to show across all pages
+- Banner includes link to login with X
+- Banner only shows for non-logged in users
+- Uses backdrop blur and semi-transparent background to match site theme 

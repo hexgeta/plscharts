@@ -2,6 +2,7 @@ import '@/styles/global.css';
 import React, { useEffect, useState } from 'react';
 import type { AppProps } from 'next/app';
 import AuthNavBar from '../components/AuthNavBar';
+import MarketingBanner from '../components/MarketingBanner';
 import Footer from '../components/Footer';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -59,7 +60,12 @@ function MyApp({ Component, pageProps }: AppProps) {
           </>
         )}
       </Head>
-      {!isLivestreamPage && <AuthNavBar />}
+      {!isLivestreamPage && (
+        <>
+          <MarketingBanner />
+          <AuthNavBar />
+        </>
+      )}
       <div className="App">
         <Component {...pageProps} />
       </div>
