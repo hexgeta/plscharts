@@ -5,7 +5,12 @@ import { PROTECTED_PAGES } from './config/protected-pages';
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  
+
+  // Skip middleware for API routes
+  if (path.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   // Check if the page is protected
   if (!PROTECTED_PAGES.includes(path)) {
     return NextResponse.next();
@@ -48,6 +53,7 @@ export async function middleware(request: NextRequest) {
   }
 }
 
+// Only run middleware on non-API routes that are protected
 export const config = {
-  matcher: PROTECTED_PAGES,
+  matcher: PROTECTED_PAGES.filter(page => !page.startsWith('/api/'))
 }; 

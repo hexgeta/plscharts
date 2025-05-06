@@ -133,20 +133,44 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  console.log('Cron job started at:', new Date().toISOString())
+  
   // Check for authentication
   const authHeader = req.headers.authorization
   if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+    console.error('Authentication failed:', { authHeader })
     return res.status(401).json({ message: 'Unauthorized' })
   }
 
+  // Log environment variables status (without exposing values)
+  console.log('Environment variables check:', {
+    hasAddress: !!address,
+    hasApiKey: !!apiKey,
+    hasResendKey: !!resendApiKey,
+    hasToEmail: !!toEmail,
+    hasFromEmail: !!fromEmail,
+    hasCronSecret: !!cronSecret
+  })
+
   if (!apiKey || !resendApiKey || !toEmail || !fromEmail || !address || !cronSecret) {
+    console.error('Missing environment variables:', {
+      hasAddress: !!address,
+      hasApiKey: !!apiKey,
+      hasResendKey: !!resendApiKey,
+      hasToEmail: !!toEmail,
+      hasFromEmail: !!fromEmail,
+      hasCronSecret: !!cronSecret
+    })
     return res
       .status(500)
       .json({ message: 'Missing required environment variables' })
   }
 
   try {
+    console.log('Fetching transactions for address:', address)
     const transactions = await fetchTransactions(address, apiKey)
+    console.log('Transactions fetched:', transactions.length)
+    
     const currentTime = new Date().toLocaleString('en-US', { 
       timeZone: 'America/New_York',
       hour12: true,
@@ -161,6 +185,7 @@ export default async function handler(
     const relevantTransactions = MONITORING_CONFIG.INCOMING_ONLY 
       ? transactions.filter(tx => tx.to.toLowerCase() === address.toLowerCase())
       : transactions
+    console.log('Relevant transactions:', relevantTransactions.length)
 
     // Check for new transactions
     const newTransactions = relevantTransactions.filter(tx => {
@@ -170,8 +195,10 @@ export default async function handler(
       }
       return isNew
     })
+    console.log('New transactions found:', newTransactions.length)
 
     const resend = new Resend(resendApiKey)
+    console.log('Attempting to send email to:', toEmail)
     
     // Send email regardless of transaction status
     const emailResponse = await resend.emails.send({
@@ -199,6 +226,7 @@ export default async function handler(
         `}
       `,
     })
+    console.log('Email sent successfully:', emailResponse)
 
     return res.status(200).json({ 
       message: 'Check completed and email sent',
@@ -206,7 +234,7 @@ export default async function handler(
       response: emailResponse 
     })
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Error in cron job:', error)
     return res.status(500).json({ message: 'Failed to process transactions', error: error.message })
   }
 }

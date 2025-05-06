@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "pages/api/prices/oa-movement-cron.ts": {
-      "maxDuration": 10
+      "maxDuration": 30
     }
   },
   "crons": [
