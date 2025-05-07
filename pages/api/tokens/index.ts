@@ -6,14 +6,14 @@ interface TokenResponse {
   stake: {
     principal: number;
     tShares: number;
-    daysTotal: number;
-    daysSinceStart: number;
+  daysTotal: number;
+  daysSinceStart: number;
     daysLeft: number;
-    progressPercentage: number;
+  progressPercentage: number;
   };
   token: {
     supply: number;
-    priceUSD: number;
+  priceUSD: number;
     costPerTShareUSD: number;
   };
   gas: {
@@ -22,8 +22,8 @@ interface TokenResponse {
     savingPercentage: number;
   };
   dates: {
-    stakeStartDate?: string;
-    stakeEndDate?: string;
+  stakeStartDate?: string;
+  stakeEndDate?: string;
   };
 }
 
@@ -154,14 +154,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         stake: {
           principal: Number((config.STAKE_PRINCIPLE || 0).toFixed(2)),
           tShares,
-          daysTotal,
-          daysSinceStart,
+        daysTotal,
+        daysSinceStart,
           daysLeft: Math.max(0, daysTotal - daysSinceStart),
-          progressPercentage,
+        progressPercentage,
         },
         token: {
           supply,
-          priceUSD: tokenPrice,
+        priceUSD: tokenPrice,
           costPerTShareUSD,
         },
         gas: {

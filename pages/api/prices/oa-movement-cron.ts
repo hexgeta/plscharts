@@ -197,15 +197,15 @@ export default async function handler(
     })
     console.log('New transactions found:', newTransactions.length)
 
-    const resend = new Resend(resendApiKey)
+      const resend = new Resend(resendApiKey)
     console.log('Attempting to send email to:', toEmail)
-    
+      
     // Send email regardless of transaction status
-    const emailResponse = await resend.emails.send({
-      from: fromEmail,
-      to: toEmail,
+      const emailResponse = await resend.emails.send({
+        from: fromEmail,
+        to: toEmail,
       subject: `🔍 Transaction Check - ${currentTime}`,
-      html: `
+        html: `
         <h2>Transaction Check Report</h2>
         <p><strong>Time:</strong> ${currentTime}</p>
         <p><strong>Address Monitored:</strong> ${address}</p>
@@ -224,15 +224,15 @@ export default async function handler(
             <li>Incoming Only: ${MONITORING_CONFIG.INCOMING_ONLY ? '✅' : '❌'}</li>
           </ul>
         `}
-      `,
-    })
+        `,
+      })
     console.log('Email sent successfully:', emailResponse)
 
-    return res.status(200).json({ 
+      return res.status(200).json({ 
       message: 'Check completed and email sent',
       transactionsFound: newTransactions.length,
-      response: emailResponse 
-    })
+        response: emailResponse 
+      })
   } catch (error) {
     console.error('Error in cron job:', error)
     return res.status(500).json({ message: 'Failed to process transactions', error: error.message })

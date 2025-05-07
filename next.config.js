@@ -37,6 +37,11 @@ const nextConfig = {
         destination: '/vs-hex',
         permanent: true,
       },
+      {
+        source: '/live',
+        destination: 'https://x.com/i/broadcasts/1kvKpynYdoMGE',
+        permanent: false,
+      },
     ]
   },
 };

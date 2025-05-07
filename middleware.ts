@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
   if (path.startsWith('/api/')) {
     return NextResponse.next();
   }
-
+  
   // Check if the page is protected
   if (!PROTECTED_PAGES.includes(path)) {
     return NextResponse.next();
