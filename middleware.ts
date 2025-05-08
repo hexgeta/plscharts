@@ -8,46 +8,9 @@ const STREAM_URL = 'https://x.com/i/broadcasts/1kvKpynqlqdGE'
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // Handle /live route with any query parameters
+  // Simple redirect for /live
   if (path === '/live') {
-    const userAgent = request.headers.get('user-agent') || '';
-    const isBot = userAgent.toLowerCase().includes('bot') || 
-                 userAgent.toLowerCase().includes('twitter') ||
-                 userAgent.toLowerCase().includes('facebook') ||
-                 userAgent.toLowerCase().includes('discord');
-
-    // For bots, serve a static page with meta tags
-    if (isBot) {
-      const response = new NextResponse(
-        `<!DOCTYPE html>
-        <html>
-          <head>
-            <title>Live Stream</title>
-            <meta property="og:title" content="Live Stream" />
-            <meta property="og:description" content="Watch our live stream!" />
-            <meta name="twitter:card" content="summary_large_image" />
-            <meta name="twitter:title" content="Live Stream" />
-            <meta name="twitter:description" content="Watch our live stream!" />
-          </head>
-          <body>
-            <h1>Live Stream</h1>
-            <p>Redirecting to live stream...</p>
-          </body>
-        </html>`,
-        {
-          headers: {
-            'content-type': 'text/html',
-            'cache-control': 'no-cache, no-store, must-revalidate',
-          },
-        }
-      );
-      return response;
-    }
-
-    // For regular users, redirect to the stream
-    // Preserve any query parameters by using request.nextUrl
-    const streamUrl = new URL(STREAM_URL);
-    return NextResponse.redirect(streamUrl);
+    return NextResponse.redirect(STREAM_URL);
   }
 
   // Handle protected pages
