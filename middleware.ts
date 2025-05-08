@@ -3,15 +3,8 @@ import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 import { PROTECTED_PAGES } from './config/protected-pages';
 
-const STREAM_URL = 'https://x.com/i/broadcasts/1kvKpynqlqdGE'
-
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
-
-  // Simple redirect for /live
-  if (path === '/live') {
-    return NextResponse.redirect(STREAM_URL);
-  }
 
   // Handle protected pages
   if (PROTECTED_PAGES.some(page => path.startsWith(page))) {
@@ -54,7 +47,6 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Only run middleware on protected pages and /live route
 export const config = {
-  matcher: ['/live', ...PROTECTED_PAGES.filter(page => !page.startsWith('/api/'))]
+  matcher: PROTECTED_PAGES.filter(page => !page.startsWith('/api/'))
 }; 

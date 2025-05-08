@@ -31,7 +31,6 @@ const nextConfig = {
         destination: '/delta-discounts',
         permanent: true,
       },
-      // a catch-all redirect to prevent potential loops
       {
         source: '/Btc-Eth-Hex',
         destination: '/vs-hex',
@@ -39,6 +38,11 @@ const nextConfig = {
       },
       {
         source: '/live',
+        destination: 'https://x.com/i/broadcasts/1kvKpynqlqdGE',
+        permanent: false
+      },
+      {
+        source: '/livestream',
         destination: 'https://x.com/i/broadcasts/1kvKpynqlqdGE',
         permanent: true,
       }
