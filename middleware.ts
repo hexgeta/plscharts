@@ -3,9 +3,52 @@ import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 import { PROTECTED_PAGES } from './config/protected-pages';
 
-export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
+const STREAM_URL = 'https://x.com/i/broadcasts/1kvKpynqlqdGE'
 
+export async function middleware(request: NextRequest) {
+  // Handle /live route
+  if (request.nextUrl.pathname === '/live') {
+    const userAgent = request.headers.get('user-agent') || ''
+    const isBot = userAgent.toLowerCase().includes('bot') || 
+                 userAgent.toLowerCase().includes('twitter') ||
+                 userAgent.toLowerCase().includes('facebook') ||
+                 userAgent.toLowerCase().includes('discord')
+
+    if (!isBot) {
+      return NextResponse.redirect(STREAM_URL)
+    }
+    return NextResponse.next()
+  }
+
+  // Handle protected pages
+  if (PROTECTED_PAGES.some(page => request.nextUrl.pathname.startsWith(page))) {
+    // Skip middleware for API routes
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.next();
+    }
+    
+    // Check if the page is protected
+    if (!PROTECTED_PAGES.includes(request.nextUrl.pathname)) {
+      return NextResponse.next();
+    }
+
+    try {
+      // Get the user's session
+      const session = await getToken({ 
+        req: request, 
+        secret: process.env.NEXTAUTH_SECRET 
+      });
+
+      // If no session, allow access but content will be hidden behind auth overlay
+      if (!session?.email) {
+        return NextResponse.next();
+      }
+
+      // Check whitelist status
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/whitelist/check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
   // Skip middleware for API routes
   if (path.startsWith('/api/')) {
     return NextResponse.next();
@@ -56,4 +99,18 @@ export async function middleware(request: NextRequest) {
 // Only run middleware on non-API routes that are protected
 export const config = {
   matcher: PROTECTED_PAGES.filter(page => !page.startsWith('/api/'))
-}; 
+};
+
+export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === '/live') {
+    const userAgent = request.headers.get('user-agent') || ''
+    const isBot = userAgent.toLowerCase().includes('bot') || 
+                 userAgent.toLowerCase().includes('twitter') ||
+                 userAgent.toLowerCase().includes('facebook') ||
+                 userAgent.toLowerCase().includes('discord')
+
+    if (!isBot) {
+      return NextResponse.redirect(STREAM_URL)
+    }
+  }
+} 
