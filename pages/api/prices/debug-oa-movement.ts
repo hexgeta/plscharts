@@ -1,4 +1,4 @@
-import { handler as cronHandler } from './oa-movement-cron'
+import { handler as cronHandler } from '@/pages/api/cron/oa-movement-cron'
 import type { NextApiRequest, NextApiResponse } from 'next'
 
 // This is a debug endpoint that wraps the cron handler

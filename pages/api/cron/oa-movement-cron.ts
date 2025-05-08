@@ -161,24 +161,15 @@ interface Transaction {
   walletLabel?: string
 }
 
-// Track last transaction for each type for each wallet
-let lastTransactions: { [key: string]: { [key: string]: string | null } } = {}
-
-// Initialize lastTransactions for each wallet
-MONITORED_WALLETS.forEach(wallet => {
-  lastTransactions[wallet.address] = {
-    eth: null,
-    erc20: null,
-    nft: null
-  }
-})
+// Track last check timestamp
+let lastCheckTimestamp = Math.floor(Date.now() / 1000) - 300 // Start with 5 minutes ago
 
 async function fetchTransactions(wallet: WalletConfig, apiKey: string): Promise<Transaction[]> {
   const transactions: Transaction[] = []
 
   // Fetch normal ETH transactions
   if (MONITORING_CONFIG.ETH_TRANSFERS) {
-    const ethUrl = `https://api.etherscan.io/api?module=account&action=txlist&address=${wallet.address}&sort=desc&apikey=${apiKey}`
+    const ethUrl = `https://api.etherscan.io/api?module=account&action=txlist&address=${wallet.address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
     const ethResponse = await fetch(ethUrl)
     const ethData = await ethResponse.json()
     
@@ -196,7 +187,7 @@ async function fetchTransactions(wallet: WalletConfig, apiKey: string): Promise<
 
   // Fetch ERC20 token transfers
   if (MONITORING_CONFIG.ERC20_TRANSFERS) {
-    const erc20Url = `https://api.etherscan.io/api?module=account&action=tokentx&address=${wallet.address}&sort=desc&apikey=${apiKey}`
+    const erc20Url = `https://api.etherscan.io/api?module=account&action=tokentx&address=${wallet.address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
     const erc20Response = await fetch(erc20Url)
     const erc20Data = await erc20Response.json()
     
@@ -213,7 +204,7 @@ async function fetchTransactions(wallet: WalletConfig, apiKey: string): Promise<
   // Fetch NFT transfers (both ERC721 and ERC1155)
   if (MONITORING_CONFIG.NFT_TRANSFERS) {
     // ERC721
-    const nftUrl = `https://api.etherscan.io/api?module=account&action=tokennfttx&address=${wallet.address}&sort=desc&apikey=${apiKey}`
+    const nftUrl = `https://api.etherscan.io/api?module=account&action=tokennfttx&address=${wallet.address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
     const nftResponse = await fetch(nftUrl)
     const nftData = await nftResponse.json()
     
@@ -227,7 +218,7 @@ async function fetchTransactions(wallet: WalletConfig, apiKey: string): Promise<
     }
 
     // ERC1155
-    const nft1155Url = `https://api.etherscan.io/api?module=account&action=token1155tx&address=${wallet.address}&sort=desc&apikey=${apiKey}`
+    const nft1155Url = `https://api.etherscan.io/api?module=account&action=token1155tx&address=${wallet.address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
     const nft1155Response = await fetch(nft1155Url)
     const nft1155Data = await nft1155Response.json()
     
@@ -277,6 +268,7 @@ export const handler = async function handler(
   res: NextApiResponse
 ) {
   console.log('Cron job started at:', new Date().toISOString())
+  console.log('Checking for transactions since:', new Date(lastCheckTimestamp * 1000).toISOString())
   
   // Check for authentication
   const authHeader = req.headers.authorization
@@ -321,19 +313,13 @@ export const handler = async function handler(
         ? transactions.filter(tx => tx.to.toLowerCase() === wallet.address.toLowerCase())
         : transactions
 
-      // Check for new transactions
-      const newTransactions = relevantTransactions.filter(tx => {
-        const isNew = lastTransactions[wallet.address][tx.type.toLowerCase()] !== tx.hash
-        if (isNew) {
-          lastTransactions[wallet.address][tx.type.toLowerCase()] = tx.hash
-        }
-        return isNew
-      })
-
-      if (newTransactions.length > 0) {
-        allNewTransactions.push(...newTransactions)
+      if (relevantTransactions.length > 0) {
+        allNewTransactions.push(...relevantTransactions)
       }
     }
+
+    // Update the last check timestamp
+    lastCheckTimestamp = Math.floor(Date.now() / 1000)
 
     const currentTime = new Date().toLocaleString('en-US', { 
       timeZone: 'America/New_York',

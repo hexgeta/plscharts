@@ -17,6 +17,9 @@ const toEmail = process.env.TO_EMAIL
 const fromEmail = process.env.FROM_EMAIL
 const cronSecret = process.env.CRON_SECRET
 
+// Track last check timestamp
+let lastCheckTimestamp = Math.floor(Date.now() / 1000) - 300 // Start with 5 minutes ago
+
 interface Transaction {
   hash: string
   from: string
@@ -40,7 +43,7 @@ async function fetchTransactions(address: string, apiKey: string): Promise<Trans
 
   // Fetch normal ETH transactions
   if (MONITORING_CONFIG.ETH_TRANSFERS) {
-    const ethUrl = `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&sort=desc&apikey=${apiKey}`
+    const ethUrl = `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
     const ethResponse = await fetch(ethUrl)
     const ethData = await ethResponse.json()
     
@@ -57,7 +60,7 @@ async function fetchTransactions(address: string, apiKey: string): Promise<Trans
 
   // Fetch ERC20 token transfers
   if (MONITORING_CONFIG.ERC20_TRANSFERS) {
-    const erc20Url = `https://api.etherscan.io/api?module=account&action=tokentx&address=${address}&sort=desc&apikey=${apiKey}`
+    const erc20Url = `https://api.etherscan.io/api?module=account&action=tokentx&address=${address}&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
     const erc20Response = await fetch(erc20Url)
     const erc20Data = await erc20Response.json()
     
@@ -73,7 +76,7 @@ async function fetchTransactions(address: string, apiKey: string): Promise<Trans
   // Fetch NFT transfers (both ERC721 and ERC1155)
   if (MONITORING_CONFIG.NFT_TRANSFERS) {
     // ERC721
-    const nftUrl = `https://api.etherscan.io/api?module=account&action=tokennfttx&address=${address}&sort=desc&apikey=${apiKey}`
+    const nftUrl = `https://api.etherscan.io/api?module=account&action=tokennfttx&address=${address}&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
     const nftResponse = await fetch(nftUrl)
     const nftData = await nftResponse.json()
     
@@ -86,7 +89,7 @@ async function fetchTransactions(address: string, apiKey: string): Promise<Trans
     }
 
     // ERC1155
-    const nft1155Url = `https://api.etherscan.io/api?module=account&action=token1155tx&address=${address}&sort=desc&apikey=${apiKey}`
+    const nft1155Url = `https://api.etherscan.io/api?module=account&action=token1155tx&address=${address}&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
     const nft1155Response = await fetch(nft1155Url)
     const nft1155Data = await nft1155Response.json()
     
@@ -134,6 +137,7 @@ export const handler = async function handler(
   res: NextApiResponse
 ) {
   console.log('Cron job started at:', new Date().toISOString())
+  console.log('Checking for transactions since:', new Date(lastCheckTimestamp * 1000).toISOString())
   
   // Check for authentication
   const authHeader = req.headers.authorization
@@ -213,6 +217,9 @@ export const handler = async function handler(
         `
       })
       console.log('Email sent successfully:', emailResponse)
+
+      // Update the last check timestamp before returning
+      lastCheckTimestamp = Math.floor(Date.now() / 1000)
 
       return res.status(200).json({ 
         message: 'New transactions found and email sent',

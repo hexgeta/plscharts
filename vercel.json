@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/bankx-movement-cron/",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/crypto-price-alerts/",
+      "schedule": "0 * * * *"
     }
   ]
 }
