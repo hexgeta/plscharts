@@ -210,3 +210,30 @@
 - Maintained all transaction monitoring logic for future use
 - Added detailed status reporting in emails (monitored address, monitoring settings)
 - Set cron job to run every 5 minutes for testing purposes 
+
+[2024-03-19] Code Refactoring and Improvements
+- Created shared utility module for transaction monitoring (utils/transaction-monitor.ts)
+- Created shared types for transactions (types/transactions.ts)
+- Refactored bankx-movement-cron.ts and oa-movement-cron.ts to use shared utilities
+- Added rate limiting and retry logic for API calls
+- Improved transaction formatting and email templates
+- Fixed type errors in transaction handling
+- Removed duplicate code across cron jobs
+- Added comprehensive error handling for API calls 
+
+[2024-03-19] Improved Error Handling in Crypto Price Tweets
+- Modified crypto-price-tweets.ts to handle missing Twitter credentials gracefully
+- Added detailed logging for missing Twitter credentials
+- Switched back to DexScreener API from CoinGecko for more accurate price data
+- Updated TokenConfig interface to support both HEX and stake tokens
+- Improved error messages and logging throughout the cron job
+- Maintained price update functionality even when Twitter posting is disabled 
+
+[2024-03-19] Improved Price Fetching in Crypto Price Tweets
+- Aligned price fetching logic with useCryptoPrice hook
+- Added case-insensitive token symbol handling
+- Added detailed logging for DexScreener responses
+- Fixed error handling for missing token configs
+- Added proper error handling for network requests
+- Added fallback chain detection for error cases
+- Improved error messages and logging throughout 

@@ -1,20 +1,25 @@
 import { PairData } from '@/types/crypto'
 
 export interface TokenConfig {
-  PAIR: {
-    chain: 'pulsechain' | 'ethereum' | 'solana';
-    pairAddress: string;
-  };
-  STAKE_TYPE?: 'rolling' | 'fixed';
-  RELATED_STAKES?: string[];
-  CURRENT_ACTIVE_STAKE?: string;
-  LAUNCH_DATE?: Date;
-  TSHARES?: number;
-  STAKE_PRINCIPLE?: number;
-  TOKEN_SUPPLY?: number;
-  STAKE_START_DATE?: Date;
-  STAKE_END_DATE?: Date;
-  TOTAL_STAKED_DAYS?: number;
+  id?: string
+  chain?: string
+  name?: string
+  symbol?: string
+  decimals?: number
+  PAIR?: {
+    chain: string
+    pairAddress: string
+  }
+  STAKE_TYPE?: 'rolling' | 'fixed'
+  RELATED_STAKES?: string[]
+  CURRENT_ACTIVE_STAKE?: string
+  LAUNCH_DATE?: Date
+  TSHARES?: number
+  STAKE_PRINCIPLE?: number
+  TOKEN_SUPPLY?: number
+  STAKE_START_DATE?: Date
+  STAKE_END_DATE?: Date
+  TOTAL_STAKED_DAYS?: number
 }
 
 export const TOKEN_LOGOS: { [key: string]: string } = {
@@ -36,20 +41,28 @@ export const TOKEN_LOGOS: { [key: string]: string } = {
 } as const;
 
 // Token-specific constants
-export const TOKEN_CONSTANTS: Record<string, TokenConfig> = {
+export const TOKEN_CONSTANTS: { [key: string]: TokenConfig } = {
   pHEX: {
+    id: 'hex',
+    chain: 'pulsechain',
+    name: 'HEX',
+    symbol: 'HEX',
+    decimals: 8,
     PAIR: {
-      pairAddress: '0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65',
-      chain: 'pulsechain'
-    },
-    STAKE_TYPE: 'rolling'
+      chain: 'pulsechain',
+      pairAddress: '0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65'
+    }
   },
   eHEX: {
+    id: 'hex',
+    chain: 'ethereum',
+    name: 'HEX',
+    symbol: 'HEX',
+    decimals: 8,
     PAIR: {
-      pairAddress: '0x9e0905249ceefffb9605e034b534544684a58be6',
-      chain: 'ethereum'
-    },
-    STAKE_TYPE: 'rolling'
+      chain: 'ethereum',
+      pairAddress: '0x9e0905249ceefffb9605e034b534544684a58be6'
+    }
   },
   pMAXI: {
     STAKE_TYPE: 'fixed',

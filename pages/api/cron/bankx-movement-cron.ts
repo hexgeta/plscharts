@@ -1,8 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { Resend } from 'resend'
+import { fetchTransactions, formatTransactionDetails } from '@/utils/transaction-monitor'
+import { MonitoringConfig } from '@/types/transactions'
 
 // Monitoring Configuration
-const MONITORING_CONFIG = {
+const MONITORING_CONFIG: MonitoringConfig = {
   ETH_TRANSFERS: true,      // Monitor ETH transfers
   ERC20_TRANSFERS: true,    // Monitor ERC20 token transfers
   NFT_TRANSFERS: true,      // Monitor NFT transfers (ERC721/ERC1155)
@@ -17,127 +19,11 @@ const toEmail = process.env.TO_EMAIL
 const fromEmail = process.env.FROM_EMAIL
 const cronSecret = process.env.CRON_SECRET
 
-// Track last check timestamp
-let lastCheckTimestamp = Math.floor(Date.now() / 1000) - 300 // Start with 5 minutes ago
-
-interface Transaction {
-  hash: string
-  from: string
-  to: string
-  value: string
-  tokenName?: string
-  tokenSymbol?: string
-  tokenDecimal?: string
-  tokenID?: string
-  type: 'ETH' | 'ERC20' | 'NFT' | 'CONTRACT'
-}
-
-let lastTransactions: { [key: string]: string | null } = {
-  eth: null,
-  erc20: null,
-  nft: null
-}
-
-async function fetchTransactions(address: string, apiKey: string): Promise<Transaction[]> {
-  const transactions: Transaction[] = []
-
-  // Fetch normal ETH transactions
-  if (MONITORING_CONFIG.ETH_TRANSFERS) {
-    const ethUrl = `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
-    const ethResponse = await fetch(ethUrl)
-    const ethData = await ethResponse.json()
-    
-    if (ethData.status === '1' && ethData.result?.length > 0) {
-      const ethTxs = ethData.result
-        .filter((tx: any) => tx.value !== '0')
-        .map((tx: any) => ({
-          ...tx,
-          type: 'ETH'
-        }))
-      transactions.push(...ethTxs)
-    }
-  }
-
-  // Fetch ERC20 token transfers
-  if (MONITORING_CONFIG.ERC20_TRANSFERS) {
-    const erc20Url = `https://api.etherscan.io/api?module=account&action=tokentx&address=${address}&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
-    const erc20Response = await fetch(erc20Url)
-    const erc20Data = await erc20Response.json()
-    
-    if (erc20Data.status === '1' && erc20Data.result?.length > 0) {
-      const erc20Txs = erc20Data.result.map((tx: any) => ({
-        ...tx,
-        type: 'ERC20'
-      }))
-      transactions.push(...erc20Txs)
-    }
-  }
-
-  // Fetch NFT transfers (both ERC721 and ERC1155)
-  if (MONITORING_CONFIG.NFT_TRANSFERS) {
-    // ERC721
-    const nftUrl = `https://api.etherscan.io/api?module=account&action=tokennfttx&address=${address}&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
-    const nftResponse = await fetch(nftUrl)
-    const nftData = await nftResponse.json()
-    
-    if (nftData.status === '1' && nftData.result?.length > 0) {
-      const nftTxs = nftData.result.map((tx: any) => ({
-        ...tx,
-        type: 'NFT'
-      }))
-      transactions.push(...nftTxs)
-    }
-
-    // ERC1155
-    const nft1155Url = `https://api.etherscan.io/api?module=account&action=token1155tx&address=${address}&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
-    const nft1155Response = await fetch(nft1155Url)
-    const nft1155Data = await nft1155Response.json()
-    
-    if (nft1155Data.status === '1' && nft1155Data.result?.length > 0) {
-      const nft1155Txs = nft1155Data.result.map((tx: any) => ({
-        ...tx,
-        type: 'NFT'
-      }))
-      transactions.push(...nft1155Txs)
-    }
-  }
-
-  return transactions
-}
-
-function formatTransactionDetails(tx: Transaction): string {
-  let details = `
-    <p><strong>Type:</strong> ${tx.type}</p>
-    <p><strong>Hash:</strong> ${tx.hash}</p>
-    <p><strong>From:</strong> ${tx.from}</p>
-    <p><strong>To:</strong> ${tx.to}</p>
-  `
-
-  if (tx.type === 'ETH') {
-    details += `<p><strong>Value:</strong> ${Number(tx.value) / 1e18} ETH</p>`
-  } else if (tx.type === 'ERC20') {
-    const value = Number(tx.value) / Math.pow(10, Number(tx.tokenDecimal))
-    details += `
-      <p><strong>Token:</strong> ${tx.tokenName} (${tx.tokenSymbol})</p>
-      <p><strong>Value:</strong> ${value} ${tx.tokenSymbol}</p>
-    `
-  } else if (tx.type === 'NFT') {
-    details += `
-      <p><strong>NFT:</strong> ${tx.tokenName}</p>
-      <p><strong>Token ID:</strong> ${tx.tokenID}</p>
-    `
-  }
-
-  details += `<p><a href="https://etherscan.io/tx/${tx.hash}">View on Etherscan</a></p>`
-  return details
-}
-
 export const handler = async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   console.log('Cron job started at:', new Date().toISOString())
-  console.log('Checking for transactions since:', new Date(lastCheckTimestamp * 1000).toISOString())
   
   // Check for authentication
   const authHeader = req.headers.authorization
@@ -170,8 +56,8 @@ export const handler = async function handler(
 
   try {
     console.log('Fetching transactions for address:', address)
-    const transactions = await fetchTransactions(address, apiKey)
-    console.log('Transactions fetched:', transactions.length)
+    const transactions = await fetchTransactions(address, apiKey, MONITORING_CONFIG)
+    console.log('Recent transactions found:', transactions.length)
     
     const currentTime = new Date().toLocaleString('en-US', { 
       timeZone: 'America/New_York',
@@ -187,22 +73,11 @@ export const handler = async function handler(
     const relevantTransactions = MONITORING_CONFIG.INCOMING_ONLY 
       ? transactions.filter(tx => tx.to.toLowerCase() === address.toLowerCase())
       : transactions
-    console.log('Relevant transactions:', relevantTransactions.length)
 
-    // Check for new transactions
-    const newTransactions = relevantTransactions.filter(tx => {
-      const isNew = lastTransactions[tx.type.toLowerCase()] !== tx.hash
-      if (isNew) {
-        lastTransactions[tx.type.toLowerCase()] = tx.hash
-      }
-      return isNew
-    })
-    console.log('New transactions found:', newTransactions.length)
-
-    // Only send email if new transactions are found
-    if (newTransactions.length > 0) {
+    // Only send email if transactions are found
+    if (relevantTransactions.length > 0) {
       const resend = new Resend(resendApiKey)
-      console.log('New transactions found, sending email to:', toEmail)
+      console.log('Sending email notification to:', toEmail)
       
       const emailResponse = await resend.emails.send({
         from: fromEmail,
@@ -212,25 +87,22 @@ export const handler = async function handler(
           <h2>Transaction Check Report</h2>
           <p><strong>Time:</strong> ${currentTime}</p>
           <p><strong>Address Monitored:</strong> ${address}</p>
-          <h3>New Transactions:</h3>
-          ${newTransactions.map(tx => formatTransactionDetails(tx)).join('<hr/>')}
+          <h3>Recent Transactions:</h3>
+          ${relevantTransactions.map(tx => formatTransactionDetails(tx)).join('')}
         `
       })
       console.log('Email sent successfully:', emailResponse)
 
-      // Update the last check timestamp before returning
-      lastCheckTimestamp = Math.floor(Date.now() / 1000)
-
       return res.status(200).json({ 
         message: 'New transactions found and email sent',
-        transactionsFound: newTransactions.length,
+        transactionsFound: relevantTransactions.length,
         response: emailResponse 
       })
     }
 
-    // If no new transactions, just return success without sending email
+    // If no transactions, just return success
     return res.status(200).json({ 
-      message: 'Check completed, no new transactions',
+      message: 'Check completed, no recent transactions',
       transactionsFound: 0
     })
 

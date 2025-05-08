@@ -92,6 +92,7 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.173.0",
     "three-spritetext": "^1.9.6",
+    "twitter-api-v2": "^1.23.0",
     "vaul": "^1.1.2",
     "viem": "^2.21.44",
     "wagmi": "^2.12.29",

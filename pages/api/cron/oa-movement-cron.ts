@@ -1,8 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { Resend } from 'resend'
+import { fetchTransactions, formatTransactionDetails } from '@/utils/transaction-monitor'
+import { MonitoringConfig, WalletConfig, Transaction } from '@/types/transactions'
 
 // Monitoring Configuration
-const MONITORING_CONFIG = {
+const MONITORING_CONFIG: MonitoringConfig = {
   ETH_TRANSFERS: true,      // Monitor ETH transfers
   ERC20_TRANSFERS: true,    // Monitor ERC20 token transfers
   NFT_TRANSFERS: true,      // Monitor NFT transfers (ERC721/ERC1155)
@@ -10,12 +12,15 @@ const MONITORING_CONFIG = {
   INCOMING_ONLY: false      // If true, only monitor incoming transactions
 }
 
-interface WalletConfig {
-  address: string
-  label: string
-}
-
 const MONITORED_WALLETS: WalletConfig[] = [
+  {
+    address: '0x705C053d69eB3B8aCc7C404690bD297700cCf169',
+    label: 'Daughter 1'
+  },
+  {
+    address: '0x705C053d69eB3B8aCc7C404690bD297700cCf169',
+    label: 'Daughter 2'
+  },
   {
     address: '0x9Cd83BE15a79646A3D22B81fc8dDf7B7240a62cB',
     label: 'Main Sac'
@@ -148,127 +153,11 @@ const toEmail = process.env.TO_EMAIL
 const fromEmail = process.env.FROM_EMAIL
 const cronSecret = process.env.CRON_SECRET
 
-interface Transaction {
-  hash: string
-  from: string
-  to: string
-  value: string
-  tokenName?: string
-  tokenSymbol?: string
-  tokenDecimal?: string
-  tokenID?: string
-  type: 'ETH' | 'ERC20' | 'NFT' | 'CONTRACT'
-  walletLabel?: string
-}
-
-// Track last check timestamp
-let lastCheckTimestamp = Math.floor(Date.now() / 1000) - 300 // Start with 5 minutes ago
-
-async function fetchTransactions(wallet: WalletConfig, apiKey: string): Promise<Transaction[]> {
-  const transactions: Transaction[] = []
-
-  // Fetch normal ETH transactions
-  if (MONITORING_CONFIG.ETH_TRANSFERS) {
-    const ethUrl = `https://api.etherscan.io/api?module=account&action=txlist&address=${wallet.address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
-    const ethResponse = await fetch(ethUrl)
-    const ethData = await ethResponse.json()
-    
-    if (ethData.status === '1' && ethData.result?.length > 0) {
-      const ethTxs = ethData.result
-        .filter((tx: any) => tx.value !== '0')
-        .map((tx: any) => ({
-          ...tx,
-          type: 'ETH',
-          walletLabel: wallet.label
-        }))
-      transactions.push(...ethTxs)
-    }
-  }
-
-  // Fetch ERC20 token transfers
-  if (MONITORING_CONFIG.ERC20_TRANSFERS) {
-    const erc20Url = `https://api.etherscan.io/api?module=account&action=tokentx&address=${wallet.address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
-    const erc20Response = await fetch(erc20Url)
-    const erc20Data = await erc20Response.json()
-    
-    if (erc20Data.status === '1' && erc20Data.result?.length > 0) {
-      const erc20Txs = erc20Data.result.map((tx: any) => ({
-        ...tx,
-        type: 'ERC20',
-        walletLabel: wallet.label
-      }))
-      transactions.push(...erc20Txs)
-    }
-  }
-
-  // Fetch NFT transfers (both ERC721 and ERC1155)
-  if (MONITORING_CONFIG.NFT_TRANSFERS) {
-    // ERC721
-    const nftUrl = `https://api.etherscan.io/api?module=account&action=tokennfttx&address=${wallet.address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
-    const nftResponse = await fetch(nftUrl)
-    const nftData = await nftResponse.json()
-    
-    if (nftData.status === '1' && nftData.result?.length > 0) {
-      const nftTxs = nftData.result.map((tx: any) => ({
-        ...tx,
-        type: 'NFT',
-        walletLabel: wallet.label
-      }))
-      transactions.push(...nftTxs)
-    }
-
-    // ERC1155
-    const nft1155Url = `https://api.etherscan.io/api?module=account&action=token1155tx&address=${wallet.address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}&starttime=${lastCheckTimestamp}`
-    const nft1155Response = await fetch(nft1155Url)
-    const nft1155Data = await nft1155Response.json()
-    
-    if (nft1155Data.status === '1' && nft1155Data.result?.length > 0) {
-      const nft1155Txs = nft1155Data.result.map((tx: any) => ({
-        ...tx,
-        type: 'NFT',
-        walletLabel: wallet.label
-      }))
-      transactions.push(...nft1155Txs)
-    }
-  }
-
-  return transactions
-}
-
-function formatTransactionDetails(tx: Transaction): string {
-  let details = `
-    <p><strong>Wallet:</strong> ${tx.walletLabel}</p>
-    <p><strong>Type:</strong> ${tx.type}</p>
-    <p><strong>Hash:</strong> ${tx.hash}</p>
-    <p><strong>From:</strong> ${tx.from}</p>
-    <p><strong>To:</strong> ${tx.to}</p>
-  `
-
-  if (tx.type === 'ETH') {
-    details += `<p><strong>Value:</strong> ${Number(tx.value) / 1e18} ETH</p>`
-  } else if (tx.type === 'ERC20') {
-    const value = Number(tx.value) / Math.pow(10, Number(tx.tokenDecimal))
-    details += `
-      <p><strong>Token:</strong> ${tx.tokenName} (${tx.tokenSymbol})</p>
-      <p><strong>Value:</strong> ${value} ${tx.tokenSymbol}</p>
-    `
-  } else if (tx.type === 'NFT') {
-    details += `
-      <p><strong>NFT:</strong> ${tx.tokenName}</p>
-      <p><strong>Token ID:</strong> ${tx.tokenID}</p>
-    `
-  }
-
-  details += `<p><a href="https://etherscan.io/tx/${tx.hash}">View on Etherscan</a></p>`
-  return details
-}
-
 export const handler = async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   console.log('Cron job started at:', new Date().toISOString())
-  console.log('Checking for transactions since:', new Date(lastCheckTimestamp * 1000).toISOString())
   
   // Check for authentication
   const authHeader = req.headers.authorization
@@ -300,26 +189,29 @@ export const handler = async function handler(
   }
 
   try {
-    let allNewTransactions: Transaction[] = []
+    let allTransactions: Transaction[] = []
 
     // Fetch and process transactions for each wallet
     for (const wallet of MONITORED_WALLETS) {
       console.log(`Fetching transactions for ${wallet.label} (${wallet.address})`)
-      const transactions = await fetchTransactions(wallet, apiKey)
-      console.log(`Transactions fetched for ${wallet.label}:`, transactions.length)
+      const transactions = await fetchTransactions(wallet.address, apiKey, MONITORING_CONFIG)
+      console.log(`Recent transactions found for ${wallet.label}:`, transactions.length)
+      
+      // Add wallet label to transactions
+      const labeledTransactions = transactions.map(tx => ({
+        ...tx,
+        walletLabel: wallet.label
+      }))
       
       // Filter for incoming transactions if configured
       const relevantTransactions = MONITORING_CONFIG.INCOMING_ONLY 
-        ? transactions.filter(tx => tx.to.toLowerCase() === wallet.address.toLowerCase())
-        : transactions
+        ? labeledTransactions.filter(tx => tx.to.toLowerCase() === wallet.address.toLowerCase())
+        : labeledTransactions
 
       if (relevantTransactions.length > 0) {
-        allNewTransactions.push(...relevantTransactions)
+        allTransactions.push(...relevantTransactions)
       }
     }
-
-    // Update the last check timestamp
-    lastCheckTimestamp = Math.floor(Date.now() / 1000)
 
     const currentTime = new Date().toLocaleString('en-US', { 
       timeZone: 'America/New_York',
@@ -331,13 +223,13 @@ export const handler = async function handler(
       minute: 'numeric'
     })
 
-    // Only send email if new transactions are found
-    if (allNewTransactions.length > 0) {
+    // Only send email if transactions are found
+    if (allTransactions.length > 0) {
       const resend = new Resend(resendApiKey)
-      console.log('New transactions found, sending email to:', toEmail)
+      console.log('Sending email notification to:', toEmail)
 
       // Group transactions by wallet
-      const transactionsByWallet = allNewTransactions.reduce((acc, tx) => {
+      const transactionsByWallet = allTransactions.reduce((acc, tx) => {
         const label = tx.walletLabel || 'Unknown'
         if (!acc[label]) {
           acc[label] = []
@@ -355,7 +247,7 @@ export const handler = async function handler(
       for (const [label, transactions] of Object.entries(transactionsByWallet)) {
         emailContent += `
           <h3>${label}</h3>
-          ${transactions.map(tx => formatTransactionDetails(tx)).join('<hr/>')}
+          ${transactions.map(tx => formatTransactionDetails(tx)).join('')}
         `
       }
       
@@ -369,14 +261,14 @@ export const handler = async function handler(
 
       return res.status(200).json({ 
         message: 'New transactions found and email sent',
-        transactionsFound: allNewTransactions.length,
+        transactionsFound: allTransactions.length,
         response: emailResponse 
       })
     }
 
-    // If no new transactions, just return success without sending email
+    // If no transactions, just return success
     return res.status(200).json({ 
-      message: 'Check completed, no new transactions',
+      message: 'Check completed, no recent transactions',
       transactionsFound: 0
     })
 
