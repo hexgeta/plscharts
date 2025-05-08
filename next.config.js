@@ -39,15 +39,15 @@ const nextConfig = {
       {
         source: '/live',
         destination: 'https://x.com/i/broadcasts/1kvKpynqlqdGE',
-        permanent: true,
+        permanent: false,
       },
       {
         source: '/livestream',
         destination: 'https://x.com/i/broadcasts/1kvKpynqlqdGE',
-        permanent: true,
+        permanent: false,
       }
     ]
-  },
+  }
 };
 
 module.exports = nextConfig;
