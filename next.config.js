@@ -4,7 +4,7 @@ const nextConfig = {
   images: {
     domains: ['raw.githubusercontent.com', 'pbs.twimg.com'],
   },
-  trailingSlash: true,
+  trailingSlash: false,
   webpack: (config) => {
     config.module.rules.push({
       test: /\.svg$/,
@@ -40,7 +40,7 @@ const nextConfig = {
       {
         source: '/live',
         destination: 'https://x.com/i/broadcasts/1kvKpynqlqdGE',
-        permanent: false,
+        permanent: true,
       }
     ]
   },
