@@ -1,14 +1,9 @@
 {
   "version": 2,
-  "functions": {
-    "pages/api/prices/oa-movement-cron.ts": {
-      "maxDuration": 30
-    }
-  },
   "crons": [
     {
       "path": "/api/prices/oa-movement-cron",
       "schedule": "*/5 * * * *"
     }
   ]
-} 
+}
