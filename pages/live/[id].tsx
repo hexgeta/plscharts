@@ -1,18 +1,18 @@
 import { useEffect } from 'react';
-import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 
 // This could be moved to an environment variable or API endpoint later
 const STREAM_URL = 'https://x.com/i/broadcasts/1OyJALolPgeGb';
 const BASE_URL = 'https://app.lookintomaxi.com';
 
-export default function LiveRedirect() {
-  const router = useRouter();
-  
+export default function LivePage() {
   useEffect(() => {
-    // Generate a random ID to force Twitter to fetch new metadata
-    const randomId = Math.random().toString(36).substring(7);
-    router.replace(`/live/${randomId}`);
+    const timer = setTimeout(() => {
+      window.location.href = STREAM_URL;
+    }, 1500);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return (

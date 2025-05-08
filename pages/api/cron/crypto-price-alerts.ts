@@ -13,25 +13,25 @@ const MONITORED_TOKENS: TokenConfig[] = [
     id: 'ethereum',
     symbol: 'ETH',
     name: 'Ethereum',
-    threshold: 1 // 5% change
+    threshold: 5 // 5% change
   },
   {
     id: 'hex',
     symbol: 'HEX',
     name: 'HEX',
-    threshold: 1 // 5% change
+    threshold: 5 // 5% change
   },
   {
     id: 'pulsechain',
     symbol: 'PLS',
     name: 'PulseChain',
-    threshold: 1 // 5% change
+    threshold: 5 // 5% change
   },
   {
     id: 'plsx',
     symbol: 'PLSX',
     name: 'PulseX',
-    threshold: 1 // 5% change
+    threshold: 5 // 5% change
   }
 ]
 
@@ -129,7 +129,7 @@ export default async function handler(
       const resend = new Resend(resendApiKey)
       
       const emailContent = `
-        <h2>🚨 Significant 24h Price Changes Detected</h2>
+        <h2>🚨 Significant 5%+ 24h Price Changes Detected (checks every hour)</h2>
         <p><strong>Time:</strong> ${currentTime}</p>
         <div style="margin-top: 20px;">
           ${significantChanges.map(({ token, currentPrice, change24h }) => `
