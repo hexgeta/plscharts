@@ -6,111 +6,92 @@ import { PROTECTED_PAGES } from './config/protected-pages';
 const STREAM_URL = 'https://x.com/i/broadcasts/1kvKpynqlqdGE'
 
 export async function middleware(request: NextRequest) {
-  // Handle /live route
-  if (request.nextUrl.pathname === '/live') {
-    const userAgent = request.headers.get('user-agent') || ''
+  const path = request.nextUrl.pathname;
+
+  // Handle /live route with any query parameters
+  if (path === '/live') {
+    const userAgent = request.headers.get('user-agent') || '';
     const isBot = userAgent.toLowerCase().includes('bot') || 
                  userAgent.toLowerCase().includes('twitter') ||
                  userAgent.toLowerCase().includes('facebook') ||
-                 userAgent.toLowerCase().includes('discord')
+                 userAgent.toLowerCase().includes('discord');
 
-    if (!isBot) {
-      return NextResponse.redirect(STREAM_URL)
+    // For bots, serve a static page with meta tags
+    if (isBot) {
+      const response = new NextResponse(
+        `<!DOCTYPE html>
+        <html>
+          <head>
+            <title>Live Stream</title>
+            <meta property="og:title" content="Live Stream" />
+            <meta property="og:description" content="Watch our live stream!" />
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:title" content="Live Stream" />
+            <meta name="twitter:description" content="Watch our live stream!" />
+          </head>
+          <body>
+            <h1>Live Stream</h1>
+            <p>Redirecting to live stream...</p>
+          </body>
+        </html>`,
+        {
+          headers: {
+            'content-type': 'text/html',
+            'cache-control': 'no-cache, no-store, must-revalidate',
+          },
+        }
+      );
+      return response;
     }
-    return NextResponse.next()
+
+    // For regular users, redirect to the stream
+    // Preserve any query parameters by using request.nextUrl
+    const streamUrl = new URL(STREAM_URL);
+    return NextResponse.redirect(streamUrl);
   }
 
   // Handle protected pages
-  if (PROTECTED_PAGES.some(page => request.nextUrl.pathname.startsWith(page))) {
+  if (PROTECTED_PAGES.some(page => path.startsWith(page))) {
     // Skip middleware for API routes
-    if (request.nextUrl.pathname.startsWith('/api/')) {
-      return NextResponse.next();
-    }
-    
-    // Check if the page is protected
-    if (!PROTECTED_PAGES.includes(request.nextUrl.pathname)) {
+    if (path.startsWith('/api/')) {
       return NextResponse.next();
     }
 
     try {
-      // Get the user's session
       const session = await getToken({ 
         req: request, 
         secret: process.env.NEXTAUTH_SECRET 
       });
 
-      // If no session, allow access but content will be hidden behind auth overlay
       if (!session?.email) {
         return NextResponse.next();
       }
 
-      // Check whitelist status
       const response = await fetch(`${process.env.NEXTAUTH_URL}/api/whitelist/check`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-  // Skip middleware for API routes
-  if (path.startsWith('/api/')) {
-    return NextResponse.next();
-  }
-  
-  // Check if the page is protected
-  if (!PROTECTED_PAGES.includes(path)) {
-    return NextResponse.next();
-  }
+        },
+        body: JSON.stringify({ email: session.email }),
+      });
 
-  try {
-    // Get the user's session
-    const session = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
-    });
+      const { isWhitelisted } = await response.json();
 
-    // If no session, allow access but content will be hidden behind auth overlay
-    if (!session?.email) {
+      if (!isWhitelisted) {
+        return NextResponse.next();
+      }
+
       return NextResponse.next();
+    } catch (error) {
+      console.error('Middleware error:', error);
+      return NextResponse.redirect(new URL('/', request.url));
     }
-
-    // Check whitelist status
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/whitelist/check`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email: session.email }),
-    });
-
-    const { isWhitelisted } = await response.json();
-
-    // If not whitelisted, allow access but content will be hidden behind paywall
-    if (!isWhitelisted) {
-      return NextResponse.next();
-    }
-
-    // If whitelisted, allow full access
-    return NextResponse.next();
-  } catch (error) {
-    console.error('Middleware error:', error);
-    // On error, redirect to home page
-    return NextResponse.redirect(new URL('/', request.url));
   }
+
+  return NextResponse.next();
 }
 
-// Only run middleware on non-API routes that are protected
+// Only run middleware on protected pages and /live route
 export const config = {
-  matcher: PROTECTED_PAGES.filter(page => !page.startsWith('/api/'))
-};
-
-export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname === '/live') {
-    const userAgent = request.headers.get('user-agent') || ''
-    const isBot = userAgent.toLowerCase().includes('bot') || 
-                 userAgent.toLowerCase().includes('twitter') ||
-                 userAgent.toLowerCase().includes('facebook') ||
-                 userAgent.toLowerCase().includes('discord')
-
-    if (!isBot) {
-      return NextResponse.redirect(STREAM_URL)
-    }
-  }
-} 
+  matcher: ['/live', ...PROTECTED_PAGES.filter(page => !page.startsWith('/api/'))]
+}; 
