@@ -129,7 +129,7 @@ function formatTransactionDetails(tx: Transaction): string {
   return details
 }
 
-export default async function handler(
+export const handler = async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
@@ -238,3 +238,6 @@ export default async function handler(
     return res.status(500).json({ message: 'Failed to process transactions', error: error.message })
   }
 }
+
+// Default export for Vercel cron
+export default handler
