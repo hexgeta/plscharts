@@ -39,7 +39,7 @@ const nextConfig = {
       },
       {
         source: '/live',
-        destination: 'https://x.com/i/broadcasts/1OyJALolPgeGb',
+        destination: 'https://x.com/i/broadcasts/1kvKpynqlqdGE',
         permanent: false,
       }
     ]
