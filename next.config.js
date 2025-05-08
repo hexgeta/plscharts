@@ -36,6 +36,11 @@ const nextConfig = {
         source: '/Btc-Eth-Hex',
         destination: '/vs-hex',
         permanent: true,
+      },
+      {
+        source: '/live',
+        destination: 'https://x.com/i/broadcasts/1OyJALolPgeGb',
+        permanent: false,
       }
     ]
   },
