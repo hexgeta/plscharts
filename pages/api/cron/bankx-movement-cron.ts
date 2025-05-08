@@ -10,7 +10,7 @@ const MONITORING_CONFIG = {
   INCOMING_ONLY: false      // If true, only monitor incoming transactions
 }
 
-const address = process.env.MONITORED_ADDRESS
+const address = '0x705C053d69eB3B8aCc7C404690bD297700cCf169'
 const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY
 const resendApiKey = process.env.RESEND_API_KEY
 const toEmail = process.env.TO_EMAIL
@@ -144,7 +144,6 @@ export const handler = async function handler(
 
   // Log environment variables status (without exposing values)
   console.log('Environment variables check:', {
-    hasAddress: !!address,
     hasApiKey: !!apiKey,
     hasResendKey: !!resendApiKey,
     hasToEmail: !!toEmail,
@@ -152,9 +151,8 @@ export const handler = async function handler(
     hasCronSecret: !!cronSecret
   })
 
-  if (!apiKey || !resendApiKey || !toEmail || !fromEmail || !address || !cronSecret) {
+  if (!apiKey || !resendApiKey || !toEmail || !fromEmail || !cronSecret) {
     console.error('Missing environment variables:', {
-      hasAddress: !!address,
       hasApiKey: !!apiKey,
       hasResendKey: !!resendApiKey,
       hasToEmail: !!toEmail,
@@ -197,42 +195,38 @@ export const handler = async function handler(
     })
     console.log('New transactions found:', newTransactions.length)
 
+    // Only send email if new transactions are found
+    if (newTransactions.length > 0) {
       const resend = new Resend(resendApiKey)
-    console.log('Attempting to send email to:', toEmail)
+      console.log('New transactions found, sending email to:', toEmail)
       
-    // Send email regardless of transaction status
       const emailResponse = await resend.emails.send({
         from: fromEmail,
         to: toEmail,
-      subject: `🔍 Transaction Check - ${currentTime}`,
+        subject: `🔍 New Transactions Found - ${currentTime}`,
         html: `
-        <h2>Transaction Check Report</h2>
-        <p><strong>Time:</strong> ${currentTime}</p>
-        <p><strong>Address Monitored:</strong> ${address}</p>
-        <p><strong>Status:</strong> ${newTransactions.length > 0 ? 'New Transactions Found!' : 'No New Transactions'}</p>
-        ${newTransactions.length > 0 ? `
+          <h2>Transaction Check Report</h2>
+          <p><strong>Time:</strong> ${currentTime}</p>
+          <p><strong>Address Monitored:</strong> ${address}</p>
           <h3>New Transactions:</h3>
           ${newTransactions.map(tx => formatTransactionDetails(tx)).join('<hr/>')}
-        ` : `
-          <p>No new transactions were found in this check. Monitoring continues...</p>
-          <p>Monitoring Settings:</p>
-          <ul>
-            <li>ETH Transfers: ${MONITORING_CONFIG.ETH_TRANSFERS ? '✅' : '❌'}</li>
-            <li>ERC20 Transfers: ${MONITORING_CONFIG.ERC20_TRANSFERS ? '✅' : '❌'}</li>
-            <li>NFT Transfers: ${MONITORING_CONFIG.NFT_TRANSFERS ? '✅' : '❌'}</li>
-            <li>Contract Interactions: ${MONITORING_CONFIG.CONTRACT_INTERACTIONS ? '✅' : '❌'}</li>
-            <li>Incoming Only: ${MONITORING_CONFIG.INCOMING_ONLY ? '✅' : '❌'}</li>
-          </ul>
-        `}
-        `,
+        `
       })
-    console.log('Email sent successfully:', emailResponse)
+      console.log('Email sent successfully:', emailResponse)
 
       return res.status(200).json({ 
-      message: 'Check completed and email sent',
-      transactionsFound: newTransactions.length,
+        message: 'New transactions found and email sent',
+        transactionsFound: newTransactions.length,
         response: emailResponse 
       })
+    }
+
+    // If no new transactions, just return success without sending email
+    return res.status(200).json({ 
+      message: 'Check completed, no new transactions',
+      transactionsFound: 0
+    })
+
   } catch (error) {
     console.error('Error in cron job:', error)
     return res.status(500).json({ message: 'Failed to process transactions', error: error.message })

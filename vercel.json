@@ -2,7 +2,11 @@
   "version": 2,
   "crons": [
     {
-      "path": "/api/prices/oa-movement-cron/",
+      "path": "/api/cron/oa-movement-cron/",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/bankx-movement-cron/",
       "schedule": "*/5 * * * *"
     }
   ]
