@@ -1,5 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 interface TokenResponse {
   name: string;
@@ -94,42 +101,58 @@ function calculateStakeYieldForPeriod(
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Rate limiting logic
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-  const now = Date.now();
-  const windowData = rateLimit.get(ip as string);
-
-  if (windowData) {
-    if (now - windowData.timestamp < RATE_LIMIT_WINDOW) {
-      if (windowData.count >= MAX_REQUESTS_PER_WINDOW) {
-        return res.status(429).json({ 
-          error: 'Too many requests',
-          retryAfter: Math.ceil((RATE_LIMIT_WINDOW - (now - windowData.timestamp)) / 1000)
-        });
-      }
-      windowData.count++;
-    } else {
-      rateLimit.set(ip as string, { count: 1, timestamp: now });
-    }
-  } else {
-    rateLimit.set(ip as string, { count: 1, timestamp: now });
-  }
-
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Check cache
-  if (cache.data && (now - cache.timestamp) < CACHE_DURATION) {
-    // Set CORS and cache headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
-    
-    return res.status(200).json(cache.data);
-  }
-
   try {
+    // Try to get cached data from Supabase first
+    const { data: cachedData, error: fetchError } = await supabase
+      .from('token_data')
+      .select('*')
+      .eq('id', 'latest')
+      .single();
+
+    // If we have fresh cached data (less than 6 minutes old), use it
+    if (cachedData && !fetchError) {
+      const cacheAge = Date.now() - new Date(cachedData.updated_at).getTime();
+      if (cacheAge < 6 * 60 * 1000) { // 6 minutes
+        return res.status(200).json(cachedData.data);
+      }
+    }
+
+    // If no fresh cache, fall back to direct calculation
+    // Rate limiting logic
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const windowData = rateLimit.get(ip as string);
+
+    if (windowData) {
+      if (now - windowData.timestamp < RATE_LIMIT_WINDOW) {
+        if (windowData.count >= MAX_REQUESTS_PER_WINDOW) {
+          return res.status(429).json({ 
+            error: 'Too many requests',
+            retryAfter: Math.ceil((RATE_LIMIT_WINDOW - (now - windowData.timestamp)) / 1000)
+          });
+        }
+        windowData.count++;
+      } else {
+        rateLimit.set(ip as string, { count: 1, timestamp: now });
+      }
+    } else {
+      rateLimit.set(ip as string, { count: 1, timestamp: now });
+    }
+
+    // Check cache
+    if (cache.data && (now - cache.timestamp) < CACHE_DURATION) {
+      // Set CORS and cache headers
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET');
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
+      
+      return res.status(200).json(cache.data);
+    }
+
     // Fetch HEX stats data for yield calculations
     const [pulseData, ethData] = await Promise.all([
       fetch('https://hexdailystats.com/fulldatapulsechain').then(res => res.json()),

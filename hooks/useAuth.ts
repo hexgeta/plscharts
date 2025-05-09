@@ -78,7 +78,7 @@ export const useAuth = () => {
           scopes: 'tweet.read users.read'
         }
       });
-      
+
       if (error) throw error;
       console.log('Sign in successful:', data);
     } catch (error) {

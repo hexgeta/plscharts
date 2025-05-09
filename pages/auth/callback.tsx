@@ -1,39 +1,28 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { createClient } from '@/utils/supabase/client';
+import supabaseClient from '@/utils/supabase/client';
 
 export default function AuthCallback() {
   const router = useRouter();
 
   useEffect(() => {
     const handleCallback = async () => {
-      const supabase = createClient();
-      try {
-        // Check if we have a session
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          // Get the stored redirect path
-          const redirectPath = localStorage.getItem('authRedirectPath') || '/';
-          // Clear the stored path
-          localStorage.removeItem('authRedirectPath');
-          // Redirect to the stored path
-          router.push(redirectPath);
-        } else {
-          // If no session, redirect to home
-          router.push('/');
-        }
-      } catch (error) {
-        console.error('Error in auth callback:', error);
-        router.push('/');
+      const { searchParams } = new URL(window.location.href);
+      const code = searchParams.get('code');
+      const next = searchParams.get('next') ?? '/';
+
+      if (code) {
+        await supabaseClient.auth.exchangeCodeForSession(code);
       }
+
+      // Get the stored redirect path or default to '/'
+      const redirectPath = localStorage.getItem('authRedirectPath') || '/';
+      localStorage.removeItem('authRedirectPath'); // Clean up
+      router.push(redirectPath);
     };
 
-    // Only run the callback handler if we're on the client side
-    if (typeof window !== 'undefined' && router.isReady) {
-      handleCallback();
-    }
-  }, [router.isReady]);
+    handleCallback();
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">

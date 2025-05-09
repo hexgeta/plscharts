@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/crypto-price-tweets/",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/update-token-data",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
