@@ -151,7 +151,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // Try to get cached data from Supabase first
     const { data: cachedData, error: fetchError } = await supabase
-      .from('token_data')
+      .from('api_data')
       .select('*')
       .eq('id', 'latest')
       .single();
