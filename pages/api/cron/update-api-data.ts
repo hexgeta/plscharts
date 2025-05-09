@@ -395,7 +395,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Store the ordered data in Supabase
     const { error } = await supabase
-      .from('token_data')
+      .from('api_data')
       .upsert({
         id: 'latest',
         data: orderedData,
