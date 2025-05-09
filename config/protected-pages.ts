@@ -4,5 +4,6 @@ export const PROTECTED_PAGES = [
   '/delta-discounts',
   '/projections',
   '/leagues',
-  '/stats'
+  '/stats',
+  '/api-docs'
 ]; 

@@ -36,6 +36,7 @@ const Footer = () => {
             <li><Link href="https://docs.lookintomaxi.com/" className="text-[rgb(153,153,153)] hover:text-gray-300">Docs</Link></li>
             <li><Link href="/calendar" className="text-[rgb(153,153,153)] hover:text-gray-300">Calendar</Link></li>
             <li><Link href="https://app.piteas.io/#/swap?inputCurrency=PLS&outputCurrency=0x0d86EB9f43C57f6FF3BC9E23D8F9d82503f0e84b" className="text-[rgb(153,153,153)] hover:text-gray-300">Buy</Link></li>
+            <li><Link href="https://portfolio.lookintomaxi.com/" className="text-[rgb(153,153,153)] hover:text-gray-300">Portfolio</Link></li>
 
           </ul>
         </div>

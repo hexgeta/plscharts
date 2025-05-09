@@ -1,3 +1,4 @@
+import React from 'react';
 import { useRouter } from 'next/router';
 import { PROTECTED_PAGES } from '@/config/protected-pages';
 import AuthOverlay from './AuthOverlay';
