@@ -2,6 +2,17 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
 import { supabase } from '@/supabaseClient';
 
+// Define token order
+const TOKEN_ORDER = [
+  'pMAXI', 'eMAXI',
+  'pDECI', 'eDECI',
+  'pLUCKY', 'eLUCKY',
+  'pTRIO', 'eTRIO',
+  'pBASE', 'eBASE',
+  'pBASE2', 'eBASE2',
+  'pBASE3', 'eBASE3'
+];
+
 interface TokenResponse {
   name: string;
   stake: {
@@ -94,6 +105,44 @@ function calculateStakeYieldForPeriod(
     .reduce((acc, entry) => acc + (entry.payoutPerTshareHEX * tshares || 0), 0);
 }
 
+function orderTokenProperties(token: any) {
+  return {
+    name: token.name,
+    stake: {
+      principal: token.stake.principal,
+      tShares: token.stake.tShares,
+      yieldSoFarHEX: token.stake.yieldSoFarHEX,
+      backingHEX: token.stake.backingHEX,
+      percentageYieldEarnedSoFar: token.stake.percentageYieldEarnedSoFar,
+      hexAPY: token.stake.hexAPY,
+      minterAPY: token.stake.minterAPY
+    },
+    token: {
+      supply: token.token.supply,
+      burnedSupply: token.token.burnedSupply,
+      priceUSD: token.token.priceUSD,
+      priceHEX: token.token.priceHEX,
+      costPerTShareUSD: token.token.costPerTShareUSD,
+      backingPerToken: token.token.backingPerToken,
+      discountFromBacking: token.token.discountFromBacking,
+      discountFromMint: token.token.discountFromMint
+    },
+    gas: {
+      equivalentSoloStakeUnits: token.gas.equivalentSoloStakeUnits,
+      endStakeUnits: token.gas.endStakeUnits,
+      savingPercentage: token.gas.savingPercentage
+    },
+    dates: {
+      stakeStartDate: token.dates.stakeStartDate,
+      stakeEndDate: token.dates.stakeEndDate,
+      daysTotal: token.dates.daysTotal,
+      daysSinceStart: token.dates.daysSinceStart,
+      daysLeft: token.dates.daysLeft,
+      progressPercentage: token.dates.progressPercentage
+    }
+  };
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -111,7 +160,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (cachedData && !fetchError) {
       const cacheAge = Date.now() - new Date(cachedData.updated_at).getTime();
       if (cacheAge < 6 * 60 * 1000) { // 6 minutes
-        return res.status(200).json(cachedData.data);
+        const orderedTokens: { [key: string]: TokenResponse } = {};
+        TOKEN_ORDER.forEach(tokenId => {
+          if (cachedData.data.tokens[tokenId]) {
+            orderedTokens[tokenId] = orderTokenProperties(cachedData.data.tokens[tokenId]);
+          }
+        });
+        return res.status(200).json({ tokens: orderedTokens });
       }
     }
 
@@ -144,7 +199,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.setHeader('Access-Control-Allow-Methods', 'GET');
       res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
       
-      return res.status(200).json(cache.data);
+      const orderedTokens: { [key: string]: TokenResponse } = {};
+      TOKEN_ORDER.forEach(tokenId => {
+        if (cache.data?.tokens[tokenId]) {
+          orderedTokens[tokenId] = orderTokenProperties(cache.data.tokens[tokenId]);
+        }
+      });
+      return res.status(200).json({ tokens: orderedTokens });
     }
 
     // Fetch HEX stats data for yield calculations
@@ -170,13 +231,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const tokens: { [key: string]: TokenResponse } = {};
     const currentDate = new Date();
 
-    // Process tokens with prices
-    Object.entries(TOKEN_CONSTANTS).forEach(([name, config]) => {
+    // Process tokens in the defined order
+    TOKEN_ORDER.forEach(name => {
+      const config = TOKEN_CONSTANTS[name];
+      if (!config) return;
+
       const baseTokenName = name.replace(/[pe]/, '').replace(/(\d+)$/, '');
       const variant = name.match(/\d+$/)?.[0] || '';
       const fullTokenName = variant ? `${baseTokenName}${variant}` : baseTokenName;
       
-      if (POOL_TOKENS.includes(fullTokenName)) {
+      if (['MAXI', 'DECI', 'LUCKY', 'TRIO', 'BASE', 'BASE2', 'BASE3'].includes(fullTokenName)) {
         const startDate = config.STAKE_START_DATE;
         const daysSinceStart = startDate 
           ? Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) 
@@ -276,7 +340,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ? Number((((priceHEX - 1) * (daysInYear / daysSinceStart))).toFixed(4))
           : 0;
 
-        tokens[name] = {
+        tokens[name] = orderTokenProperties({
           name,
           stake: {
             principal: Number((config.STAKE_PRINCIPLE || 0).toFixed(2)),
@@ -310,13 +374,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             daysLeft: Math.max(0, daysTotal - daysSinceStart),
             progressPercentage: Number((progressPercentage / 100).toFixed(4)),
           }
-        };
+        });
       }
     });
 
     // Update cache
+    const orderedTokens: { [key: string]: TokenResponse } = {};
+    TOKEN_ORDER.forEach(tokenId => {
+      if (tokens[tokenId]) {
+        orderedTokens[tokenId] = tokens[tokenId];
+      }
+    });
+
     cache = {
-      data: { tokens },
+      data: { tokens: orderedTokens },
       timestamp: now
     };
 
@@ -326,7 +397,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
 
     return res.status(200).json({
-      tokens
+      tokens: orderedTokens
     });
   } catch (error) {
     console.error('Error processing request:', error);
