@@ -43,9 +43,10 @@ const nextConfig = {
       },
       {
         source: '/livestream',
-        destination: 'https://x.com/i/broadcasts/1kvKpynqlqdGE',
+        destination: 'https://x.com/i/broadcasts/1eaKbWPPqVeGX',
         permanent: false,
-      }
+      },
+      
     ]
   }
 };
