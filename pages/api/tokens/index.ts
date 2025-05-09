@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // Fetch token data from Supabase
     const { data: tokenData, error } = await supabase
-      .from('token_data')
+      .from('api_data')
       .select('data')
       .eq('id', 'latest')
       .single();
