@@ -1,3 +1,17 @@
+/**
+ * @endpoint GET /api/tokens
+ * @description Returns detailed information about all PulseChain tokens tracked by LookIntoMaxi
+ * 
+ * @returns {Object} Response
+ * - tokens: Object containing token data for each tracked token
+ *   - stake: Staking information (principal, tShares, yields)
+ *   - token: Token metrics (supply, price, backing)
+ *   - gas: Gas efficiency metrics
+ *   - dates: Stake timing information
+ * 
+ * @rateLimit 10 requests per minute per IP
+ */
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/supabaseClient';
 
@@ -105,11 +119,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Set CORS headers to allow public access
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=60');
 
-    return res.status(200).json({
-      tokens: orderedTokens
-    });
+    const response = {
+      tokens: orderedTokens,
+      lastUpdated: tokenData.data.timestamp || new Date().toISOString()
+    };
+
+    return res.status(200).json(response);
   } catch (error) {
     console.error('Error processing request:', error);
     return res.status(500).json({ error: 'Internal server error' });
