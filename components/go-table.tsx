@@ -1,184 +1,133 @@
 import { TOKEN_CONSTANTS, TOKEN_LOGOS } from '@/constants/crypto';
 import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice';
 import { useBackingValue } from '@/hooks/crypto/useBackingValue';
-import { formatNumber, formatPrice } from '@/utils/format';
+import { formatNumber, formatPrice, formatPercent } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
 import Image from 'next/image';
 import { useState } from 'react';
+import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceChange';
+import { motion } from 'framer-motion';
 
-const PULSE_TOKENS = ['pMAXI', 'pDECI', 'pLUCKY', 'pTRIO', 'pBASE'];
-const ETH_TOKENS = ['eMAXI', 'eDECI', 'eLUCKY', 'eTRIO', 'eBASE'];
+const PERIODS = ['24h', '7d', '30d', '90d', 'ATL'];
+
+// Only show these tokens
+const TOKENS = ['PLS', 'PLSX', 'INC', 'pHEX', 'eHEX'];
+
+function formatPriceSigFig(price: number, sigFigs = 3): string {
+  if (price === 0) return '$0.00';
+  // Use toPrecision for significant digits, then remove trailing zeros after decimal
+  let str = price.toPrecision(sigFigs);
+  // If the number is in exponential notation, convert to fixed
+  if (str.includes('e')) {
+    str = price.toFixed(sigFigs - 1);
+  }
+  // Remove trailing zeros after decimal, but keep at least 2 decimals for small numbers
+  if (str.includes('.')) {
+    str = str.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+    if (parseFloat(str) < 1) {
+      // For small numbers, pad to at least 3 decimals
+      const [int, dec = ''] = str.split('.');
+      str = int + '.' + dec.padEnd(3, '0');
+    }
+  }
+  return '$' + str;
+}
 
 export function GoTable() {
-  const [isEthereum, setIsEthereum] = useState(false);
-  
-  // Load data for both networks simultaneously
-  const pulseDataMap = Object.fromEntries(
-    PULSE_TOKENS.map(token => [token, useCryptoPrice(token)])
+  const [selected, setSelected] = useState<Period>('24h');
+
+  // Live price and historic change for each token
+  const priceDataMap = Object.fromEntries(
+    TOKENS.map(token => [token, useCryptoPrice(token)])
   );
-  const ethDataMap = Object.fromEntries(
-    ETH_TOKENS.map(token => [token, useCryptoPrice(token)])
-  );
-  
-  const pulseBackingMap = Object.fromEntries(
-    PULSE_TOKENS.map(token => [token, useBackingValue(token)])
-  );
-  const ethBackingMap = Object.fromEntries(
-    ETH_TOKENS.map(token => [token, useBackingValue(token)])
+  const changeDataMap = Object.fromEntries(
+    TOKENS.map(token => [token, useHistoricPriceChange(token)])
   );
 
-  // Load both HEX prices
-  const { priceData: pHexPrice } = useCryptoPrice('pHEX');
-  const { priceData: eHexPrice } = useCryptoPrice('eHEX');
+  console.log('[GoTable] tokens:', TOKENS);
 
-  // Use the appropriate data based on selected network
-  const priceDataMap = isEthereum ? ethDataMap : pulseDataMap;
-  const backingDataMap = isEthereum ? ethBackingMap : pulseBackingMap;
-  const hexPrice = isEthereum ? eHexPrice : pHexPrice;
-  const tokens = isEthereum ? ETH_TOKENS : PULSE_TOKENS;
+  try {
+    if (!TOKENS || TOKENS.length === 0) {
+      return <div className="text-white p-8">No tokens to display. Check token list and state.</div>;
+    }
+  } catch (err) {
+    return <div className="text-red-500 p-8">Error rendering GoTable: {String(err)}</div>;
+  }
 
   return (
-    <div className="w-full max-w-6xl mx-auto rounded-3xl p-4 bg-black backdrop-blur-sm border-2 border-white/10 h-auto relative">
-      <div className="overflow-x-auto">
-        <div className="min-w-[900px]">
-          <table className="w-full">
-            <thead>
-              <tr className="text-gray-400 text-normal border-b border-white/5">
-                <th className="pb-3 font-normal text-center">Token</th>
-                <th className="pb-3 font-normal text-center">Price ($)</th>
-                <th className="pb-3 font-normal text-center">Price (HEX)</th>
-                <th className="pb-3 font-normal text-center">Backing</th>
-                <th className="pb-3 font-normal text-center">Premium</th>
-                <th className="pb-3 font-normal text-center">Principal</th>
-                <th className="pb-3 font-normal text-center">Length</th>
-                <th className="pb-3 font-normal text-center">T-Shares</th>
-                <th className="pb-3 w-[50px] text-center relative">
-                  <button
-                    onClick={() => setIsEthereum(!isEthereum)}
-                    className="top-0 mb-16 flex items-center justify-center w-8 h-6 bg-black/20 hover:bg-black/30 transition-colors absolute right-2 pt-0 mt-0"
-                  >
-                    <Image
-                      src={isEthereum ? '/coin-logos/eth-black-no-bg.svg' : '/coin-logos/PLS.svg'}
-                      alt={isEthereum ? 'Ethereum' : 'PulseChain'}
-                      width={20}
-                      height={20}
-                      className="brightness-0 invert"
-                    />
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {tokens.map((token) => {
-                const tokenData = TOKEN_CONSTANTS[token];
-                const { priceData, isLoading: priceLoading } = priceDataMap[token];
-                const { backingData, isLoading: backingLoading } = backingDataMap[token];
-                
-                if (!tokenData) return null;
-
-                const daysLength = tokenData.TOTAL_STAKED_DAYS;
-                const principal = (tokenData.STAKE_PRINCIPLE ?? 0) / 1_000_000;
-
-                const priceInHex = hexPrice?.price && priceData?.price 
-                  ? priceData.price / hexPrice.price 
-                  : 0;
-
-                const getDexscreenerUrl = () => {
-                  const chain = tokenData.PAIR?.chain === 'pulsechain' ? 'pulsechain' : 'ethereum';
-                  return `https://dexscreener.com/${chain}/${tokenData.PAIR?.pairAddress}`;
-                };
-
-                return (
-                  <tr key={token} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                    <td className="py-3 text-center">
-                      <div className="flex justify-center">
-                        <Image
-                          src={TOKEN_LOGOS[token.replace('p', '').replace('e', '')]}
-                          alt={token}
-                          width={32}
-                          height={32}
-                          className="rounded-full"
-                        />
-                      </div>
-                    </td>
-                    <td className="py-3 text-center">
-                      {priceLoading ? (
-                        <div className="flex justify-center">
-                          <Skeleton className="h-6 w-20" />
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          {(!priceData?.price || priceData.price === 0) ? "N/A" : formatPrice(priceData.price)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 text-center">
-                      {priceLoading || !hexPrice ? (
-                        <div className="flex justify-center">
-                          <Skeleton className="h-6 w-20" />
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          {(!priceData?.price || !hexPrice.price || priceInHex === 0) ? "N/A" : (
-                            <>
-                              {formatNumber(priceInHex, { decimals: 2 })}
-                              <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 text-center">
-                      {backingLoading ? (
-                        <div className="flex justify-center">
-                          <Skeleton className="h-6 w-20" />
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          {!backingData || backingData.backingStakeRatio === null ? "N/A" : (
-                            <>
-                              {formatNumber(backingData.backingStakeRatio, { decimals: 2 })}
-                              <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 text-center">
-                      {backingLoading ? (
-                        <div className="flex justify-center">
-                          <Skeleton className="h-6 w-16" />
-                        </div>
-                      ) : (
-                        <span className={backingData?.backingDiscount ? (backingData.backingDiscount < 0 ? 'text-red-500' : 'text-[#01FF55]') : ''}>
-                          {!backingData || backingData.backingDiscount === null ? "N/A" : formatNumber(backingData.backingDiscount, { decimals: 0, percentage: true })}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {formatNumber(principal, { decimals: 0 })}M
-                        <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
-                      </div>
-                    </td>
-                    <td className="py-3 text-center">{daysLength} D</td>
-                    <td className="py-3 text-center">{formatNumber(tokenData.TSHARES || 0, { decimals: 1 })}</td>
-                    <td className="py-3 text-center">
-                      <a 
-                        href={getDexscreenerUrl()} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-2xl hover:opacity-80 transition-opacity inline-block"
-                      >
-                        →
-                      </a>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+    <div className="w-full max-w-6xl mx-auto rounded-3xl p-4 bg-black border-2 border-white/10 h-auto relative flex flex-col gap-4">
+      {/* Toggle group */}
+      <div className="flex justify-end">
+        <div className="relative flex items-center gap-1 px-1 py-1 rounded-full border-2 border-white/10 bg-black/40">
+          {PERIODS.map((period) => {
+            const isActive = selected === period;
+            return (
+              <button
+                key={period}
+                onClick={() => setSelected(period as Period)}
+                className={`relative px-4 py-1 rounded-full text-sm font-medium transition-colors
+                  ${isActive ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+                style={{ zIndex: 1 }}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="period-indicator"
+                    className="absolute inset-0 bg-zinc-800"
+                    style={{ borderRadius: 9999, zIndex: -1 }}
+                    transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
+                  />
+                )}
+                <span className="relative z-10">{period}</span>
+              </button>
+            );
+          })}
         </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {TOKENS.map(token => {
+          const { priceData, isLoading: priceLoading } = priceDataMap[token];
+          const { percentChange, isLoading: changeLoading } = changeDataMap[token];
+          const price = priceData?.price;
+          const change = percentChange?.[selected];
+          return (
+            <div key={token} className="bg-black rounded-2xl p-6 flex flex-col gap-2 border-2 border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Image src={TOKEN_LOGOS[token] || '/coin-logos/HEX.svg'} alt={token} width={32} height={32} />
+                <div>
+                  <div className="font-bold text-white">{token}</div>
+                  <div className="text-xs text-gray-400">Token</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {priceLoading ? (
+                  <Skeleton className="w-16 h-6" />
+                ) : (
+                  <>
+                    <span className="text-2xl text-white">
+                      {price ? formatPriceSigFig(price, 3) : '--'}
+                    </span>
+                    <span className={ 
+                      changeLoading
+                        ? ''
+                        : change == null
+                          ? 'text-gray-400 text-xs font-700.npm run dev'
+                          : change >= 0
+                            ? 'text-[#00ff55] text-xs'
+                            : 'text-red-500 text-xs font-700'
+                        }>
+                      {changeLoading
+                        ? <Skeleton className="w-12 h-5" />
+                        : change == null
+                          ? '--'
+                          : formatPercent(change)
+                        }
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

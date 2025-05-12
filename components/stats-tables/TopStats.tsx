@@ -204,7 +204,7 @@ export function TopStats() {
                   </td>
                   <td className="py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      {!tokenPrice || costPerTShare === 0 ? "N/A" : `$${formatNumber(costPerTShare, { decimals: 2 })}`}
+                      {!tokenPrice || costPerTShare === 0 ? "N/A" : `$${formatNumber(costPerTShare, { decimals: 1 })}`}
                     </div>
                   </td>
                   <td className="py-3 text-center">

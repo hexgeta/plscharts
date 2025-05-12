@@ -53,4 +53,14 @@ export function formatHexRatio(value: number) {
 
 export function formatBacking(value: number) {
   return formatNumber(value, { decimals: 2, compact: true })
-} 
+}
+
+export function formatPercent(value: number, opts: { alreadyPercentage?: boolean } = {}) {
+  const decimals = Math.abs(value) >= 100 ? 0 : 1;
+  const sign = value > 0 ? '+' : '';
+  return sign + formatNumber(value, {
+    decimals,
+    percentage: true,
+    alreadyPercentage: opts.alreadyPercentage ?? true
+  });
+}
