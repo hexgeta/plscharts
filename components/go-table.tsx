@@ -55,7 +55,7 @@ export function GoTable() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto rounded-3xl p-4 bg-black border-2 border-white/10 h-auto relative flex flex-col gap-4">
+    <div className="w-full max-w-6xl mx-auto rounded-xl p-4 bg-black border-2 border-white/10 h-auto relative flex flex-col gap-4">
       {/* Toggle group */}
       <div className="flex justify-end">
         <div className="relative flex items-center gap-1 px-1 py-1 rounded-full border-2 border-white/10 bg-black/40">
@@ -90,7 +90,7 @@ export function GoTable() {
           const price = priceData?.price;
           const change = percentChange?.[selected];
           return (
-            <div key={token} className="bg-black rounded-2xl p-6 flex flex-col gap-2 border-2 border-white/10">
+            <div key={token} className="bg-black rounded-xl p-6 flex flex-col gap-2 border-2 border-white/10">
               <div className="flex items-center gap-2 mb-2">
                 <Image src={TOKEN_LOGOS[token] || '/coin-logos/HEX.svg'} alt={token} width={32} height={32} />
                 <div>

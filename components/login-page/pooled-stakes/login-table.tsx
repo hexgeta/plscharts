@@ -38,7 +38,7 @@ export function LoginTable() {
   const tokens = isEthereum ? ETH_TOKENS : PULSE_TOKENS;
 
   return (
-    <div className="w-full max-w-6xl mx-auto rounded-3xl p-4 bg-black/5 backdrop-blur-sm border-2 border-white/10 h-auto relative">
+    <div className="w-full max-w-6xl mx-auto rounded-xl p-4 bg-black/5 backdrop-blur-sm border-2 border-white/10 h-auto relative">
       <div className="overflow-x-auto">
         <div className="min-w-[900px]">
           <table className="w-full">
