@@ -91,7 +91,16 @@ module.exports = {
     			'accordion-down': 'accordion-down 0.2s ease-out',
     			'accordion-up': 'accordion-up 0.2s ease-out',
     			shine: 'shine 1s linear infinite'
-    		}
+    		},
+    		fontFamily: {
+    			sans: [
+					'Archia',
+    				'Chakra Petch',
+    				'ui-sans-serif',
+    				'system-ui',
+    				'sans-serif',
+    			],
+    		},
     	}
     },
     plugins: [

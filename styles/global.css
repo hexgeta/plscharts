@@ -40,7 +40,7 @@
 
 html,
 body {
-  @apply w-full p-[5px] m-0 font-['Chakra_Petch'] bg-[var(--background-color)] text-[var(--text-color)];
+  @apply w-full p-[5px] m-0 font-sans bg-[var(--background-color)] text-[var(--text-color)];
 }
 
 @keyframes wave {
@@ -218,4 +218,13 @@ textarea {
 /* Remove overflow hidden from body by default */
 body {
   overflow-y: auto;
+}
+
+@font-face {
+  font-family: 'Archia';
+  src: url('/fonts/Archia_Regular/Archia Regular Webfont/archia-regular-webfont.woff2') format('woff2'),
+       url('/fonts/Archia_Regular/Archia Regular Webfont/archia-regular-webfont.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }

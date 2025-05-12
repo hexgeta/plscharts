@@ -9,7 +9,7 @@ import { useState } from 'react';
 const PULSE_TOKENS = ['pMAXI', 'pDECI', 'pLUCKY', 'pTRIO', 'pBASE'];
 const ETH_TOKENS = ['eMAXI', 'eDECI', 'eLUCKY', 'eTRIO', 'eBASE'];
 
-export function LoginTable() {
+export function GoTable() {
   const [isEthereum, setIsEthereum] = useState(false);
   
   // Load data for both networks simultaneously
@@ -38,7 +38,7 @@ export function LoginTable() {
   const tokens = isEthereum ? ETH_TOKENS : PULSE_TOKENS;
 
   return (
-    <div className="w-full max-w-6xl mx-auto rounded-3xl p-4 bg-black/5 backdrop-blur-sm border-2 border-white/10 h-auto relative">
+    <div className="w-full max-w-6xl mx-auto rounded-3xl p-4 bg-black backdrop-blur-sm border-2 border-white/10 h-auto relative">
       <div className="overflow-x-auto">
         <div className="min-w-[900px]">
           <table className="w-full">
@@ -84,8 +84,8 @@ export function LoginTable() {
                   : 0;
 
                 const getDexscreenerUrl = () => {
-                  const chain = tokenData.PAIR.chain === 'pulsechain' ? 'pulsechain' : 'ethereum';
-                  return `https://dexscreener.com/${chain}/${tokenData.PAIR.pairAddress}`;
+                  const chain = tokenData.PAIR?.chain === 'pulsechain' ? 'pulsechain' : 'ethereum';
+                  return `https://dexscreener.com/${chain}/${tokenData.PAIR?.pairAddress}`;
                 };
 
                 return (
@@ -182,8 +182,4 @@ export function LoginTable() {
       </div>
     </div>
   );
-}
-
-export function GoTable() {
-  return <LoginTable />;
 } 
