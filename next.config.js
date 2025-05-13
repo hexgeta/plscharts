@@ -38,12 +38,12 @@ const nextConfig = {
       },
       {
         source: '/live',
-        destination: 'https://x.com/i/broadcasts/1rmxPynvLqZKN',
+        destination: 'https://x.com/i/broadcasts/1dRKZYAkOdvxB',
         permanent: false,
       },
       {
         source: '/livestream',
-        destination: 'https://x.com/i/broadcasts/1rmxPynvLqZKN',
+        destination: 'https://x.com/i/broadcasts/1dRKZYAkOdvxB',
         permanent: false,
       },
       
