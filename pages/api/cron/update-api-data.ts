@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/supabaseClient';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
+import { Resend } from 'resend';
 
 // Define the order of tokens
 const TOKEN_ORDER = [
@@ -201,6 +202,44 @@ function calculateStakeYieldForPeriod(
     .reduce((acc, entry) => acc + (entry.payoutPerTshareHEX * tshares || 0), 0);
 }
 
+const DISCOUNT_THRESHOLD = -0.5;
+const EMAIL_INTERVAL_HOURS = 14;
+const EMAIL_ROW_ID = 'last_discount_email';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+async function shouldSendDiscountEmail(supabase: any): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('api_data')
+    .select('updated_at')
+    .eq('id', EMAIL_ROW_ID)
+    .single();
+  if (error && error.code !== 'PGRST116') return true; // If not found, send
+  if (!data?.updated_at) return true;
+  const lastSent = new Date(data.updated_at);
+  const now = new Date();
+  const hoursSince = (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60);
+  return hoursSince > EMAIL_INTERVAL_HOURS;
+}
+
+async function markDiscountEmailSent(supabase: any) {
+  await supabase.from('api_data').upsert({ id: EMAIL_ROW_ID, updated_at: new Date().toISOString() });
+}
+
+async function sendDiscountEmail(discountedTokens: { name: string, discount: number }[]) {
+  const email = process.env.NOTIFY_EMAIL;
+  if (!email) return;
+  const subject = 'Token Backing Discount Alert';
+  const body = `The following tokens have a backing discount greater than 50%:\n\n` +
+    discountedTokens.map(t => `${t.name}: ${(t.discount * 100).toFixed(2)}%`).join('\n');
+  await resend.emails.send({
+    from: 'alerts@lookintomaxi.app',
+    to: email,
+    subject,
+    text: body
+  });
+}
+
 async function calculateTokenData() {
   // Fetch HEX stats data
   const [pulseData, ethData] = await Promise.all([
@@ -388,6 +427,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Calculate token data
     const data = await calculateTokenData();
+
+    // Check for big discounts
+    const discountedTokens = Object.entries(data)
+      .filter(([_, token]) => token.token.discountFromBacking < DISCOUNT_THRESHOLD)
+      .map(([name, token]) => ({ name, discount: token.token.discountFromBacking }));
+
+    if (discountedTokens.length > 0 && await shouldSendDiscountEmail(supabase)) {
+      await sendDiscountEmail(discountedTokens);
+      await markDiscountEmailSent(supabase);
+    }
 
     // Create ordered JSON string
     const orderedJsonStr = stringifyOrdered(data);
