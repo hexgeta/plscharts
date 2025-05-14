@@ -81,7 +81,7 @@ function TokenCard({ symbol, name, logo }: { symbol: string; name: string; logo:
 export default function PulseDashboard() {
   return (
     <div className="bg-transparent p-0 min-h-screen flex flex-col items-center">
-      <div className="max-w-7xl w-full mx-auto space-y-4 mb-0">
+      <div className="max-w-7xl w-full mx-auto space-y-4 mb-0 px-4">
         {/* Timeframe Selector */}
         <div className="flex justify-end gap-2 mb-4">
           {TIMEFRAMES.map(tf => (

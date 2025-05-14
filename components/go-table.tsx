@@ -180,7 +180,7 @@ export function GoTable() {
                   <button
                     key={period}
                     onClick={() => setSelected(period as Period)}
-                    className={`flex-1 md:flex-none relative px-4 py-1 rounded-full text-lg md:text-base font-bold transition-colors
+                    className={`flex-1 md:flex-none relative px-2 py-1 rounded-full text-sm sm:text-base font-semibold transition-colors
                       ${isActive ? 'text-white' : 'text-gray-400 hover:text-white'}`}
                     style={{ zIndex: 1 }}
                   >
