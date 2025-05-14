@@ -166,7 +166,7 @@ export function GoTable() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="w-full max-w-5xl mx-auto my-8 rounded-xl p-4 bg-black h-auto relative flex flex-col gap-4"
+          className="w-full max-w-5xl mx-auto my-8 rounded-xl p-4 h-auto relative flex flex-col gap-4"
         >
           <div className="text-3xl font-bold text-white/15 select-none pointer-events-none static mb-2 ml-4 md:absolute md:top-4 md:left-6 md:z-10 md:mb-0 md:ml-0">
             Day {pulseChainDay}
@@ -225,7 +225,7 @@ export function GoTable() {
               const volume = dexPeriod ? priceData?.volume?.[dexPeriod] : null;
 
               return (
-                <div key={token} className="bg-black rounded-xl p-6 flex flex-col gap-2 border-2 border-white/10 relative">
+                <div key={token} className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col gap-2 border-2 border-white/10 relative">
                   {/* Chart icon link in top right */}
                   {TOKEN_CONSTANTS[token]?.PAIR && (
                     <Link
@@ -315,6 +315,29 @@ export function GoTable() {
                 </div>
               );
             })}
+
+            {/* Custom 6th Block */}
+            <div className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col justify-between gap-2 border-2 border-white/10 relative min-h-[300px]">
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-6">Get Started</h3>
+                <ol className="text-gray-400 text-md list-decimal pl-5 [&>li]:mb-4">
+                  <li>Bridge your assets to <a href="https://bridge.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">PulseChain</a></li>
+                  <li>Swap tokens <a href="https://pulsex.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">on PulseX</a></li>
+                  <li>Create your first <a href="https://hex.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">HEX stake</a></li>
+                </ol>
+              </div>
+              <a
+                href="https://gorealdefi.com/"
+                target="_blank"
+                rel="noopener noreferrer" 
+                className="w-full bg-white hover:bg-gray-100 text-black px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                Explore More
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7 17L17 7M17 7H8M17 7V16" strokeWidth="2" stroke="currentColor" fill="none"/>
+                </svg>
+              </a>
+            </div>
           </div>
         </motion.div>
       )}
