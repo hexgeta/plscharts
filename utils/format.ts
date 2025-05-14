@@ -64,3 +64,23 @@ export function formatPercent(value: number, opts: { alreadyPercentage?: boolean
     alreadyPercentage: opts.alreadyPercentage ?? true
   });
 }
+
+export function formatPriceSigFig(price: number, sigFigs = 3): string {
+  if (price === 0) return '$0.00';
+  // Use toPrecision for significant digits, then remove trailing zeros after decimal
+  let str = price.toPrecision(sigFigs);
+  // If the number is in exponential notation, convert to fixed
+  if (str.includes('e')) {
+    str = price.toFixed(sigFigs - 1);
+  }
+  // Remove trailing zeros after decimal, but keep at least 2 decimals for small numbers
+  if (str.includes('.')) {
+    str = str.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+    if (parseFloat(str) < 1) {
+      // For small numbers, pad to at least 3 decimals
+      const [int, dec = ''] = str.split('.');
+      str = int + '.' + dec.padEnd(3, '0');
+    }
+  }
+  return '$' + str;
+}

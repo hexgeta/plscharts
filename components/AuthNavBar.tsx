@@ -42,7 +42,7 @@ const AuthNavigationBar = () => {
   return (
     <nav className={`w-full bg-black px-4 pt-2 pb-4 border-b-1 border-b border-[rgba(255,255,255,0.2)] relative z-[100] ${isBannerVisible ? 'md:mt-[52px]' : ''}`}>
       <div className="max-w-[1200px] mx-auto flex items-center justify-between relative">
-        <Link href="/" className="text-white font-bold text-xl relative z-[100]">
+        <Link href="/" className="text-white hover:text-gray-300 font-bold text-xl relative z-[100]">
           LookIntoMaxi
         </Link>
         <div className="hidden xl:flex items-center justify-left flex-grow ml-10 relative z-[100]">

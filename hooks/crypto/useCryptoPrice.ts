@@ -50,10 +50,13 @@ export function useCryptoPrice(symbol: string) {
         console.log(`RAW_DEXSCREENER_RESPONSE_${symbol}:`, data);
         
         // Try both pairs and pair fields
-        const price = data.pair?.priceUsd || data.pairs?.[0]?.priceUsd;
-        
-        const priceChange = data.pair?.priceChange?.h24 || data.pairs?.[0]?.priceChange?.h24;
-        
+        const pair = data.pair || data.pairs?.[0];
+        const price = pair?.priceUsd;
+        const priceChange = pair?.priceChange?.h24;
+        const liquidity = pair?.liquidity?.usd;
+        const marketCap = pair?.fdv || pair?.marketCap;
+        const supply = pair?.baseToken?.totalSupply;
+
         if (!price) {
           throw new Error(`No price data found for ${symbol}`)
         }
@@ -61,6 +64,9 @@ export function useCryptoPrice(symbol: string) {
         return {
           price: parseFloat(price),
           priceChange24h: priceChange || 0,
+          liquidity: liquidity ? parseFloat(liquidity) : null,
+          marketCap: marketCap ? parseFloat(marketCap) : null,
+          supply: supply ? parseFloat(supply) : null,
           lastUpdated: new Date(),
           chain: chain
         }
@@ -72,6 +78,9 @@ export function useCryptoPrice(symbol: string) {
         return {
           price: 0,
           priceChange24h: 0,
+          liquidity: null,
+          marketCap: null,
+          supply: null,
           lastUpdated: new Date(),
           chain: tokenConfig?.PAIR?.chain || (symbol.includes('p') ? 'pulsechain' : 'ethereum')
         }
@@ -84,6 +93,9 @@ export function useCryptoPrice(symbol: string) {
       fallbackData: {
         price: 0,
         priceChange24h: 0,
+        liquidity: null,
+        marketCap: null,
+        supply: null,
         lastUpdated: new Date(),
         chain: tokenConfig?.PAIR?.chain || (symbol.includes('p') ? 'pulsechain' : 'ethereum')
       }

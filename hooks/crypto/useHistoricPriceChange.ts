@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { supabase } from '@/supabaseClient';
+import { useCryptoPrice } from './useCryptoPrice';
 
 export type Period = '24h' | '7d' | '30d' | '90d' | '180d' | '365d' | 'ATL';
 
@@ -34,6 +35,7 @@ interface HistoricChangeResult {
 
 export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h', '7d', '30d', '90d', 'ATL']) {
   const field = TOKEN_FIELD_MAP[symbol];
+  const { priceData: livePriceData } = useCryptoPrice(symbol);
   console.log('[useHistoricPriceChange] symbol:', symbol, 'field:', field);
   const { data, error, isLoading } = useSWR(
     field ? `historic-prices-${symbol}` : null,
@@ -59,7 +61,10 @@ export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h
       const now = latest.date;
       const result: HistoricChangeResult = {};
       for (const period of periods) {
-        if (period === 'ATL') {
+        if (period === '24h') {
+          // Use live price change from Dexscreener
+          result[period] = livePriceData?.priceChange24h ?? null;
+        } else if (period === 'ATL') {
           // All-time-low
           const min = parsed.reduce((min, row) => row.price < min.price ? row : min, parsed[0]);
           if (symbol === 'eHEX') {

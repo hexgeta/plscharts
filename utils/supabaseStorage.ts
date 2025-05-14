@@ -37,7 +37,7 @@ export const testSupabaseConnection = async () => {
     console.error('Failed to connect to Supabase:', error)
     return false
   }
-}
+} 
 
 export const listAudioFiles = async () => {
   try {
