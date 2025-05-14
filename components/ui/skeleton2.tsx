@@ -23,7 +23,7 @@ export function Skeleton({ className, variant = 'text', children, ...props }: Sk
     return (
       <div
         className={cn(
-          "skeleton w-full h-[600px] rounded-lg border border-[#333]",
+          "skeleton absolute inset-0 rounded-[15px]",
           className
         )}
         {...props}

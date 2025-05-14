@@ -8,6 +8,11 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import MaintenancePage from '../components/MaintenancePage';
 import { MusicProvider } from '../contexts/MusicContext';
+import { SessionProvider } from 'next-auth/react';
+import { Toaster } from '@/components/ui/toaster';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
+import { ThemeProvider } from '@/components/ui/theme-provider';
 
 // Set this to true to enable maintenance mode
 const MAINTENANCE_MODE = false;

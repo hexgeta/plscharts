@@ -85,7 +85,12 @@ module.exports = {
     				to: {
     					backgroundPosition: '-200% 0'
     				}
-    			}
+    			},
+    			shimmer: {
+    				'100%': {
+    					transform: 'translateX(100%)',
+    				},
+    			},
     		},
     		animation: {
     			'accordion-down': 'accordion-down 0.2s ease-out',

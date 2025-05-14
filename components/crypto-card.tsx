@@ -106,8 +106,8 @@ export function CryptoCard({ data, variant = 'default' }: CryptoCardProps) {
                   <div className="text-2xl font-bold">
                     {priceData.price === 0 ? "N/A" : formatPrice(priceData.price)}
                   </div>
-                  <div className={`text-xs font-bold ${getPriceChangeColor(priceData.priceChange24h)}`}>
-                    {priceData.price === 0 ? "" : `${priceData.priceChange24h > 0 ? '+' : ''}${formatNumber(priceData.priceChange24h, { decimals: 1, percentage: true, alreadyPercentage: true })}`}
+                  <div className={`text-xs font-bold ${getPriceChangeColor(priceData.priceChange.h24)}`}>
+                    {priceData.price === 0 ? "" : `${priceData.priceChange.h24 > 0 ? '+' : ''}${formatNumber(priceData.priceChange.h24, { decimals: 1, percentage: true, alreadyPercentage: true })}`}
                   </div>
                 </div>
               )}
@@ -144,8 +144,8 @@ export function CryptoCard({ data, variant = 'default' }: CryptoCardProps) {
               <div className="text-2xl font-bold">
                 {priceData.price === 0 ? "N/A" : formatPrice(priceData.price)}
               </div>
-              <div className={`text-xs font-bold ${getPriceChangeColor(priceData.priceChange24h)}`}>
-                {priceData.price === 0 ? "" : `${priceData.priceChange24h > 0 ? '+' : ''}${formatNumber(priceData.priceChange24h, { decimals: 1, percentage: true, alreadyPercentage: true })}`}
+              <div className={`text-xs font-bold ${getPriceChangeColor(priceData.priceChange.h24)}`}>
+                {priceData.price === 0 ? "" : `${priceData.priceChange.h24 > 0 ? '+' : ''}${formatNumber(priceData.priceChange.h24, { decimals: 1, percentage: true, alreadyPercentage: true })}`}
               </div>
             </div>
           )}

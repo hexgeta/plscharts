@@ -6,10 +6,31 @@ import { Skeleton } from '@/components/ui/skeleton2';
 import Image from 'next/image';
 import { useState, useEffect, useMemo } from 'react';
 import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceChange';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { useSupplies } from '@/hooks/crypto/useSupplies';
 
-const PERIODS = ['24h', '7d', '30d', '90d', 'ATL'];
+// Add interface for price data
+interface PriceData {
+  price: number;
+  priceChange24h: any;
+  liquidity: number | null;
+  marketCap: number | null;
+  supply: number | null;
+  lastUpdated: Date;
+  chain: string;
+  txns?: {
+    [key in Period]: {
+      buys: number;
+      sells: number;
+    }
+  };
+  volume?: {
+    [key in Period]: number;
+  };
+}
+
+const PERIODS = ['5m', '1h', '6h', '24h', '7d', '30d', '90d', 'ATL'];
 
 // Only show these tokens
 const TOKENS = ['PLS', 'PLSX', 'INC', 'pHEX', 'eHEX'];
@@ -19,8 +40,8 @@ const TOKEN_SUBTITLES: Record<string, string> = {
   PLS: 'Gas Token',
   PLSX: 'Dex Token',
   INC: 'Green Coin',
-  pHEX: 'HEX: on PulseChain',
-  eHEX: 'HEX: On Ethereum',
+  pHEX: 'Real HEX',
+  eHEX: 'Also real HEX',
 };
 
 // Hardcode PulseChain start date (733 days ago from today, UTC)
@@ -40,8 +61,37 @@ export function usePulsechainDay() {
   }, []);
 }
 
+// Transaction stats interface
+interface TransactionStats {
+  buys: number;
+  sells: number;
+  volume: number;
+  priceChange: number;
+}
+
+interface PeriodStats {
+  m5: TransactionStats;
+  h1: TransactionStats;
+  h6: TransactionStats;
+  h24: TransactionStats;
+}
+
 export function GoTable() {
   const [selected, setSelected] = useState<Period>('24h');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isAnimating, setIsAnimating] = useState(true);
+  const pulseChainDay = usePulsechainDay();
+  const { supplies, isLoading: suppliesLoading } = useSupplies();
+
+  // Token addresses on PulseChain
+  const TOKEN_ADDRESSES: Record<string, string> = {
+    PLS: 'native', // Native PLS uses different endpoint
+    PLSX: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab',
+    INC: '0x2fa878Ab3F87CC1C9607B0129766B192E13d20B5', // INCENTIVE token
+    HEX: '0x57964407C8F06561c4A8b1A0f4B8897f6c5eD47E', // pHEX
+    eHEX: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39'
+  };
 
   // Live price and historic change for each token
   const priceDataMap = Object.fromEntries(
@@ -51,129 +101,223 @@ export function GoTable() {
     TOKENS.map(token => [token, useHistoricPriceChange(token)])
   );
 
+  // Handle initial animation
+  useEffect(() => {
+    if (isInitialLoad) {
+      const animationTimer = setTimeout(() => {
+        setIsAnimating(false);
+      }, 1000);
+      return () => clearTimeout(animationTimer);
+    }
+  }, [isInitialLoad]);
+
+  // Check if all data is loaded
+  useEffect(() => {
+    if (isAnimating) return; // Don't change loading state during initial animation
+
+    const allPricesLoaded = Object.values(priceDataMap).every(({ isLoading, priceData }) => 
+      !isLoading && priceData !== undefined
+    );
+    const allChangesLoaded = Object.values(changeDataMap).every(({ isLoading, percentChange }) => 
+      !isLoading && percentChange !== undefined
+    );
+    
+    if (allPricesLoaded && allChangesLoaded && !suppliesLoading) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+        setIsInitialLoad(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setIsLoading(true);
+    }
+  }, [priceDataMap, changeDataMap, isAnimating, suppliesLoading]);
+
   console.log('[GoTable] tokens:', TOKENS);
 
-  try {
-    if (!TOKENS || TOKENS.length === 0) {
-      return <div className="text-white p-8">No tokens to display. Check token list and state.</div>;
-    }
-  } catch (err) {
-    return <div className="text-red-500 p-8">Error rendering GoTable: {String(err)}</div>;
+  if (!TOKENS || TOKENS.length === 0) {
+    return <div className="text-white p-8">No tokens to display. Check token list and state.</div>;
   }
 
+  const LoadingSkeleton = () => (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.8 }}
+      className="w-full max-w-5xl mx-auto my-8 relative"
+    >
+      <div className="w-full h-[600px] relative bg-black/20">
+        <Skeleton 
+          variant="table" 
+          className="w-full h-full" 
+        />
+      </div>
+    </motion.div>
+  );
+
   return (
-    <div className="w-full max-w-5xl mx-auto my-8 rounded-xl p-4 bg-black h-auto relative flex flex-col gap-4">
-      {/* Day counter in top left of container */}
-      <div
-        className="text-3xl font-bold text-white/15 select-none pointer-events-none static mb-2 ml-4 md:absolute md:top-4 md:left-6 md:z-10 md:mb-0 md:ml-0"
-      >
-        Day {usePulsechainDay()}
-      </div>
-      {/* Toggle group */}
-      <div className="w-full flex flex-col md:flex-row justify-center md:justify-end">
-        <div className="w-full md:w-auto flex items-center gap-1 px-1 py-1 rounded-full border-2 border-white/10 bg-black/40">
-          {PERIODS.map((period) => {
-            const isActive = selected === period;
-            return (
-              <button
-                key={period}
-                onClick={() => setSelected(period as Period)}
-                className={`flex-1 md:flex-none relative px-4 py-1 rounded-full text-lg md:text-base font-bold transition-colors
-                  ${isActive ? 'text-white' : 'text-gray-400 hover:text-white'}`}
-                style={{ zIndex: 1 }}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="period-indicator"
-                    className="absolute inset-0 bg-zinc-800"
-                    style={{ borderRadius: 9999, zIndex: -1 }}
-                    transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-                  />
-                )}
-                <span className="relative z-10">{period}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {TOKENS.map(token => {
-          const { priceData, isLoading: priceLoading } = priceDataMap[token];
-          const { percentChange, isLoading: changeLoading } = changeDataMap[token];
-          const price = priceData?.price;
-          // Use Dexscreener for 24h, historic for others
-          const change = selected === '24h'
-            ? priceData?.priceChange24h
-            : percentChange?.[selected];
-          return (
-            <div key={token} className="bg-black rounded-xl p-6 flex flex-col gap-2 border-2 border-white/10 relative">
-              {/* Chart icon link in top right */}
-              {TOKEN_CONSTANTS[token]?.PAIR && (
-                <Link
-                  href={`https://dexscreener.com/${TOKEN_CONSTANTS[token].PAIR.chain}/${TOKEN_CONSTANTS[token].PAIR.pairAddress}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute text-white/20 hover:text-white top-3 right-3 z-10"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chart-line" aria-hidden="true">
-                    <path d="M3 3v16a2 2 0 0 0 2 2h16"></path>
-                    <path d="m19 9-5 5-4-4-3 3"></path>
-                  </svg>
-                </Link>
-              )}
-              <div className="flex items-center gap-2 mb-2">
-                <Image src={TOKEN_LOGOS[token] || '/coin-logos/HEX.svg'} alt={token} width={32} height={32} />
-                <div>
-                  <div className="font-bold text-white">{token}</div>
-                  <div className="text-xs text-gray-400">{TOKEN_SUBTITLES[token] || 'Token'}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {priceLoading ? (
-                  <Skeleton className="w-16 h-6" />
-                ) : (
-                  <>
-                    <span className="text-2xl text-white">
-                      {price ? formatPriceSigFig(price, 3) : '--'}
-                    </span>
-                    <span className={ 
-                      changeLoading && selected !== '24h'
-                        ? ''
-                        : change == null
-                          ? 'text-gray-400 text-xs font-700.npm run dev'
-                          : change >= 0
-                            ? 'text-[#00ff55] text-xs'
-                            : 'text-red-500 text-xs font-700'
-                        }>
-                      {changeLoading && selected !== '24h'
-                        ? <Skeleton className="w-12 h-5" />
-                        : change == null
-                          ? '--'
-                          : formatPercent(change)
-                        }
-                    </span>
-                  </>
-                )}
-              </div>
-              {/* Stats row */}
-              <div className="grid grid-cols-2 gap-y-1 gap-x-4 mt-2">
-                <div>
-                  <div className="text-xs text-gray-400">Market Cap</div>
-                  <div className="font-bold text-white">
-                    {priceData?.marketCap ? formatNumber(priceData.marketCap, { compact: true, prefix: '$', decimals: 1 }) : '--'}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-400">Liquidity</div>
-                  <div className="font-bold text-white">
-                    {priceData?.liquidity ? formatNumber(priceData.liquidity, { compact: true, prefix: '$', decimals: 1 }) : '--'}
-                  </div>
-                </div>
-              </div>
+    <AnimatePresence mode="wait">
+      {isLoading ? (
+        <LoadingSkeleton />
+      ) : (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="w-full max-w-5xl mx-auto my-8 rounded-xl p-4 bg-black h-auto relative flex flex-col gap-4"
+        >
+          <div className="text-3xl font-bold text-white/15 select-none pointer-events-none static mb-2 ml-4 md:absolute md:top-4 md:left-6 md:z-10 md:mb-0 md:ml-0">
+            Day {pulseChainDay}
+          </div>
+          {/* Toggle group */}
+          <div className="w-full flex flex-col md:flex-row justify-center md:justify-end">
+            <div className="w-full md:w-auto flex items-center gap-1 px-1 py-1 rounded-full border-2 border-white/10 bg-black/40">
+              {PERIODS.map((period) => {
+                const isActive = selected === period;
+                return (
+                  <button
+                    key={period}
+                    onClick={() => setSelected(period as Period)}
+                    className={`flex-1 md:flex-none relative px-4 py-1 rounded-full text-lg md:text-base font-bold transition-colors
+                      ${isActive ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+                    style={{ zIndex: 1 }}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="period-indicator"
+                        className="absolute inset-0 bg-zinc-800"
+                        style={{ borderRadius: 9999, zIndex: -1 }}
+                        transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
+                      />
+                    )}
+                    <span className="relative z-10">{period}</span>
+                  </button>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
-    </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {TOKENS.map(token => {
+              const { priceData, isLoading: priceLoading } = priceDataMap[token];
+              const { percentChange, isLoading: changeLoading } = changeDataMap[token];
+              const price = priceData?.price;
+              
+              // Map period to DexScreener format
+              const dexPeriodMap = {
+                '5m': 'm5',
+                '1h': 'h1',
+                '6h': 'h6',
+                '24h': 'h24'
+              };
+              
+              // Use Dexscreener for short periods, historic for others
+              const change = selected === '5m' ? priceData?.priceChange?.m5 :
+                            selected === '1h' ? priceData?.priceChange?.h1 :
+                            selected === '6h' ? priceData?.priceChange?.h6 :
+                            selected === '24h' ? priceData?.priceChange?.h24 :
+                            percentChange?.[selected];
+
+              // Get transaction stats for the selected period
+              const dexPeriod = dexPeriodMap[selected as keyof typeof dexPeriodMap];
+              const txnStats = dexPeriod ? priceData?.txns?.[dexPeriod] : null;
+              const volume = dexPeriod ? priceData?.volume?.[dexPeriod] : null;
+
+              return (
+                <div key={token} className="bg-black rounded-xl p-6 flex flex-col gap-2 border-2 border-white/10 relative">
+                  {/* Chart icon link in top right */}
+                  {TOKEN_CONSTANTS[token]?.PAIR && (
+                    <Link
+                      href={`https://dexscreener.com/${TOKEN_CONSTANTS[token].PAIR.chain}/${TOKEN_CONSTANTS[token].PAIR.pairAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute text-white/20 hover:text-white/70 transition-colors duration-100 ease-in-out top-8 right-6 z-10"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chart-line" aria-hidden="true">
+                        <path d="M3 3v16a2 2 0 0 0 2 2h16"></path>
+                        <path d="m19 9-5 5-4-4-3 3"></path>
+                      </svg>
+                    </Link>
+                  )}
+                  <div className="flex items-center gap-2 mb-2">
+                    <Image src={TOKEN_LOGOS[token] || '/coin-logos/HEX.svg'} alt={token} width={32} height={32} />
+                    <div>
+                      <div className="font-bold text-white">{token}</div>
+                      <div className="text-xs text-gray-400">{TOKEN_SUBTITLES[token] || 'Token'}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {priceLoading ? (
+                      <Skeleton className="w-16 h-6" />
+                    ) : (
+                      <>
+                        <span className="text-2xl text-white">
+                          {price ? formatPriceSigFig(price, 3) : '--'}
+                        </span>
+                        <span className={ 
+                          changeLoading && !['5m', '1h', '6h', '24h'].includes(selected)
+                            ? ''
+                            : change == null
+                              ? 'text-gray-400 text-sm text-bold'
+                              : change <= -1
+                                ? 'text-red-500 text-sm'
+                                : change >= 1
+                                  ? 'text-[#00ff55] text-sm text-bold'
+                                  : 'text-gray-400 text-sm text-bold'
+                        }>
+                          {changeLoading && !['5m', '1h', '6h', '24h'].includes(selected)
+                            ? <Skeleton className="w-12 h-5" />
+                            : change == null
+                              ? '--'
+                              : formatPercent(change)
+                          }
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Transaction Stats */}
+                  {['5m', '1h', '6h', '24h'].includes(selected) && (
+                    <div className="mt-2">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <div className="text-xs text-gray-400">Buys</div>
+                          <div className="font-bold text-white">
+                            {txnStats?.buys || '--'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">Sells</div>
+                          <div className="font-bold text-white">
+                            {txnStats?.sells || '--'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">Volume</div>
+                          <div className="font-bold text-white">
+                            {volume ? formatNumber(volume, { compact: true, prefix: '$', decimals: 1 }) : '--'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Liquidity row */}
+                  <div className="grid grid-cols-1 gap-y-1 gap-x-2 mt-4 border-t border-white/10 pt-4">
+                    <div>
+                      <div className="text-xs text-gray-400">Liquidity</div>
+                      <div className="font-bold text-white">
+                        {priceData?.liquidity ? formatNumber(priceData.liquidity, { compact: true, prefix: '$', decimals: 1 }) : '--'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 } 

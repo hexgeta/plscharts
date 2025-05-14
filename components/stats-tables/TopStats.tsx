@@ -2,7 +2,7 @@ import { TOKEN_LOGOS, TOKEN_CONSTANTS } from '@/constants/crypto';
 import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice';
 import { useBackingValue } from '@/hooks/crypto/useBackingValue';
 import { useGasPrice } from '@/hooks/useGasPrice';
-import { formatNumber, formatPrice } from '@/utils/format';
+import { formatNumber, formatPrice, formatPercent } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
 import Image from 'next/image';
 import { useState } from 'react';
@@ -156,6 +156,11 @@ export function TopStats() {
                     ) : (
                       <div className="flex items-center justify-center gap-1">
                         {(!priceData?.price || priceData.price === 0) ? "N/A" : formatPrice(priceData.price)}
+                        {priceData?.priceChange && (
+                          <span className={getPriceChangeColor(priceData.priceChange.h24)} style={{ fontSize: '12px' }}>
+                            {priceData.priceChange.h24 === undefined ? "NaN%" : formatPercent(priceData.priceChange.h24)}
+                          </span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -220,10 +225,10 @@ export function TopStats() {
                   </td>
                   <td className="py-3 text-center">
                     <a 
-                      href={`https://dexscreener.com/${tokenData.PAIR.chain}/${tokenData.PAIR.pairAddress}`}
+                      href={tokenData?.PAIR ? `https://dexscreener.com/${tokenData.PAIR.chain}/${tokenData.PAIR.pairAddress}` : '#'}
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-2xl hover:opacity-80 transition-opacity inline-block"
+                      className={`text-2xl hover:opacity-80 transition-opacity inline-block ${!tokenData?.PAIR ? 'pointer-events-none opacity-50' : ''}`}
                     >
                       →
                     </a>

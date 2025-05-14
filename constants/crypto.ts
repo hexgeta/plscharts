@@ -6,6 +6,7 @@ export interface TokenConfig {
   name?: string
   symbol?: string
   decimals?: number
+  contractAddress?: string
   PAIR?: {
     chain: string
     pairAddress: string
@@ -48,6 +49,7 @@ export const TOKEN_CONSTANTS: { [key: string]: TokenConfig } = {
     name: 'HEX',
     symbol: 'HEX',
     decimals: 8,
+    contractAddress: '0x57964407C8F06561c4A8b1A0f4B8897f6c5eD47E',
     PAIR: {
       chain: 'pulsechain',
       pairAddress: '0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65'
@@ -59,6 +61,7 @@ export const TOKEN_CONSTANTS: { [key: string]: TokenConfig } = {
     name: 'HEX',
     symbol: 'HEX',
     decimals: 8,
+    contractAddress: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39',
     PAIR: {
       chain: 'ethereum',
       pairAddress: '0x9e0905249ceefffb9605e034b534544684a58be6'
@@ -293,18 +296,21 @@ export const TOKEN_CONSTANTS: { [key: string]: TokenConfig } = {
     }
   },
   PLS: {
+    contractAddress: 'native',
     PAIR: {
       pairAddress: '0xe56043671df55de5cdf8459710433c10324de0ae',
       chain: 'pulsechain'
     }
   },
   PLSX: {
+    contractAddress: '0x075F2FF48DF8a77B63B21AD5C61D62BC2150e333',
     PAIR: {
       pairAddress: '0x1b45b9148791d3a104184cd5dfe5ce57193a3ee9',
       chain: 'pulsechain'
     }
   },
   INC: {
+    contractAddress: '0x2fa878Ab3F87CC1C9607B0129766B192E13d20B5',
     PAIR: {
       pairAddress: '0xf808Bb6265e9Ca27002c0A04562Bf50d4FE37EAA',
       chain: 'pulsechain'

@@ -3,9 +3,12 @@ import useSWR from 'swr';
 import { supabase } from '@/supabaseClient';
 import { useCryptoPrice } from './useCryptoPrice';
 
-export type Period = '24h' | '7d' | '30d' | '90d' | '180d' | '365d' | 'ATL';
+export type Period = '5m' | '1h' | '6h' | '24h' | '7d' | '30d' | '90d' | '180d' | '365d' | 'ATL';
 
 const PERIOD_TO_DAYS: Record<Period, number> = {
+  '5m': 0.00347222, // 5 minutes in days
+  '1h': 0.0416667, // 1 hour in days
+  '6h': 0.25, // 6 hours in days
   '24h': 1,
   '7d': 7,
   '30d': 30,
@@ -61,9 +64,14 @@ export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h
       const now = latest.date;
       const result: HistoricChangeResult = {};
       for (const period of periods) {
-        if (period === '24h') {
-          // Use live price change from Dexscreener
-          result[period] = livePriceData?.priceChange24h ?? null;
+        if (period === '5m') {
+          result[period] = livePriceData?.priceChange?.m5 ?? null;
+        } else if (period === '1h') {
+          result[period] = livePriceData?.priceChange?.h1 ?? null;
+        } else if (period === '6h') {
+          result[period] = livePriceData?.priceChange?.h6 ?? null;
+        } else if (period === '24h') {
+          result[period] = livePriceData?.priceChange?.h24 ?? null;
         } else if (period === 'ATL') {
           // All-time-low
           const min = parsed.reduce((min, row) => row.price < min.price ? row : min, parsed[0]);
