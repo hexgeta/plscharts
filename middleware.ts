@@ -23,6 +23,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next();
       }
 
+      // Check whitelist status
       const response = await fetch(`${process.env.NEXTAUTH_URL}/api/whitelist/check`, {
         method: 'POST',
         headers: {
@@ -33,10 +34,7 @@ export async function middleware(request: NextRequest) {
 
       const { isWhitelisted } = await response.json();
 
-      if (!isWhitelisted) {
-        return NextResponse.next();
-      }
-
+      // Simply continue - client-side will handle caching
       return NextResponse.next();
     } catch (error) {
       console.error('Middleware error:', error);

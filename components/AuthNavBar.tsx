@@ -1,5 +1,8 @@
 'use client'
 
+// Static component with revalidation
+export const revalidate = 2592000; // 30 days in seconds
+
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';

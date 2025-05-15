@@ -69,7 +69,7 @@ const PaywallOverlay = ({ pageName: propPageName }: PaywallOverlayProps) => {
       </div>
 
       {/* Paywall overlay */}
-      <div className="fixed inset-0 z-101 flex items-center justify-center bg-black/20">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/20">
         <div className="bg-[#111111] p-8 rounded-xl border border-white/10 max-w-md w-full mx-4 relative backdrop-blur-xl">
           <h2 className="text-3xl font-bold text-white mb-2 text-center">Upgrade to Access {pageName}</h2>
           <p className="text-gray-400 mb-6 text-center text-normal">

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 
+const WHITELIST_CACHE_KEY = 'whitelisted_email';
+
 export function useWhitelist(email: string | null | undefined) {
   const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -10,6 +12,18 @@ export function useWhitelist(email: string | null | undefined) {
       if (!email) {
         setIsWhitelisted(false);
         return;
+      }
+
+      // Check localStorage first
+      try {
+        const cachedEmail = localStorage.getItem(WHITELIST_CACHE_KEY);
+        if (cachedEmail === email) {
+          setIsWhitelisted(true);
+          return;
+        }
+      } catch (err) {
+        // Ignore localStorage errors
+        console.warn('Failed to read from localStorage:', err);
       }
 
       setIsLoading(true);
@@ -30,6 +44,16 @@ export function useWhitelist(email: string | null | undefined) {
 
         const data = await response.json();
         setIsWhitelisted(data.isWhitelisted);
+        
+        // Cache the result if whitelisted
+        if (data.isWhitelisted) {
+          try {
+            localStorage.setItem(WHITELIST_CACHE_KEY, email);
+          } catch (err) {
+            // Ignore localStorage errors
+            console.warn('Failed to write to localStorage:', err);
+          }
+        }
       } catch (err) {
         console.error('Error checking whitelist:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');

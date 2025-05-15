@@ -1,5 +1,11 @@
+// Static component with revalidation
+export const revalidate = 2592000; // 30 days in seconds
+
 import React from 'react';
 import Link from 'next/link';
+
+// Cache the current year to avoid recalculating it on every render
+const CURRENT_YEAR = new Date().getFullYear();
 
 const Footer = () => {
   return (
@@ -8,7 +14,7 @@ const Footer = () => {
       <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12 relative">
         <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2 break-all">
-            LOOKINTOMAXI {new Date().getFullYear()}
+            LOOKINTOMAXI {CURRENT_YEAR}
           </h3>
         </div>
         <div className="col-span-1">

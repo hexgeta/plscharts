@@ -11,7 +11,7 @@ const BANNER_VISIBILITY_EVENT = 'bannerVisibilityChange'
 const MarketingBanner = () => {
   const [userCount, setUserCount] = useState<number | null>(null)
   const { signIn, user } = useAuth()
-  const { isWhitelisted } = useWhitelist(user?.email)
+  const { isWhitelisted, isLoading } = useWhitelist(user?.email)
 
   useEffect(() => {
     async function fetchUserCount() {
@@ -23,14 +23,14 @@ const MarketingBanner = () => {
 
   // Emit banner visibility event when mounted/unmounted or when isWhitelisted changes
   useEffect(() => {
-    const isVisible = !isWhitelisted
+    const isVisible = !isWhitelisted && !isLoading
     document.documentElement.style.setProperty('--banner-visible', isVisible ? '1' : '0')
     const event = new CustomEvent(BANNER_VISIBILITY_EVENT, { detail: { isVisible } })
     window.dispatchEvent(event)
-  }, [isWhitelisted])
+  }, [isWhitelisted, isLoading])
 
-  // Don't render banner at all if user is whitelisted
-  if (isWhitelisted) {
+  // Don't render banner at all if user is whitelisted or still loading
+  if (isWhitelisted || isLoading) {
     return null
   }
 
@@ -50,4 +50,4 @@ const MarketingBanner = () => {
   );
 };
 
-export default MarketingBanner; 
+export default MarketingBanner;
