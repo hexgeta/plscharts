@@ -1,14 +1,18 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
+import { CoinLogo } from './ui/CoinLogo'
 // Remove these imports as we're not using them anymore
 // import { ArrowUpIcon, ArrowDownIcon } from 'lucide-react'
 
 interface CryptoData {
   symbol: string
-  logo: string
   priceChange: number
   currentPrice: number
+}
+
+type CryptoDataMap = {
+  [key: string]: CryptoData
 }
 
 const fixedPrices = {
@@ -35,20 +39,17 @@ const PriceComparison: React.FC = () => {
           { 
             symbol: 'WBTC', 
             pairAddress: '0xCBCdF9626bC03E24f779434178A73a0B4bad62eD', 
-            chainId: '1',
-            logo: '/coin-logos/BTC.svg'
+            chainId: '1'
           },
           { 
             symbol: 'WETH', 
             pairAddress: '0x11b815efB8f581194ae79006d24E0d814B7697F6', 
-            chainId: '1',
-            logo: '/coin-logos/ETH.svg'
+            chainId: '1'
           },
           { 
             symbol: 'INC', 
             pairAddress: '0xf808Bb6265e9Ca27002c0A04562Bf50d4FE37EAA',
-            chainId: '369',
-            logo: '/coin-logos/INC.svg'
+            chainId: '369'
           }
         ]
         const data = await Promise.all(
@@ -72,7 +73,6 @@ const PriceComparison: React.FC = () => {
             
             return {
               symbol: token.symbol,
-              logo: token.logo, // Use the local logo path
               priceChange: priceChange,
               currentPrice: currentPrice
             };
@@ -112,31 +112,38 @@ const PriceComparison: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#fff200] p-2 max-w-3xl mx-auto rounded-lg my-12">
-      <div className="bg-black text-white p-4 sm:p-6 md:p-8 rounded-lg">
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 md:mb-8 text-center">
-          Price performance from the <span className="underline">local bottom</span>:
-        </h2>
-        <div className="flex flex-col sm:flex-row justify-around items-center space-y-6 sm:space-y-0">
-          {cryptoData.map((crypto) => (
-            <div key={crypto.symbol} className="text-center w-full sm:w-auto">
-              <div className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-4 ${crypto.priceChange >= 0 ? 'text-[#00FF00]' : 'text-red-400'}`}>
-                {crypto.priceChange >= 0 ? '+' : '-'}
-                {Math.abs(Math.round(crypto.priceChange))}%
+    <div className="flex flex-col items-center gap-4">
+      <div className="bg-gradient-to-br from-red-500 via-purple-500 to-blue-500 p-2 max-w-3xl mx-auto rounded-lg my-12">
+        <div className="bg-black text-white p-8 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {cryptoData.map((crypto) => (
+              <div key={crypto.symbol} className="text-center">
+                <div className="flex justify-center mb-4">
+                  <CoinLogo 
+                    symbol={displayNames[crypto.symbol]}
+                    size="xl"
+                    priority={true}
+                  />
+                </div>
+                <div className="text-2xl font-bold mb-2">
+                  {displayNames[crypto.symbol]}
+                </div>
+                <div className="text-xl mb-2">
+                  ${formatPrice(crypto.symbol, crypto.currentPrice)}
+                </div>
+                <div className={`text-lg font-bold ${crypto.priceChange >= 0 ? 'text-[#00FF00]' : 'text-red-500'}`}>
+                  {crypto.priceChange >= 0 ? '+' : ''}{Math.round(crypto.priceChange)}%
+                </div>
+                <div className="text-sm text-gray-400">
+                  from ${formatPrice(crypto.symbol, fixedPrices[crypto.symbol])}
+                </div>
               </div>
-              <div className="bg-black rounded-full w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mx-auto mb-1 flex items-center justify-center">
-                <img src={crypto.logo} alt={crypto.symbol} className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold pt-2 sm:pt-4">
-                {displayNames[crypto.symbol] || crypto.symbol}
-              </div>
-              <div className="text-base sm:text-lg">${formatPrice(crypto.symbol, crypto.currentPrice)}</div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default PriceComparison;

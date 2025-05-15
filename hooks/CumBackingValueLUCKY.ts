@@ -2,78 +2,100 @@ import useSWR from 'swr';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
 import { useMemo } from 'react';
 import { supabase } from '@/supabaseClient';
+import { DAILY_SWR_CONFIG, getDailyCacheKey } from '@/utils/swr-config';
+import { HEX_DATA } from './crypto/utils/cache-keys';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
+// Ensure required constants exist
+if (!TOKEN_CONSTANTS?.pLUCKY?.LAUNCH_DATE) {
+  throw new Error('LUCKY launch date is not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.pLUCKY?.TSHARES) {
+  throw new Error('LUCKY T-shares are not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.pLUCKY?.STAKE_PRINCIPLE) {
+  throw new Error('LUCKY stake principle is not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.pLUCKY?.TOKEN_SUPPLY) {
+  throw new Error('LUCKY token supply is not defined in TOKEN_CONSTANTS');
+}
+
+interface PriceData {
+  date: string;
+  hex_price: string;
+  ehex_price: string;
+  lucky_price: string;
+}
+
+interface ProcessedDataPoint {
+  date: Date;
+  backingRatio: number;
+  discount: number | null;
+  dailyYield: number;
+  cumulativeYield: number;
+}
+
 export const CumBackingValueLUCKY = () => {
-  // Fetch HEX daily stats for yield calculations
+  // Use daily cache key for HEX stats
   const { data: hexData, error: hexError } = useSWR(
-    'https://hexdailystats.com/fulldatapulsechain',
-    fetcher
+    HEX_DATA.pulsechain.getCacheKey(),
+    () => fetcher(HEX_DATA.pulsechain.url),
+    DAILY_SWR_CONFIG
   );
 
-  // Fetch price data from Supabase
+  // Use daily cache key for price data
   const { data: priceData, error: priceError } = useSWR(
-    'price_data_lucky',
+    getDailyCacheKey('price-data-lucky'),
     async () => {
       console.log('Fetching LUCKY price data...');
+      const startDate = TOKEN_CONSTANTS.pLUCKY.LAUNCH_DATE!.toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('historic_prices')
         .select('date, hex_price, ehex_price, lucky_price')
-        .gte('date', '2022-09-27')
+        .gte('date', startDate)
         .not('lucky_price', 'is', null)
         .order('date', { ascending: true });
       
       if (error) throw error;
-
-      if (data && data.length > 0) {
-        console.log('LUCKY Data:', {
-          total: data.length,
-          first: data[0],
-          last: data[data.length - 1]
-        });
-      }
-
       return data;
-    }
+    },
+    DAILY_SWR_CONFIG
   );
 
   const processedData = useMemo(() => {
     if (!hexData || !priceData) return [];
 
-    // Create a map of dates to price ratios from Supabase data
+    // Create a map of dates to price ratios
     const priceMap = new Map(
       priceData.map(day => [
         new Date(day.date).toISOString().split('T')[0],
         {
-          // If hex_price is null, use ehex_price instead
           priceRatio: parseFloat(day.lucky_price) / (day.hex_price ? parseFloat(day.hex_price) : parseFloat(day.ehex_price))
         }
       ])
     );
 
-    const TSHARES = TOKEN_CONSTANTS.pLUCKY.TSHARES;
-    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.pLUCKY.STAKE_PRINCIPLE;
-    const START_DATE = TOKEN_CONSTANTS.pLUCKY.LAUNCH_DATE;
-
-    console.log('LUCKY Constants:', {
-      TSHARES,
-      STAKE_PRINCIPLE,
-      START_DATE: START_DATE.toISOString()
-    });
+    // These constants are guaranteed to exist due to the checks above
+    const TSHARES = TOKEN_CONSTANTS.pLUCKY.TSHARES!;
+    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.pLUCKY.STAKE_PRINCIPLE!;
+    const START_DATE = TOKEN_CONSTANTS.pLUCKY.LAUNCH_DATE!;
+    const TOKEN_SUPPLY = TOKEN_CONSTANTS.pLUCKY.TOKEN_SUPPLY!;
 
     // Process HEX daily stats data
     const sortedData = hexData
-      .filter((day: any) => new Date(day.date) >= START_DATE)
+      .filter((day: any) => START_DATE && new Date(day.date) >= START_DATE)
       .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     let cumulativeYield = 0;
 
     const result = sortedData.map((day: any) => {
-      // Calculate daily yield using payoutPerTshareHEX
-      const dailyYield = day.payoutPerTshareHEX * TSHARES || 0;
+      const dailyYield = (day.payoutPerTshareHEX * TSHARES) || 0;
       cumulativeYield += dailyYield;
-      const yieldAdjustedBacking = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_CONSTANTS.pLUCKY.TOKEN_SUPPLY;
+      const backingRatio = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_SUPPLY;
 
       // Get price ratio from Supabase data
       const dateKey = new Date(day.date).toISOString().split('T')[0];
@@ -81,16 +103,14 @@ export const CumBackingValueLUCKY = () => {
 
       return {
         date: new Date(day.date),
-        discount: priceData?.priceRatio,
-        backingValue: 1,
-        backingRatio: yieldAdjustedBacking,
+        backingRatio,
+        discount: priceData?.priceRatio || null,
         dailyYield,
         cumulativeYield
       };
     });
 
     return result;
-
   }, [hexData, priceData]);
 
   return {

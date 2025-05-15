@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Skeleton } from "@/components/ui/skeleton2"
+import { CoinLogo } from './ui/CoinLogo'
 
 const PBTCPerformanceVisual: React.FC = () => {
   const [tokenData, setTokenData] = useState<{
@@ -96,25 +97,30 @@ const PBTCPerformanceVisual: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-br from-red-500 via-purple-500 to-blue-500 p-2 max-w-3xl mx-auto rounded-lg my-12">
-      <div className="bg-black text-white p-8 rounded-lg">
-        <h2 className="text-4xl font-bold mb-8 text-center">
-          The journey to
-        </h2>
-        <div className="text-6xl font-bold text-center mb-8">
-          pWBTC ${tokenData.targetPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-        </div>
-        <div className="text-center">
-          <div className="bg-black rounded-full w-24 h-24 mx-auto mb-4 flex items-center justify-center">
-            <img src="/coin-logos/pWBTC.svg" alt="pBTC" className="w-20 h-20" />
+    <div className="flex flex-col items-center gap-4">
+      <CoinLogo 
+        symbol="pWBTC"
+        size="xl"
+        priority={true}
+        className="w-20 h-20"
+      />
+      <div className="bg-gradient-to-br from-red-500 via-purple-500 to-blue-500 p-2 max-w-3xl mx-auto rounded-lg my-12">
+        <div className="bg-black text-white p-8 rounded-lg">
+          <h2 className="text-4xl font-bold mb-8 text-center">
+            The journey to
+          </h2>
+          <div className="text-6xl font-bold text-center mb-8">
+            pWBTC ${tokenData.targetPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </div>
-          <div className="text-2xl font-bold mb-2">
-            Current Price: ${tokenData.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          <div className="text-center">
+            <div className="text-2xl font-bold mb-2">
+              Current Price: ${tokenData.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </div>
+            <div className="text-3xl font-bold text-[#00FF00]">
+              {`+${Math.round(tokenData.percentageToTarget).toLocaleString()}%`}
+            </div>
+            <div className="text-xl mt-2">until ${tokenData.targetPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
           </div>
-          <div className="text-3xl font-bold text-[#00FF00]">
-            {`+${Math.round(tokenData.percentageToTarget).toLocaleString()}%`}
-          </div>
-          <div className="text-xl mt-2">until ${tokenData.targetPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
         </div>
       </div>
     </div>

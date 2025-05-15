@@ -100,7 +100,6 @@ module.exports = {
     		fontFamily: {
     			sans: [
 					'Archia',
-    				'Chakra Petch',
     				'ui-sans-serif',
     				'system-ui',
     				'sans-serif',

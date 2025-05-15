@@ -2,36 +2,74 @@ import useSWR from 'swr';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
 import { useMemo } from 'react';
 import { supabase } from '@/supabaseClient';
+import { DAILY_SWR_CONFIG } from '@/utils/swr-config';
+import { HEX_DATA, PRICE_CACHE_KEYS } from './crypto/utils/cache-keys';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
+// Ensure required constants exist
+if (!TOKEN_CONSTANTS?.eDECI?.LAUNCH_DATE) {
+  throw new Error('eDECI launch date is not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.eDECI?.TSHARES) {
+  throw new Error('eDECI T-shares are not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.eDECI?.STAKE_PRINCIPLE) {
+  throw new Error('eDECI stake principle is not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.eDECI?.TOKEN_SUPPLY) {
+  throw new Error('eDECI token supply is not defined in TOKEN_CONSTANTS');
+}
+
+interface PriceData {
+  date: string;
+  hex_price: string;
+  ehex_price: string;
+  edeci_price: string;
+}
+
+interface ProcessedDataPoint {
+  date: Date;
+  backingRatio: number;
+  discount: number | null;
+  dailyYield: number;
+  cumulativeYield: number;
+}
+
 export const CumBackingValueEDECI = () => {
-  // Fetch HEX daily stats for yield calculations
+  // Use daily cache key for HEX stats
   const { data: hexData, error: hexError } = useSWR(
-    'https://hexdailystats.com/fulldata',
-    fetcher
+    HEX_DATA.ethereum.getCacheKey(),
+    () => fetcher(HEX_DATA.ethereum.url),
+    DAILY_SWR_CONFIG
   );
 
-  // Fetch price data from Supabase
+  // Use daily cache key for price data
   const { data: priceData, error: priceError } = useSWR(
-    'price_data_edeci',
+    PRICE_CACHE_KEYS.daily('edeci'),
     async () => {
+      console.log('Fetching eDECI price data...');
+      const startDate = TOKEN_CONSTANTS.eDECI.LAUNCH_DATE!.toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('historic_prices')
         .select('date, hex_price, ehex_price, edeci_price')
-        .gte('date', '2022-09-01')
+        .gte('date', startDate)
         .not('edeci_price', 'is', null)
         .order('date', { ascending: true });
       
       if (error) throw error;
-      return data;
-    }
+      return data as PriceData[];
+    },
+    DAILY_SWR_CONFIG
   );
 
   const processedData = useMemo(() => {
     if (!hexData || !priceData) return [];
 
-    // Create a map of dates to price ratios from Supabase data
+    // Create a map of dates to price ratios
     const priceMap = new Map(
       priceData.map(day => [
         new Date(day.date).toISOString().split('T')[0],
@@ -41,22 +79,23 @@ export const CumBackingValueEDECI = () => {
       ])
     );
 
-    const TSHARES = TOKEN_CONSTANTS.eDECI.TSHARES;
-    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.eDECI.STAKE_PRINCIPLE;
-    const START_DATE = TOKEN_CONSTANTS.eDECI.STAKE_START_DATE;
+    // These constants are guaranteed to exist due to the checks above
+    const TSHARES = TOKEN_CONSTANTS.eDECI.TSHARES!;
+    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.eDECI.STAKE_PRINCIPLE!;
+    const START_DATE = TOKEN_CONSTANTS.eDECI.LAUNCH_DATE!;
+    const TOKEN_SUPPLY = TOKEN_CONSTANTS.eDECI.TOKEN_SUPPLY!;
 
     // Process HEX daily stats data
     const sortedData = hexData
-      .filter((day: any) => new Date(day.date) >= START_DATE)
+      .filter((day: any) => START_DATE && new Date(day.date) >= START_DATE)
       .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     let cumulativeYield = 0;
 
-    return sortedData.map((day: any) => {
-      // Calculate daily yield using payoutPerTshareHEX
-      const dailyYield = day.payoutPerTshareHEX * TSHARES || 0;
+    const result = sortedData.map((day: any) => {
+      const dailyYield = (day.payoutPerTshareHEX * TSHARES) || 0;
       cumulativeYield += dailyYield;
-      const yieldAdjustedBacking = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_CONSTANTS.eDECI.TOKEN_SUPPLY;
+      const backingRatio = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_SUPPLY;
 
       // Get price ratio from Supabase data
       const dateKey = new Date(day.date).toISOString().split('T')[0];
@@ -64,22 +103,19 @@ export const CumBackingValueEDECI = () => {
 
       return {
         date: new Date(day.date),
-        discount: priceData?.priceRatio,
-        backingValue: 1,
-        backingRatio: yieldAdjustedBacking,
+        backingRatio,
+        discount: priceData?.priceRatio || null,
         dailyYield,
         cumulativeYield
       };
     });
 
+    return result;
   }, [hexData, priceData]);
-
-  const isLoading = !hexData || !priceData;
-  const error = hexError || priceError;
 
   return {
     data: processedData,
-    error,
-    isLoading
+    error: hexError || priceError,
+    isLoading: !hexData || !priceData
   };
 }; 

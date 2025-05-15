@@ -2,87 +2,100 @@ import useSWR from 'swr';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
 import { useMemo } from 'react';
 import { supabase } from '@/supabaseClient';
+import { DAILY_SWR_CONFIG } from '@/utils/swr-config';
+import { HEX_DATA, PRICE_CACHE_KEYS } from './crypto/utils/cache-keys';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
+// Ensure required constants exist
+if (!TOKEN_CONSTANTS?.eMAXI?.LAUNCH_DATE) {
+  throw new Error('eMAXI launch date is not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.eMAXI?.TSHARES) {
+  throw new Error('eMAXI T-shares are not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.eMAXI?.STAKE_PRINCIPLE) {
+  throw new Error('eMAXI stake principle is not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.eMAXI?.TOKEN_SUPPLY) {
+  throw new Error('eMAXI token supply is not defined in TOKEN_CONSTANTS');
+}
+
+interface PriceData {
+  date: string;
+  hex_price: string;
+  ehex_price: string;
+  emaxi_price: string;
+}
+
+interface ProcessedDataPoint {
+  date: Date;
+  backingRatio: number;
+  discount: number | null;
+  dailyYield: number;
+  cumulativeYield: number;
+}
+
 export const CumBackingValueEMAXI = () => {
-  // Fetch HEX daily stats for yield calculations
+  // Use daily cache key for HEX stats
   const { data: hexData, error: hexError } = useSWR(
-    'https://hexdailystats.com/fulldata',
-    fetcher
+    HEX_DATA.ethereum.getCacheKey(),
+    () => fetcher(HEX_DATA.ethereum.url),
+    DAILY_SWR_CONFIG
   );
 
-  // Fetch price data from Supabase
+  // Use daily cache key for price data
   const { data: priceData, error: priceError } = useSWR(
-    'price_data_emaxi',
+    PRICE_CACHE_KEYS.daily('emaxi'),
     async () => {
+      console.log('Fetching eMAXI price data...');
+      const startDate = TOKEN_CONSTANTS.eMAXI.LAUNCH_DATE!.toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('historic_prices')
         .select('date, hex_price, ehex_price, emaxi_price')
-        .gte('date', '2022-05-01')
+        .gte('date', startDate)
         .not('emaxi_price', 'is', null)
         .order('date', { ascending: true });
       
       if (error) throw error;
-      return data;
-    }
+      return data as PriceData[];
+    },
+    DAILY_SWR_CONFIG
   );
 
   const processedData = useMemo(() => {
     if (!hexData || !priceData) return [];
 
-    // Create a map of dates to price ratios from Supabase data
+    // Create a map of dates to price ratios
     const priceMap = new Map(
-      priceData.map(day => {
-        // Ensure we have valid numbers
-        const emaxiPrice = parseFloat(day.emaxi_price);
-        const ehexPrice = parseFloat(day.ehex_price);
-        
-        // Skip invalid values
-        if (isNaN(emaxiPrice) || isNaN(ehexPrice) || ehexPrice === 0) {
-          console.log('Invalid price data:', {
-            date: day.date,
-            emaxi_price: day.emaxi_price,
-            ehex_price: day.ehex_price
-          });
-          return [
-            new Date(day.date).toISOString().split('T')[0],
-            { priceRatio: null }
-          ];
+      priceData.map(day => [
+        new Date(day.date).toISOString().split('T')[0],
+        {
+          priceRatio: parseFloat(day.emaxi_price) / parseFloat(day.ehex_price)
         }
-
-        const priceRatio = emaxiPrice / ehexPrice;
-        if (priceRatio > 2.5) {
-          console.log('High price ratio:', {
-            date: day.date,
-            emaxi_price: emaxiPrice,
-            ehex_price: ehexPrice,
-            ratio: priceRatio
-          });
-        }
-        return [
-          new Date(day.date).toISOString().split('T')[0],
-          { priceRatio }
-        ];
-      })
+      ])
     );
 
-    const TSHARES = TOKEN_CONSTANTS.eMAXI.TSHARES;
-    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.eMAXI.STAKE_PRINCIPLE;
-    const START_DATE = TOKEN_CONSTANTS.eMAXI.STAKE_START_DATE;
+    // These constants are guaranteed to exist due to the checks above
+    const TSHARES = TOKEN_CONSTANTS.eMAXI.TSHARES!;
+    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.eMAXI.STAKE_PRINCIPLE!;
+    const START_DATE = TOKEN_CONSTANTS.eMAXI.LAUNCH_DATE!;
+    const TOKEN_SUPPLY = TOKEN_CONSTANTS.eMAXI.TOKEN_SUPPLY!;
 
     // Process HEX daily stats data
     const sortedData = hexData
-      .filter((day: any) => new Date(day.date) >= START_DATE)
+      .filter((day: any) => START_DATE && new Date(day.date) >= START_DATE)
       .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     let cumulativeYield = 0;
 
-    return sortedData.map((day: any) => {
-      // Calculate daily yield using payoutPerTshareHEX
-      const dailyYield = day.payoutPerTshareHEX * TSHARES || 0;
+    const result = sortedData.map((day: any) => {
+      const dailyYield = (day.payoutPerTshareHEX * TSHARES) || 0;
       cumulativeYield += dailyYield;
-      const yieldAdjustedBacking = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_CONSTANTS.eMAXI.TOKEN_SUPPLY;
+      const backingRatio = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_SUPPLY;
 
       // Get price ratio from Supabase data
       const dateKey = new Date(day.date).toISOString().split('T')[0];
@@ -90,22 +103,19 @@ export const CumBackingValueEMAXI = () => {
 
       return {
         date: new Date(day.date),
-        discount: priceData?.priceRatio,
-        backingValue: 1,
-        backingRatio: yieldAdjustedBacking,
+        backingRatio,
+        discount: priceData?.priceRatio || null,
         dailyYield,
         cumulativeYield
       };
     });
 
+    return result;
   }, [hexData, priceData]);
-
-  const isLoading = !hexData || !priceData;
-  const error = hexError || priceError;
 
   return {
     data: processedData,
-    error,
-    isLoading
+    error: hexError || priceError,
+    isLoading: !hexData || !priceData
   };
 }; 

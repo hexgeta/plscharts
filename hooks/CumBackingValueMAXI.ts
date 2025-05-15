@@ -2,8 +2,27 @@ import useSWR from 'swr';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
 import { useMemo } from 'react';
 import { supabase } from '@/supabaseClient';
+import { DAILY_SWR_CONFIG } from '@/utils/swr-config';
+import { HEX_DATA, PRICE_CACHE_KEYS } from './crypto/utils/cache-keys';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
+
+// Ensure required constants exist
+if (!TOKEN_CONSTANTS?.pMAXI?.LAUNCH_DATE) {
+  throw new Error('MAXI launch date is not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.pMAXI?.TSHARES) {
+  throw new Error('MAXI T-shares are not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.pMAXI?.STAKE_PRINCIPLE) {
+  throw new Error('MAXI stake principle is not defined in TOKEN_CONSTANTS');
+}
+
+if (!TOKEN_CONSTANTS?.pMAXI?.TOKEN_SUPPLY) {
+  throw new Error('MAXI token supply is not defined in TOKEN_CONSTANTS');
+}
 
 interface PriceData {
   date: string;
@@ -21,102 +40,36 @@ interface ProcessedDataPoint {
 }
 
 export const CumBackingValueMAXI = () => {
-  // Fetch HEX daily stats for yield calculations
+  // Use daily cache key for HEX stats
   const { data: hexData, error: hexError } = useSWR(
-    'https://hexdailystats.com/fulldatapulsechain',
-    async (url) => {
-      const data = await fetcher(url);
-      console.log('Raw HEX daily stats:', {
-        totalEntries: data?.length,
-        firstEntry: data?.[0],
-        lastEntry: data?.[data?.length - 1],
-        sampleDates: data?.slice(-5).map((d: any) => d.date)
-      });
-      return data;
-    }
+    HEX_DATA.pulsechain.getCacheKey(),
+    () => fetcher(HEX_DATA.pulsechain.url),
+    DAILY_SWR_CONFIG
   );
 
-  // Fetch price data from Supabase
-  const { data: priceData, error: priceError } = useSWR<PriceData[]>(
-    'price_data_maxi',
+  // Use daily cache key for price data
+  const { data: priceData, error: priceError } = useSWR(
+    PRICE_CACHE_KEYS.daily('maxi'),
     async () => {
-      let allData: any[] = [];
-      let lastDate = '2022-05-01';
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('historic_prices')
-          .select('date, hex_price, ehex_price, maxi_price')
-          .gte('date', lastDate)
-          .not('maxi_price', 'is', null)
-          .order('date', { ascending: true })
-          .limit(1000);
-        
-        if (error) throw error;
-        
-        if (!data || data.length === 0) {
-          hasMore = false;
-        } else {
-          // Remove the first item if it's not the first batch (to avoid duplicates)
-          if (allData.length > 0 && data.length > 0) {
-            data.shift();
-          }
-          
-          allData = [...allData, ...data];
-          
-          // Update lastDate for next batch
-          if (data.length === 1000) {
-            lastDate = data[data.length - 1].date;
-          } else {
-            hasMore = false;
-          }
-        }
-      }
+      console.log('Fetching MAXI price data...');
+      const startDate = TOKEN_CONSTANTS.pMAXI.LAUNCH_DATE!.toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('historic_prices')
+        .select('date, hex_price, ehex_price, maxi_price')
+        .gte('date', startDate)
+        .not('maxi_price', 'is', null)
+        .order('date', { ascending: true });
       
-      console.log('Raw Supabase price data:', {
-        totalEntries: allData?.length,
-        firstEntry: allData?.[0],
-        lastEntry: allData?.[allData?.length - 1],
-        sampleLastFive: allData?.slice(-5).map(d => ({
-          date: d.date,
-          maxi_price: d.maxi_price,
-          hex_price: d.hex_price || d.ehex_price
-        }))
-      });
-      
-      return allData;
-    }
+      if (error) throw error;
+      return data;
+    },
+    DAILY_SWR_CONFIG
   );
 
   const processedData = useMemo(() => {
-    if (!hexData || !priceData) {
-      console.log('Missing data:', { 
-        hasHexData: !!hexData, 
-        hasPriceData: !!priceData,
-        hexDataLength: hexData?.length,
-        priceDataLength: priceData?.length
-      });
-      return [];
-    }
+    if (!hexData || !priceData) return [];
 
-    // Ensure TOKEN_CONSTANTS are defined
-    if (!TOKEN_CONSTANTS?.pMAXI?.TSHARES || 
-        !TOKEN_CONSTANTS?.pMAXI?.STAKE_PRINCIPLE || 
-        !TOKEN_CONSTANTS?.pMAXI?.STAKE_START_DATE || 
-        !TOKEN_CONSTANTS?.pMAXI?.TOKEN_SUPPLY) {
-      console.error('Missing required TOKEN_CONSTANTS');
-      return [];
-    }
-
-    // Add debug logs for hex data
-    console.log('HEX data range:', {
-      firstDate: hexData[0]?.date,
-      lastDate: hexData[hexData.length - 1]?.date,
-      totalPoints: hexData.length
-    });
-
-    // Create a map of dates to price ratios from Supabase data
+    // Create a map of dates to price ratios
     const priceMap = new Map(
       priceData.map(day => [
         new Date(day.date).toISOString().split('T')[0],
@@ -126,33 +79,20 @@ export const CumBackingValueMAXI = () => {
       ])
     );
 
-    // Debug log for price map
-    console.log('Price map size:', priceMap.size);
-    console.log('Sample price map entries:', {
-      first: Array.from(priceMap.entries())[0],
-      last: Array.from(priceMap.entries())[priceMap.size - 1]
-    });
-
-    const TSHARES = TOKEN_CONSTANTS.pMAXI.TSHARES;
-    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.pMAXI.STAKE_PRINCIPLE;
-    const START_DATE = TOKEN_CONSTANTS.pMAXI.STAKE_START_DATE;
-    const TOKEN_SUPPLY = TOKEN_CONSTANTS.pMAXI.TOKEN_SUPPLY;
+    // These constants are guaranteed to exist due to the checks above
+    const TSHARES = TOKEN_CONSTANTS.pMAXI.TSHARES!;
+    const STAKE_PRINCIPLE = TOKEN_CONSTANTS.pMAXI.STAKE_PRINCIPLE!;
+    const START_DATE = TOKEN_CONSTANTS.pMAXI.LAUNCH_DATE!;
+    const TOKEN_SUPPLY = TOKEN_CONSTANTS.pMAXI.TOKEN_SUPPLY!;
 
     // Process HEX daily stats data
     const sortedData = hexData
       .filter((day: any) => START_DATE && new Date(day.date) >= START_DATE)
       .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Debug log for sorted data
-    console.log('Sorted data range:', {
-      firstDate: sortedData[0]?.date,
-      lastDate: sortedData[sortedData.length - 1]?.date,
-      totalPoints: sortedData.length
-    });
-
     let cumulativeYield = 0;
 
-    const result = sortedData.map((day: any): ProcessedDataPoint => {
+    const result = sortedData.map((day: any) => {
       const dailyYield = (day.payoutPerTshareHEX * TSHARES) || 0;
       cumulativeYield += dailyYield;
       const backingRatio = (cumulativeYield + STAKE_PRINCIPLE) / TOKEN_SUPPLY;
@@ -170,22 +110,12 @@ export const CumBackingValueMAXI = () => {
       };
     });
 
-    // Debug log for final processed data
-    console.log('Final processed data range:', {
-      firstDate: result[0]?.date,
-      lastDate: result[result.length - 1]?.date,
-      totalPoints: result.length
-    });
-
     return result;
   }, [hexData, priceData]);
 
-  const isLoading = !hexData || !priceData;
-  const error = hexError || priceError;
-
   return {
     data: processedData,
-    error,
-    isLoading
+    error: hexError || priceError,
+    isLoading: !hexData || !priceData
   };
 };

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import NumberFlow from '@number-flow/react'
 import Image from 'next/image'
 import { formatNumber } from '@/utils/format'
+import { CoinLogo } from './ui/CoinLogo'
 
 // Configuration
 const CONFIG = {
@@ -108,11 +109,11 @@ export default function LivePlsPrice() {
   return (
     <div className="flex justify-center items-center gap-6">
       <div className="relative w-16 h-16">
-        <Image
-          src="/coin-logos/PLS.svg"
-          alt="PLS Logo"
-          fill
-          className="object-contain"
+        <CoinLogo
+          symbol="PLS"
+          size="xl"
+          priority={true}
+          className="w-16 h-16"
         />
       </div>
       <div className="grid grid-cols-[auto_auto] items-center gap-8">
@@ -129,9 +130,9 @@ export default function LivePlsPrice() {
             animated={false}
           />
         </div>
-        {priceData?.priceChange24h !== undefined && (
-          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange24h / 100)}`}>
-            {priceData.priceChange24h >= 0 ? '+' : ''}{formatNumber(priceData.priceChange24h / 100, { decimals: 1, percentage: true })}
+        {priceData?.priceChange?.h24 !== undefined && (
+          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange.h24)}`}>
+            {priceData.priceChange.h24 >= 0 ? '+' : ''}{formatNumber(priceData.priceChange.h24, { decimals: 1, percentage: true })}
           </div>
         )}
       </div>

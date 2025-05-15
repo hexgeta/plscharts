@@ -3,7 +3,7 @@ import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice';
 import { useBackingValue } from '@/hooks/crypto/useBackingValue';
 import { formatNumber, formatPrice } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
-import Image from 'next/image';
+import { CoinLogo } from '@/components/ui/CoinLogo';
 
 const TOKENS = ['pMAXI', 'pDECI', 'pLUCKY', 'pTRIO', 'pBASE'];
 
@@ -53,6 +53,7 @@ export function LoginTable() {
 
                 // Get dexscreener URL based on token data
                 const getDexscreenerUrl = () => {
+                  if (!tokenData.PAIR) return '#';
                   const chain = tokenData.PAIR.chain === 'pulsechain' ? 'pulsechain' : 'ethereum';
                   return `https://dexscreener.com/${chain}/${tokenData.PAIR.pairAddress}`;
                 };
@@ -61,11 +62,9 @@ export function LoginTable() {
                   <tr key={token} className="border-t border-white/5 hover:bg-white/5 transition-colors">
                     <td className="py-3 text-center">
                       <div className="flex justify-center">
-                        <Image
-                          src={TOKEN_LOGOS[token.replace('p', '').replace('e', '')]}
-                          alt={token}
-                          width={32}
-                          height={32}
+                        <CoinLogo
+                          symbol={token}
+                          size="lg"
                           className="rounded-full"
                         />
                       </div>
@@ -89,7 +88,11 @@ export function LoginTable() {
                       ) : (
                         <div className="flex items-center justify-center gap-1">
                           {formatNumber(priceInHex, { decimals: 2 })}
-                          <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
+                          <CoinLogo
+                            symbol="HEX"
+                            size="sm"
+                            className="brightness-0 invert mb-[2px]"
+                          />
                         </div>
                       )}
                     </td>
@@ -101,7 +104,11 @@ export function LoginTable() {
                       ) : (
                         <div className="flex items-center justify-center gap-1">
                           {formatNumber(backingData?.backingStakeRatio || 0, { decimals: 2 })}
-                          <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
+                          <CoinLogo
+                            symbol="HEX"
+                            size="sm"
+                            className="brightness-0 invert mb-[2px]"
+                          />
                         </div>
                       )}
                     </td>
@@ -119,7 +126,11 @@ export function LoginTable() {
                     <td className="py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         {formatNumber(principal, { decimals: 0 })}M
-                        <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
+                        <CoinLogo
+                          symbol="HEX"
+                          size="sm"
+                          className="brightness-0 invert mb-[2px]"
+                        />
                       </div>
                     </td>
                     <td className="py-3 text-center">{daysLength} D</td>

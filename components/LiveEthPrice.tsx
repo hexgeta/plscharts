@@ -1,8 +1,8 @@
 import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice'
 import { useState, useEffect, useRef } from 'react'
 import NumberFlow from '@number-flow/react'
-import Image from 'next/image'
 import { formatNumber } from '@/utils/format'
+import { CoinLogo } from './ui/CoinLogo'
 
 // Configuration
 const CONFIG = {
@@ -108,11 +108,11 @@ export default function LiveEthPrice() {
   return (
     <div className="flex justify-center items-center gap-6">
       <div className="relative w-16 h-16">
-        <Image
-          src="/coin-logos/ETH.svg"
-          alt="ETH Logo"
-          fill
-          className="object-contain"
+        <CoinLogo
+          symbol="ETH"
+          size="xl"
+          priority={true}
+          className="w-16 h-16"
         />
       </div>
       <div className="grid grid-cols-[auto_auto] items-center gap-8">
@@ -123,9 +123,9 @@ export default function LiveEthPrice() {
             animated={false}
           />
         </div>
-        {priceData?.priceChange24h !== undefined && (
-          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange24h)}`}>
-            {formatNumber(priceData.priceChange24h, { decimals: 1, percentage: true })}
+        {priceData?.priceChange?.h24 !== undefined && (
+          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange.h24)}`}>
+            {formatNumber(priceData.priceChange.h24, { decimals: 1, percentage: true })}
           </div>
         )}
       </div>

@@ -2,7 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['raw.githubusercontent.com', 'pbs.twimg.com'],
+    domains: ['raw.githubusercontent.com', 'pbs.twimg.com', 'surhzkquxduscyjdiroh.supabase.co'],
+    minimumCacheTTL: 2592000, // 30 days in seconds
+    formats: ['image/webp', 'image/avif'],
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    unoptimized: true, // Disable optimization for SVGs
   },
   trailingSlash: false,
   webpack: (config) => {
@@ -48,7 +53,52 @@ const nextConfig = {
       },
       
     ]
-  }
+  },
+  async headers() {
+    return [
+      {
+        // Match all image files
+        source: '/coin-logos/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            // Similar to gopulse.com: public, 30 days, immutable
+            value: 'public, max-age=2592000, immutable',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+        ],
+      },
+      {
+        source: '/fonts/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+        ],
+      },
+      {
+        source: '/favicon.svg',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+        ],
+      }
+    ];
+  },
 };
 
 module.exports = nextConfig;

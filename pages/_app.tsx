@@ -13,6 +13,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ThemeProvider } from '@/components/ui/theme-provider';
+import { SWRConfig } from 'swr';
+import { swrConfig } from '@/utils/swr-config';
 
 // Set this to true to enable maintenance mode
 const MAINTENANCE_MODE = false;
@@ -54,28 +56,30 @@ function MyApp({ Component, pageProps }: AppProps) {
   }
 
   return (
-    <MusicProvider>
-      <Head>
-        <title>LookIntoMaxi Ⓜ️🛡️🍀🎲🟠</title>
-        <meta name="description" content="Don't fade liquid hex stakes bro - This is a Maximus Dao stats & charts site. Earn passive yield in your cold hardware wallet & sell at any time!" />
-        {isPrivateAccess && (
+    <SWRConfig value={swrConfig}>
+      <MusicProvider>
+        <Head>
+          <title>LookIntoMaxi Ⓜ️🛡️🍀🎲🟠</title>
+          <meta name="description" content="Don't fade liquid hex stakes bro - This is a Maximus Dao stats & charts site. Earn passive yield in your cold hardware wallet & sell at any time!" />
+          {isPrivateAccess && (
+            <>
+              <meta name="robots" content="noindex, nofollow" />
+              <meta name="googlebot" content="noindex, nofollow" />
+            </>
+          )}
+        </Head>
+        {!isLivestreamPage && (
           <>
-            <meta name="robots" content="noindex, nofollow" />
-            <meta name="googlebot" content="noindex, nofollow" />
+            <MarketingBanner />
+            <AuthNavBar />
           </>
         )}
-      </Head>
-      {!isLivestreamPage && (
-        <>
-          <MarketingBanner />
-          <AuthNavBar />
-        </>
-      )}
-      <div className="App">
-        <Component {...pageProps} />
-      </div>
-      {!isLivestreamPage && <Footer/>}
-    </MusicProvider>
+        <div className="App">
+          <Component {...pageProps} />
+        </div>
+        {!isLivestreamPage && <Footer/>}
+      </MusicProvider>
+    </SWRConfig>
   );
 }
 

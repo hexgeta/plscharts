@@ -3,8 +3,8 @@
 import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice'
 import { useState, useEffect, useRef } from 'react'
 import NumberFlow from '@number-flow/react'
-import Image from 'next/image'
 import { formatNumber } from '@/utils/format'
+import { CoinLogo } from './ui/CoinLogo'
 
 // Configuration
 const CONFIG = {
@@ -103,25 +103,24 @@ export default function LiveHexPrice() {
   return (
     <div className="flex justify-center items-center gap-6">
       <div className="relative w-16 h-16">
-        <Image
-          src="/coin-logos/HEX.svg"
-          alt="HEX Logo"
-          fill
-          className="object-contain"
+        <CoinLogo
+          symbol="HEX"
+          size="xl"
+          priority={true}
+          className="w-16 h-16"
         />
       </div>
       <div className="flex items-center gap-8">
         <div className={`${priceColor} text-7xl font-bold tabular-nums w-[350px] text-left`}>
           <NumberFlow
             value={Math.abs(currentPrice)}
-            format={{ style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol',              minimumFractionDigits: 6, maximumFractionDigits: 6 }}
+            format={{ style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', minimumFractionDigits: 6, maximumFractionDigits: 6 }}
             animated={false}
-            
           />
         </div>
-        {priceData?.priceChange24h !== undefined && (
-          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange24h / 100)}`}>
-            {formatNumber(priceData.priceChange24h / 100, { decimals: 1, percentage: true })}
+        {priceData?.priceChange?.h24 !== undefined && (
+          <div className={`text-3xl font-bold ${getPriceChangeColor(priceData.priceChange.h24)}`}>
+            {formatNumber(priceData.priceChange.h24, { decimals: 1, percentage: true })}
           </div>
         )}
       </div>

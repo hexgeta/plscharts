@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { CumBackingValueBASE } from '@/hooks/CumBackingValueBASE';
-import Image from 'next/image';
-import { TOKEN_LOGOS } from '@/constants/crypto';
+import { CoinLogo } from '@/components/ui/CoinLogo';
 import MusicPlayer from '@/components/MusicPlayer';
 import React from 'react';
 
@@ -289,11 +288,9 @@ export default function YieldSphere() {
       
       <div className="absolute top-4 left-4 text-white z-10 bg-black/20 backdrop-blur-sm p-4 rounded-xl border-2 border-white/10">
         <div className="flex items-center gap-2">
-          <Image
-            src={TOKEN_LOGOS['BASE']}
-            alt="BASE logo"
-            width={24}
-            height={24}
+          <CoinLogo
+            symbol="BASE"
+            size="sm"
             className="rounded-full"
           />
           <h1 className="text-2xl font-bold">pBASE</h1>

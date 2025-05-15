@@ -1,24 +1,22 @@
 import { TOKEN_CONSTANTS, TOKEN_LOGOS } from '@/constants/crypto';
-import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice';
+import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
 import { useBackingValue } from '@/hooks/crypto/useBackingValue';
 import { formatNumber, formatPrice } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
-import Image from 'next/image';
 import { useState } from 'react';
+import { CoinLogo } from '@/components/ui/CoinLogo';
+import Link from 'next/link';
+import { useDexscreenerUrl } from '@/hooks/useDexscreenerUrl';
 
 const PULSE_TOKENS = ['pMAXI', 'pDECI', 'pLUCKY', 'pTRIO', 'pBASE'];
 const ETH_TOKENS = ['eMAXI', 'eDECI', 'eLUCKY', 'eTRIO', 'eBASE'];
+const ALL_TOKENS = [...PULSE_TOKENS, 'pHEX', ...ETH_TOKENS, 'eHEX'];
 
 export function LoginTable() {
   const [isEthereum, setIsEthereum] = useState(false);
   
-  // Load data for both networks simultaneously
-  const pulseDataMap = Object.fromEntries(
-    PULSE_TOKENS.map(token => [token, useCryptoPrice(token)])
-  );
-  const ethDataMap = Object.fromEntries(
-    ETH_TOKENS.map(token => [token, useCryptoPrice(token)])
-  );
+  // Load all token prices in a single request
+  const { prices, isLoading } = useTokenPrices(ALL_TOKENS);
   
   const pulseBackingMap = Object.fromEntries(
     PULSE_TOKENS.map(token => [token, useBackingValue(token)])
@@ -27,15 +25,10 @@ export function LoginTable() {
     ETH_TOKENS.map(token => [token, useBackingValue(token)])
   );
 
-  // Load both HEX prices
-  const { priceData: pHexPrice } = useCryptoPrice('pHEX');
-  const { priceData: eHexPrice } = useCryptoPrice('eHEX');
-
   // Use the appropriate data based on selected network
-  const priceDataMap = isEthereum ? ethDataMap : pulseDataMap;
-  const backingDataMap = isEthereum ? ethBackingMap : pulseBackingMap;
-  const hexPrice = isEthereum ? eHexPrice : pHexPrice;
   const tokens = isEthereum ? ETH_TOKENS : PULSE_TOKENS;
+  const backingDataMap = isEthereum ? ethBackingMap : pulseBackingMap;
+  const hexPrice = isEthereum ? prices?.eHEX : prices?.pHEX;
 
   return (
     <div className="w-full max-w-6xl mx-auto rounded-xl p-4 bg-black/5 backdrop-blur-sm border-2 border-white/10 h-auto relative">
@@ -57,12 +50,11 @@ export function LoginTable() {
                     onClick={() => setIsEthereum(!isEthereum)}
                     className="top-0 mb-16 flex items-center justify-center w-8 h-6 bg-black/20 hover:bg-black/30 transition-colors absolute right-2 pt-0 mt-0"
                   >
-                    <Image
-                      src={isEthereum ? '/coin-logos/eth-black-no-bg.svg' : '/coin-logos/PLS.svg'}
-                      alt={isEthereum ? 'Ethereum' : 'PulseChain'}
-                      width={20}
-                      height={20}
-                      className="brightness-0 invert"
+                    <CoinLogo
+                      symbol={isEthereum ? 'ETH' : 'PLS'}
+                      size="sm"
+                      className="brightness-0 invert rounded-none"
+                      variant={isEthereum ? 'no-bg' : 'default'}
                     />
                   </button>
                 </th>
@@ -71,58 +63,56 @@ export function LoginTable() {
             <tbody>
               {tokens.map((token) => {
                 const tokenData = TOKEN_CONSTANTS[token];
-                const { priceData, isLoading: priceLoading } = priceDataMap[token];
+                const tokenPriceData = prices?.[token];
                 const { backingData, isLoading: backingLoading } = backingDataMap[token];
+                const dexscreenerUrl = useDexscreenerUrl(token);
                 
                 if (!tokenData) return null;
 
                 const daysLength = tokenData.TOTAL_STAKED_DAYS;
                 const principal = (tokenData.STAKE_PRINCIPLE ?? 0) / 1_000_000;
 
-                const priceInHex = hexPrice?.price && priceData?.price 
-                  ? priceData.price / hexPrice.price 
+                const priceInHex = hexPrice?.price && tokenPriceData?.price 
+                  ? tokenPriceData.price / hexPrice.price 
                   : 0;
-
-                const getDexscreenerUrl = () => {
-                  const chain = tokenData.PAIR.chain === 'pulsechain' ? 'pulsechain' : 'ethereum';
-                  return `https://dexscreener.com/${chain}/${tokenData.PAIR.pairAddress}`;
-                };
 
                 return (
                   <tr key={token} className="border-t border-white/5 hover:bg-white/5 transition-colors">
                     <td className="py-3 text-center">
                       <div className="flex justify-center">
-                        <Image
-                          src={TOKEN_LOGOS[token.replace('p', '').replace('e', '')]}
-                          alt={token}
-                          width={32}
-                          height={32}
-                          className="rounded-full"
+                        <CoinLogo
+                          symbol={token.replace('p', '').replace('e', '')}
+                          size="lg"
                         />
                       </div>
                     </td>
                     <td className="py-3 text-center">
-                      {priceLoading ? (
+                      {isLoading ? (
                         <div className="flex justify-center">
                           <Skeleton className="h-6 w-20" />
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-1">
-                          {(!priceData?.price || priceData.price === 0) ? "N/A" : formatPrice(priceData.price)}
+                          {(!tokenPriceData?.price || tokenPriceData.price === 0) ? "N/A" : formatPrice(tokenPriceData.price)}
                         </div>
                       )}
                     </td>
                     <td className="py-3 text-center">
-                      {priceLoading || !hexPrice ? (
+                      {isLoading || !hexPrice ? (
                         <div className="flex justify-center">
                           <Skeleton className="h-6 w-20" />
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-1">
-                          {(!priceData?.price || !hexPrice.price || priceInHex === 0) ? "N/A" : (
+                          {(!tokenPriceData?.price || !hexPrice.price || priceInHex === 0) ? "N/A" : (
                             <>
                               {formatNumber(priceInHex, { decimals: 2 })}
-                              <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
+                              <CoinLogo
+                                symbol="HEX"
+                                size="sm"
+                                inverted={true}
+                                className="mb-[2px]"
+                              />
                             </>
                           )}
                         </div>
@@ -138,7 +128,12 @@ export function LoginTable() {
                           {!backingData || backingData.backingStakeRatio === null ? "N/A" : (
                             <>
                               {formatNumber(backingData.backingStakeRatio, { decimals: 2 })}
-                              <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
+                              <CoinLogo
+                                symbol="HEX"
+                                size="sm"
+                                inverted={true}
+                                className="mb-[2px]"
+                              />
                             </>
                           )}
                         </div>
@@ -158,20 +153,30 @@ export function LoginTable() {
                     <td className="py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         {formatNumber(principal, { decimals: 0 })}M
-                        <Image src={TOKEN_LOGOS.HEX} alt="HEX" width={16} height={16} className="brightness-0 invert mb-[2px]" />
+                        <CoinLogo
+                          symbol="HEX"
+                          size="sm"
+                          inverted={true}
+                          className="mb-[2px]"
+                        />
                       </div>
                     </td>
                     <td className="py-3 text-center">{daysLength} D</td>
                     <td className="py-3 text-center">{formatNumber(tokenData.TSHARES || 0, { decimals: 1 })}</td>
                     <td className="py-3 text-center">
-                      <a 
-                        href={getDexscreenerUrl()} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-2xl hover:opacity-80 transition-opacity inline-block"
-                      >
-                        →
-                      </a>
+                      {dexscreenerUrl && (
+                        <Link
+                          href={dexscreenerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white/60 hover:text-white transition-colors duration-100 ease-in-out flex items-center justify-center"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chart-line" aria-hidden="true">
+                            <path d="M3 3v16a2 2 0 0 0 2 2h16"></path>
+                            <path d="m19 9-5 5-4-4-3 3"></path>
+                          </svg>
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 );

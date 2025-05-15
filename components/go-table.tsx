@@ -3,7 +3,7 @@ import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice';
 import { useBackingValue } from '@/hooks/crypto/useBackingValue';
 import { formatNumber, formatPrice, formatPercent, formatPriceSigFig } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
-import Image from 'next/image';
+import { CoinLogo } from '@/components/ui/CoinLogo';
 import { useState, useEffect, useMemo } from 'react';
 import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceChange';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -241,7 +241,11 @@ export function GoTable() {
                     </Link>
                   )}
                   <div className="flex items-center gap-2 mb-2">
-                    <Image src={TOKEN_LOGOS[token] || '/coin-logos/HEX.svg'} alt={token} width={32} height={32} />
+                    <CoinLogo 
+                      symbol={token} 
+                      size="lg"
+                      priority={true}
+                    />
                     <div>
                       <div className="font-bold text-white">{token}</div>
                       <div className="text-xs text-gray-400">{TOKEN_SUBTITLES[token] || 'Token'}</div>

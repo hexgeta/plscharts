@@ -8,10 +8,11 @@ import { useBackingValue } from '@/hooks/crypto/useBackingValue'
 import { formatNumber, formatPrice, formatHexRatio, formatBacking } from '@/utils/format'
 import { Skeleton } from '@/components/ui/skeleton2'
 import { calculateStakeProgress } from '@/utils/stakeProgress'
+import { CoinLogo } from './ui/CoinLogo'
 
 interface CryptoCardProps {
   data: TokenData
-  variant?: 'default' | 'wide'
+  variant?: 'default' | 'wide' | 'minimal'
 }
 
 function convertSymbol(symbol: string): string {
@@ -73,7 +74,7 @@ export function CryptoCard({ data, variant = 'default' }: CryptoCardProps) {
   const { ratioData, isLoading: ratioLoading } = useCryptoRatio(data.symbol)
   const { backingData, isLoading: backingLoading } = useBackingValue(data.symbol)
   
-  const baseSymbol = data.symbol.slice(1)
+  const baseSymbol = data.symbol.replace(/^[pe]/, '')
   const showBacking = baseSymbol !== 'HEX'
 
   // Check if each piece of data is ready
@@ -81,21 +82,17 @@ export function CryptoCard({ data, variant = 'default' }: CryptoCardProps) {
   const hasRatioData = !ratioLoading && ratioData
   const hasBackingData = !backingLoading && backingData
 
-  if (variant === 'wide') {
+  if (variant === 'minimal') {
     return (
-      <Card className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl h-[100px] md:h-auto border-2 border-white/10">
-        <div className="flex items-center">
+      <Card className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10">
+        <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              {TOKEN_LOGOS[baseSymbol] && (
-                <Image
-                  src={TOKEN_LOGOS[baseSymbol]}
-                  alt={`${baseSymbol} logo`}
-                  width={24}
-                  height={24}
-                  className={baseSymbol === 'HEX' ? '' : 'rounded-full'}
-                />
-              )}
+              <CoinLogo
+                symbol={baseSymbol}
+                size="md"
+                className={baseSymbol === 'HEX' ? '' : 'rounded-full'}
+              />
               <div className="text-xl font-bold">{data.symbol}</div>
             </div>
             <div className="flex items-baseline gap-2">
@@ -122,15 +119,11 @@ export function CryptoCard({ data, variant = 'default' }: CryptoCardProps) {
     <Card className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          {TOKEN_LOGOS[baseSymbol] && (
-            <Image
-              src={TOKEN_LOGOS[baseSymbol]}
-              alt={`${baseSymbol} logo`}
-              width={24}
-              height={24}
-              className={baseSymbol === 'HEX' ? '' : 'rounded-full'}
-            />
-          )}
+          <CoinLogo
+            symbol={baseSymbol}
+            size="md"
+            className={baseSymbol === 'HEX' ? '' : 'rounded-full'}
+          />
           <div className="text-xl font-bold">{data.symbol}</div>
         </div>
       </div>

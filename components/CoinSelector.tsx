@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ChevronUp } from "lucide-react"
+import { CoinLogo } from "./ui/CoinLogo"
 
 interface CoinSelectorProps {
   onSelect: (symbol: string) => void
@@ -41,7 +42,14 @@ export function CoinSelector({ onSelect, currentCoin }: CoinSelectorProps) {
               }`}
               onClick={() => onSelect(coin.symbol)}
             >
-              {coin.name}
+              <div className="flex items-center gap-2">
+                <CoinLogo
+                  symbol={coin.name}
+                  size="sm"
+                  className="rounded-full"
+                />
+                <span>{coin.name}</span>
+              </div>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

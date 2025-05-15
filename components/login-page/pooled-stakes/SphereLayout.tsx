@@ -74,10 +74,11 @@ export default function SphereLayout({ children, showMusicPlayer = true }: Spher
     backingRatio: stake.backing
   })) || [];
 
-  // Effect to set initial music track
+  // Effect to set initial music track and pause it
   useEffect(() => {
     setCurrentTrack(SPHERES[sphereIndex].music);
-  }, [sphereIndex, setCurrentTrack]);
+    setIsPlaying(false); // Ensure music starts paused
+  }, [sphereIndex, setCurrentTrack, setIsPlaying]);
 
   useEffect(() => {
     // Check if we should skip splash screen
@@ -85,7 +86,7 @@ export default function SphereLayout({ children, showMusicPlayer = true }: Spher
     if (hasSeenSplash) {
       setShowSplash(false);
       setStartAnimation(true);
-      setShouldPlayMusic(true);
+      setShouldPlayMusic(false); // Don't auto-play music
     }
   }, []);
 
@@ -93,7 +94,7 @@ export default function SphereLayout({ children, showMusicPlayer = true }: Spher
     localStorage.setItem('hasSeenSplash', 'true');
     setShowSplash(false);
     setStartAnimation(true);
-    setShouldPlayMusic(true);
+    setShouldPlayMusic(false); // Don't auto-play music when entering
   };
 
   const currentSphere = SPHERES[sphereIndex];
@@ -153,7 +154,7 @@ export default function SphereLayout({ children, showMusicPlayer = true }: Spher
         <div className="fixed bottom-20 right-4 z-[999]">
           <MusicPlayer 
             playlist={[currentSphere.music]} 
-            autoPlay={shouldPlayMusic} 
+            autoPlay={false} // Set autoPlay to false
           />
         </div>
       )}

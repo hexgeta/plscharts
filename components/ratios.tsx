@@ -8,6 +8,7 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useRouter } from 'next/router';
+import { CoinLogo } from '@/components/ui/CoinLogo';
 import {
   Popover,
   PopoverContent,
@@ -449,9 +450,10 @@ const TokenRatioChart: React.FC = () => {
                           className="text-white hover:bg-gray-900 focus:bg-gray-900 focus:text-white cursor-pointer"
                         >
                           <div className="flex items-center gap-2">
-                            <div 
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: coin.color }}
+                            <CoinLogo
+                              symbol={coin.name}
+                              size="sm"
+                              className="rounded-full"
                             />
                             <span>{coin.name}</span>
                           </div>
@@ -483,9 +485,10 @@ const TokenRatioChart: React.FC = () => {
                           className="text-white hover:bg-gray-900 focus:bg-gray-900 focus:text-white cursor-pointer"
                         >
                           <div className="flex items-center gap-2">
-                            <div 
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: coin.color }}
+                            <CoinLogo
+                              symbol={coin.name}
+                              size="sm"
+                              className="rounded-full"
                             />
                             <span>{coin.name}</span>
                           </div>

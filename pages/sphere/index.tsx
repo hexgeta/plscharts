@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { TOKEN_LOGOS } from '@/constants/crypto';
+import { CoinLogo } from '@/components/ui/CoinLogo';
 
 const SPHERES = [
   {
@@ -43,11 +42,9 @@ export default function SpheresPage() {
           >
             <div className="bg-black border border-white/10 rounded-lg p-4 hover:bg-white/5 transition-colors">
               <div className="flex items-center gap-2">
-                <Image
-                  src={TOKEN_LOGOS[sphere.name]}
-                  alt={`${sphere.name} logo`}
-                  width={24}
-                  height={24}
+                <CoinLogo
+                  symbol={sphere.name}
+                  size="sm"
                   className="rounded-full"
                 />
                 <span className="text-xl font-bold">p{sphere.name}</span>
