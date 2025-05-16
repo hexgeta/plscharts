@@ -9,7 +9,15 @@ export const revalidate = 2592000; // 30 days in seconds
 
 export const metadata = {
   title: 'PlsCharts.com',
-  description: 'PlseCharts.com',
+  description: 'PlsCharts.com',
+  icons: {
+    icon: [
+      {
+        url: '/favicon.svg',
+        type: 'image/svg+xml',
+      }
+    ],
+  },
 }
 
 export const viewport = {

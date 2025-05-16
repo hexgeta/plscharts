@@ -45,6 +45,17 @@ export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h
   
   console.log('[useHistoricPriceChange] symbol:', symbol, 'field:', field);
   
+  // Get cached data from localStorage if available
+  const getCachedData = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const cached = localStorage.getItem(`historic-prices-${symbol}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+  
   const { data, error, isLoading } = useSWR(
     field ? `historic-prices-${symbol}` : null,
     async () => {
@@ -98,13 +109,23 @@ export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h
           result[period] = past && past.price > 0 ? ((latest.price - past.price) / past.price) * 100 : null;
         }
       }
+
+      // Cache the result
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`historic-prices-${symbol}`, JSON.stringify(result));
+      }
+
       return result;
     },
     {
       dedupingInterval: 3600000, // 1 hour in milliseconds
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      refreshInterval: 3600000 // 1 hour in milliseconds
+      refreshInterval: 3600000, // 1 hour in milliseconds
+      fallbackData: getCachedData() || periods.reduce((acc, period) => ({
+        ...acc,
+        [period]: period === '24h' ? priceData?.priceChange?.h24 ?? 0 : 0
+      }), {})
     }
   );
 

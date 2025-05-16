@@ -133,6 +133,17 @@ async function fetchTokenPrice(symbol: string, retryCount = 0): Promise<[string,
 }
 
 export function useTokenPrices(symbols: string[]) {
+  // Get cached data from localStorage if available
+  const getCachedData = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const cached = localStorage.getItem('token-prices');
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
   const { data, error, isLoading, mutate } = useSWR(
     symbols.length > 0 ? `crypto/prices/${symbols.join(',')}` : null,
     async () => {
@@ -153,7 +164,14 @@ export function useTokenPrices(symbols: string[]) {
         });
         
         // Convert results array to object
-        return Object.fromEntries(processedResults) as TokenPrices;
+        const data = Object.fromEntries(processedResults) as TokenPrices;
+        
+        // Cache the data
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token-prices', JSON.stringify(data));
+        }
+        
+        return data;
       } catch (err) {
         console.error('Error fetching token prices:', err);
         return symbols.reduce((acc, symbol) => {
@@ -169,6 +187,10 @@ export function useTokenPrices(symbols: string[]) {
       errorRetryCount: 3,
       errorRetryInterval: 5000, // 5 seconds
       shouldRetryOnError: true,
+      fallbackData: getCachedData() || symbols.reduce((acc, symbol) => ({
+        ...acc,
+        [symbol]: DEFAULT_PRICE_DATA
+      }), {}),
       onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
         // Don't retry if we've hit the max retry count
         if (retryCount >= 3) return;
