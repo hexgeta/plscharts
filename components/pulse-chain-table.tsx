@@ -8,7 +8,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceChange';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { useSupplies } from '@/hooks/crypto/useSupplies';
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
 
 // Only show these tokens
@@ -48,7 +47,6 @@ export function PulseChainTable() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isAnimating, setIsAnimating] = useState(true);
   const pulseChainDay = usePulsechainDay();
-  const { supplies, isLoading: suppliesLoading } = useSupplies();
 
   // Use batched price fetching
   const { prices, isLoading: pricesLoading } = useTokenPrices(TOKENS);
@@ -76,7 +74,7 @@ export function PulseChainTable() {
       !isLoading && percentChange !== undefined
     );
     
-    if (!pricesLoading && allChangesLoaded && !suppliesLoading) {
+    if (!pricesLoading && allChangesLoaded) {
       const timer = setTimeout(() => {
         setIsLoading(false);
         setIsInitialLoad(false);
@@ -85,7 +83,7 @@ export function PulseChainTable() {
     } else {
       setIsLoading(true);
     }
-  }, [prices, changeDataMap, isAnimating, suppliesLoading, pricesLoading]);
+  }, [prices, changeDataMap, isAnimating, pricesLoading]);
 
   console.log('[PulseChainTable] tokens:', TOKENS);
 
