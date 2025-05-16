@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// We need dynamic for query params
+export const dynamic = 'force-dynamic';
 
 // Log environment variables (masking sensitive data)
 console.log('[Historic API] Supabase URL:', process.env.SUPABASE_URL ? '✓ Found' : '✗ Missing')
@@ -57,7 +57,15 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('[Historic API] Success, returned rows:', parsed.length)
-    return NextResponse.json({ data: rows })
+
+    // Return response with caching headers
+    return new NextResponse(JSON.stringify({ data: rows }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate'
+      }
+    });
   } catch (error) {
     console.error('[Historic API] Error fetching historic prices:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

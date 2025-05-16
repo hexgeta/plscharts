@@ -101,12 +101,10 @@ export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h
       return result;
     },
     {
-      // Cache until next UTC+1
-      dedupingInterval: getMillisecondsUntilNextUTC1(),
-      // Only revalidate when cache expires
+      dedupingInterval: 3600000, // 1 hour in milliseconds
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      refreshInterval: getMillisecondsUntilNextUTC1()
+      refreshInterval: 3600000 // 1 hour in milliseconds
     }
   );
 
