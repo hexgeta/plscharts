@@ -1,9 +1,9 @@
 'use client';
 
-import { GoTable } from '@/components/go-table';
+import { PulseChainTable } from '@/components/pulse-chain-table';
 import { motion } from 'framer-motion';
 
-export default function GoPage() {
+export default function PulseChainPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black py-8 relative overflow-hidden">
       {/* Animated Background */}
@@ -55,7 +55,7 @@ export default function GoPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        <GoTable />
+        <PulseChainTable />
       </motion.div>
     </div>
   );

@@ -1,16 +1,14 @@
 import '@/styles/global.css'
 import { FontLoader } from '@/components/ui/FontLoader'
-
+import NavBar from '@/components/NavBar'
 // Static layout with revalidation
 export const revalidate = 2592000; // 30 days in seconds
 
-import AuthNavigationBar from '@/components/AuthNavBar'
-import MarketingBanner from '@/components/MarketingBanner'
 import Footer from '@/components/Footer'
 
 export const metadata = {
-  title: 'LookIntoMaxi',
-  description: 'Advanced pool staking stats',
+  title: 'PLSCharts.com',
+  description: 'plscharts.com',
 }
 
 export default function RootLayout({
@@ -25,8 +23,7 @@ export default function RootLayout({
         <FontLoader weight="bold" />
       </head>
       <body>
-        <MarketingBanner />
-        <AuthNavigationBar />
+        <NavBar />
         <main>{children}</main>
         <Footer />
       </body>

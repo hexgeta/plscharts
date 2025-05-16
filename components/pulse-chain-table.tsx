@@ -1,6 +1,5 @@
 import { TOKEN_CONSTANTS, TOKEN_LOGOS } from '@/constants/crypto';
 import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice';
-import { useBackingValue } from '@/hooks/crypto/useBackingValue';
 import { formatNumber, formatPrice, formatPercent, formatPriceSigFig } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
 import { CoinLogo } from '@/components/ui/CoinLogo';
@@ -76,7 +75,7 @@ interface PeriodStats {
   h24: TransactionStats;
 }
 
-export function GoTable() {
+export function PulseChainTable() {
   const [selected, setSelected] = useState<Period>('24h');
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -133,7 +132,7 @@ export function GoTable() {
     }
   }, [priceDataMap, changeDataMap, isAnimating, suppliesLoading]);
 
-  console.log('[GoTable] tokens:', TOKENS);
+  console.log('[PulseChainTable] tokens:', TOKENS);
 
   if (!TOKENS || TOKENS.length === 0) {
     return <div className="text-white p-8">No tokens to display. Check token list and state.</div>;
