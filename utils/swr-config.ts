@@ -7,6 +7,9 @@ const baseConfig: SWRConfiguration = {
   revalidateOnFocus: false,
 }
 
+// Default export for general use
+export const swrConfig = baseConfig;
+
 // Different caching strategies
 export const DAILY_SWR_CONFIG: SWRConfiguration = {
   ...baseConfig,

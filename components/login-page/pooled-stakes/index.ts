@@ -1,2 +1,2 @@
-export { LoginTable } from './login-table';
+export { LoginTable as PooledStakes } from './login-table';
 export { default as SphereLayout } from './SphereLayout';
