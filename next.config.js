@@ -27,28 +27,8 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/HEXCharts',
-        destination: '/hex-charts',
-        permanent: true,
-      },
-      {
-        source: '/DeltaDiscounts',
-        destination: '/delta-discounts',
-        permanent: true,
-      },
-      {
-        source: '/Btc-Eth-Hex',
-        destination: '/vs-hex',
-        permanent: true,
-      },
-      {
-        source: '/live',
-        destination: 'https://x.com/i/broadcasts/1rmGPyPnVgDJN',
-        permanent: false,
-      },
-      {
         source: '/livestream',
-        destination: 'https://x.com/i/broadcasts/1rmGPyPnVgDJN',
+        destination: 'https://x.com/i/broadcasts/1YqxookRyOvxv',
         permanent: false,
       },
       

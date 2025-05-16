@@ -1,7 +1,5 @@
-// Static component with revalidation
-export const revalidate = 2592000; // 30 days in seconds
+'use client';
 
-import React from 'react';
 import Link from 'next/link';
 
 // Cache the current year to avoid recalculating it on every render
@@ -9,11 +7,11 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 const Footer = () => {
   return (
-    <footer className="w-full bg-black px-4 border-t border-[rgba(255,255,255,0.2)] py-8 relative z-[100] bg-opacity-100">
+    <footer className="w-full bg-black/80 px-4 border-t border-[rgba(255,255,255,0.2)] py-8 relative z-[100] bg-opacity-100">
       <div className="absolute inset-0 bg-black" />
-      <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12 relative">
+      <div className="max-w-[1200px] mx-auto flex justify-between relative">
         <div>
-          <h3 className="text-s font-semibold mb-2 break-all">
+          <h3 className="text-s font-semibold mb-2">
             PlsCharts {CURRENT_YEAR}
           </h3>
         </div>
@@ -29,17 +27,15 @@ const Footer = () => {
         <div>
           <h3 className="text-s font-semibold mb-2">Resources</h3>
           <ul className="text-sm space-y-1">
-            <li><a href="https://gorealdefi.com/" className="text-[rgb(153,153,153)] hover:text-gray-300">GoRealDefi</a></li>
-            <li><a href="https://www.lightbeam.xyz/" className="text-[rgb(153,153,153)] hover:text-gray-300">Block Explorer</a></li>  
-            <li><a href="https://pampi.app/" className="text-[rgb(153,153,153)] hover:text-gray-300">Price Simulator</a></li>
-            <li><a href="/livestream" className="text-[rgb(153,153,153)] hover:text-gray-300">X Live Prices</a></li>
+            <li><a href="https://gotealdefi.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">GoRealDefi</a></li>
+            <li><a href="https://scan.pulsechain.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Block Explorer</a></li>
           </ul>
         </div>
         <div>
           <h3 className="text-s font-semibold mb-2">Community</h3>
           <ul className="text-sm space-y-1">
-            <li><a href="https://x.com/search?q=pulsechain" className="text-[rgb(153,153,153)] hover:text-gray-300">Twitter</a></li>
-            <li><a href="https://x.com/RichardHeartWin" className="text-[rgb(153,153,153)] hover:text-gray-300">Richard Heart</a></li>
+            <li><a href="https://twitter.com/plscharts" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Twitter</a></li>
+            <li><a href="https://richardheart.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Richard Heart</a></li>
           </ul>
         </div>
       </div>

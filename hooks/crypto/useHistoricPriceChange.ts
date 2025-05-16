@@ -22,13 +22,7 @@ const TOKEN_FIELD_MAP: Record<string, string> = {
   PLSX: 'plsx_price',
   INC: 'inc_price',
   pHEX: 'hex_price',
-  eHEX: 'ehex_price',
-  pMAXI: 'maxi_price',
-  pDECI: 'deci_price',
-  pLUCKY: 'lucky_price',
-  pTRIO: 'trio_price',
-  pBASE: 'base_price',
-  // Add eHEX, eMAXI, etc if needed
+  eHEX: 'ehex_price'
 };
 
 interface HistoricChangeResult {
