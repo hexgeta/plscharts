@@ -263,9 +263,19 @@ export function PulseChainTable() {
 
                   {/* Liquidity row */}
                   <div className="flex items-center justify-between mt-4 border-t border-white/10 pt-4">
-                    <div className="text-xs text-gray-400">Liquidity</div>
-                    <div className="font-bold text-white">
-                      {priceData?.liquidity ? formatNumber(priceData.liquidity, { compact: true, prefix: '$', decimals: 1 }) : '--'}
+                    <div>
+                      <div className="text-xs text-gray-400">Liquidity</div>
+                      <div className="font-bold text-white">
+                        {priceData?.liquidity ? formatNumber(priceData.liquidity, { compact: true, prefix: '$', decimals: 1 }) : '--'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400"></div>
+                      <div className="font-bold text-white"></div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400"></div>
+                      <div className="font-bold text-white"></div>
                     </div>
                   </div>
                 </div>

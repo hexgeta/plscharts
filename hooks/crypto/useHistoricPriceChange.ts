@@ -29,6 +29,15 @@ interface HistoricChangeResult {
   [period: string]: number | null; // percent change, null if not enough data
 }
 
+// Calculate milliseconds until next UTC+1
+function getMillisecondsUntilNextUTC1(): number {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(1, 0, 0, 0);
+  return tomorrow.getTime() - now.getTime();
+}
+
 export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h', '7d', '30d', '90d', 'ATL']) {
   const field = TOKEN_FIELD_MAP[symbol];
   const { prices } = useTokenPrices([symbol]);
@@ -92,8 +101,12 @@ export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h
       return result;
     },
     {
-      refreshInterval: 60000,
-      revalidateOnFocus: true,
+      // Cache until next UTC+1
+      dedupingInterval: getMillisecondsUntilNextUTC1(),
+      // Only revalidate when cache expires
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshInterval: getMillisecondsUntilNextUTC1()
     }
   );
 

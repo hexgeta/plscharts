@@ -8,8 +8,8 @@ import { Providers } from '@/components/Providers'
 export const revalidate = 2592000; // 30 days in seconds
 
 export const metadata = {
-  title: 'PLSCharts.com',
-  description: 'Track PulseChain tokens and market data in real-time',
+  title: 'PlsCharts.com',
+  description: 'PlseCharts.com',
 }
 
 export const viewport = {
