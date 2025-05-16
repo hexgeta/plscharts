@@ -1,5 +1,4 @@
 import { TOKEN_CONSTANTS, TOKEN_LOGOS } from '@/constants/crypto';
-import { useCryptoPrice } from '@/hooks/crypto/useCryptoPrice';
 import { formatNumber, formatPrice, formatPercent, formatPriceSigFig } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
 import { CoinLogo } from '@/components/ui/CoinLogo';
@@ -8,28 +7,7 @@ import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceC
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useSupplies } from '@/hooks/crypto/useSupplies';
-
-// Add interface for price data
-interface PriceData {
-  price: number;
-  priceChange24h: any;
-  liquidity: number | null;
-  marketCap: number | null;
-  supply: number | null;
-  lastUpdated: Date;
-  chain: string;
-  txns?: {
-    [key in Period]: {
-      buys: number;
-      sells: number;
-    }
-  };
-  volume?: {
-    [key in Period]: number;
-  };
-}
-
-const PERIODS = ['5m', '1h', '6h', '24h', '7d', '30d', '90d', 'ATL'];
+import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
 
 // Only show these tokens
 const TOKENS = ['PLS', 'PLSX', 'INC', 'pHEX', 'eHEX'];
@@ -43,10 +21,12 @@ const TOKEN_SUBTITLES: Record<string, string> = {
   eHEX: 'Also real HEX',
 };
 
+const PERIODS = ['5m', '1h', '6h', '24h', '7d', '30d', '90d', 'ATL'];
+
 // Hardcode PulseChain start date (733 days ago from today, UTC)
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 // PulseChain launch: May 13, 2022 UTC
-const PULSECHAIN_START_DATE = new Date(Date.UTC(2023, 4, 13, 0, 0, 0)); // May 13, 2022, 00:00:00 UTC
+const PULSECHAIN_START_DATE = new Date(Date.UTC(2023, 4, 13, 0, 0, 0));
 
 export function usePulsechainDay() {
   return useMemo(() => {
@@ -60,21 +40,6 @@ export function usePulsechainDay() {
   }, []);
 }
 
-// Transaction stats interface
-interface TransactionStats {
-  buys: number;
-  sells: number;
-  volume: number;
-  priceChange: number;
-}
-
-interface PeriodStats {
-  m5: TransactionStats;
-  h1: TransactionStats;
-  h6: TransactionStats;
-  h24: TransactionStats;
-}
-
 export function PulseChainTable() {
   const [selected, setSelected] = useState<Period>('24h');
   const [isLoading, setIsLoading] = useState(true);
@@ -83,19 +48,10 @@ export function PulseChainTable() {
   const pulseChainDay = usePulsechainDay();
   const { supplies, isLoading: suppliesLoading } = useSupplies();
 
-  // Token addresses on PulseChain
-  const TOKEN_ADDRESSES: Record<string, string> = {
-    PLS: 'native', // Native PLS uses different endpoint
-    PLSX: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab',
-    INC: '0x2fa878Ab3F87CC1C9607B0129766B192E13d20B5', // INCENTIVE token
-    HEX: '0x57964407C8F06561c4A8b1A0f4B8897f6c5eD47E', // pHEX
-    eHEX: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39'
-  };
-
-  // Live price and historic change for each token
-  const priceDataMap = Object.fromEntries(
-    TOKENS.map(token => [token, useCryptoPrice(token)])
-  );
+  // Use batched price fetching
+  const { prices, isLoading: pricesLoading } = useTokenPrices(TOKENS);
+  
+  // Historic change for each token
   const changeDataMap = Object.fromEntries(
     TOKENS.map(token => [token, useHistoricPriceChange(token)])
   );
@@ -112,16 +68,13 @@ export function PulseChainTable() {
 
   // Check if all data is loaded
   useEffect(() => {
-    if (isAnimating) return; // Don't change loading state during initial animation
+    if (isAnimating) return;
 
-    const allPricesLoaded = Object.values(priceDataMap).every(({ isLoading, priceData }) => 
-      !isLoading && priceData !== undefined
-    );
     const allChangesLoaded = Object.values(changeDataMap).every(({ isLoading, percentChange }) => 
       !isLoading && percentChange !== undefined
     );
     
-    if (allPricesLoaded && allChangesLoaded && !suppliesLoading) {
+    if (!pricesLoading && allChangesLoaded && !suppliesLoading) {
       const timer = setTimeout(() => {
         setIsLoading(false);
         setIsInitialLoad(false);
@@ -130,7 +83,7 @@ export function PulseChainTable() {
     } else {
       setIsLoading(true);
     }
-  }, [priceDataMap, changeDataMap, isAnimating, suppliesLoading]);
+  }, [prices, changeDataMap, isAnimating, suppliesLoading, pricesLoading]);
 
   console.log('[PulseChainTable] tokens:', TOKENS);
 
@@ -199,7 +152,7 @@ export function PulseChainTable() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {TOKENS.map(token => {
-              const { priceData, isLoading: priceLoading } = priceDataMap[token];
+              const priceData = prices[token];
               const { percentChange, isLoading: changeLoading } = changeDataMap[token];
               const price = priceData?.price;
               
@@ -251,7 +204,7 @@ export function PulseChainTable() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {priceLoading ? (
+                    {pricesLoading ? (
                       <Skeleton className="w-16 h-6" />
                     ) : (
                       <>

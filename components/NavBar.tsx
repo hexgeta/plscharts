@@ -23,13 +23,9 @@ const NavBar = () => {
       setIsBannerVisible(event.detail.isVisible);
     };
 
-    // Check initial banner visibility from CSS variable
-    const bannerVisible = getComputedStyle(document.documentElement)
-      .getPropertyValue('--banner-visible')
-      .trim() === '1';
+    const bannerVisible = getComputedStyle(document.documentElement).getPropertyValue('--banner-visible').trim() === '1';
     setIsBannerVisible(bannerVisible);
 
-    // Listen for banner visibility changes
     window.addEventListener('bannerVisibilityChange', handleBannerVisibility as EventListener);
     document.addEventListener('mousedown', handleClickOutside);
     
@@ -40,50 +36,58 @@ const NavBar = () => {
   }, []);
 
   return (
-    <nav className={`w-full bg-black px-4 pt-2 pb-4 border-b-1 border-b border-[rgba(255,255,255,0.2)] relative z-[100] ${isBannerVisible ? 'md:mt-[52px]' : ''}`}>
-      <div className="max-w-[1200px] mx-auto flex items-center justify-between relative">
-        <Link href="/" className="text-white hover:text-gray-300 font-bold text-2xl relative z-[100]">
-          PLS Charts
-        </Link>
-        <div className="hidden xl:flex items-center justify-left flex-grow ml-10 relative z-[100]">
-          <div className="flex space-x-6">
-            {/* Add any navigation links here */}
+    <nav className={`w-full bg-black h-16 flex items-center border-b border-[rgba(255,255,255,0.2)] relative z-[100] ${isBannerVisible ? 'md:mt-[52px]' : ''}`}>
+      <div className="max-w-[1200px] w-full mx-auto px-4 flex items-center justify-between">
+        <div className="flex items-center gap-10">
+          <Link href="/" className="text-white hover:text-gray-300 font-bold text-2xl whitespace-nowrap">
+            PLS Charts
+          </Link>
+          <div className="hidden xl:flex items-center space-x-6">
+            <Link href="/pulsechain" className="text-white/80 hover:text-white transition-colors">PulseChain</Link>
+            <Link href="/stake-hex" className="text-white/80 hover:text-white transition-colors">Stake HEX</Link>
+            <Link href="/bridge" className="text-white/80 hover:text-white transition-colors">Bridge</Link>
+            <Link href="/dex" className="text-white/80 hover:text-white transition-colors">DEX</Link>
           </div>
         </div>
 
-        {/* MOBILE VIEW */}
         <button
-          className="rgba(255, 255, 255, 0.2) xl:hidden flex flex-col justify-center items-center relative z-[100]"
+          className="xl:hidden flex flex-col justify-center items-center w-8 h-8 relative"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Toggle menu"
         >
-          <span className="w-5 h-[2px] bg-white my-[3px]"></span>
-          <span className="w-5 h-[2px] bg-white my-[3px]"></span>
-          <span className="w-5 h-[2px] bg-white my-[3px]"></span>
+          <span className="w-5 h-[2px] bg-white my-[3px] transition-all"></span>
+          <span className="w-5 h-[2px] bg-white my-[3px] transition-all"></span>
+          <span className="w-5 h-[2px] bg-white my-[3px] transition-all"></span>
         </button>
-      </div>
-      <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-[150]"
-          >
-            <motion.div
-              ref={menuRef}
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ type: "spring", duration: 0.3 }}
-              className="absolute right-2 top-2 h-auto w-64 bg-black bg-opacity-85 p-4 shadow-lg z-[160] border border-white/20 rounded-[10px]"
+
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/50 z-[150] xl:hidden"
             >
-              <Link href="/pulsechain" className="block text-white/80 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>PulseChain</Link>
+              <motion.div
+                ref={menuRef}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ type: "spring", duration: 0.3 }}
+                className="absolute right-4 top-20 w-56 bg-black border border-white/20 rounded-lg shadow-lg overflow-hidden"
+              >
+                <div className="py-2">
+                  <Link href="/pulsechain" className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/5" onClick={() => setIsMenuOpen(false)}>PulseChain</Link>
+                  <Link href="/stake-hex" className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/5" onClick={() => setIsMenuOpen(false)}>Stake HEX</Link>
+                  <Link href="/bridge" className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/5" onClick={() => setIsMenuOpen(false)}>Bridge</Link>
+                  <Link href="/dex" className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/5" onClick={() => setIsMenuOpen(false)}>DEX</Link>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </div>
     </nav>
   );
 };

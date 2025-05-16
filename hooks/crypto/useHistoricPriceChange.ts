@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
-import { supabase } from '@/supabaseClient';
-import { useCryptoPrice } from './useCryptoPrice';
+import { useTokenPrices } from './useTokenPrices';
 
 export type Period = '5m' | '1h' | '6h' | '24h' | '7d' | '30d' | '90d' | '180d' | '365d' | 'ATL';
 
@@ -38,40 +37,49 @@ interface HistoricChangeResult {
 
 export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h', '7d', '30d', '90d', 'ATL']) {
   const field = TOKEN_FIELD_MAP[symbol];
-  const { priceData: livePriceData } = useCryptoPrice(symbol);
+  const { prices } = useTokenPrices([symbol]);
+  const priceData = prices[symbol];
+  
   console.log('[useHistoricPriceChange] symbol:', symbol, 'field:', field);
+  
   const { data, error, isLoading } = useSWR(
     field ? `historic-prices-${symbol}` : null,
     async () => {
       if (!field) return null;
-      // Fetch all data for this token
-      const { data: rows, error } = await supabase
-        .from('historic_prices')
-        .select(`date, ${field}`)
-        .not(field, 'is', null)
-        .order('date', { ascending: true });
-      if (error) throw error;
+      
+      // Fetch data from our API endpoint
+      const response = await fetch(`/api/prices/historic?symbol=${symbol}&field=${field}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch historic prices');
+      }
+      
+      const { data: rows } = await response.json();
       if (!rows || rows.length === 0) return null;
+
       // Parse dates and prices
       const parsed = rows.map((row: any) => ({
         date: new Date(row.date),
         price: parseFloat(row[field]),
       })).filter((row: any) => !isNaN(row.price));
+
       if (parsed.length === 0) return null;
+
       // Latest price is the last entry
       const latest = parsed[parsed.length - 1];
+      
       // For each period, find the closest price before that period ago
       const now = latest.date;
       const result: HistoricChangeResult = {};
+      
       for (const period of periods) {
         if (period === '5m') {
-          result[period] = livePriceData?.priceChange?.m5 ?? null;
+          result[period] = priceData?.priceChange?.m5 ?? null;
         } else if (period === '1h') {
-          result[period] = livePriceData?.priceChange?.h1 ?? null;
+          result[period] = priceData?.priceChange?.h1 ?? null;
         } else if (period === '6h') {
-          result[period] = livePriceData?.priceChange?.h6 ?? null;
+          result[period] = priceData?.priceChange?.h6 ?? null;
         } else if (period === '24h') {
-          result[period] = livePriceData?.priceChange?.h24 ?? null;
+          result[period] = priceData?.priceChange?.h24 ?? null;
         } else if (period === 'ATL') {
           // All-time-low
           const min = parsed.reduce((min, row) => row.price < min.price ? row : min, parsed[0]);
@@ -94,5 +102,6 @@ export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h
       revalidateOnFocus: true,
     }
   );
+
   return { percentChange: data, isLoading, error };
 } 

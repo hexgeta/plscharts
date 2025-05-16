@@ -13,8 +13,8 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     <SWRConfig value={swrConfig}>
       <ThemeProvider>
         <Head>
-          <title>PLS Charts</title>
-          <meta name="description" content="PLS Charts - Track PulseChain tokens" />
+          <title>PLSCharts</title>
+          <meta name="description" content="PlsCharts.com" />
         </Head>
         <div className="App">
           <Component {...pageProps} />
