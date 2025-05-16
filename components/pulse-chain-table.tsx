@@ -127,14 +127,14 @@ export function PulseChainTable() {
           </div>
           {/* Toggle group */}
           <div className="w-full flex flex-col md:flex-row justify-center md:justify-end">
-            <div className="w-full md:w-auto flex items-center gap-1 px-1 py-1 rounded-full border-2 border-white/10 bg-black/40">
+            <div className="w-full md:w-auto flex items-center gap-0.5 px-1 py-1 rounded-full border-2 border-white/10 bg-black/40">
               {PERIODS.map((period) => {
                 const isActive = selected === period;
                 return (
                   <button
                     key={period}
                     onClick={() => setSelected(period as Period)}
-                    className={`flex-1 md:flex-none relative px-2 py-1 rounded-full text-sm sm:text-base font-semibold transition-colors
+                    className={`flex-1 md:flex-none relative px-1.5 md:px-2 py-1 rounded-full text-xs md:text-sm font-semibold transition-colors
                       ${isActive ? 'text-white' : 'text-gray-400 hover:text-white'}`}
                     style={{ zIndex: 1 }}
                   >

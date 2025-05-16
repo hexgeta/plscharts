@@ -7,15 +7,15 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 const Footer = () => {
   return (
-    <footer className="w-full bg-black/80 px-4 border-t border-[rgba(255,255,255,0.2)] py-8 relative z-[100] bg-opacity-100">
+    <footer className="w-full bg-black/80 px-4 border-t border-[rgba(255,255,255,0.2)] py-8 relative z-[100]">
       <div className="absolute inset-0 bg-black" />
-      <div className="max-w-[1200px] mx-auto flex justify-between relative">
-        <div>
+      <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12 relative">
+        <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">
             PlsCharts {CURRENT_YEAR}
           </h3>
         </div>
-        <div>
+        <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">Links</h3>
           <ul className="text-sm space-y-1">
             <li><a href="https://pulsex.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">PulseX</a></li>
@@ -24,14 +24,14 @@ const Footer = () => {
             <li><a href="https://piteas.io/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">DEX Aggregator</a></li>
           </ul>
         </div>
-        <div>
+        <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">Resources</h3>
           <ul className="text-sm space-y-1">
             <li><a href="https://gotealdefi.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">GoRealDefi</a></li>
             <li><a href="https://scan.pulsechain.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Block Explorer</a></li>
           </ul>
         </div>
-        <div>
+        <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">Community</h3>
           <ul className="text-sm space-y-1">
             <li><a href="https://twitter.com/plscharts" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Twitter</a></li>
