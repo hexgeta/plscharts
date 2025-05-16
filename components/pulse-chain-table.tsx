@@ -1,3 +1,5 @@
+'use client';
+
 import { TOKEN_CONSTANTS, TOKEN_LOGOS } from '@/constants/crypto';
 import { formatNumber, formatPrice, formatPercent, formatPriceSigFig } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
