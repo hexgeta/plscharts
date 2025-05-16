@@ -50,20 +50,36 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   const pulseChainDay = usePulsechainDay();
 
   // Use batched price fetching with SWR's built-in caching
-  const { prices } = useTokenPrices(TOKENS);
+  const { prices, isLoading: pricesLoading } = useTokenPrices(TOKENS);
   
   // Historic change for each token
   const changeDataMap = Object.fromEntries(
     TOKENS.map(token => [token, useHistoricPriceChange(token)])
   );
 
+  // Check if any historic data is still loading
+  const isHistoricLoading = Object.values(changeDataMap).some(data => data.isLoading);
+
+  // Overall loading state
+  const isLoading = pricesLoading || isHistoricLoading;
+
   return (
     <div className="w-full max-w-5xl mx-auto my-8 rounded-xl p-4 h-auto relative flex flex-col gap-4">
-      <div className="text-3xl font-bold text-white/15 select-none pointer-events-none static mb-2 ml-4 md:absolute md:top-4 md:left-6 md:z-10 md:mb-0 md:ml-0">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isLoading ? 0 : 1 }}
+        transition={{ duration: 0.3 }}
+        className="text-3xl font-bold text-white/15 select-none pointer-events-none static mb-2 ml-4 md:absolute md:top-4 md:left-6 md:z-10 md:mb-0 md:ml-0"
+      >
         Day {pulseChainDay}
-      </div>
+      </motion.div>
       {/* Toggle group */}
-      <div className="w-full flex flex-col md:flex-row justify-center md:justify-end">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isLoading ? 0 : 1 }}
+        transition={{ duration: 0.3 }}
+        className="w-full flex flex-col md:flex-row justify-center md:justify-end"
+      >
         <div className="w-full md:w-auto flex items-center justify-between px-2 py-1 rounded-full border-2 border-white/10 bg-black/40">
           {PERIODS.map((period) => {
             const isActive = selected === period;
@@ -88,7 +104,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
             );
           })}
         </div>
-      </div>
+      </motion.div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {TOKENS.map(token => {
           const priceData = prices?.[token];
@@ -116,9 +132,12 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
           const volume = dexPeriod ? priceData?.volume?.[dexPeriod] : null;
 
           return (
-            <div 
+            <motion.div 
               key={token}
               className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col gap-2 border-2 border-white/10 relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isLoading ? 0 : 1 }}
+              transition={{ duration: 0.3 }}
             >
               {/* Chart icon link in top right */}
               {TOKEN_CONSTANTS[token]?.PAIR && (
@@ -146,18 +165,10 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <motion.span 
-                  key={`price-${price}`}
-                  initial={{ opacity: 1 }}
-                  animate={{ opacity: 1 }}
-                  className="text-2xl text-white"
-                >
+                <span className="text-2xl text-white">
                   {price ? formatPriceSigFig(price, 3) : '--'}
-                </motion.span>
-                <motion.span
-                  key={`change-${change}`}
-                  initial={{ opacity: 1 }}
-                  animate={{ opacity: 1 }}
+                </span>
+                <span
                   className={ 
                     change == null
                       ? 'text-gray-400 text-sm text-bold'
@@ -169,7 +180,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                   }
                 >
                   {change == null ? '--' : formatPercent(change)}
-                </motion.span>
+                </span>
               </div>
               
               {/* Transaction Stats */}
@@ -178,36 +189,21 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <div className="text-xs text-gray-400">Buys</div>
-                      <motion.div 
-                        key={`buys-${txnStats?.buys}`}
-                        initial={{ opacity: 1 }}
-                        animate={{ opacity: 1 }}
-                        className="font-bold text-white"
-                      >
+                      <div className="font-bold text-white">
                         {txnStats?.buys || '--'}
-                      </motion.div>
+                      </div>
                     </div>
                     <div>
                       <div className="text-xs text-gray-400">Sells</div>
-                      <motion.div 
-                        key={`sells-${txnStats?.sells}`}
-                        initial={{ opacity: 1 }}
-                        animate={{ opacity: 1 }}
-                        className="font-bold text-white"
-                      >
+                      <div className="font-bold text-white">
                         {txnStats?.sells || '--'}
-                      </motion.div>
+                      </div>
                     </div>
                     <div>
                       <div className="text-xs text-gray-400">Volume</div>
-                      <motion.div 
-                        key={`volume-${volume}`}
-                        initial={{ opacity: 1 }}
-                        animate={{ opacity: 1 }}
-                        className="font-bold text-white"
-                      >
+                      <div className="font-bold text-white">
                         {volume ? formatNumber(volume, { compact: true, prefix: '$', decimals: 1 }) : '--'}
-                      </motion.div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -217,14 +213,9 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               <div className="flex items-center justify-between mt-4 border-t border-white/10 pt-4">
                 <div>
                   <div className="text-xs text-gray-400">Liquidity</div>
-                  <motion.div 
-                    key={`liquidity-${priceData?.liquidity}`}
-                    initial={{ opacity: 1 }}
-                    animate={{ opacity: 1 }}
-                    className="font-bold text-white"
-                  >
+                  <div className="font-bold text-white">
                     {priceData?.liquidity ? formatNumber(priceData.liquidity, { compact: true, prefix: '$', decimals: 1 }) : '--'}
-                  </motion.div>
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-400"></div>
@@ -235,13 +226,16 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                   <div className="font-bold text-white"></div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
 
         {/* Custom 6th Block */}
-        <div 
+        <motion.div 
           className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col justify-between gap-2 border-2 border-white/10 relative min-h-[300px]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isLoading ? 0 : 1 }}
+          transition={{ duration: 0.3 }}
         >
           <div>
             <h3 className="text-2xl font-bold text-white mb-6">Get Started</h3>
@@ -262,7 +256,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               <path d="M7 17L17 7M17 7H8M17 7V16" strokeWidth="2" stroke="currentColor" fill="none"/>
             </svg>
           </a>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
