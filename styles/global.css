@@ -55,7 +55,7 @@
 
 html,
 body {
-  @apply w-full p-[5px] m-0 font-sans bg-[var(--background-color)] text-[var(--text-color)];
+  @apply w-full m-0 font-sans bg-[var(--background-color)] text-[var(--text-color)];
 }
 
 @keyframes wave {

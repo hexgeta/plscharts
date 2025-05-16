@@ -26,7 +26,7 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
-              <div className="container mx-auto px-4 py-8">
+              <div className="container mx-auto px-4 py-4">
                 <PulseChainTable />
               </div>
             </motion.div>
