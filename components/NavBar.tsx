@@ -40,7 +40,7 @@ const NavBar = () => {
       <div className="max-w-[1200px] w-full mx-auto px-4 flex items-center justify-between">
         <div className="flex items-center gap-10">
           <Link href="/" className="text-white hover:text-gray-300 font-bold text-2xl whitespace-nowrap">
-            PLS Charts
+            PLSCharts
           </Link>
           <div className="hidden xl:flex items-center space-x-6">
             <Link href="/pulsechain" className="text-white/80 hover:text-white transition-colors">PulseChain</Link>
