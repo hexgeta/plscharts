@@ -80,14 +80,14 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
         transition={{ duration: 0.3 }}
         className="w-full flex flex-col md:flex-row justify-center md:justify-end"
       >
-        <div className="w-full md:w-auto flex items-center justify-between px-2 py-1 rounded-full border-2 border-white/10 bg-black/40">
+        <div className="w-full md:w-auto flex items-center justify-between p-1 rounded-full border-2 border-white/10 bg-black/40">
           {PERIODS.map((period) => {
             const isActive = selected === period;
             return (
               <button
                 key={period}
                 onClick={() => setSelected(period as Period)}
-                className={`relative min-w-[40px] text-center py-1 rounded-full text-xs md:text-sm font-semibold transition-colors
+                className={`relative p-2 text-center text-xs gap-0 md:text-sm font-semibold transition-colors rounded-full
                   ${isActive ? 'text-white' : 'text-gray-400 hover:text-white'}`}
                 style={{ zIndex: 1 }}
               >
