@@ -39,7 +39,7 @@ export function CoinLogo({
       className={cn(
         LOGO_SIZES[size],
         'object-contain',
-        baseSymbol === 'HEX' ? '' : 'rounded-full',
+        '',
         inverted ? 'brightness-0 invert' : '',
         className
       )}

@@ -9,15 +9,16 @@ import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceC
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
+import { useSupplies } from '@/hooks/crypto/useSupplies';
 
 // Only show these tokens
 const TOKENS = ['PLS', 'PLSX', 'INC', 'pHEX', 'eHEX'];
 
 // Customizable subtitle for each token
 const TOKEN_SUBTITLES: Record<string, string> = {
-  PLS: 'Gas Token',
+  PLS: 'Gas Coin',
   PLSX: 'Dex Token',
-  INC: 'Green Coin',
+  INC: 'Green Token',
   pHEX: 'Real HEX',
   eHEX: 'Also real HEX',
 };
@@ -51,6 +52,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
 
   // Use batched price fetching with SWR's built-in caching
   const { prices, isLoading: pricesLoading } = useTokenPrices(TOKENS);
+  const { supplies, isLoading: suppliesLoading } = useSupplies();
   
   // Historic change for each token
   const changeDataMap = Object.fromEntries(
@@ -61,7 +63,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   const isHistoricLoading = Object.values(changeDataMap).some(data => data.isLoading);
 
   // Overall loading state
-  const isLoading = pricesLoading || isHistoricLoading;
+  const isLoading = pricesLoading || isHistoricLoading || suppliesLoading;
 
   return (
     <div className="w-full max-w-5xl mx-auto my-8 rounded-xl p-4 h-auto relative flex flex-col gap-4">
@@ -110,6 +112,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
           const priceData = prices?.[token];
           const { percentChange } = changeDataMap[token];
           const price = priceData?.price;
+          const supply = supplies?.[token];
           
           // Map period to DexScreener format
           const dexPeriodMap = {
@@ -134,7 +137,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
           return (
             <motion.div 
               key={token}
-              className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col gap-2 border-2 border-white/10 relative"
+              className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col gap-0 border-2 border-white/10 relative"
               initial={{ opacity: 0 }}
               animate={{ opacity: isLoading ? 0 : 1 }}
               transition={{ duration: 0.3 }}
@@ -145,7 +148,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                   href={`https://dexscreener.com/${TOKEN_CONSTANTS[token].PAIR.chain}/${TOKEN_CONSTANTS[token].PAIR.pairAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="absolute text-white/20 hover:text-white/70 transition-colors duration-100 ease-in-out top-8 right-6 z-10"
+                  className="absolute text-white/30 hover:text-white/70 transition-colors duration-100 ease-in-out top-8 right-6 z-10"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chart-line" aria-hidden="true">
                     <path d="M3 3v16a2 2 0 0 0 2 2h16"></path>
@@ -182,6 +185,36 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                   {change == null ? '--' : formatPercent(change)}
                 </span>
               </div>
+              {/* Add PLS price equivalent for PLSX */}
+              {token === 'PLSX' && prices?.PLS?.price && (
+                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                  {formatNumber(price / prices.PLS.price, { decimals: 2 })} PLS | {formatNumber(price/0.0001, { decimals: 2 })}x Sac
+                </div>
+              )}
+              {/* Add PLS price equivalent for INC */}
+              {token === 'INC' && prices?.PLS?.price && (
+                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS
+                </div>
+              )}
+              {/* Add Sac ratio for PLS */}
+              {token === 'PLS' && (
+                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                  {formatNumber(price/0.0001, { decimals: 2 })}x Sac
+                </div>
+              )}
+              {/* Add PLS price equivalent and ratio for pHEX */}
+              {token === 'pHEX' && prices?.PLS?.price && prices?.eHEX?.price && (
+                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} eHEX | incl. eHEX: <u>{formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}</u>
+                </div>
+              )}
+              {/* Add PLS price equivalent and pHEX ratio for eHEX */}
+              {token === 'eHEX' && prices?.PLS?.price && prices?.pHEX?.price && (
+                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price / prices.pHEX.price, { decimals: 2 })} pHEX
+                </div>
+              )}
               
               {/* Transaction Stats */}
               {['5m', '1h', '6h', '24h'].includes(selected) && (
@@ -239,7 +272,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
         >
           <div>
             <h3 className="text-2xl font-bold text-white mb-6">Get Started</h3>
-            <ol className="text-gray-400 text-md list-decimal pl-5 [&>li]:mb-4">
+            <ol className="text-gray-400 text-sm md:text-md list-decimal pl-5 [&>li]:mb-4">
               <li>Bridge your assets to <a href="https://bridge.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">PulseChain</a></li>
               <li>Swap tokens <a href="https://pulsex.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">on PulseX</a></li>
               <li>Create your first <a href="https://hex.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">HEX stake</a></li>
