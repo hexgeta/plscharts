@@ -9,15 +9,61 @@ export const revalidate = 2592000; // 30 days in seconds
 
 export const metadata = {
   title: 'PlsCharts.com',
-  description: 'PlsCharts.com',
+  description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more',
+  keywords: 'PulseChain, PLS, HEX, PLSX, price charts, crypto statistics, PulseX',
+  manifest: '/manifest.json',
   icons: {
     icon: [
       {
         url: '/favicon.png',
         type: 'image/png',
+        sizes: '128x128'
       }
     ],
+    apple: [
+      {
+        url: '/apple-icon.png',
+        type: 'image/png',
+        sizes: '180x180'
+      }
+    ]
   },
+  appleWebApp: {
+    capable: true,
+    title: 'PlsCharts',
+    statusBarStyle: 'default'
+  },
+  openGraph: {
+    title: 'PlsCharts.com',
+    description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more',
+    url: 'https://www.plscharts.com',
+    siteName: 'PlsCharts.com',
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        type: 'image/png',
+        alt: 'PlsCharts.com Preview'
+      }
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PlsCharts.com',
+    description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more',
+    images: {
+      url: '/opengraph-image.png',
+      type: 'image/png',
+      width: 1200,
+      height: 630
+    }
+  },
+  other: {
+    'mobile-web-app-capable': 'yes'
+  }
 }
 
 export const viewport = {
