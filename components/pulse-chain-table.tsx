@@ -73,7 +73,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
         transition={{ duration: 0.3 }}
         className="text-3xl font-bold text-white/15 select-none pointer-events-none static mb-2 ml-4 md:absolute md:top-4 md:left-6 md:z-10 md:mb-0 md:ml-0"
       >
-        Day {pulseChainDay}
+        Day {pulseChainDay} ~ PlsCharts.com
       </motion.div>
       {/* Toggle group */}
       <motion.div 
