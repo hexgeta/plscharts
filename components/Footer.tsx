@@ -13,6 +13,19 @@ const Footer = () => {
           <h3 className="text-s font-semibold mb-2">
             PlsCharts.com {CURRENT_YEAR}
           </h3>
+          <p className="text-sm text-[rgb(153,153,153)]">
+            Donate: <span 
+              className="break-all cursor-pointer hover:text-gray-300" 
+              onClick={() => {
+                navigator.clipboard.writeText('0x1F12DAE5450522b445Fe1882C4F8D2Cf67B38a43');
+                const popup = document.createElement('div');
+                popup.textContent = '✓ Copied!';
+                popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[1000]';
+                document.body.appendChild(popup);
+                setTimeout(() => popup.remove(), 2000);
+              }}
+            >0x1F12DAE5450522b445Fe1882C4F8D2Cf67B38a43</span>
+          </p>
         </div>
         <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">Links</h3>
@@ -26,7 +39,7 @@ const Footer = () => {
         <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">Resources</h3>
           <ul className="text-sm space-y-1">
-            <li><a href="https://gotealdefi.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">GoRealDefi</a></li>
+            <li><a href="https://gorealdefi.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">GoRealDefi</a></li>
             <li><a href="https://scan.pulsechain.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Block Explorer</a></li>
           </ul>
         </div>
