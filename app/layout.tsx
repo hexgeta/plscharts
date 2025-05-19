@@ -35,12 +35,12 @@ export const metadata = {
   },
   openGraph: {
     title: 'PlsCharts.com',
-    description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more',
+    description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more!',
     url: 'https://www.plscharts.com',
     siteName: 'PlsCharts.com',
     images: [
       {
-        url: '/opengraph-image.png',
+        url: 'https://www.plscharts.com/opengraph-image.png',
         width: 1200,
         height: 630,
         type: 'image/png',
@@ -53,9 +53,9 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'PlsCharts.com',
-    description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more',
+    description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more!',
     images: {
-      url: '/opengraph-image.png',
+      url: 'https://www.plscharts.com/opengraph-image.png',
       type: 'image/png',
       width: 1200,
       height: 630
