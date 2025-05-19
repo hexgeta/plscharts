@@ -9,7 +9,7 @@ export const revalidate = 2592000; // 30 days in seconds
 
 export const metadata = {
   title: 'PlsCharts.com',
-  description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more',
+  description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more!',
   keywords: 'PulseChain, PLS, HEX, PLSX, price charts, crypto statistics, PulseX',
   manifest: '/manifest.json',
   icons: {
@@ -22,7 +22,7 @@ export const metadata = {
     ],
     apple: [
       {
-        url: '/apple-icon.png',
+        url: '/favicon.png',
         type: 'image/png',
         sizes: '180x180'
       }
