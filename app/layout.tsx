@@ -79,6 +79,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="font-sans">
       <head>
+        <script defer data-domain="plscharts.com" src="https://plausible.io/js/script.js"></script>
         <FontLoader weight="regular" priority={true} />
         <FontLoader weight="bold" />
       </head>
