@@ -1,6 +1,6 @@
 'use client';
 
-import { TOKEN_CONSTANTS, TOKEN_LOGOS } from '@/constants/crypto';
+import { TOKEN_CONSTANTS } from '@/constants/crypto';
 import { formatNumber, formatPrice, formatPercent, formatPriceSigFig } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
 import { CoinLogo } from '@/components/ui/CoinLogo';
@@ -9,18 +9,17 @@ import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceC
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
-import { useSupplies } from '@/hooks/crypto/useSupplies';
 
-// Only show these tokens
-const TOKENS = ['PLS', 'PLSX', 'INC', 'pHEX', 'eHEX'];
+// Only show these tokens in this exact order
+const TOKENS = ['PLS', 'PLSX', 'INC', 'HEX', 'eHEX'];
 
 // Customizable subtitle for each token
 const TOKEN_SUBTITLES: Record<string, string> = {
-  PLS: 'Gas Coin',
-  PLSX: 'Dex Token',
-  INC: 'Green Token',
-  pHEX: 'Real HEX',
-  eHEX: 'Also real HEX',
+  'PLS': 'Gas Coin',
+  'PLSX': 'Dex Token',
+  'INC': 'Green Token',
+  'HEX': 'PulseChain HEX',
+  'eHEX': 'Ethereum HEX',
 };
 
 const PERIODS = ['5m', '1h', '6h', '24h', '7d', '30d', '90d', 'ATL'];
@@ -31,39 +30,49 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const PULSECHAIN_START_DATE = new Date(Date.UTC(2023, 4, 13, 0, 0, 0));
 
 export function usePulsechainDay() {
-  return useMemo(() => {
-    const nowUTC = new Date(Date.UTC(
-      new Date().getUTCFullYear(),
-      new Date().getUTCMonth(),
-      new Date().getUTCDate()
-    ));
-    const diff = nowUTC.getTime() - PULSECHAIN_START_DATE.getTime();
-    return Math.floor(diff / MS_PER_DAY) + 1;
-  }, []);
+  return Math.floor((Date.now() - PULSECHAIN_START_DATE.getTime()) / MS_PER_DAY) + 1;
 }
 
 interface PulseChainTableProps {
   LoadingComponent?: React.ComponentType;
 }
 
+// Helper function to get token config from constants
+const getTokenConfig = (ticker: string) => {
+  const config = TOKEN_CONSTANTS.find(t => t.ticker === ticker);
+  if (!config) throw new Error(`No config found for token ${ticker}`);
+  return config;
+};
+
 export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   const [selected, setSelected] = useState<Period>('24h');
   const pulseChainDay = usePulsechainDay();
 
-  // Use batched price fetching with SWR's built-in caching
-  const { prices, isLoading: pricesLoading } = useTokenPrices(TOKENS);
-  const { supplies, isLoading: suppliesLoading } = useSupplies();
+  const { prices, isLoading: pricesLoading, error } = useTokenPrices(TOKENS);
   
   // Historic change for each token
   const changeDataMap = Object.fromEntries(
-    TOKENS.map(token => [token, useHistoricPriceChange(token)])
+    TOKENS.map(ticker => [
+      ticker, 
+      useHistoricPriceChange(ticker)
+    ])
   );
 
   // Check if any historic data is still loading
   const isHistoricLoading = Object.values(changeDataMap).some(data => data.isLoading);
 
   // Overall loading state
-  const isLoading = pricesLoading || isHistoricLoading || suppliesLoading;
+  const isLoading = pricesLoading || isHistoricLoading;
+
+  // Show loading state only if we have no prices object at all
+  if (!prices && pricesLoading) {
+    return LoadingComponent ? <LoadingComponent /> : null;
+  }
+
+  // If we have an error, we should still show the table
+  if (error) {
+    console.error('Error loading token prices:', error);
+  }
 
   return (
     <div className="w-full max-w-5xl mx-auto my-8 rounded-xl p-4 h-auto relative flex flex-col gap-4">
@@ -108,11 +117,11 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
         </div>
       </motion.div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {TOKENS.map(token => {
-          const priceData = prices?.[token];
-          const { percentChange } = changeDataMap[token];
+        {TOKENS.map(ticker => {
+          const config = getTokenConfig(ticker);
+          const priceData = prices[ticker];
+          const { percentChange } = changeDataMap[ticker];
           const price = priceData?.price;
-          const supply = supplies?.[token];
           
           // Map period to DexScreener format
           const dexPeriodMap = {
@@ -136,16 +145,16 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
 
           return (
             <motion.div 
-              key={token}
+              key={ticker}
               className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col gap-0 border-2 border-white/10 relative"
               initial={{ opacity: 0 }}
               animate={{ opacity: isLoading ? 0 : 1 }}
               transition={{ duration: 0.3 }}
             >
               {/* Chart icon link in top right */}
-              {TOKEN_CONSTANTS[token]?.PAIR && (
+              {config.dexs && (
                 <Link
-                  href={`https://dexscreener.com/${TOKEN_CONSTANTS[token].PAIR.chain}/${TOKEN_CONSTANTS[token].PAIR.pairAddress}`}
+                  href={`https://dexscreener.com/${config.chain === 1 ? 'ethereum' : 'pulsechain'}/${Array.isArray(config.dexs) ? config.dexs[0] : config.dexs}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="absolute text-white/30 hover:text-white/70 transition-colors duration-100 ease-in-out top-8 right-6 z-10"
@@ -158,13 +167,13 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               )}
               <div className="flex items-center gap-2 mb-2">
                 <CoinLogo 
-                  symbol={token} 
+                  symbol={ticker}
                   size="lg"
                   priority={true}
                 />
                 <div>
-                  <div className="font-bold text-white">{token}</div>
-                  <div className="text-xs text-gray-400">{TOKEN_SUBTITLES[token] || 'Token'}</div>
+                  <div className="font-bold text-white">{ticker}</div>
+                  <div className="text-xs text-gray-400">{TOKEN_SUBTITLES[ticker] || 'Token'}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -186,33 +195,33 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                 </span>
               </div>
               {/* Add PLS price equivalent for PLSX */}
-              {token === 'PLSX' && prices?.PLS?.price && (
+              {ticker === "PLSX" && prices?.PLS?.price && (
                 <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 2 })} PLS | {formatNumber(price/0.0001, { decimals: 2 })}x Sac
                 </div>
               )}
               {/* Add PLS price equivalent for INC */}
-              {token === 'INC' && prices?.PLS?.price && (
+              {ticker === "INC" && prices?.PLS?.price && (
                 <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS
                 </div>
               )}
               {/* Add Sac ratio for PLS */}
-              {token === 'PLS' && (
+              {ticker === "PLS" && (
                 <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price/0.0001, { decimals: 2 })}x Sac
                 </div>
               )}
-              {/* Add PLS price equivalent and ratio for pHEX */}
-              {token === 'pHEX' && prices?.PLS?.price && prices?.eHEX?.price && (
+              {/* Add PLS price equivalent and ratio for HEX */}
+              {ticker === "HEX" && prices?.PLS?.price && prices?.eHEX?.price && (
                 <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
-                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} eHEX | incl. eHEX: <u>{formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}</u>
+                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} eHEX | incl. eHEX: {formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}
                 </div>
               )}
-              {/* Add PLS price equivalent and pHEX ratio for eHEX */}
-              {token === 'eHEX' && prices?.PLS?.price && prices?.pHEX?.price && (
+              {/* Add PLS price equivalent and HEX ratio for eHEX */}
+              {ticker === "eHEX" && prices?.PLS?.price && prices?.HEX?.price && (
                 <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
-                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price / prices.pHEX.price, { decimals: 2 })} pHEX
+                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price / prices.HEX.price, { decimals: 2 })} HEX
                 </div>
               )}
               

@@ -20,44 +20,38 @@ export function formatNumber(value: number, options: {
   if (percentage) {
     // If the value is already a percentage (like from DexScreener), don't multiply by 100
     formattedValue = alreadyPercentage ? value : value * 100
-    return prefix + new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    }).format(formattedValue) + '%'
+    return prefix + Number(formattedValue.toFixed(decimals)).toString() + '%'
   }
 
   if (compact) {
     if (value >= 1e15) {
       const q = value / 1e15
-      return prefix + (q < 10 ? q.toFixed(2) : q < 100 ? q.toFixed(1) : Math.round(q)) + 'Q' + suffix
+      return prefix + (q < 10 ? Number(q.toFixed(2)) : q < 100 ? Number(q.toFixed(1)) : Math.round(q)) + 'Q' + suffix
     }
     if (value >= 1e12) {
       const t = value / 1e12
-      return prefix + (t < 10 ? t.toFixed(2) : t < 100 ? t.toFixed(1) : Math.round(t)) + 'T' + suffix
+      return prefix + (t < 10 ? Number(t.toFixed(2)) : t < 100 ? Number(t.toFixed(1)) : Math.round(t)) + 'T' + suffix
     }
     if (value >= 1e9) {
       const b = value / 1e9
-      return prefix + (b < 10 ? b.toFixed(2) : b < 100 ? b.toFixed(1) : Math.round(b)) + 'B' + suffix
+      return prefix + (b < 10 ? Number(b.toFixed(2)) : b < 100 ? Number(b.toFixed(1)) : Math.round(b)) + 'B' + suffix
     }
     if (value >= 1e6) {
       const m = value / 1e6
-      return prefix + (m < 10 ? m.toFixed(2) : m < 100 ? m.toFixed(1) : Math.round(m)) + 'M' + suffix
+      return prefix + (m < 10 ? Number(m.toFixed(2)) : m < 100 ? Number(m.toFixed(1)) : Math.round(m)) + 'M' + suffix
     }
     if (value >= 1e3) {
       const k = value / 1e3
-      return prefix + (k < 10 ? k.toFixed(2) : k < 100 ? k.toFixed(1) : Math.round(k)) + 'K' + suffix
+      return prefix + (k < 10 ? Number(k.toFixed(2)) : k < 100 ? Number(k.toFixed(1)) : Math.round(k)) + 'K' + suffix
     }
   }
 
   // For very small numbers (like crypto prices)
   if (value < 0.001) {
-    return prefix + value.toFixed(7) + suffix
+    return prefix + Number(value.toFixed(7)).toString() + suffix
   }
 
-  return prefix + new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  }).format(value) + suffix
+  return prefix + Number(value.toFixed(decimals)).toString() + suffix
 }
 
 export function formatPrice(value: number) {

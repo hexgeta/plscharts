@@ -36,6 +36,7 @@ export function CoinLogo({
     <img
       src={logoPath}
       alt={`${symbol} logo`}
+      draggable="false"
       className={cn(
         LOGO_SIZES[size],
         'object-contain',

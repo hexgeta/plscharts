@@ -14,6 +14,15 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY!
 )
 
+// Calculate seconds until next UTC+1
+function getSecondsUntilNextUTC1(): number {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(1, 0, 0, 0);
+  return Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const symbol = searchParams.get('symbol')
@@ -58,12 +67,17 @@ export async function GET(request: NextRequest) {
 
     console.log('[Historic API] Success, returned rows:', parsed.length)
 
-    // Return response with caching headers
+    // Calculate cache duration until next UTC+1
+    const maxAge = getSecondsUntilNextUTC1();
+    
+    // Return response with caching headers that expire at UTC+1
     return new NextResponse(JSON.stringify({ data: rows }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate'
+        'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=60`,
+        'CDN-Cache-Control': `public, max-age=${maxAge}`,
+        'Vercel-CDN-Cache-Control': `public, max-age=${maxAge}`,
       }
     });
   } catch (error) {

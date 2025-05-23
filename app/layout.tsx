@@ -3,11 +3,15 @@ import { FontLoader } from '@/components/ui/FontLoader'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { Providers } from '@/components/Providers'
+import type { Metadata } from 'next'
 
 // Static layout with revalidation
 export const revalidate = 2592000; // 30 days in seconds
 
-export const metadata = {
+// Essential tokens that should be preloaded
+const ESSENTIAL_TOKENS = ['PLS', 'PLSX', 'INC', 'pHEX', 'eHEX'];
+
+export const metadata: Metadata = {
   title: 'PlsCharts.com',
   description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more!',
   keywords: 'PulseChain, PLS, HEX, PLSX, price charts, crypto statistics, PulseX',
@@ -82,8 +86,18 @@ export default function RootLayout({
         <script defer data-domain="plscharts.com" src="https://plausible.io/js/script.js"></script>
         <FontLoader weight="regular" priority={true} />
         <FontLoader weight="bold" />
+        {/* Preload essential token logos */}
+        {ESSENTIAL_TOKENS.map(token => (
+          <link 
+            key={token}
+            rel="preload"
+            href={`/coin-logos/${token.replace(/^[pe]/, '')}.svg`}
+            as="image"
+            type="image/svg+xml"
+          />
+        ))}
       </head>
-      <body className="min-h-screen bg-black text-white">
+      <body className="no-select min-h-screen bg-black text-white">
         <Providers>
           <div className="flex flex-col min-h-screen">
             <NavBar />

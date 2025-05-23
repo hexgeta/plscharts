@@ -113,12 +113,7 @@ a {
   @apply text-inherit no-underline;
 }
 
-/* Adjust text color for inputs and textareas */
-input,
-textarea {
-  @apply text-[var(--background-color)];
-}
-
+/* Remove the problematic input styles */
 /* Optional: Style scrollbars for webkit browsers */
 ::-webkit-scrollbar {
   @apply w-3;
