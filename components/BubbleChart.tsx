@@ -452,8 +452,8 @@ export default function BubbleChart() {
         const sizeRange = BUBBLE_CONFIG.size.max - BUBBLE_CONFIG.size.min;
         
         // Dynamic base scale based on time frame
-        const dynamicBaseScale = selectedTimeFrame === 'h1' ? 1.2 :   // 1H: larger scale for small changes
-                                selectedTimeFrame === 'h6' ? 0.6 :   // 6H: medium scale
+        const dynamicBaseScale = selectedTimeFrame === 'h1' ? 0.8 :   // 1H: larger scale for small changes
+                                selectedTimeFrame === 'h6' ? 0.5 :   // 6H: medium scale
                                 0.4;                                  // 24H: smaller scale for large changes
         
         const radius = BUBBLE_CONFIG.size.min + (sizeRange * normalizedChange * dynamicBaseScale);

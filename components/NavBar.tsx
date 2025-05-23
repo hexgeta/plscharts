@@ -27,8 +27,8 @@ const NavBar = () => {
 
   return (
     <nav className="w-full bg-black/60 px-4 md:px-8 py-4 top-0 left-0 right-0 z-[100] border-b border-[rgba(255,255,255,0.2)]">
-      <div className="max-w-[1200px] mx-auto flex items-bottom">
-        <div className="flex items-center space-x-4 md:space-x-8">
+      <div className="max-w-[1200px] mx-auto flex items-end">
+        <div className="flex items-end space-x-4 md:space-x-8">
           <Link 
             href="/" 
             className={cn(
