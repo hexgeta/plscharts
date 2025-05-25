@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
 
+// Force dynamic rendering since we use request headers
+export const dynamic = 'force-dynamic';
+
 // RPC endpoints
 const RPC_ENDPOINTS = {
   pulsechain: 'https://rpc-pulsechain.g4mm4.io',
