@@ -322,6 +322,7 @@ export default function BubbleChart() {
   }))
   const [bubbles, setBubbles] = useState<BubbleBody[]>([])
   const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 })
+  const [isClient, setIsClient] = useState(false)
   
   // Add state to control initial price fetching
   const [hasInitialData, setHasInitialData] = useState(false)
@@ -329,6 +330,11 @@ export default function BubbleChart() {
   
   // Add state for time frame selection
   const [selectedTimeFrame, setSelectedTimeFrame] = useState<'h1' | 'h6' | 'h24'>('h24')
+
+  // Set client-side flag
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Get all valid tokens from TOKEN_CONSTANTS, filtering out tokens without valid DEX addresses
   const validTokens = TOKEN_CONSTANTS
@@ -391,8 +397,12 @@ export default function BubbleChart() {
   // Determine if we should show loading
   const showLoading = !hasInitialData || isLoading || !activePrices || Object.keys(activePrices || {}).length === 0;
 
-  // Detect if we're in Chrome dev tools mobile simulation
-  const isDevToolsSimulation = windowDimensions.width < 768 && window.navigator.userAgent.includes('Chrome') && !('ontouchstart' in window);
+  // Detect if we're in Chrome dev tools mobile simulation - only on client side
+  const isDevToolsSimulation = isClient && 
+    windowDimensions.width < 768 && 
+    typeof window !== 'undefined' && 
+    window.navigator.userAgent.includes('Chrome') && 
+    !('ontouchstart' in window);
   
   // Early return for problematic mobile simulation
   if (isDevToolsSimulation && windowDimensions.width > 0) {
@@ -408,6 +418,8 @@ export default function BubbleChart() {
   }
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const handleResize = () => {
       setWindowDimensions({
         width: window.innerWidth,
