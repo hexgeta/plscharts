@@ -163,8 +163,8 @@ export async function GET(request: NextRequest) {
 
     // Initialize Supabase client inside the function to avoid build-time errors
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!
     );
 
     console.log('Starting daily token supply collection...');
