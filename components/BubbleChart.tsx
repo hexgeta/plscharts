@@ -717,7 +717,7 @@ export default function BubbleChart() {
           <div
             key={bubble.content.ticker}
             onClick={() => {
-              if (config && config.dexs) {
+              if (config && config.dexs && typeof window !== 'undefined') {
                 const dexAddress = Array.isArray(config.dexs) ? config.dexs[0] : config.dexs;
                 const chainName = config.chain === 1 ? 'ethereum' : 'pulsechain';
                 window.open(`https://dexscreener.com/${chainName}/${dexAddress}`, '_blank');
@@ -725,7 +725,7 @@ export default function BubbleChart() {
             }}
             onAuxClick={(e) => {
               // Middle click is button 1
-              if (e.button === 1 && config && config.dexs) {
+              if (e.button === 1 && config && config.dexs && typeof window !== 'undefined') {
                 e.preventDefault();
                 const dexAddress = Array.isArray(config.dexs) ? config.dexs[0] : config.dexs;
                 const chainName = config.chain === 1 ? 'ethereum' : 'pulsechain';

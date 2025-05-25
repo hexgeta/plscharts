@@ -93,8 +93,8 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
   
   const supplies: TokenSupplyData[] = [];
   
-  // Process tokens in batches to avoid overwhelming the RPC endpoints
-  const batchSize = 10;
+  // Increased batch size and reduced delay for Pro plan
+  const batchSize = 20; // Increased from 10
   const tokens = TOKEN_CONSTANTS.filter(token => 
     token.a !== "0x0" && // Skip native tokens
     token.a && 
@@ -105,6 +105,10 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
   
   for (let i = 0; i < tokens.length; i += batchSize) {
     const batch = tokens.slice(i, i + batchSize);
+    const batchNumber = Math.floor(i / batchSize) + 1;
+    const totalBatches = Math.ceil(tokens.length / batchSize);
+    
+    console.log(`Processing batch ${batchNumber}/${totalBatches} (tokens ${i + 1}-${Math.min(i + batchSize, tokens.length)})`);
     
     const batchPromises = batch.map(async (token) => {
       try {
@@ -147,9 +151,9 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
     const batchResults = await Promise.all(batchPromises);
     supplies.push(...batchResults);
     
-    // Small delay between batches to be respectful to RPC endpoints
+    // Reduced delay between batches (from 1000ms to 300ms)
     if (i + batchSize < tokens.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
   }
   
@@ -157,6 +161,8 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
 }
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     // Verify cron secret to ensure this is called by Vercel
     const authHeader = request.headers.get('authorization');
@@ -176,22 +182,46 @@ export async function GET(request: NextRequest) {
     const supplies = await fetchAllTokenSupplies();
     
     console.log(`Collected supplies for ${supplies.length} tokens`);
+    console.log(`Processing took ${Date.now() - startTime}ms`);
     
-    // Save to Supabase
+    // Save to Supabase with better error handling
+    console.log('Saving to Supabase...');
     const { data, error } = await supabase
       .from('daily_token_supplies')
       .insert(supplies);
 
     if (error) {
       console.error('Supabase error:', error);
-      throw error;
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      
+      // Try to save in smaller batches if the full insert fails
+      console.log('Attempting to save in smaller batches...');
+      const batchSize = 50;
+      let savedCount = 0;
+      
+      for (let i = 0; i < supplies.length; i += batchSize) {
+        const batch = supplies.slice(i, i + batchSize);
+        const { error: batchError } = await supabase
+          .from('daily_token_supplies')
+          .insert(batch);
+          
+        if (batchError) {
+          console.error(`Batch ${i}-${i + batch.length} failed:`, batchError);
+        } else {
+          savedCount += batch.length;
+          console.log(`Saved batch ${i}-${i + batch.length} successfully`);
+        }
+      }
+      
+      console.log(`Saved ${savedCount}/${supplies.length} records in batches`);
+    } else {
+      console.log('Successfully saved all token supplies to database');
     }
-
-    console.log('Successfully saved token supplies to database');
     
     // Summary statistics
     const totalSupplies = supplies.reduce((sum, token) => sum + token.totalSupplyFormatted, 0);
     const successfulFetches = supplies.filter(s => s.totalSupplyFormatted > 0).length;
+    const executionTime = Date.now() - startTime;
     
     return NextResponse.json({ 
       success: true,
@@ -200,14 +230,22 @@ export async function GET(request: NextRequest) {
         successfulFetches,
         failedFetches: supplies.length - successfulFetches,
         totalCombinedSupply: totalSupplies,
+        executionTimeMs: executionTime,
         timestamp: new Date().toISOString()
       }
     });
     
   } catch (error) {
+    const executionTime = Date.now() - startTime;
     console.error('Cron job failed:', error);
+    console.error('Execution time before failure:', executionTime, 'ms');
+    
     return NextResponse.json(
-      { error: 'Failed to collect token supplies', details: error.message },
+      { 
+        error: 'Failed to collect token supplies', 
+        details: error.message,
+        executionTimeMs: executionTime
+      },
       { status: 500 }
     );
   }
