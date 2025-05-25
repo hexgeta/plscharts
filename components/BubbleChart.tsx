@@ -121,14 +121,14 @@ const SUPPORTED_TICKERS = [
   // 'CREAM',
   // 'MATIC',
   'ARB',
-  'PAXG',
+  // 'PAXG',
   // 'XAUt',
   'pWBTC',
   'pMANA',
   'pSAND',
   'pLINK',
   'pBAT',
-  'GRT',
+  // 'GRT',
   'pTON',
   'pENS',
   // 'SAFE',
@@ -228,6 +228,20 @@ const BUBBLE_CONFIG = {
   // Options: 'linear' (1:1), 'log' (compressed), 'log2' (more compressed), 'log3' (most compressed)
   sizeScale: 'linear',  // Changed to linear for more dramatic size differences
   
+  // Time frame scaling factors
+  timeFrameScales: {
+    h1: 0.8,   // 1H: larger scale for small changes
+    h6: 0.5,   // 6H: medium scale
+    h24: 0.4   // 24H: smaller scale for large changes
+  },
+  
+  // Device scaling factors
+  deviceScales: {
+    mobile: 0.7,      // Mobile: 70% of desktop size
+    desktop: 1.0,     // Desktop: full size
+    breakpoint: 768   // Mobile breakpoint in pixels
+  },
+  
   // Physics parameters
   physics: {
     restitution: 0.0,     // Bounciness (0-1)
@@ -258,7 +272,7 @@ const BUBBLE_CONFIG = {
   // Size constraints (in pixels)
   size: {
     min: 10,            // Smallest possible bubble (10-50px)
-    max: 200,           // Largest possible bubble (50-200px)
+    max: 100,           // Largest possible bubble (50-200px)
   },
 
   // Space utilization
@@ -377,6 +391,22 @@ export default function BubbleChart() {
   // Determine if we should show loading
   const showLoading = !hasInitialData || isLoading || !activePrices || Object.keys(activePrices || {}).length === 0;
 
+  // Detect if we're in Chrome dev tools mobile simulation
+  const isDevToolsSimulation = windowDimensions.width < 768 && window.navigator.userAgent.includes('Chrome') && !('ontouchstart' in window);
+  
+  // Early return for problematic mobile simulation
+  if (isDevToolsSimulation && windowDimensions.width > 0) {
+    return (
+      <div className="relative w-full h-screen bg-black overflow-hidden no-select flex items-center justify-center">
+        <div className="text-white text-center">
+          <h2 className="text-2xl mb-4">Mobile Preview</h2>
+          <p className="text-gray-400">Please view on actual mobile device or desktop</p>
+          <p className="text-gray-400 text-sm mt-2">Chrome dev tools mobile simulation may cause performance issues</p>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     const handleResize = () => {
       setWindowDimensions({
@@ -452,9 +482,14 @@ export default function BubbleChart() {
         const sizeRange = BUBBLE_CONFIG.size.max - BUBBLE_CONFIG.size.min;
         
         // Dynamic base scale based on time frame
-        const dynamicBaseScale = selectedTimeFrame === 'h1' ? 0.8 :   // 1H: larger scale for small changes
-                                selectedTimeFrame === 'h6' ? 0.5 :   // 6H: medium scale
-                                0.4;                                  // 24H: smaller scale for large changes
+        const timeFrameScale = BUBBLE_CONFIG.timeFrameScales[selectedTimeFrame];
+        
+        // Mobile vs Desktop scaling
+        const isMobile = windowDimensions.width < BUBBLE_CONFIG.deviceScales.breakpoint;
+        const deviceScale = isMobile ? BUBBLE_CONFIG.deviceScales.mobile : BUBBLE_CONFIG.deviceScales.desktop;
+        
+        // Combined scaling
+        const dynamicBaseScale = timeFrameScale * deviceScale;
         
         const radius = BUBBLE_CONFIG.size.min + (sizeRange * normalizedChange * dynamicBaseScale);
 
