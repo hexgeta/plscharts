@@ -42,32 +42,32 @@ export default function LeaguesPage() {
           className="max-w-[1200px] mx-auto w-full relative flex flex-col gap-4 sm:gap-8"
         >
           {/* First Row - Main Tokens */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-[34px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <LeagueTable tokenTicker="PLS" />
             <LeagueTable tokenTicker="PLSX" />
             <LeagueTable tokenTicker="INC" />
           </div>
 
           {/* HEX Row */}
-          <div className="grid grid-cols-3 sm:grid-cols-2 gap-4 sm:gap-[34px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <LeagueTable tokenTicker="HEX" />
             <LeagueTable tokenTicker="eHEX" />
           </div>
 
           {/* HDRN Row */}
-          <div className="grid grid-cols-3 md:grid-cols-2 gap-4 sm:gap-[34px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <LeagueTable tokenTicker="HDRN" />
             <LeagueTable tokenTicker="eHDRN" />
           </div>
 
           {/* ICSA Row */}
-          <div className="grid grid-cols-3 md:grid-cols-2 gap-4 sm:gap-[34px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <LeagueTable tokenTicker="ICSA" />
             <LeagueTable tokenTicker="eICSA" />
           </div>
 
           {/* COM Row */}
-          <div className="grid grid-cols-3 md:grid-cols-2 gap-4 sm:gap-[34px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <LeagueTable tokenTicker="COM" />
             <LeagueTable tokenTicker="eCOM" />
           </div>

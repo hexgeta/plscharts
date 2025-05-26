@@ -238,8 +238,8 @@ export default function LeagueTable({ tokenTicker, containerStyle = true }: Leag
   const content = (
     <div className="w-full">
       {/* Header */}
-      <div className="grid grid-cols-3 items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
-        <div className="flex items-center space-x-2 sm:space-x-3">
+      <div className="grid grid-cols-3 items-center gap-4 mb-6">
+        <div className="flex items-center space-x-3">
           <CoinLogo
             symbol={tokenTicker}
             size="xl"
@@ -247,30 +247,30 @@ export default function LeagueTable({ tokenTicker, containerStyle = true }: Leag
             variant="default"
           />
           <div>
-            <div className="text-white font-bold text-base sm:text-xl">{tokenTicker}</div>
-            <div className="text-gray-400 text-xs sm:text-sm">{tokenTicker}</div>
+            <div className="text-white font-bold text-xl">{tokenTicker}</div>
+            <div className="text-gray-400 text-sm">{tokenTicker}</div>
           </div>
         </div>
         <div className="text-center">
-          <div className="text-gray-400 text-xs sm:text-sm">Market Cap</div>
-          <div className="text-white font-bold text-sm sm:text-base">{formatHeaderMarketCap(totalMarketCap)}</div>
+          <div className="text-gray-400 text-sm">Market Cap</div>
+          <div className="text-white font-bold">{formatHeaderMarketCap(totalMarketCap)}</div>
         </div>
         <div className="text-right">
-          <div className="text-gray-400 text-xs sm:text-sm">Supply</div>
-          <div className="text-white font-bold text-sm sm:text-base">{formatCompactNumber(totalSupply)}</div>
+          <div className="text-gray-400 text-sm">Supply</div>
+          <div className="text-white font-bold">{formatCompactNumber(totalSupply)}</div>
         </div>
       </div>
 
       {/* League Table */}
-      <div className="space-y-2 sm:space-y-3">
+      <div className="space-y-3">
         {leagueRanks.map((rank, index) => (
           <div
             key={rank.name}
-            className="grid grid-cols-3 items-center gap-2 sm:gap-4 py-1.5 sm:py-2"
+            className="grid grid-cols-3 items-center gap-4 py-2"
           >
             {/* Rank Info - Left Aligned */}
-            <div className="flex items-center space-x-1.5 sm:space-x-2">
-              <div className="w-5 h-5 sm:w-6 sm:h-6 relative">
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 relative">
                 <Image
                   src={rank.icon}
                   alt={rank.name}
@@ -278,30 +278,30 @@ export default function LeagueTable({ tokenTicker, containerStyle = true }: Leag
                   className="object-contain"
                 />
               </div>
-              <div className="text-white font-bold text-xs sm:text-sm">
+              <div className="text-white font-bold text-sm">
                 {rank.name}
               </div>
             </div>
 
             {/* Market Cap - Center Aligned */}
-            <div className="text-white font-medium text-center text-xs sm:text-sm">
+            <div className="text-white font-medium text-center">
               {formatLeagueMarketCap(rank.marketCap)}
             </div>
 
             {/* Supply Required - Right Aligned */}
-            <div className="text-gray-400 text-right flex items-center justify-end text-xs sm:text-sm">
+            <div className="text-gray-400 text-right flex items-center justify-end">
               {formatCompactNumber(rank.minTokens)}
               {(tokenTicker === 'HDRN' || tokenTicker === 'eHDRN' || tokenTicker === 'ICSA' || tokenTicker === 'eICSA') ? (
                 <img
                   src="/coin-logos/HDRN-white.svg"
                   alt={`${tokenTicker} logo`}
-                  className="w-3 h-3 sm:w-4 sm:h-4 rounded-none ml-1"
+                  className="w-4 h-4 rounded-none ml-1"
                 />
               ) : (
                 <CoinLogo
                   symbol={tokenTicker}
                   size="sm"
-                  className="brightness-0 invert rounded-none ml-1 w-3 h-3 sm:w-4 sm:h-4"
+                  className="brightness-0 invert rounded-none ml-1"
                   variant="no-bg"
                 />
               )}
@@ -317,7 +317,7 @@ export default function LeagueTable({ tokenTicker, containerStyle = true }: Leag
   }
 
   return (
-    <div className="bg-black border-2 border-white/10 rounded-2xl p-4 sm:p-6 w-full">
+    <div className="bg-black border-2 border-white/10 rounded-2xl p-6">
       {content}
     </div>
   )
