@@ -41,8 +41,9 @@ const NavBar = () => {
             PlsCharts.com
           </Link>
           {/* <NavLink href="/airdrop">Airdrop</NavLink> */}
-          <NavLink href="/bubbles">Bubbles</NavLink>
-        </div>
+          <NavLink href="/bubbles">Bubbles</NavLink>      
+          <NavLink href="/leagues">Leagues</NavLink>
+          </div>
       </div>
     </nav>
   );

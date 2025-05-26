@@ -183,7 +183,7 @@ export async function GET(request: NextRequest) {
     // Initialize Supabase client inside the function to avoid build-time errors
     const supabase = createClient(
       process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
     console.log('Starting daily token supply collection...');
@@ -201,15 +201,29 @@ export async function GET(request: NextRequest) {
     const date = supplies.length > 0 ? supplies[0].date : new Date().toISOString().split('T')[0];
     
     // Delete today's data first
-    await supabase
+    console.log(`Deleting existing data for date: ${date}`);
+    const { error: deleteError } = await supabase
       .from('daily_token_supplies')
       .delete()
       .eq('date', date);
 
+    if (deleteError) {
+      console.error('Error deleting existing data:', deleteError);
+      throw new Error(`Failed to delete existing data: ${deleteError.message}`);
+    }
+    console.log('Successfully deleted existing data');
+
     // Then insert new data
-    await supabase
+    console.log(`Inserting ${supplies.length} new records...`);
+    const { data: insertedData, error: insertError } = await supabase
       .from('daily_token_supplies')
       .insert(supplies);
+    
+    if (insertError) {
+      console.error('Error inserting new data:', insertError);
+      throw new Error(`Failed to insert new data: ${insertError.message}`);
+    }
+    console.log('Successfully inserted new data');
     
     // Summary statistics
     const totalSupplies = supplies.reduce((sum, token) => sum + token.total_supply_formatted, 0);
