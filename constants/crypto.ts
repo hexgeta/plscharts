@@ -631,7 +631,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0xabf663531fa10ab8116cbf7d5c6229b018a26ff9",
   dexs: ["0x3819f64f282bf135d62168c1e513280daf905e06"],
-  ticker: "eHDRN",
+  ticker: "weHDRN",
   decimals: 9,
   name: "HDRN from Ethereum",
   origin: [1, "0x3819f64f282bf135d62168c1e513280daf905e06"]
@@ -687,7 +687,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0xda073388422065fe8d3b5921ec2ae475bae57bed",
   dexs: ["0xe9f84d418b008888a992ff8c6d22389c2c3504e0"],
-  ticker: "eBASE",
+  ticker: "weBASE",
   decimals: 8,
   name: "BASE from Ethereum",
   origin: [1, "0xe9f84d418b008888a992ff8c6d22389c2c3504e0"]
@@ -695,7 +695,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x0f3c6134f4022d85127476bc4d3787860e5c5569",
   dexs: "0xda72b9e219d87ea31b4a1929640d9e960362470d",
-  ticker: "eTRIO",
+  ticker: "weTRIO",
   decimals: 8,
   name: "TRIO from Ethereum",
   origin: [1, "0xf55cd1e399e1cc3d95303048897a680be3313308"]
@@ -703,7 +703,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x8924f56df76ca9e7babb53489d7bef4fb7caff19",
   dexs: ["0x6b0956258ff7bd7645aa35369b55b61b8e6d6140"],
-  ticker: "eLUCKY",
+  ticker: "weLUCKY",
   decimals: 8,
   name: "LUCKY from Ethereum",
   origin: [1, "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140"]
@@ -711,7 +711,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x189a3ca3cc1337e85c7bc0a43b8d3457fd5aae89",
   dexs: "0x39e87e2baa67f3c7f1dd58f58014f23f97e3265e",
-  ticker: "eDECI",
+  ticker: "weDECI",
   decimals: 8,
   name: "DECI from Ethereum",
   origin: [1, "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6"]
@@ -719,7 +719,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x352511c9bc5d47dbc122883ed9353e987d10a3ba",
   dexs: "0x90b629cbbefc1efcae0b4cb027a51f0e0c3dcd76",
-  ticker: "eMAXI",
+  ticker: "weMAXI",
   decimals: 8,
   name: "MAXI from Ethereum",
   origin: [1, "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b"]
@@ -1434,7 +1434,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x5a9780bfe63f3ec57f01b087cd65bd656c9034a8",
   dexs: "0x5137a308dbf822aae9fb34467633baaa516ed099",
-  ticker: "pCOM",
+  ticker: "COM",
   decimals: 12,
   name: "Communis on PulseChain"
 }, {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { CoinLogo } from '@/components/ui/CoinLogo'
-import { formatNumber } from '@/utils/format'
+import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 
 interface LeagueRank {
   name: string
@@ -16,6 +16,7 @@ interface LeagueRank {
 
 interface LeagueTableProps {
   tokenTicker: string
+  containerStyle?: boolean
 }
 
 // Sea creature ranks from highest to lowest
@@ -76,6 +77,71 @@ const LEAGUE_RANKS: Omit<LeagueRank, 'minTokens' | 'marketCap'>[] = [
   }
 ]
 
+// Local formatting functions to match the website's style
+function formatCompactNumber(num: number): string {
+  if (num >= 1e15) {
+    const rounded = Math.round(num / 1e15)
+    return rounded >= 10 ? rounded + 'Q' : (num / 1e15).toFixed(1) + 'Q'
+  }
+  if (num >= 1e12) {
+    const rounded = Math.round(num / 1e12)
+    return rounded >= 10 ? rounded + 'T' : (num / 1e12).toFixed(1) + 'T'
+  }
+  if (num >= 1e9) {
+    const rounded = Math.round(num / 1e9)
+    return rounded >= 10 ? rounded + 'B' : (num / 1e9).toFixed(1) + 'B'
+  }
+  if (num >= 1e6) {
+    const rounded = Math.round(num / 1e6)
+    return rounded >= 10 ? rounded + 'M' : (num / 1e6).toFixed(1) + 'M'
+  }
+  if (num >= 1e3) {
+    const rounded = Math.round(num / 1e3)
+    return rounded >= 10 ? rounded + 'K' : (num / 1e3).toFixed(1) + 'K'
+  }
+  if (num >= 1) {
+    return Math.round(num).toString()
+  }
+  // For fractional amounts, show decimals
+  if (num >= 0.01) {
+    return num.toFixed(2)
+  }
+  if (num >= 0.001) {
+    return num.toFixed(3)
+  }
+  return num.toFixed(4)
+}
+
+// For header market cap - uses compact notation
+function formatHeaderMarketCap(num: number): string {
+  if (num >= 1e9) {
+    const rounded = Math.round(num / 1e9)
+    return rounded >= 10 ? '$' + rounded + 'B' : '$' + (num / 1e9).toFixed(1) + 'B'
+  }
+  if (num >= 1e6) {
+    const rounded = Math.round(num / 1e6)
+    return rounded >= 10 ? '$' + rounded + 'M' : '$' + (num / 1e6).toFixed(1) + 'M'
+  }
+  return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
+// For league row market caps - uses full numbers with commas
+function formatLeagueMarketCap(num: number): string {
+  if (num >= 1000) {
+    return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 })
+  }
+  if (num >= 0.01) {
+    return '$' + num.toFixed(2)
+  }
+  if (num >= 0.001) {
+    return '$' + num.toFixed(3)
+  }
+  if (num >= 0.0001) {
+    return '$' + num.toFixed(4)
+  }
+  return '$' + num.toFixed(5)
+}
+
 // Custom hook for fetching token supply data
 function useTokenSupply(tokenTicker: string) {
   const [totalSupply, setTotalSupply] = useState<number>(0)
@@ -83,6 +149,13 @@ function useTokenSupply(tokenTicker: string) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Skip API call for PLS since it uses hardcoded supply
+    if (tokenTicker === 'PLS') {
+      setTotalSupply(137000000000000) // 137T for PLS
+      setLoading(false)
+      return
+    }
+
     const fetchTokenSupply = async () => {
       try {
         setLoading(true)
@@ -97,14 +170,14 @@ function useTokenSupply(tokenTicker: string) {
         }
 
         const data = await response.json()
+        if (data.totalSupply === null || data.totalSupply === undefined) {
+          throw new Error('Invalid supply data received')
+        }
         setTotalSupply(data.totalSupply)
       } catch (err) {
         console.error('Error fetching token supply:', err)
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
-        // Fallback to mock data for HEX if there's an error
-        if (tokenTicker === 'HEX') {
-          setTotalSupply(665000000000) // 665B HEX fallback
-        }
+        setTotalSupply(0)
       } finally {
         setLoading(false)
       }
@@ -116,13 +189,27 @@ function useTokenSupply(tokenTicker: string) {
   return { totalSupply, loading, error }
 }
 
-export default function LeagueTable({ tokenTicker }: LeagueTableProps) {
-  const { totalSupply, loading, error } = useTokenSupply(tokenTicker)
+export default function LeagueTable({ tokenTicker, containerStyle = true }: LeagueTableProps) {
+  const { prices, isLoading, error } = useTokenPrices([tokenTicker])
+  const { totalSupply, loading: supplyLoading } = useTokenSupply(tokenTicker)
+  
+  const tokenPrice = prices[tokenTicker]
+  const loading = isLoading || supplyLoading
+
+  // Add debugging
+  console.log(`LeagueTable ${tokenTicker}:`, {
+    prices,
+    tokenPrice,
+    totalSupply,
+    isLoading,
+    supplyLoading,
+    error
+  })
 
   const calculateLeagueRanks = (): LeagueRank[] => {
     return LEAGUE_RANKS.map(rank => {
-      const minTokens = Math.floor((totalSupply * rank.percentage) / 100)
-      const marketCap = minTokens * 0.0083 // Assuming $0.0083 per HEX token
+      const minTokens = (totalSupply * rank.percentage) / 100
+      const marketCap = minTokens * (tokenPrice?.price || 0)
       
       return {
         ...rank,
@@ -132,65 +219,15 @@ export default function LeagueTable({ tokenTicker }: LeagueTableProps) {
     })
   }
 
-  const formatCurrency = (num: number): string => {
-    return formatNumber(num, { prefix: '$', compact: true, decimals: 0 })
-  }
-
-  if (loading) {
-    return (
-      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-md">
-        <div className="animate-pulse">
-          {/* Header Skeleton */}
-          <div className="grid grid-cols-3 items-center gap-4 mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gray-700 rounded"></div>
-              <div>
-                <div className="h-6 w-16 bg-gray-700 rounded mb-1"></div>
-                <div className="h-4 w-12 bg-gray-700 rounded"></div>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="h-4 w-16 bg-gray-700 rounded mb-1 mx-auto"></div>
-              <div className="h-6 w-12 bg-gray-700 rounded mx-auto"></div>
-            </div>
-            <div className="text-right">
-              <div className="h-4 w-12 bg-gray-700 rounded mb-1 ml-auto"></div>
-              <div className="h-6 w-16 bg-gray-700 rounded ml-auto"></div>
-            </div>
-          </div>
-
-          {/* League Rows Skeleton */}
-          <div className="space-y-3">
-            {[...Array(9)].map((_, i) => (
-              <div key={i} className="grid grid-cols-3 items-center gap-4 py-2">
-                {/* Rank Info Skeleton */}
-                <div className="flex items-center space-x-2">
-                  <div className="w-6 h-6 bg-gray-700 rounded"></div>
-                  <div className="h-4 w-16 bg-gray-700 rounded"></div>
-                </div>
-                {/* Market Cap Skeleton */}
-                <div className="text-center">
-                  <div className="h-4 w-12 bg-gray-700 rounded mx-auto"></div>
-                </div>
-                {/* Supply Required Skeleton */}
-                <div className="text-right flex items-center justify-end">
-                  <div className="h-4 w-12 bg-gray-700 rounded mr-1"></div>
-                  <div className="w-4 h-4 bg-gray-700 rounded"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Calculate total market cap
+  const totalMarketCap = totalSupply * (tokenPrice?.price || 0)
 
   if (error) {
     return (
       <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-sm">
         <div className="text-red-400 text-center">
           <p>Error loading {tokenTicker} league data</p>
-          <p className="text-sm text-gray-500 mt-2">{error}</p>
+          <p className="text-sm text-gray-500 mt-2">Failed to fetch price data</p>
         </div>
       </div>
     )
@@ -198,42 +235,42 @@ export default function LeagueTable({ tokenTicker }: LeagueTableProps) {
 
   const leagueRanks = calculateLeagueRanks()
 
-  return (
-    <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-md">
+  const content = (
+    <div className="w-full">
       {/* Header */}
-      <div className="grid grid-cols-3 items-center gap-4 mb-6">
-        <div className="flex items-center space-x-3">
+      <div className="grid grid-cols-3 items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           <CoinLogo
             symbol={tokenTicker}
-            size="md"
+            size="xl"
             className="rounded-none"
             variant="default"
           />
           <div>
-            <div className="text-white font-bold text-xl">{tokenTicker}</div>
-            <div className="text-gray-400 text-sm">{tokenTicker}</div>
+            <div className="text-white font-bold text-base sm:text-xl">{tokenTicker}</div>
+            <div className="text-gray-400 text-xs sm:text-sm">{tokenTicker}</div>
           </div>
         </div>
         <div className="text-center">
-          <div className="text-gray-400 text-sm">Market Cap</div>
-          <div className="text-white font-bold">$5.55B</div>
+          <div className="text-gray-400 text-xs sm:text-sm">Market Cap</div>
+          <div className="text-white font-bold text-sm sm:text-base">{formatHeaderMarketCap(totalMarketCap)}</div>
         </div>
         <div className="text-right">
-          <div className="text-gray-400 text-sm">Supply</div>
-          <div className="text-white font-bold">{formatNumber(totalSupply, { compact: true })}</div>
+          <div className="text-gray-400 text-xs sm:text-sm">Supply</div>
+          <div className="text-white font-bold text-sm sm:text-base">{formatCompactNumber(totalSupply)}</div>
         </div>
       </div>
 
       {/* League Table */}
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {leagueRanks.map((rank, index) => (
           <div
             key={rank.name}
-            className="grid grid-cols-3 items-center gap-4 py-2"
+            className="grid grid-cols-3 items-center gap-2 sm:gap-4 py-1.5 sm:py-2"
           >
             {/* Rank Info - Left Aligned */}
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 relative">
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 relative">
                 <Image
                   src={rank.icon}
                   alt={rank.name}
@@ -241,29 +278,47 @@ export default function LeagueTable({ tokenTicker }: LeagueTableProps) {
                   className="object-contain"
                 />
               </div>
-              <div className="text-white font-bold text-sm">
+              <div className="text-white font-bold text-xs sm:text-sm">
                 {rank.name}
               </div>
             </div>
 
             {/* Market Cap - Center Aligned */}
-            <div className="text-white font-medium text-center">
-              {formatCurrency(rank.marketCap)}
+            <div className="text-white font-medium text-center text-xs sm:text-sm">
+              {formatLeagueMarketCap(rank.marketCap)}
             </div>
 
             {/* Supply Required - Right Aligned */}
-            <div className="text-gray-400 text-right flex items-center justify-end">
-              {formatNumber(rank.minTokens, { compact: true })}
-              <CoinLogo
-                symbol={tokenTicker}
-                size="sm"
-                className="brightness-0 invert rounded-none ml-1"
-                variant="no-bg"
-              />
+            <div className="text-gray-400 text-right flex items-center justify-end text-xs sm:text-sm">
+              {formatCompactNumber(rank.minTokens)}
+              {(tokenTicker === 'HDRN' || tokenTicker === 'eHDRN' || tokenTicker === 'ICSA' || tokenTicker === 'eICSA') ? (
+                <img
+                  src="/coin-logos/HDRN-white.svg"
+                  alt={`${tokenTicker} logo`}
+                  className="w-3 h-3 sm:w-4 sm:h-4 rounded-none ml-1"
+                />
+              ) : (
+                <CoinLogo
+                  symbol={tokenTicker}
+                  size="sm"
+                  className="brightness-0 invert rounded-none ml-1 w-3 h-3 sm:w-4 sm:h-4"
+                  variant="no-bg"
+                />
+              )}
             </div>
           </div>
         ))}
       </div>
+    </div>
+  )
+
+  if (!containerStyle) {
+    return content;
+  }
+
+  return (
+    <div className="bg-black border-2 border-white/10 rounded-2xl p-4 sm:p-6 w-full">
+      {content}
     </div>
   )
 } 

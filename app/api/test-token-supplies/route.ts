@@ -76,11 +76,11 @@ export async function GET(request: NextRequest) {
     
     // Test with just a few popular tokens
     const testTokens = TOKEN_CONSTANTS.filter(token => 
-      ['PLS', 'HEX', 'PLSX', 'MAXI', 'ICSA'].includes(token.ticker) &&
+      ['PLS', 'HEX', 'PLSX', 'MAXI', 'ICSA', 'HDRN', 'eHDRN'].includes(token.ticker) &&
       token.a !== "0x0" && 
       token.a && 
       token.a.length === 42
-    ).slice(0, 5); // Just test 5 tokens
+    ).slice(0, 10); // Increased limit to include more tokens
     
     console.log(`Testing ${testTokens.length} tokens:`, testTokens.map(t => t.ticker));
     

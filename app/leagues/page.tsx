@@ -1,38 +1,78 @@
 'use client'
 
 import LeagueTable from '../../components/LeagueTable'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useState } from 'react'
+
+const fadeInUp = {
+  initial: { 
+    opacity: 0,
+    y: 10
+  },
+  animate: { 
+    opacity: 1,
+    y: 0
+  },
+  exit: { 
+    opacity: 0,
+    y: -10
+  }
+};
 
 export default function LeaguesPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="bg-black h-full" />;
+  }
+
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-none mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8">Token Leagues</h1>
-        
-        {/* Auto-arranging Grid */}
-        <div className="flex flex-wrap gap-8 max-w-7xl mx-auto">
-          <div className="flex-1 min-w-0">
+    <div className="bg-black text-white p-4 sm:p-6 relative overflow-hidden">
+      <AnimatePresence mode="wait">
+        <motion.div 
+          {...fadeInUp}
+          transition={{ 
+            duration: 0.4,
+            ease: [0.23, 1, 0.32, 1]
+          }}
+          className="max-w-[1200px] mx-auto w-full relative flex flex-col gap-4 sm:gap-8"
+        >
+          {/* First Row - Main Tokens */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-[34px]">
+            <LeagueTable tokenTicker="PLS" />
             <LeagueTable tokenTicker="PLSX" />
-          </div>
-          <div className="flex-1 min-w-0">
             <LeagueTable tokenTicker="INC" />
           </div>
-          <div className="flex-1 min-w-0">
+
+          {/* HEX Row */}
+          <div className="grid grid-cols-3 sm:grid-cols-2 gap-4 sm:gap-[34px]">
             <LeagueTable tokenTicker="HEX" />
-          </div>
-          <div className="flex-1 min-w-0">
             <LeagueTable tokenTicker="eHEX" />
           </div>
-          <div className="flex-1 min-w-0">
-            <LeagueTable tokenTicker="HEDRON" />
+
+          {/* HDRN Row */}
+          <div className="grid grid-cols-3 md:grid-cols-2 gap-4 sm:gap-[34px]">
+            <LeagueTable tokenTicker="HDRN" />
+            <LeagueTable tokenTicker="eHDRN" />
           </div>
-          <div className="flex-1 min-w-0">
+
+          {/* ICSA Row */}
+          <div className="grid grid-cols-3 md:grid-cols-2 gap-4 sm:gap-[34px]">
             <LeagueTable tokenTicker="ICSA" />
+            <LeagueTable tokenTicker="eICSA" />
           </div>
-          <div className="flex-1 min-w-0">
+
+          {/* COM Row */}
+          <div className="grid grid-cols-3 md:grid-cols-2 gap-4 sm:gap-[34px]">
             <LeagueTable tokenTicker="COM" />
+            <LeagueTable tokenTicker="eCOM" />
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </AnimatePresence>
     </div>
   )
 } 

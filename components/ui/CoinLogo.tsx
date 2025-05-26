@@ -28,9 +28,14 @@ export function CoinLogo({
   const baseSymbol = symbol.replace(/^[pe]/, '')
   
   // Special case for ETH with no background
-  const logoPath = baseSymbol === 'ETH' && variant === 'no-bg'
+  let logoPath = baseSymbol === 'ETH' && variant === 'no-bg'
     ? '/coin-logos/eth-black-no-bg.svg'
     : `/coin-logos/${baseSymbol}.svg`
+  
+  // Special case for HDRN to use white version only when inverted
+  if (baseSymbol === 'HDRN' && inverted) {
+    logoPath = '/coin-logos/HDRN-white.svg'
+  }
   
   return (
     <img

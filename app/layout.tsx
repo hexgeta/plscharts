@@ -11,6 +11,19 @@ export const revalidate = 2592000; // 30 days in seconds
 // Essential tokens that should be preloaded
 const ESSENTIAL_TOKENS = ['PLS', 'PLSX', 'INC', 'pHEX', 'eHEX'];
 
+// Sea creature images used in league tables
+const SEA_CREATURE_IMAGES = [
+  'poseidon.png',
+  'whale.png', 
+  'shark.png',
+  'dolphin.png',
+  'squid.png',
+  'turtle.png',
+  'crab.png',
+  'shrimp.png',
+  'shell.png'
+];
+
 export const metadata: Metadata = {
   title: 'PlsCharts.com',
   description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more!',
@@ -94,6 +107,16 @@ export default function RootLayout({
             href={`/coin-logos/${token.replace(/^[pe]/, '')}.svg`}
             as="image"
             type="image/svg+xml"
+          />
+        ))}
+        {/* Preload sea creature images for league tables */}
+        {SEA_CREATURE_IMAGES.map(image => (
+          <link 
+            key={image}
+            rel="preload"
+            href={`/${image}`}
+            as="image"
+            type="image/png"
           />
         ))}
       </head>
