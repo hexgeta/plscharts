@@ -197,55 +197,16 @@ export async function GET(request: NextRequest) {
     // Save to Supabase with better error handling
     console.log('Saving to Supabase...');
     
-    // First, try to save all at once
-    const { data, error } = await supabase
+    // Delete today's data first
+    await supabase
+      .from('daily_token_supplies')
+      .delete()
+      .eq('date', date);
+
+    // Then insert new data
+    await supabase
       .from('daily_token_supplies')
       .insert(supplies);
-
-    let savedCount = 0;
-    
-    if (error) {
-      console.error('Bulk insert failed:', error.message);
-      console.log('Attempting to save in smaller batches...');
-      
-      // Try to save in smaller batches if the full insert fails
-      const batchSize = 25; // Smaller batches for Supabase
-      
-      for (let i = 0; i < supplies.length; i += batchSize) {
-        const batch = supplies.slice(i, i + batchSize);
-        const { data: batchData, error: batchError } = await supabase
-          .from('daily_token_supplies')
-          .insert(batch);
-          
-        if (batchError) {
-          console.error(`Batch ${i}-${i + batch.length} failed:`, batchError.message);
-          
-          // Try individual inserts for this batch
-          for (const item of batch) {
-            const { error: itemError } = await supabase
-              .from('daily_token_supplies')
-              .insert([item]);
-              
-            if (itemError) {
-              console.error(`Failed to save ${item.ticker}:`, itemError.message);
-            } else {
-              savedCount++;
-            }
-          }
-        } else {
-          savedCount += batch.length;
-          console.log(`Saved batch ${i}-${i + batch.length} successfully (${batch.length} records)`);
-        }
-        
-        // Small delay between Supabase batches
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-      console.log(`Final result: Saved ${savedCount}/${supplies.length} records`);
-    } else {
-      savedCount = supplies.length;
-      console.log(`Successfully saved all ${supplies.length} token supplies to database`);
-    }
     
     // Summary statistics
     const totalSupplies = supplies.reduce((sum, token) => sum + token.total_supply_formatted, 0);
@@ -256,7 +217,7 @@ export async function GET(request: NextRequest) {
     console.log(`Total tokens processed: ${supplies.length}`);
     console.log(`Successful fetches: ${successfulFetches}`);
     console.log(`Failed fetches: ${supplies.length - successfulFetches}`);
-    console.log(`Records saved to DB: ${savedCount}`);
+    console.log(`Records saved to DB: ${supplies.length}`);
     console.log(`Execution time: ${executionTime}ms`);
     
     return NextResponse.json({ 
@@ -265,7 +226,7 @@ export async function GET(request: NextRequest) {
         totalTokens: supplies.length,
         successfulFetches,
         failedFetches: supplies.length - successfulFetches,
-        recordsSaved: savedCount,
+        recordsSaved: supplies.length,
         totalCombinedSupply: totalSupplies,
         executionTimeMs: executionTime,
         timestamp: new Date().toISOString()
