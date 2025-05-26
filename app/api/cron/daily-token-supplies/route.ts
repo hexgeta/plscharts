@@ -17,8 +17,8 @@ interface TokenSupplyData {
   address: string;
   name: string;
   decimals: number;
-  totalSupply: string;
-  totalSupplyFormatted: number;
+  total_supply: string;
+  total_supply_formatted: number;
   timestamp: string;
   date: string;
 }
@@ -122,8 +122,8 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
           address: token.a,
           name: token.name,
           decimals: token.decimals,
-          totalSupply: supply,
-          totalSupplyFormatted: formattedSupply,
+          total_supply: supply,
+          total_supply_formatted: formattedSupply,
           timestamp,
           date
         };
@@ -140,8 +140,8 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
           address: token.a,
           name: token.name,
           decimals: token.decimals,
-          totalSupply: '0',
-          totalSupplyFormatted: 0,
+          total_supply: '0',
+          total_supply_formatted: 0,
           timestamp,
           date
         };
@@ -219,8 +219,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Summary statistics
-    const totalSupplies = supplies.reduce((sum, token) => sum + token.totalSupplyFormatted, 0);
-    const successfulFetches = supplies.filter(s => s.totalSupplyFormatted > 0).length;
+    const totalSupplies = supplies.reduce((sum, token) => sum + token.total_supply_formatted, 0);
+    const successfulFetches = supplies.filter(s => s.total_supply_formatted > 0).length;
     const executionTime = Date.now() - startTime;
     
     return NextResponse.json({ 
