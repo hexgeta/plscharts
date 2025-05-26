@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { formatNumber } from '@/utils/format'
-import { createClient } from '@supabase/supabase-js'
 
 interface LeagueRank {
   name: string
@@ -89,31 +88,16 @@ function useTokenSupply(tokenTicker: string) {
         setLoading(true)
         setError(null)
 
-        // Initialize Supabase client
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-
-        // Fetch the latest supply data for the token
-        const { data, error: supabaseError } = await supabase
-          .from('daily_token_supplies')
-          .select('total_supply_formatted')
-          .eq('ticker', tokenTicker)
-          .order('date', { ascending: false })
-          .limit(1)
-          .single()
-
-        if (supabaseError) {
-          console.error('Supabase error:', supabaseError)
-          throw new Error(`Failed to fetch supply data: ${supabaseError.message}`)
+        // Fetch from API route instead of direct Supabase access
+        const response = await fetch(`/api/token-supply?ticker=${tokenTicker}`)
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
         }
 
-        if (!data) {
-          throw new Error(`No supply data found for ${tokenTicker}`)
-        }
-
-        setTotalSupply(data.total_supply_formatted)
+        const data = await response.json()
+        setTotalSupply(data.totalSupply)
       } catch (err) {
         console.error('Error fetching token supply:', err)
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
@@ -203,7 +187,7 @@ export default function LeagueTable({ tokenTicker }: LeagueTableProps) {
 
   if (error) {
     return (
-      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-md">
+      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-sm">
         <div className="text-red-400 text-center">
           <p>Error loading {tokenTicker} league data</p>
           <p className="text-sm text-gray-500 mt-2">{error}</p>

@@ -5,33 +5,32 @@ import LeagueTable from '../../components/LeagueTable'
 export default function LeaguesPage() {
   return (
     <div className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-none mx-auto">
         <h1 className="text-4xl font-bold text-center mb-8">Token Leagues</h1>
         
-        <div className="grid grid-cols-2 gap-8">
-          {/* PLS League Table */}
-          <LeagueTable tokenTicker="PLS" />
-          
-          {/* PLSX League Table */}
-          <LeagueTable tokenTicker="PLSX" />
-          
-          {/* INC League Table */}
-          <LeagueTable tokenTicker="INC" />
-          
-          {/* HEX League Table */}
-          <LeagueTable tokenTicker="HEX" />
-          
-          {/* eHEX League Table */}
-          <LeagueTable tokenTicker="eHEX" />
-          
-          {/* HEDRON League Table */}
-          <LeagueTable tokenTicker="HEDRON" />
-          
-          {/* ICSA League Table */}
-          <LeagueTable tokenTicker="ICSA" />
-          
-          {/* COM League Table */}
-          <LeagueTable tokenTicker="COM" />
+        {/* Auto-arranging Grid */}
+        <div className="flex flex-wrap gap-8 max-w-7xl mx-auto">
+          <div className="flex-1 min-w-0">
+            <LeagueTable tokenTicker="PLSX" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <LeagueTable tokenTicker="INC" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <LeagueTable tokenTicker="HEX" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <LeagueTable tokenTicker="eHEX" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <LeagueTable tokenTicker="HEDRON" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <LeagueTable tokenTicker="ICSA" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <LeagueTable tokenTicker="COM" />
+          </div>
         </div>
       </div>
     </div>
