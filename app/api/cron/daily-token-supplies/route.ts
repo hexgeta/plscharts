@@ -213,7 +213,7 @@ export async function GET(request: NextRequest) {
         }
       }
       
-      console.log(`Saved ${savedCount}/${supplies.length} records in batches`);
+      console.log(`Saved ${savedCount}/${supplies.length} records`);
     } else {
       console.log('Successfully saved all token supplies to database');
     }
