@@ -79,6 +79,14 @@ function formatSupply(supply: string, decimals: number): number {
     const supplyBigInt = BigInt(supply);
     const divisor = BigInt(10 ** decimals);
     const formatted = Number(supplyBigInt) / Number(divisor);
+    
+    // Check for potential overflow issues
+    if (formatted > 1e20) {
+      console.warn(`Large supply detected: ${formatted.toExponential()} for supply ${supply} with ${decimals} decimals`);
+      // Cap at a reasonable maximum to prevent database overflow
+      return Math.min(formatted, 1e20);
+    }
+    
     return formatted;
   } catch (error) {
     console.error('Error formatting supply:', error);
@@ -197,6 +205,26 @@ export async function GET(request: NextRequest) {
     // Save to Supabase with better error handling
     console.log('Saving to Supabase...');
     
+    // Validate data before insertion
+    console.log('Validating data...');
+    const invalidRecords = supplies.filter(supply => 
+      !supply.ticker || 
+      !supply.address || 
+      !supply.name || 
+      supply.chain === undefined || 
+      supply.decimals === undefined ||
+      !supply.date ||
+      !supply.timestamp
+    );
+    
+    if (invalidRecords.length > 0) {
+      console.error(`Found ${invalidRecords.length} invalid records:`, invalidRecords.slice(0, 3));
+      throw new Error(`Data validation failed: ${invalidRecords.length} invalid records found`);
+    }
+    
+    console.log('Data validation passed');
+    console.log('Sample record:', JSON.stringify(supplies[0], null, 2));
+    
     // Get the date from the supplies data
     const date = supplies.length > 0 ? supplies[0].date : new Date().toISOString().split('T')[0];
     
@@ -215,15 +243,45 @@ export async function GET(request: NextRequest) {
 
     // Then insert new data
     console.log(`Inserting ${supplies.length} new records...`);
-    const { data: insertedData, error: insertError } = await supabase
-      .from('daily_token_supplies')
-      .insert(supplies);
     
-    if (insertError) {
-      console.error('Error inserting new data:', insertError);
-      throw new Error(`Failed to insert new data: ${insertError.message}`);
+    // Insert in batches to avoid overwhelming Supabase
+    const insertBatchSize = 50; // Insert 50 records at a time
+    let totalInserted = 0;
+    
+    for (let i = 0; i < supplies.length; i += insertBatchSize) {
+      const batch = supplies.slice(i, i + insertBatchSize);
+      const batchNum = Math.floor(i / insertBatchSize) + 1;
+      const totalBatches = Math.ceil(supplies.length / insertBatchSize);
+      
+      console.log(`Inserting batch ${batchNum}/${totalBatches} (${batch.length} records)...`);
+      
+      // Log some sample data from this batch for debugging
+      console.log(`Batch ${batchNum} sample records:`, batch.slice(0, 2).map(r => ({
+        ticker: r.ticker,
+        total_supply_formatted: r.total_supply_formatted,
+        total_supply_length: r.total_supply.length
+      })));
+      
+      const { data: insertedData, error: insertError } = await supabase
+        .from('daily_token_supplies')
+        .insert(batch);
+      
+      if (insertError) {
+        console.error(`Error inserting batch ${batchNum}:`, insertError);
+        console.error('Sample record from failed batch:', JSON.stringify(batch[0], null, 2));
+        throw new Error(`Failed to insert batch ${batchNum}: ${insertError.message}`);
+      }
+      
+      totalInserted += batch.length;
+      console.log(`✅ Batch ${batchNum} inserted successfully (${batch.length} records)`);
+      
+      // Small delay between batches
+      if (i + insertBatchSize < supplies.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
-    console.log('Successfully inserted new data');
+    
+    console.log(`Successfully inserted all ${totalInserted} records`);
     
     // Summary statistics
     const totalSupplies = supplies.reduce((sum, token) => sum + token.total_supply_formatted, 0);

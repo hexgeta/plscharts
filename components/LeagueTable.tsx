@@ -154,12 +154,46 @@ export default function LeagueTable({ tokenTicker }: LeagueTableProps) {
 
   if (loading) {
     return (
-      <div className="bg-black border border-gray-800 rounded-2xl p-6 w-full max-w-md">
+      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-md">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-700 rounded mb-4"></div>
+          {/* Header Skeleton */}
+          <div className="grid grid-cols-3 items-center gap-4 mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-gray-700 rounded"></div>
+              <div>
+                <div className="h-6 w-16 bg-gray-700 rounded mb-1"></div>
+                <div className="h-4 w-12 bg-gray-700 rounded"></div>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="h-4 w-16 bg-gray-700 rounded mb-1 mx-auto"></div>
+              <div className="h-6 w-12 bg-gray-700 rounded mx-auto"></div>
+            </div>
+            <div className="text-right">
+              <div className="h-4 w-12 bg-gray-700 rounded mb-1 ml-auto"></div>
+              <div className="h-6 w-16 bg-gray-700 rounded ml-auto"></div>
+            </div>
+          </div>
+
+          {/* League Rows Skeleton */}
           <div className="space-y-3">
             {[...Array(9)].map((_, i) => (
-              <div key={i} className="h-12 bg-gray-700 rounded"></div>
+              <div key={i} className="grid grid-cols-3 items-center gap-4 py-2">
+                {/* Rank Info Skeleton */}
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 bg-gray-700 rounded"></div>
+                  <div className="h-4 w-16 bg-gray-700 rounded"></div>
+                </div>
+                {/* Market Cap Skeleton */}
+                <div className="text-center">
+                  <div className="h-4 w-12 bg-gray-700 rounded mx-auto"></div>
+                </div>
+                {/* Supply Required Skeleton */}
+                <div className="text-right flex items-center justify-end">
+                  <div className="h-4 w-12 bg-gray-700 rounded mr-1"></div>
+                  <div className="w-4 h-4 bg-gray-700 rounded"></div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -169,7 +203,7 @@ export default function LeagueTable({ tokenTicker }: LeagueTableProps) {
 
   if (error) {
     return (
-      <div className="bg-black border border-gray-800 rounded-2xl p-6 w-full max-w-md">
+      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-md">
         <div className="text-red-400 text-center">
           <p>Error loading {tokenTicker} league data</p>
           <p className="text-sm text-gray-500 mt-2">{error}</p>
@@ -181,12 +215,12 @@ export default function LeagueTable({ tokenTicker }: LeagueTableProps) {
   const leagueRanks = calculateLeagueRanks()
 
   return (
-    <div className="bg-black border border-gray-800 rounded-2xl p-6 w-full max-w-md">
+    <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-md">
       {/* Header */}
       <div className="grid grid-cols-3 items-center gap-4 mb-6">
         <div className="flex items-center space-x-3">
           <CoinLogo
-            symbol="HEX"
+            symbol={tokenTicker}
             size="md"
             className="rounded-none"
             variant="default"
@@ -237,7 +271,7 @@ export default function LeagueTable({ tokenTicker }: LeagueTableProps) {
             <div className="text-gray-400 text-right flex items-center justify-end">
               {formatNumber(rank.minTokens, { compact: true })}
               <CoinLogo
-                symbol="HEX"
+                symbol={tokenTicker}
                 size="sm"
                 className="brightness-0 invert rounded-none ml-1"
                 variant="no-bg"
