@@ -197,6 +197,9 @@ export async function GET(request: NextRequest) {
     // Save to Supabase with better error handling
     console.log('Saving to Supabase...');
     
+    // Get the date from the supplies data
+    const date = supplies.length > 0 ? supplies[0].date : new Date().toISOString().split('T')[0];
+    
     // Delete today's data first
     await supabase
       .from('daily_token_supplies')

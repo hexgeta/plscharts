@@ -132,7 +132,7 @@ const SUPPORTED_TICKERS = [
   'pTON',
   'pENS',
   // 'SAFE',
-  'PRE',
+  // 'PRE',
   'LUNR',
   // 'RNDR',
   // 'WISE',
