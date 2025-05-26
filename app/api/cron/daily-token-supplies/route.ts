@@ -92,9 +92,10 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
   const date = now.toISOString().split('T')[0]; // YYYY-MM-DD format
   
   const supplies: TokenSupplyData[] = [];
+  const errors: string[] = [];
   
-  // Increased batch size and reduced delay for Pro plan
-  const batchSize = 20; // Increased from 10
+  // Optimized batch size based on G4MM4/Erigon capabilities
+  const batchSize = 10; // Conservative batch size for RPC calls
   const tokens = TOKEN_CONSTANTS.filter(token => 
     token.a !== "0x0" && // Skip native tokens
     token.a && 
@@ -110,7 +111,7 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
     
     console.log(`Processing batch ${batchNumber}/${totalBatches} (tokens ${i + 1}-${Math.min(i + batchSize, tokens.length)})`);
     
-    const batchPromises = batch.map(async (token) => {
+    const batchPromises = batch.map(async (token, index) => {
       try {
         const rpcUrl = token.chain === 1 ? RPC_ENDPOINTS.ethereum : RPC_ENDPOINTS.pulsechain;
         const supply = await getTokenSupply(rpcUrl, token.a);
@@ -131,7 +132,9 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
         console.log(`✅ ${token.ticker}: ${formattedSupply.toLocaleString()}`);
         return supplyData;
       } catch (error) {
-        console.error(`❌ Failed to fetch supply for ${token.ticker}:`, error);
+        const errorMsg = `❌ ${token.ticker}: ${error.message}`;
+        console.error(errorMsg);
+        errors.push(errorMsg);
         
         // Return zero supply data for failed tokens
         return {
@@ -151,10 +154,17 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
     const batchResults = await Promise.all(batchPromises);
     supplies.push(...batchResults);
     
-    // Reduced delay between batches (from 1000ms to 300ms)
+    console.log(`Batch ${batchNumber} completed: ${batchResults.length} tokens processed`);
+    
+    // Reduced delay between batches - G4MM4 can handle concurrent requests well
     if (i + batchSize < tokens.length) {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 200)); // Reduced from 500ms
     }
+  }
+  
+  if (errors.length > 0) {
+    console.log(`Total errors encountered: ${errors.length}`);
+    console.log('Error summary:', errors.slice(0, 10)); // Log first 10 errors
   }
   
   return supplies;
@@ -186,36 +196,55 @@ export async function GET(request: NextRequest) {
     
     // Save to Supabase with better error handling
     console.log('Saving to Supabase...');
+    
+    // First, try to save all at once
     const { data, error } = await supabase
       .from('daily_token_supplies')
       .insert(supplies);
 
+    let savedCount = 0;
+    
     if (error) {
-      console.error('Supabase error:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error('Bulk insert failed:', error.message);
+      console.log('Attempting to save in smaller batches...');
       
       // Try to save in smaller batches if the full insert fails
-      console.log('Attempting to save in smaller batches...');
-      const batchSize = 50;
-      let savedCount = 0;
+      const batchSize = 25; // Smaller batches for Supabase
       
       for (let i = 0; i < supplies.length; i += batchSize) {
         const batch = supplies.slice(i, i + batchSize);
-        const { error: batchError } = await supabase
+        const { data: batchData, error: batchError } = await supabase
           .from('daily_token_supplies')
           .insert(batch);
           
         if (batchError) {
-          console.error(`Batch ${i}-${i + batch.length} failed:`, batchError);
+          console.error(`Batch ${i}-${i + batch.length} failed:`, batchError.message);
+          
+          // Try individual inserts for this batch
+          for (const item of batch) {
+            const { error: itemError } = await supabase
+              .from('daily_token_supplies')
+              .insert([item]);
+              
+            if (itemError) {
+              console.error(`Failed to save ${item.ticker}:`, itemError.message);
+            } else {
+              savedCount++;
+            }
+          }
         } else {
           savedCount += batch.length;
-          console.log(`Saved batch ${i}-${i + batch.length} successfully`);
+          console.log(`Saved batch ${i}-${i + batch.length} successfully (${batch.length} records)`);
         }
+        
+        // Small delay between Supabase batches
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      console.log(`Saved ${savedCount}/${supplies.length} records`);
+      console.log(`Final result: Saved ${savedCount}/${supplies.length} records`);
     } else {
-      console.log('Successfully saved all token supplies to database');
+      savedCount = supplies.length;
+      console.log(`Successfully saved all ${supplies.length} token supplies to database`);
     }
     
     // Summary statistics
@@ -223,12 +252,20 @@ export async function GET(request: NextRequest) {
     const successfulFetches = supplies.filter(s => s.total_supply_formatted > 0).length;
     const executionTime = Date.now() - startTime;
     
+    console.log(`=== FINAL SUMMARY ===`);
+    console.log(`Total tokens processed: ${supplies.length}`);
+    console.log(`Successful fetches: ${successfulFetches}`);
+    console.log(`Failed fetches: ${supplies.length - successfulFetches}`);
+    console.log(`Records saved to DB: ${savedCount}`);
+    console.log(`Execution time: ${executionTime}ms`);
+    
     return NextResponse.json({ 
       success: true,
       summary: {
         totalTokens: supplies.length,
         successfulFetches,
         failedFetches: supplies.length - successfulFetches,
+        recordsSaved: savedCount,
         totalCombinedSupply: totalSupplies,
         executionTimeMs: executionTime,
         timestamp: new Date().toISOString()
