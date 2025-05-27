@@ -111,23 +111,23 @@ async function fetchTokenPrices(tickers: string[]): Promise<TokenPrices> {
   const tokensByChain: { [chain: string]: { ticker: string; pairAddress: string }[] } = {};
   
   for (const ticker of tickers) {
-  const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === ticker);
-  
-  if (!tokenConfig) {
+    const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === ticker);
+    
+    if (!tokenConfig) {
       console.warn(`[Price Fetch] No token config found for ticker ${ticker}`);
       continue;
-  }
+    }
 
     const { chain: chainId, dexs } = tokenConfig;
-  const dexAddress = Array.isArray(dexs) ? dexs[0] : dexs;
-  
-  if (!dexAddress || dexAddress === '0x0') {
+    const dexAddress = Array.isArray(dexs) ? dexs[0] : dexs;
+    
+    if (!dexAddress || dexAddress === '0x0') {
       console.warn(`[Price Fetch] No valid DEX address found for token ${ticker}`);
       continue;
-  }
+    }
 
-  const chainName = chainId === 1 ? 'ethereum' : 'pulsechain';
-  
+    const chainName = chainId === 1 ? 'ethereum' : 'pulsechain';
+    
     if (!tokensByChain[chainName]) {
       tokensByChain[chainName] = [];
     }
@@ -160,20 +160,20 @@ async function fetchTokenPrices(tickers: string[]): Promise<TokenPrices> {
         
         if (pair && pair.priceUsd) {
           results[token.ticker] = {
-      price: parseFloat(pair.priceUsd),
-      priceChange: {
+            price: parseFloat(pair.priceUsd),
+            priceChange: {
               m5: pair.priceChange?.m5,
               h1: pair.priceChange?.h1,
               h6: pair.priceChange?.h6,
               h24: pair.priceChange?.h24
-      },
-      volume: {
+            },
+            volume: {
               m5: pair.volume?.m5,
               h1: pair.volume?.h1,
               h6: pair.volume?.h6,
               h24: pair.volume?.h24
-      },
-      txns: {
+            },
+            txns: {
               m5: pair.txns?.m5,
               h1: pair.txns?.h1,
               h6: pair.txns?.h6,
@@ -189,7 +189,7 @@ async function fetchTokenPrices(tickers: string[]): Promise<TokenPrices> {
           results[token.ticker] = DEFAULT_PRICE_DATA;
         }
       });
-  } catch (error) {
+    } catch (error) {
       console.error(`[Price Fetch] Error fetching prices for ${chainName}:`, error);
       // Add default data for all tokens in this chain
       tokens.forEach(token => {

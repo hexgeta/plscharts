@@ -534,7 +534,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
-  dexs: "0xa322a5387745dbec4aff81ea55e006fac5b5f0cf",
+  dexs: "0xb39490b46d02146f59e80c6061bb3e56b824d672",
   ticker: "BASE",
   decimals: 8,
   name: "Maximus BASE"
@@ -583,10 +583,18 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0x4581af35199bbde87a89941220e04e27ce4b0099",
-  dexs: "0x70966ccb20c10ae326d6368a107c80fb825f3028",
+  dexs: "0x70966CcB20C10Ae326D6368A107C80fb825F3028",
   ticker: "PARTY",
   decimals: 18,
   name: "Pool Party on PulseChain"
+}, 
+{
+  chain: 369,
+  a: "0xbbcf895bfcb57d0f457d050bb806d1499436c0ce",
+  dexs: "0x6312a9477e3BC81D5e3a44d77F0A43630904fF69",
+  ticker: "IM",
+  decimals: 18,
+  name: "Internet Money"
 }, {
   chain: 369,
   a: "0xa1077a294dde1b09bb078844df40758a5d0f9a27",

@@ -1,15 +1,7 @@
 @font-face {
-  font-family: 'Archia';
-  src: url('/fonts/Archia/archia-regular.woff2') format('woff2');
+  font-family: 'Departure Mono';
+  src: url('/fonts/Archia/departure-mono-regular.otf') format('opentype');
   font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Archia';
-  src: url('/fonts/Archia/archia-bold.woff2') format('woff2');
-  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
@@ -75,6 +67,7 @@ body {
     transform: rotate(0deg);
   }
 }
+
 .App {
   @apply max-w-[1200px] mx-auto relative;
 }
@@ -210,6 +203,41 @@ a {
 
 .hamburger-line {
   @apply w-[25px] h-[3px] bg-white my-1 transition-all duration-300;
+}
+
+/* No-select utility classes */
+.no-select {
+  @apply select-none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -khtml-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  pointer-events: auto !important;
+}
+
+.no-select * {
+  @apply select-none !important;
+  pointer-events: auto !important;
+}
+
+.no-select img {
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+  pointer-events: none !important;
+}
+
+/* Additional rule for text selection */
+::selection {
+  background: transparent !important;
+}
+
+::-moz-selection {
+  background: transparent !important;
 }
 
 /* Only hide overflow on desktop for radio page */

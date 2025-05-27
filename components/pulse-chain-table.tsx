@@ -18,8 +18,8 @@ const TOKEN_SUBTITLES: Record<string, string> = {
   'PLS': 'Gas Coin',
   'PLSX': 'Dex Token',
   'INC': 'Green Token',
-  'HEX': 'PulseChain HEX',
-  'eHEX': 'Ethereum HEX',
+  'HEX': 'Real HEX',
+  'eHEX': 'Also Real HEX',
 };
 
 const PERIODS = ['5m', '1h', '6h', '24h', '7d', '30d', '90d', 'ATL'];
@@ -61,12 +61,18 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   // Check if any historic data is still loading
   const isHistoricLoading = Object.values(changeDataMap).some(data => data.isLoading);
 
-  // Overall loading state
-  const isLoading = pricesLoading || isHistoricLoading;
+  // Check if we have valid price data for all tokens (not just empty objects)
+  const hasValidPriceData = prices && TOKENS.every(ticker => {
+    const priceData = prices[ticker];
+    return priceData && priceData.price && priceData.price > 0;
+  });
 
-  // Show loading state only if we have no prices object at all
-  if (!prices && pricesLoading) {
-    return LoadingComponent ? <LoadingComponent /> : null;
+  // Overall loading state - now includes validation of actual price data
+  const isLoading = pricesLoading || isHistoricLoading || !hasValidPriceData;
+
+  // Show loading state if we don't have valid price data
+  if (isLoading) {
+    return LoadingComponent ? <LoadingComponent /> : <div className="bg-black h-screen" />;
   }
 
   // If we have an error, we should still show the table
@@ -75,19 +81,27 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto my-8 rounded-xl p-4 h-auto relative flex flex-col gap-4">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ 
+        duration: 0.4,
+        ease: [0.23, 1, 0.32, 1]
+      }}
+      className="w-full max-w-5xl mx-auto rounded-xl p-4 h-auto relative flex flex-col gap-4"
+    >
       <motion.div 
         initial={{ opacity: 0 }}
-        animate={{ opacity: isLoading ? 0 : 1 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="text-3xl font-bold text-white/15 select-none pointer-events-none static mb-2 ml-4 md:absolute md:top-4 md:left-6 md:z-10 md:mb-0 md:ml-0"
+        className="text-3xl md:text-2xl lg:text-3xl mt-0 md:mt-2 font-bold text-white/15 select-none pointer-events-none static mb-2 ml-4 md:absolute md:top-4 md:left-6 md:z-10 md:mb-0 md:ml-0"
       >
         Day {pulseChainDay} ~ PlsCharts.com
       </motion.div>
       {/* Toggle group */}
       <motion.div 
         initial={{ opacity: 0 }}
-        animate={{ opacity: isLoading ? 0 : 1 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
         className="w-full flex flex-col md:flex-row justify-center md:justify-end"
       >
@@ -116,7 +130,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
           })}
         </div>
       </motion.div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {TOKENS.map(ticker => {
           const config = getTokenConfig(ticker);
           const priceData = prices[ticker];
@@ -146,9 +160,9 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
           return (
             <motion.div 
               key={ticker}
-              className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col gap-0 border-2 border-white/10 relative"
+              className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col gap-0 border-2 border-white/10 relative min-w-[300px]"
               initial={{ opacity: 0 }}
-              animate={{ opacity: isLoading ? 0 : 1 }}
+              animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
             >
               {/* Chart icon link in top right */}
@@ -274,9 +288,9 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
 
         {/* Custom 6th Block */}
         <motion.div 
-          className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col justify-between gap-2 border-2 border-white/10 relative min-h-[300px]"
+          className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col justify-between gap-2 border-2 border-white/10 relative min-h-[300px] min-w-[300px]"
           initial={{ opacity: 0 }}
-          animate={{ opacity: isLoading ? 0 : 1 }}
+          animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
         >
           <div>
@@ -288,7 +302,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
             </ol>
           </div>
           <a
-            href="https://gorealdefi.com/"
+            href="https://hexscout.com/buy"
             target="_blank"
             rel="noopener noreferrer" 
             className="w-full bg-white hover:bg-gray-100 text-black px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors"
@@ -300,6 +314,6 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
           </a>
         </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 } 

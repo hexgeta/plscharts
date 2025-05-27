@@ -4,6 +4,7 @@ module.exports = {
     content: [
       "./pages/**/*.{js,ts,jsx,tsx}",
       "./components/**/*.{js,ts,jsx,tsx}",
+      "./app/**/*.{js,ts,jsx,tsx}",
     ],
     theme: {
     	extend: {
@@ -99,10 +100,20 @@ module.exports = {
     		},
     		fontFamily: {
     			sans: [
-					'Archia',
+    				'Departure Mono',
+    				'Archia',
     				'ui-sans-serif',
     				'system-ui',
     				'sans-serif',
+    			],
+    			mono: [
+    				'Departure Mono',
+    				'ui-monospace',
+    				'SFMono-Regular',
+    				'Consolas',
+    				'Liberation Mono',
+    				'Menlo',
+    				'monospace',
     			],
     		},
     	}

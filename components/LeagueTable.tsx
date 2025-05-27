@@ -17,6 +17,7 @@ interface LeagueRank {
 interface LeagueTableProps {
   tokenTicker: string
   containerStyle?: boolean
+  preloadedPrices?: any // Prices from parent component
 }
 
 // Sea creature ranks from highest to lowest
@@ -149,8 +150,11 @@ function useTokenSupply(tokenTicker: string) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    console.log(`[useTokenSupply] Starting fetch for ${tokenTicker}`);
+    
     // Skip API call for PLS since it uses hardcoded supply
     if (tokenTicker === 'PLS') {
+      console.log(`[useTokenSupply] Using hardcoded supply for PLS`);
       setTotalSupply(137000000000000) // 137T for PLS
       setLoading(false)
       return
@@ -160,22 +164,28 @@ function useTokenSupply(tokenTicker: string) {
       try {
         setLoading(true)
         setError(null)
+        console.log(`[useTokenSupply] Fetching supply for ${tokenTicker} from /api/token-supply`);
 
         // Fetch from API route instead of direct Supabase access
         const response = await fetch(`/api/token-supply?ticker=${tokenTicker}`)
+        console.log(`[useTokenSupply] Response status for ${tokenTicker}:`, response.status);
         
         if (!response.ok) {
-          const errorData = await response.json()
+          const errorText = await response.text();
+          console.error(`[useTokenSupply] Error response for ${tokenTicker}:`, errorText);
+          const errorData = errorText.startsWith('{') ? JSON.parse(errorText) : { error: errorText };
           throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
         }
 
         const data = await response.json()
+        console.log(`[useTokenSupply] Success data for ${tokenTicker}:`, data);
+        
         if (data.totalSupply === null || data.totalSupply === undefined) {
           throw new Error('Invalid supply data received')
         }
         setTotalSupply(data.totalSupply)
       } catch (err) {
-        console.error('Error fetching token supply:', err)
+        console.error(`[useTokenSupply] Error fetching token supply for ${tokenTicker}:`, err)
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
         setTotalSupply(0)
       } finally {
@@ -189,12 +199,18 @@ function useTokenSupply(tokenTicker: string) {
   return { totalSupply, loading, error }
 }
 
-export default function LeagueTable({ tokenTicker, containerStyle = true }: LeagueTableProps) {
-  const { prices, isLoading, error } = useTokenPrices([tokenTicker])
-  const { totalSupply, loading: supplyLoading } = useTokenSupply(tokenTicker)
+export default function LeagueTable({ tokenTicker, containerStyle = true, preloadedPrices }: LeagueTableProps) {
+  const { prices: fetchedPrices, isLoading, error } = useTokenPrices(preloadedPrices ? [] : [tokenTicker])
+  const { totalSupply, loading: supplyLoading, error: supplyError } = useTokenSupply(tokenTicker)
   
+  // Use preloaded prices if available, otherwise use fetched prices
+  const prices = preloadedPrices || fetchedPrices
   const tokenPrice = prices[tokenTicker]
-  const loading = isLoading || supplyLoading
+  
+  // Enhanced loading validation - ensure we have valid data before rendering
+  const hasValidPriceData = tokenPrice && tokenPrice.price && tokenPrice.price > 0
+  const hasValidSupplyData = totalSupply && totalSupply > 0
+  const loading = (preloadedPrices ? false : isLoading) || supplyLoading
 
   // Add debugging
   console.log(`LeagueTable ${tokenTicker}:`, {
@@ -203,13 +219,42 @@ export default function LeagueTable({ tokenTicker, containerStyle = true }: Leag
     totalSupply,
     isLoading,
     supplyLoading,
-    error
+    hasValidPriceData,
+    hasValidSupplyData,
+    loading,
+    error,
+    supplyError
   })
+
+  // Show loading state if still loading
+  if (loading) {
+    return (
+      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-sm">
+        {/* Just empty black space while loading */}
+      </div>
+    )
+  }
+
+  // Only show error state if we have supply errors or no supply data
+  // We'll handle missing price data by showing "no price found" in the UI
+  if (supplyError || !hasValidSupplyData) {
+    const errorMessage = supplyError || 'No supply data available';
+    
+    return (
+      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-sm">
+        <div className="text-red-400 text-center">
+          <p>Error loading {tokenTicker} league data</p>
+          <p className="text-sm text-gray-500 mt-2">{typeof errorMessage === 'string' ? errorMessage : 'Supply fetch failed'}</p>
+        </div>
+      </div>
+    )
+  }
 
   const calculateLeagueRanks = (): LeagueRank[] => {
     return LEAGUE_RANKS.map(rank => {
       const minTokens = (totalSupply * rank.percentage) / 100
-      const marketCap = minTokens * (tokenPrice?.price || 0)
+      // Use 0 for market cap if no price data
+      const marketCap = hasValidPriceData ? minTokens * tokenPrice.price : 0
       
       return {
         ...rank,
@@ -219,19 +264,8 @@ export default function LeagueTable({ tokenTicker, containerStyle = true }: Leag
     })
   }
 
-  // Calculate total market cap
-  const totalMarketCap = totalSupply * (tokenPrice?.price || 0)
-
-  if (error) {
-    return (
-      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-sm">
-        <div className="text-red-400 text-center">
-          <p>Error loading {tokenTicker} league data</p>
-          <p className="text-sm text-gray-500 mt-2">Failed to fetch price data</p>
-        </div>
-      </div>
-    )
-  }
+  // Calculate total market cap (0 if no price data)
+  const totalMarketCap = hasValidPriceData ? totalSupply * tokenPrice.price : 0
 
   const leagueRanks = calculateLeagueRanks()
 
@@ -253,7 +287,9 @@ export default function LeagueTable({ tokenTicker, containerStyle = true }: Leag
         </div>
         <div className="text-center">
           <div className="text-gray-400 text-sm">Market Cap</div>
-          <div className="text-white font-bold">{formatHeaderMarketCap(totalMarketCap)}</div>
+          <div className="text-white font-bold">
+            {hasValidPriceData ? formatHeaderMarketCap(totalMarketCap) : 'No price'}
+          </div>
         </div>
         <div className="text-right">
           <div className="text-gray-400 text-sm">Supply</div>
@@ -285,7 +321,7 @@ export default function LeagueTable({ tokenTicker, containerStyle = true }: Leag
 
             {/* Market Cap - Center Aligned */}
             <div className="text-white font-medium text-center">
-              {formatLeagueMarketCap(rank.marketCap)}
+              {hasValidPriceData ? formatLeagueMarketCap(rank.marketCap) : 'No price'}
             </div>
 
             {/* Supply Required - Right Aligned */}
@@ -317,7 +353,7 @@ export default function LeagueTable({ tokenTicker, containerStyle = true }: Leag
   }
 
   return (
-    <div className="bg-black border-2 border-white/10 rounded-2xl p-6">
+    <div className="bg-black border-2 border-white/10 rounded-2xl p-6 min-w-[340px]">
       {content}
     </div>
   )

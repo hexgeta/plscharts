@@ -21,6 +21,7 @@ const TOKEN_FIELD_MAP: Record<string, string> = {
   PLS: 'pls_price',
   PLSX: 'plsx_price',
   INC: 'inc_price',
+  HEX: 'hex_price',
   pHEX: 'hex_price',
   eHEX: 'ehex_price'
 };

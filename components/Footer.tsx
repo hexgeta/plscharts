@@ -11,7 +11,7 @@ const Footer = () => {
       <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12">
         <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">
-            PlsCharts.com {CURRENT_YEAR}
+            PlsCharts {CURRENT_YEAR}
           </h3>
           <p className="text-sm text-[rgb(153,153,153)]">
             Donate: <span 
@@ -30,6 +30,7 @@ const Footer = () => {
         <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">Links</h3>
           <ul className="text-sm space-y-1">
+          <li><a href="https://hexscout.com/buy" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Buy HEX on PulseChain</a></li>
             <li><a href="https://bridge.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Bridge</a></li>
             <li><a href="https://pulsex.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">PulseX</a></li>
             <li><a href="https://hex.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Stake HEX</a></li>
