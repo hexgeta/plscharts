@@ -17,7 +17,7 @@ function getMillisecondsUntilNext1AMUTC(): number {
 }
 
 // Custom hook for fetching token supply data with caching
-export function useTokenSupply(tokenTicker: string) {
+export function useTokenSupply(tokenTicker: string | null) {
   const [totalSupply, setTotalSupply] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function useTokenSupply(tokenTicker: string) {
   
   // Get cached data from localStorage if available
   const getCachedData = () => {
-    if (typeof window === 'undefined') return null;
+    if (typeof window === 'undefined' || !tokenTicker) return null;
     try {
       const cached = localStorage.getItem(`token-supply-${tokenTicker}`);
       if (cached) {
@@ -53,8 +53,8 @@ export function useTokenSupply(tokenTicker: string) {
     }
   };
 
-  // Skip API call for PLS since it uses hardcoded supply, or for SKIP_FETCH when we have preloaded data
-  const shouldFetch = tokenTicker !== 'PLS' && tokenTicker !== 'SKIP_FETCH' && tokenTicker && tokenTicker.trim() !== '';
+  // Skip API call for PLS since it uses hardcoded supply, or when tokenTicker is null (preloaded data), or for SKIP_FETCH when we have preloaded data
+  const shouldFetch = tokenTicker && tokenTicker !== 'PLS' && tokenTicker !== 'SKIP_FETCH' && tokenTicker.trim() !== '';
   
   const { data, error: swrError, isLoading } = useSWR(
     shouldFetch ? getDailyCacheKey(`token-supply-${tokenTicker}`) : null,
@@ -96,11 +96,19 @@ export function useTokenSupply(tokenTicker: string) {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       refreshInterval: 0, // No automatic refresh, only revalidate at 1 AM UTC
-      fallbackData: getCachedData()
+      fallbackData: shouldFetch ? getCachedData() : undefined
     }
   );
 
   useEffect(() => {
+    if (!tokenTicker) {
+      // Skip fetching when tokenTicker is null (preloaded data)
+      setTotalSupply(0);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     if (tokenTicker === 'PLS') {
       // Use hardcoded supply for PLS
       console.log(`[useTokenSupply] Using hardcoded supply for PLS`);

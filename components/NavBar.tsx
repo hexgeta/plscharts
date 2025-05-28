@@ -10,11 +10,34 @@ import { Menu } from 'lucide-react';
 // Static component with revalidation
 export const revalidate = 2592000; // 30 days in seconds
 
+// Navigation links configuration
+const NAV_LINKS = [
+  { href: '/leagues', label: 'Leagues', mobileLabel: 'Leagues' },
+  // { href: '/bridge', label: 'Bridge', mobileLabel: 'Bridge' },
+  // { href: '/portfolio', label: 'Portfolio', mobileLabel: 'Portfolio' },
+];
+
 const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isBannerVisible, setIsBannerVisible] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  // Helper function to determine if a link is active
+  const isActive = (href: string) => pathname === href;
+
+  // Helper function to get link classes
+  const getLinkClasses = (href: string, isMobile = false) => {
+    const baseClasses = "transition-colors";
+    const activeClasses = isMobile 
+      ? 'text-white cursor-default' 
+      : 'text-white cursor-default';
+    const inactiveClasses = isMobile 
+      ? 'text-white/80 hover:text-white' 
+      : 'text-[rgb(153,153,153)] hover:text-gray-300';
+    
+    return cn(baseClasses, isActive(href) ? activeClasses : inactiveClasses);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -50,7 +73,7 @@ const NavBar = () => {
           href="/" 
           className={cn(
             "font-bold text-xl relative z-[100] transition-colors",
-            pathname === '/' 
+            isActive('/') 
               ? 'text-white cursor-default' 
               : 'text-[rgb(153,153,153)] hover:text-gray-300'
           )}
@@ -60,17 +83,15 @@ const NavBar = () => {
         
         <div className="hidden xl:flex items-center justify-left flex-grow ml-10 relative z-[100]">
           <div className="flex space-x-6">
-            <Link 
-              href="/leagues" 
-              className={cn(
-                "transition-colors",
-                pathname === '/leagues' 
-                  ? 'text-white cursor-default' 
-                  : 'text-[rgb(153,153,153)] hover:text-gray-300'
-              )}
-            >
-              ♆ Leagues
-            </Link>
+            {NAV_LINKS.map((link) => (
+              <Link 
+                key={link.href}
+                href={link.href} 
+                className={getLinkClasses(link.href)}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
 
@@ -101,18 +122,19 @@ const NavBar = () => {
               transition={{ type: "spring", duration: 0.3 }}
               className="absolute right-2 top-2 h-auto w-64 bg-black bg-opacity-85 p-4 shadow-lg z-[160] border border-white/20 rounded-[10px]"
             >
-              <Link 
-                href="/leagues" 
-                className={cn(
-                  "block py-2 transition-colors",
-                  pathname === '/leagues' 
-                    ? 'text-white cursor-default' 
-                    : 'text-white/80 hover:text-white'
-                )}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Leagues
-              </Link>
+              {NAV_LINKS.map((link) => (
+                <Link 
+                  key={link.href}
+                  href={link.href} 
+                  className={cn(
+                    "block py-2",
+                    getLinkClasses(link.href, true)
+                  )}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {link.mobileLabel}
+                </Link>
+              ))}
             </motion.div>
           </motion.div>
         )}

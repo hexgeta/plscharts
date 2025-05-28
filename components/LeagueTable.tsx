@@ -175,18 +175,18 @@ export default React.memo(function LeagueTable({
   const [showError, setShowError] = useState(false);
   
   // Determine if we should use preloaded data or fetch individually
-  const hasPreloadedPrice = preloadedPrices && preloadedPrices[tokenTicker];
-  const hasPreloadedSupply = preloadedSupply !== undefined && preloadedSupply !== null;
+  const hasPreloadedPrice = preloadedPrices && preloadedPrices[tokenTicker] && preloadedPrices[tokenTicker].price > 0;
+  const hasPreloadedSupply = preloadedSupply !== undefined && preloadedSupply !== null && preloadedSupply > 0;
   
-  // Only fetch prices if we don't have preloaded prices for this token
+  // Only fetch prices if we don't have valid preloaded prices for this token
   const { prices: fetchedPrices, isLoading: priceLoading, error: priceError } = useTokenPrices(
     hasPreloadedPrice ? [] : [tokenTicker]
   )
   
-  // Only fetch supply if we don't have preloaded supply for this token
-  // IMPORTANT: Pass null/undefined to skip the hook entirely when we have preloaded data
+  // Only fetch supply if we don't have valid preloaded supply for this token
+  // IMPORTANT: Pass null to skip the hook entirely when we have valid preloaded data
   const { totalSupply: fetchedSupply, loading: supplyLoading, error: supplyError } = useTokenSupply(
-    hasPreloadedSupply ? 'SKIP_FETCH' : tokenTicker
+    hasPreloadedSupply ? null : tokenTicker
   )
   
   // Use preloaded data if available, otherwise use fetched data
@@ -208,7 +208,7 @@ export default React.memo(function LeagueTable({
   }, [totalSupply])
   
   const loading = (hasPreloadedPrice ? false : priceLoading) || (hasPreloadedSupply ? false : supplyLoading)
-
+  
   // Add 5-second delay before showing error messages
   useEffect(() => {
     if (!loading && (supplyError || !hasValidSupplyData)) {
@@ -227,10 +227,10 @@ export default React.memo(function LeagueTable({
     console.log(`LeagueTable ${tokenTicker} (individual fetch):`, {
       hasPreloadedPrice,
       hasPreloadedSupply,
-      tokenPrice,
-      totalSupply,
+    tokenPrice,
+    totalSupply,
       priceLoading,
-      supplyLoading,
+    supplyLoading,
       hasValidPriceData,
       hasValidSupplyData,
       loading,
@@ -303,13 +303,13 @@ export default React.memo(function LeagueTable({
         </div>
         <div className="text-center">
           <div className="text-gray-400 text-xs">Market Cap</div>
-          <div className="text-white font-bold">
+          <div className="text-white font-bold text-sm">
             {hasValidPriceData ? formatHeaderMarketCap(totalMarketCap) : 'No price'}
           </div>
         </div>
         <div className="text-right">
           <div className="text-gray-400 text-xs">Supply</div>
-          <div className="text-white font-bold">{formatCompactNumber(totalSupply)}</div>
+          <div className="text-white font-bold text-sm">{formatCompactNumber(totalSupply)}</div>
         </div>
       </div>
 
@@ -339,29 +339,29 @@ export default React.memo(function LeagueTable({
             </div>
 
             {/* Market Cap - Center Aligned */}
-            <div className="text-white font-medium text-center">
+            <div className="text-white font-medium text-center text-xs md:text-sm">
               {hasValidPriceData ? formatLeagueMarketCap(rank.marketCap) : 'No price'}
             </div>
 
             {/* Supply Required - Right Aligned */}
-            <div className="text-gray-400 text-right flex items-center justify-end">
+            <div className="text-gray-400 text-right flex items-center justify-end text-sm">
               {formatCompactNumber(rank.minTokens)}
               {(tokenTicker === 'HDRN' || tokenTicker === 'eHDRN' || tokenTicker === 'ICSA' || tokenTicker === 'eICSA') ? (
                 <div className="w-4 h-4 rounded-full bg-gray-800/50 border border-gray-600/30 flex items-center justify-center ml-1">
-                  <img
-                    src="/coin-logos/HDRN-white.svg"
-                    alt={`${tokenTicker} logo`}
+                <img
+                  src="/coin-logos/HDRN-white.svg"
+                  alt={`${tokenTicker} logo`}
                     className="w-3 h-3 rounded-none"
-                  />
+                />
                 </div>
               ) : (
                 <div className="w-4 h-4 rounded-full bg-gray-800/50 border border-gray-600/30 flex items-center justify-center ml-1">
-                  <CoinLogo
-                    symbol={tokenTicker}
-                    size="sm"
+                <CoinLogo
+                  symbol={tokenTicker}
+                  size="sm"
                     className="brightness-0 invert rounded-none w-3 h-3"
-                    variant="no-bg"
-                  />
+                  variant="no-bg"
+                />
                 </div>
               )}
             </div>

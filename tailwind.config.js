@@ -100,8 +100,8 @@ module.exports = {
     		},
     		fontFamily: {
     			sans: [
-    				'Departure Mono',
-    				'Archia',
+					'Departure Mono',
+					'Archia',
     				'ui-sans-serif',
     				'system-ui',
     				'sans-serif',

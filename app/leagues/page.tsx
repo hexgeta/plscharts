@@ -152,13 +152,33 @@ export default function LeaguesPage() {
     return supplies || null;
   }, [supplies]);
 
-  // Check if we have valid data for all main tokens
+  // Check if we have valid data for at least some main tokens (not all)
   const hasValidData = useMemo(() => {
-    return memoizedPrices && memoizedSupplies && MAIN_TOKENS.every(ticker => {
+    if (!memoizedPrices || !memoizedSupplies) return false;
+    
+    // Check if we have valid data for at least some tokens (not requiring all)
+    const validTokenCount = MAIN_TOKENS.filter(ticker => {
       const priceData = memoizedPrices[ticker];
       const supplyData = memoizedSupplies[ticker];
-      return priceData && priceData.price && priceData.price > 0 && supplyData && supplyData > 0;
-    });
+      const isValid = priceData && priceData.price && priceData.price > 0 && supplyData && supplyData > 0;
+      
+      // Debug logging for failed tokens
+      if (!isValid) {
+        console.log(`[LeaguesPage] Token ${ticker} failed validation:`, {
+          priceData,
+          supplyData,
+          hasPrice: priceData && priceData.price > 0,
+          hasSupply: supplyData && supplyData > 0
+        });
+      }
+      
+      return isValid;
+    }).length;
+    
+    console.log(`[LeaguesPage] Valid tokens: ${validTokenCount}/${MAIN_TOKENS.length}`);
+    
+    // Show the page if we have data for at least 50% of tokens
+    return validTokenCount >= Math.ceil(MAIN_TOKENS.length * 0.5);
   }, [memoizedPrices, memoizedSupplies]);
 
   // Overall loading state
