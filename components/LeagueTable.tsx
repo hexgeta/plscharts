@@ -347,7 +347,7 @@ export default React.memo(function LeagueTable({
             <div className="text-gray-400 text-right flex items-center justify-end text-sm">
               {formatCompactNumber(rank.minTokens)}
               {(tokenTicker === 'HDRN' || tokenTicker === 'eHDRN' || tokenTicker === 'ICSA' || tokenTicker === 'eICSA') ? (
-                <div className="w-4 h-4 rounded-full bg-gray-800/50 border border-gray-600/30 flex items-center justify-center ml-1">
+                <div className="w-4 h-4 rounded-full flex items-center justify-center ml-1">
                 <img
                   src="/coin-logos/HDRN-white.svg"
                   alt={`${tokenTicker} logo`}
@@ -355,7 +355,7 @@ export default React.memo(function LeagueTable({
                 />
                 </div>
               ) : (
-                <div className="w-4 h-4 rounded-full bg-gray-800/50 border border-gray-600/30 flex items-center justify-center ml-1">
+                <div className="w-4 h-4 rounded-full flex items-center justify-center ml-1">
                 <CoinLogo
                   symbol={tokenTicker}
                   size="sm"
