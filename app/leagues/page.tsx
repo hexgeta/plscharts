@@ -95,12 +95,7 @@ const TokenCard = React.memo(({ token }: {
           </div>
         </motion.div>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl w-full max-w-[400px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-white text-xl font-bold">
-            {token.name} ({token.ticker}) League
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto">
         <div className="mt-4 pb-4">
           {/* No preloaded data - will fetch individually when opened */}
           <LeagueTable 

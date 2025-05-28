@@ -82,7 +82,9 @@ const LEAGUE_RANKS: Omit<LeagueRank, 'minTokens' | 'marketCap'>[] = [
 ]
 
 // Local formatting functions to match the website's style
-function formatCompactNumber(num: number): string {
+function formatCompactNumber(num: number | null | undefined): string {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  
   if (num >= 1e15) {
     const rounded = Math.round(num / 1e15)
     return rounded >= 10 ? rounded + 'Q' : (num / 1e15).toFixed(1) + 'Q'
@@ -117,7 +119,9 @@ function formatCompactNumber(num: number): string {
 }
 
 // For header market cap - uses compact notation
-function formatHeaderMarketCap(num: number): string {
+function formatHeaderMarketCap(num: number | null | undefined): string {
+  if (num === null || num === undefined || isNaN(num)) return '$0';
+  
   if (num >= 1e9) {
     const rounded = Math.round(num / 1e9)
     return rounded >= 10 ? '$' + rounded + 'B' : '$' + (num / 1e9).toFixed(1) + 'B'
@@ -130,7 +134,9 @@ function formatHeaderMarketCap(num: number): string {
 }
 
 // For league row market caps - uses 3 significant digits with smart decimal handling
-function formatLeagueMarketCap(num: number): string {
+function formatLeagueMarketCap(num: number | null | undefined): string {
+  if (num === null || num === undefined || isNaN(num)) return '$0';
+  
   if (num >= 1000) {
     // For numbers >= 1000, use commas and no decimals
     return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 })
@@ -166,6 +172,8 @@ export default React.memo(function LeagueTable({
   preloadedSupply 
 }: LeagueTableProps) {
   
+  const [showError, setShowError] = useState(false);
+  
   // Determine if we should use preloaded data or fetch individually
   const hasPreloadedPrice = preloadedPrices && preloadedPrices[tokenTicker];
   const hasPreloadedSupply = preloadedSupply !== undefined && preloadedSupply !== null;
@@ -176,7 +184,7 @@ export default React.memo(function LeagueTable({
   )
   
   // Only fetch supply if we don't have preloaded supply for this token
-  // Use a dummy ticker that won't fetch when we have preloaded data
+  // IMPORTANT: Pass null/undefined to skip the hook entirely when we have preloaded data
   const { totalSupply: fetchedSupply, loading: supplyLoading, error: supplyError } = useTokenSupply(
     hasPreloadedSupply ? 'SKIP_FETCH' : tokenTicker
   )
@@ -200,6 +208,19 @@ export default React.memo(function LeagueTable({
   }, [totalSupply])
   
   const loading = (hasPreloadedPrice ? false : priceLoading) || (hasPreloadedSupply ? false : supplyLoading)
+
+  // Add 5-second delay before showing error messages
+  useEffect(() => {
+    if (!loading && (supplyError || !hasValidSupplyData)) {
+      const timer = setTimeout(() => {
+        setShowError(true);
+      }, 5000); // 5 second delay
+
+      return () => clearTimeout(timer);
+    } else {
+      setShowError(false);
+    }
+  }, [loading, supplyError, hasValidSupplyData]);
 
   // Add debugging for popup tokens
   if (!hasPreloadedPrice || !hasPreloadedSupply) {
@@ -249,9 +270,9 @@ export default React.memo(function LeagueTable({
     )
   }
 
-  // Only show error state if we have supply errors or no supply data
+  // Only show error state if we have supply errors or no supply data AND the delay has passed
   // We'll handle missing price data by showing "no price found" in the UI
-  if (supplyError || !hasValidSupplyData) {
+  if (showError && (supplyError || !hasValidSupplyData)) {
     const errorMessage = supplyError || 'No supply data available';
     
     return (
