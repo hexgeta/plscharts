@@ -13,7 +13,7 @@ export const revalidate = 2592000; // 30 days in seconds
 // Navigation links configuration
 const NAV_LINKS = [
   { href: '/leagues', label: 'Leagues', mobileLabel: 'Leagues' },
-  // { href: '/bridge', label: 'Bridge', mobileLabel: 'Bridge' },
+  { href: '/bridge', label: 'Bridge', mobileLabel: 'Bridge' },
   // { href: '/portfolio', label: 'Portfolio', mobileLabel: 'Portfolio' },
 ];
 
