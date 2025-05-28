@@ -226,7 +226,7 @@ async function fetchTokenPrices(tickers: string[]): Promise<TokenPrices> {
   return results;
 }
 
-export function useTokenPrices(tickers: string[]) {
+export function useTokenPrices(tickers: string[], options?: { disableRefresh?: boolean }) {
   const [prices, setPrices] = useState<TokenPrices>({});
   const [error, setError] = useState<Error | null>(null);
 
@@ -244,7 +244,7 @@ export function useTokenPrices(tickers: string[]) {
       }
     },
     {
-      refreshInterval: 15000, // 15 seconds
+      refreshInterval: options?.disableRefresh ? 0 : 15000, // Disable refresh if requested
       dedupingInterval: 5000, // 5 seconds
       revalidateOnFocus: false
     }

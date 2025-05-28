@@ -6,6 +6,15 @@ const HARDCODED_SUPPLIES: Record<string, number> = {
   'PLS': 137000000000000, // 137T
 };
 
+// Calculate seconds until next 1 AM UTC
+function getSecondsUntilNext1AMUTC(): number {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(1, 0, 0, 0);
+  return Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const ticker = searchParams.get('ticker');
@@ -20,9 +29,21 @@ export async function GET(request: NextRequest) {
   // Check for hardcoded supply first (only PLS)
   if (ticker in HARDCODED_SUPPLIES) {
     console.log(`[Token Supply API] Using hardcoded supply for ${ticker}`);
-    return NextResponse.json({
+    
+    // Calculate cache duration until next 1 AM UTC
+    const maxAge = getSecondsUntilNext1AMUTC();
+    
+    return new NextResponse(JSON.stringify({
       ticker,
       totalSupply: HARDCODED_SUPPLIES[ticker]
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=60`,
+        'CDN-Cache-Control': `public, max-age=${maxAge}`,
+        'Vercel-CDN-Cache-Control': `public, max-age=${maxAge}`,
+      }
     });
   }
 
@@ -55,9 +76,21 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[Token Supply API] Found supply for ${ticker}:`, data.total_supply_formatted);
-    return NextResponse.json({
+    
+    // Calculate cache duration until next 1 AM UTC
+    const maxAge = getSecondsUntilNext1AMUTC();
+    
+    return new NextResponse(JSON.stringify({
       ticker,
       totalSupply: data.total_supply_formatted
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=60`,
+        'CDN-Cache-Control': `public, max-age=${maxAge}`,
+        'Vercel-CDN-Cache-Control': `public, max-age=${maxAge}`,
+      }
     });
 
   } catch (error) {

@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Image from 'next/image'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
+import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
+import React from 'react'
 
 interface LeagueRank {
   name: string
@@ -17,7 +19,8 @@ interface LeagueRank {
 interface LeagueTableProps {
   tokenTicker: string
   containerStyle?: boolean
-  preloadedPrices?: any // Prices from parent component
+  preloadedPrices?: any // Prices from parent component for main tokens
+  preloadedSupply?: number // Supply from parent component for main tokens
 }
 
 // Sea creature ranks from highest to lowest
@@ -126,10 +129,23 @@ function formatHeaderMarketCap(num: number): string {
   return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 })
 }
 
-// For league row market caps - uses full numbers with commas
+// For league row market caps - uses 3 significant digits with smart decimal handling
 function formatLeagueMarketCap(num: number): string {
   if (num >= 1000) {
+    // For numbers >= 1000, use commas and no decimals
     return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 })
+  }
+  if (num >= 100) {
+    // For 100-999, show one decimal place (e.g., 545.8)
+    return '$' + num.toFixed(1)
+  }
+  if (num >= 10) {
+    // For 10-99, show one decimal place (e.g., 54.6)
+    return '$' + num.toFixed(1)
+  }
+  if (num >= 1) {
+    // For 1-9, show two decimal places (e.g., 5.46)
+    return '$' + num.toFixed(2)
   }
   if (num >= 0.01) {
     return '$' + num.toFixed(2)
@@ -143,94 +159,92 @@ function formatLeagueMarketCap(num: number): string {
   return '$' + num.toFixed(5)
 }
 
-// Custom hook for fetching token supply data
-function useTokenSupply(tokenTicker: string) {
-  const [totalSupply, setTotalSupply] = useState<number>(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    console.log(`[useTokenSupply] Starting fetch for ${tokenTicker}`);
-    
-    // Skip API call for PLS since it uses hardcoded supply
-    if (tokenTicker === 'PLS') {
-      console.log(`[useTokenSupply] Using hardcoded supply for PLS`);
-      setTotalSupply(137000000000000) // 137T for PLS
-      setLoading(false)
-      return
-    }
-
-    const fetchTokenSupply = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        console.log(`[useTokenSupply] Fetching supply for ${tokenTicker} from /api/token-supply`);
-
-        // Fetch from API route instead of direct Supabase access
-        const response = await fetch(`/api/token-supply?ticker=${tokenTicker}`)
-        console.log(`[useTokenSupply] Response status for ${tokenTicker}:`, response.status);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`[useTokenSupply] Error response for ${tokenTicker}:`, errorText);
-          const errorData = errorText.startsWith('{') ? JSON.parse(errorText) : { error: errorText };
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
-        }
-
-        const data = await response.json()
-        console.log(`[useTokenSupply] Success data for ${tokenTicker}:`, data);
-        
-        if (data.totalSupply === null || data.totalSupply === undefined) {
-          throw new Error('Invalid supply data received')
-        }
-        setTotalSupply(data.totalSupply)
-      } catch (err) {
-        console.error(`[useTokenSupply] Error fetching token supply for ${tokenTicker}:`, err)
-        setError(err instanceof Error ? err.message : 'Unknown error occurred')
-        setTotalSupply(0)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTokenSupply()
-  }, [tokenTicker])
-
-  return { totalSupply, loading, error }
-}
-
-export default function LeagueTable({ tokenTicker, containerStyle = true, preloadedPrices }: LeagueTableProps) {
-  const { prices: fetchedPrices, isLoading, error } = useTokenPrices(preloadedPrices ? [] : [tokenTicker])
-  const { totalSupply, loading: supplyLoading, error: supplyError } = useTokenSupply(tokenTicker)
+export default React.memo(function LeagueTable({ 
+  tokenTicker, 
+  containerStyle = true, 
+  preloadedPrices,
+  preloadedSupply 
+}: LeagueTableProps) {
   
-  // Use preloaded prices if available, otherwise use fetched prices
+  // Determine if we should use preloaded data or fetch individually
+  const hasPreloadedPrice = preloadedPrices && preloadedPrices[tokenTicker];
+  const hasPreloadedSupply = preloadedSupply !== undefined && preloadedSupply !== null;
+  
+  // Only fetch prices if we don't have preloaded prices for this token
+  const { prices: fetchedPrices, isLoading: priceLoading, error: priceError } = useTokenPrices(
+    hasPreloadedPrice ? [] : [tokenTicker]
+  )
+  
+  // Only fetch supply if we don't have preloaded supply for this token
+  // Use a dummy ticker that won't fetch when we have preloaded data
+  const { totalSupply: fetchedSupply, loading: supplyLoading, error: supplyError } = useTokenSupply(
+    hasPreloadedSupply ? 'SKIP_FETCH' : tokenTicker
+  )
+  
+  // Use preloaded data if available, otherwise use fetched data
   const prices = preloadedPrices || fetchedPrices
-  const tokenPrice = prices[tokenTicker]
+  const totalSupply = hasPreloadedSupply ? preloadedSupply : fetchedSupply
+  
+  // Memoize the specific token price data to prevent re-renders when other tokens update
+  const tokenPrice = useMemo(() => {
+    return prices?.[tokenTicker]
+  }, [prices, tokenTicker])
   
   // Enhanced loading validation - ensure we have valid data before rendering
-  const hasValidPriceData = tokenPrice && tokenPrice.price && tokenPrice.price > 0
-  const hasValidSupplyData = totalSupply && totalSupply > 0
-  const loading = (preloadedPrices ? false : isLoading) || supplyLoading
+  const hasValidPriceData = useMemo(() => {
+    return tokenPrice && tokenPrice.price && tokenPrice.price > 0
+  }, [tokenPrice])
+  
+  const hasValidSupplyData = useMemo(() => {
+    return totalSupply && totalSupply > 0
+  }, [totalSupply])
+  
+  const loading = (hasPreloadedPrice ? false : priceLoading) || (hasPreloadedSupply ? false : supplyLoading)
 
-  // Add debugging
-  console.log(`LeagueTable ${tokenTicker}:`, {
-    prices,
-    tokenPrice,
-    totalSupply,
-    isLoading,
-    supplyLoading,
-    hasValidPriceData,
-    hasValidSupplyData,
-    loading,
-    error,
-    supplyError
-  })
+  // Add debugging for popup tokens
+  if (!hasPreloadedPrice || !hasPreloadedSupply) {
+    console.log(`LeagueTable ${tokenTicker} (individual fetch):`, {
+      hasPreloadedPrice,
+      hasPreloadedSupply,
+      tokenPrice,
+      totalSupply,
+      priceLoading,
+      supplyLoading,
+      hasValidPriceData,
+      hasValidSupplyData,
+      loading,
+      priceError,
+      supplyError
+    })
+  }
+
+  // Memoize the league calculations to prevent recalculation on every render
+  const leagueRanks = useMemo(() => {
+    if (!hasValidSupplyData) return []
+    
+    return LEAGUE_RANKS.map(rank => {
+      const minTokens = (totalSupply * rank.percentage) / 100
+      // Use 0 for market cap if no price data
+      const marketCap = hasValidPriceData ? minTokens * tokenPrice.price : 0
+      
+      return {
+        ...rank,
+        minTokens,
+        marketCap
+      }
+    })
+  }, [totalSupply, hasValidPriceData, tokenPrice, hasValidSupplyData])
+
+  // Calculate total market cap (0 if no price data)
+  const totalMarketCap = useMemo(() => {
+    return hasValidPriceData && hasValidSupplyData ? totalSupply * tokenPrice.price : 0
+  }, [hasValidPriceData, hasValidSupplyData, totalSupply, tokenPrice])
 
   // Show loading state if still loading
   if (loading) {
     return (
       <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-sm">
-        {/* Just empty black space while loading */}
+        <div className="text-center text-gray-400">Loading {tokenTicker}...</div>
       </div>
     )
   }
@@ -250,29 +264,10 @@ export default function LeagueTable({ tokenTicker, containerStyle = true, preloa
     )
   }
 
-  const calculateLeagueRanks = (): LeagueRank[] => {
-    return LEAGUE_RANKS.map(rank => {
-      const minTokens = (totalSupply * rank.percentage) / 100
-      // Use 0 for market cap if no price data
-      const marketCap = hasValidPriceData ? minTokens * tokenPrice.price : 0
-      
-      return {
-        ...rank,
-        minTokens,
-        marketCap
-      }
-    })
-  }
-
-  // Calculate total market cap (0 if no price data)
-  const totalMarketCap = hasValidPriceData ? totalSupply * tokenPrice.price : 0
-
-  const leagueRanks = calculateLeagueRanks()
-
   const content = (
     <div className="w-full">
       {/* Header */}
-      <div className="grid grid-cols-3 items-center gap-4 mb-6">
+      <div className="grid grid-cols-3 items-center gap-4 mb-2">
         <div className="flex items-center space-x-3">
           <CoinLogo
             symbol={tokenTicker}
@@ -286,23 +281,26 @@ export default function LeagueTable({ tokenTicker, containerStyle = true, preloa
           </div>
         </div>
         <div className="text-center">
-          <div className="text-gray-400 text-sm">Market Cap</div>
+          <div className="text-gray-400 text-xs">Market Cap</div>
           <div className="text-white font-bold">
             {hasValidPriceData ? formatHeaderMarketCap(totalMarketCap) : 'No price'}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-gray-400 text-sm">Supply</div>
+          <div className="text-gray-400 text-xs">Supply</div>
           <div className="text-white font-bold">{formatCompactNumber(totalSupply)}</div>
         </div>
       </div>
 
+      {/* Separator */}
+      <div className="border-t border-white/10 mb-2"></div>
+
       {/* League Table */}
-      <div className="space-y-3">
+      <div className="space-y-1">
         {leagueRanks.map((rank, index) => (
           <div
             key={rank.name}
-            className="grid grid-cols-3 items-center gap-4 py-2"
+            className="grid grid-cols-3 items-center gap-4 py-1"
           >
             {/* Rank Info - Left Aligned */}
             <div className="flex items-center space-x-2">
@@ -314,7 +312,7 @@ export default function LeagueTable({ tokenTicker, containerStyle = true, preloa
                   className="object-contain"
                 />
               </div>
-              <div className="text-white font-bold text-sm">
+              <div className="text-white font-bold text-xs">
                 {rank.name}
               </div>
             </div>
@@ -328,18 +326,22 @@ export default function LeagueTable({ tokenTicker, containerStyle = true, preloa
             <div className="text-gray-400 text-right flex items-center justify-end">
               {formatCompactNumber(rank.minTokens)}
               {(tokenTicker === 'HDRN' || tokenTicker === 'eHDRN' || tokenTicker === 'ICSA' || tokenTicker === 'eICSA') ? (
-                <img
-                  src="/coin-logos/HDRN-white.svg"
-                  alt={`${tokenTicker} logo`}
-                  className="w-4 h-4 rounded-none ml-1"
-                />
+                <div className="w-4 h-4 rounded-full bg-gray-800/50 border border-gray-600/30 flex items-center justify-center ml-1">
+                  <img
+                    src="/coin-logos/HDRN-white.svg"
+                    alt={`${tokenTicker} logo`}
+                    className="w-3 h-3 rounded-none"
+                  />
+                </div>
               ) : (
-                <CoinLogo
-                  symbol={tokenTicker}
-                  size="sm"
-                  className="brightness-0 invert rounded-none ml-1"
-                  variant="no-bg"
-                />
+                <div className="w-4 h-4 rounded-full bg-gray-800/50 border border-gray-600/30 flex items-center justify-center ml-1">
+                  <CoinLogo
+                    symbol={tokenTicker}
+                    size="sm"
+                    className="brightness-0 invert rounded-none w-3 h-3"
+                    variant="no-bg"
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -353,8 +355,30 @@ export default function LeagueTable({ tokenTicker, containerStyle = true, preloa
   }
 
   return (
-    <div className="bg-black border-2 border-white/10 rounded-2xl p-6 min-w-[340px]">
+    <div className="bg-black border-2 border-white/10 rounded-2xl p-6 min-w-[360px]">
       {content}
     </div>
   )
-} 
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Only re-render if the specific token's data has changed
+  if (prevProps.tokenTicker !== nextProps.tokenTicker) return false;
+  if (prevProps.containerStyle !== nextProps.containerStyle) return false;
+  
+  // Compare preloaded supply
+  if (prevProps.preloadedSupply !== nextProps.preloadedSupply) return false;
+  
+  // Compare the specific token's price data
+  const prevTokenPrice = prevProps.preloadedPrices?.[prevProps.tokenTicker];
+  const nextTokenPrice = nextProps.preloadedPrices?.[nextProps.tokenTicker];
+  
+  if (!prevTokenPrice && !nextTokenPrice) return true; // Both null/undefined
+  if (!prevTokenPrice || !nextTokenPrice) return false; // One is null/undefined
+  
+  // Compare the actual price values that matter for rendering
+  return (
+    prevTokenPrice.price === nextTokenPrice.price &&
+    JSON.stringify(prevTokenPrice.priceChange) === JSON.stringify(nextTokenPrice.priceChange) &&
+    prevTokenPrice.liquidity === nextTokenPrice.liquidity
+  );
+}) 

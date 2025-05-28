@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Menu } from 'lucide-react';
 
 // Static component with revalidation
 export const revalidate = 2592000; // 30 days in seconds
@@ -54,7 +55,7 @@ const NavBar = () => {
               : 'text-[rgb(153,153,153)] hover:text-gray-300'
           )}
         >
-          PlsCharts.com
+          PlsCharts
         </Link>
         
         <div className="hidden xl:flex items-center justify-left flex-grow ml-10 relative z-[100]">
@@ -79,9 +80,7 @@ const NavBar = () => {
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Toggle menu"
         >
-          <span className="w-5 h-[2px] bg-white my-[3px]"></span>
-          <span className="w-5 h-[2px] bg-white my-[3px]"></span>
-          <span className="w-5 h-[2px] bg-white my-[3px]"></span>
+          <Menu className="w-6 h-6 text-white" />
         </button>
       </div>
       

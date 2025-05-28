@@ -16,9 +16,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-black relative overflow-hidden">
+    <div className="min-h-screen py-8 flex flex-col items-center justify-center bg-black relative overflow-hidden">
       <AnimatePresence mode="wait">
-        <div className="container mx-auto px-4 grid grid-cols-1 gap-8">
+        <div className="container mx-auto grid grid-cols-1 gap-8">
           <PulseChainTable />
         </div>
       </AnimatePresence>

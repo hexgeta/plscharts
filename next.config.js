@@ -65,7 +65,7 @@ const nextConfig = {
         ],
       },
       {
-        source: '/favicon.png',
+        source: '/favicon.svg',
         headers: [
           {
             key: 'Cache-Control',
