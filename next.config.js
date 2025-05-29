@@ -37,12 +37,26 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // Match all image files
+        // Match all coin logo image files
         source: '/coin-logos/:path*',
         headers: [
           {
             key: 'Cache-Control',
             // Similar to gopulse.com: public, 30 days, immutable
+            value: 'public, max-age=2592000, immutable',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+        ],
+      },
+      {
+        // Match sea creature images for league tables
+        source: '/(poseidon|whale|shark|dolphin|squid|turtle|crab|shrimp|shell).png',
+        headers: [
+          {
+            key: 'Cache-Control',
             value: 'public, max-age=2592000, immutable',
           },
           {

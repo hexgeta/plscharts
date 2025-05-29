@@ -335,8 +335,11 @@ export default React.memo(function LeagueTable({
                 <Image
                   src={rank.icon}
                   alt={rank.name}
-                  fill
+                  width={24}
+                  height={24}
                   className="object-contain"
+                  priority={index < 3} // Priority load first 3 ranks (most important)
+                  sizes="24px"
                 />
               </div>
               <div className="text-white font-bold text-xs">

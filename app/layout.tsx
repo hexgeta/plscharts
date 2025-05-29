@@ -145,13 +145,14 @@ export default function RootLayout({
           />
         ))}
         {/* Preload sea creature images for league tables */}
-        {SEA_CREATURE_IMAGES.map(image => (
+        {SEA_CREATURE_IMAGES.map((image, index) => (
           <link 
             key={image}
             rel="preload"
             href={`/${image}`}
             as="image"
             type="image/png"
+            fetchPriority={index < 3 ? 'high' : 'auto'} // High priority for top 3 ranks
           />
         ))}
       </head>
