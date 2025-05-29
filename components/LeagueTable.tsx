@@ -302,8 +302,7 @@ export default React.memo(function LeagueTable({
             variant="default"
           />
           <div>
-            <div className="text-white font-bold text-xl">{tokenTicker}</div>
-            <div className="text-gray-400 text-sm">{tokenTicker}</div>
+            <div className="text-white text-sm">{tokenTicker}</div>
           </div>
         </div>
         <div className="text-center">

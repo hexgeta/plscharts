@@ -446,7 +446,7 @@ function CustomLeagueDisplay({
               </div>
 
               {/* Market Cap - Center Aligned */}
-              <div className="text-white font-medium text-center text-xs md:text-sm">
+              <div className="text-white font-medium text-center text-xs md:text-sm ml-8 md:ml-0">
                 {price ? formatMarketCap(marketCap) : 'No price'}
               </div>
 

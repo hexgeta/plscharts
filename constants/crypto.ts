@@ -702,7 +702,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0x0f3c6134f4022d85127476bc4d3787860e5c5569",
-  dexs: "0xda72b9e219d87ea31b4a1929640d9e960362470d",
+  dexs: "0x518b8CE0C7CE74a85774814fBFac7ADCDf702b2C",
   ticker: "weTRIO",
   decimals: 8,
   name: "TRIO from Ethereum",
