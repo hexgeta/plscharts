@@ -21,6 +21,7 @@ interface LeagueTableProps {
   containerStyle?: boolean
   preloadedPrices?: any // Prices from parent component for main tokens
   preloadedSupply?: number // Supply from parent component for main tokens
+  supplyDeduction?: number // Amount to subtract from total supply (e.g., burned tokens)
 }
 
 // Sea creature ranks from highest to lowest
@@ -169,7 +170,8 @@ export default React.memo(function LeagueTable({
   tokenTicker, 
   containerStyle = true, 
   preloadedPrices,
-  preloadedSupply 
+  preloadedSupply,
+  supplyDeduction
 }: LeagueTableProps) {
   
   const [showError, setShowError] = useState(false);
@@ -191,7 +193,10 @@ export default React.memo(function LeagueTable({
   
   // Use preloaded data if available, otherwise use fetched data
   const prices = preloadedPrices || fetchedPrices
-  const totalSupply = hasPreloadedSupply ? preloadedSupply : fetchedSupply
+  const rawTotalSupply = hasPreloadedSupply ? preloadedSupply : fetchedSupply
+  
+  // Apply supply deduction if provided
+  const totalSupply = rawTotalSupply && supplyDeduction ? rawTotalSupply - supplyDeduction : rawTotalSupply
   
   // Memoize the specific token price data to prevent re-renders when other tokens update
   const tokenPrice = useMemo(() => {
@@ -310,6 +315,11 @@ export default React.memo(function LeagueTable({
         <div className="text-right">
           <div className="text-gray-400 text-xs">Supply</div>
           <div className="text-white font-bold text-sm">{formatCompactNumber(totalSupply)}</div>
+          {supplyDeduction && supplyDeduction > 0 && (
+            <div className="text-gray-500 text-xs">
+              -{formatCompactNumber(supplyDeduction)} deducted
+            </div>
+          )}
         </div>
       </div>
 
@@ -385,6 +395,7 @@ export default React.memo(function LeagueTable({
   // Only re-render if the specific token's data has changed
   if (prevProps.tokenTicker !== nextProps.tokenTicker) return false;
   if (prevProps.containerStyle !== nextProps.containerStyle) return false;
+  if (prevProps.supplyDeduction !== nextProps.supplyDeduction) return false;
   
   // Compare preloaded supply
   if (prevProps.preloadedSupply !== nextProps.preloadedSupply) return false;
