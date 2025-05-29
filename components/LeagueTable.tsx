@@ -139,31 +139,33 @@ function formatLeagueMarketCap(num: number | null | undefined): string {
   if (num === null || num === undefined || isNaN(num)) return '$0';
   
   if (num >= 1000) {
-    // For numbers >= 1000, use commas and no decimals
-    return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 })
+    // For large numbers, show raw value with no decimals (no sig fig rounding)
+    return '$' + Math.round(num).toLocaleString('en-US', { maximumFractionDigits: 0 })
   }
-  if (num >= 100) {
-    // For 100-999, show one decimal place (e.g., 545.8)
-    return '$' + num.toFixed(1)
+  
+  // Only apply 3 significant figures rounding to numbers < 1000
+  const roundToSignificantFigures = (n: number, sig: number) => {
+    if (n === 0) return 0
+    const factor = Math.pow(10, sig - Math.floor(Math.log10(Math.abs(n))) - 1)
+    return Math.round(n * factor) / factor
   }
-  if (num >= 10) {
-    // For 10-99, show one decimal place (e.g., 54.6)
-    return '$' + num.toFixed(1)
+  
+  const rounded = roundToSignificantFigures(num, 3)
+  
+  if (rounded >= 100) {
+    // For 100-999, no decimals needed (3 sig figs already)
+    return '$' + Math.round(rounded).toString()
   }
-  if (num >= 1) {
-    // For 1-9, show two decimal places (e.g., 5.46)
-    return '$' + num.toFixed(2)
+  if (rounded >= 10) {
+    // For 10-99, show 1 decimal for 3 sig figs
+    return '$' + rounded.toFixed(1)
   }
-  if (num >= 0.01) {
-    return '$' + num.toFixed(2)
+  if (rounded >= 1) {
+    // For 1-9, show 2 decimals for 3 sig figs
+    return '$' + rounded.toFixed(2)
   }
-  if (num >= 0.001) {
-    return '$' + num.toFixed(3)
-  }
-  if (num >= 0.0001) {
-    return '$' + num.toFixed(4)
-  }
-  return '$' + num.toFixed(5)
+  // For < 1, show enough decimals for 3 sig figs
+  return '$' + rounded.toPrecision(3)
 }
 
 export default React.memo(function LeagueTable({ 
@@ -291,7 +293,7 @@ export default React.memo(function LeagueTable({
   }
 
   const content = (
-    <div className="w-full">
+    <div className="w-full transition-all duration-300 ease-in-out">
       {/* Header */}
       <div className="grid grid-cols-3 items-center gap-4 mb-2">
         <div className="flex items-center space-x-3">
@@ -307,18 +309,13 @@ export default React.memo(function LeagueTable({
         </div>
         <div className="text-center">
           <div className="text-gray-400 text-xs">Market Cap</div>
-          <div className="text-white font-bold text-sm">
+          <div className="text-white font-bold text-sm transition-all duration-300">
             {hasValidPriceData ? formatHeaderMarketCap(totalMarketCap) : 'No price'}
           </div>
         </div>
         <div className="text-right">
           <div className="text-gray-400 text-xs">Supply</div>
-          <div className="text-white font-bold text-sm">{formatCompactNumber(totalSupply)}</div>
-          {supplyDeduction && supplyDeduction > 0 && (
-            <div className="text-gray-500 text-xs">
-              -{formatCompactNumber(supplyDeduction)} deducted
-            </div>
-          )}
+          <div className="text-white font-bold text-sm transition-all duration-300">{formatCompactNumber(totalSupply)}</div>
         </div>
       </div>
 
@@ -330,7 +327,7 @@ export default React.memo(function LeagueTable({
         {leagueRanks.map((rank, index) => (
           <div
             key={rank.name}
-            className="grid grid-cols-3 items-center gap-4 py-1"
+            className="grid grid-cols-3 items-center gap-4 py-1 transition-all duration-300"
           >
             {/* Rank Info - Left Aligned */}
             <div className="flex items-center space-x-2">
@@ -348,12 +345,12 @@ export default React.memo(function LeagueTable({
             </div>
 
             {/* Market Cap - Center Aligned */}
-            <div className="text-white font-medium text-center text-xs md:text-sm">
+            <div className="text-white font-medium text-center text-xs md:text-sm transition-all duration-300">
               {hasValidPriceData ? formatLeagueMarketCap(rank.marketCap) : 'No price'}
             </div>
 
             {/* Supply Required - Right Aligned */}
-            <div className="text-gray-400 text-right flex items-center justify-end text-sm">
+            <div className="text-gray-400 text-right flex items-center justify-end text-sm transition-all duration-300">
               {formatCompactNumber(rank.minTokens)}
               {(tokenTicker === 'HDRN' || tokenTicker === 'eHDRN' || tokenTicker === 'ICSA' || tokenTicker === 'eICSA') ? (
                 <div className="w-4 h-4 rounded-full flex items-center justify-center ml-1">

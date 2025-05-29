@@ -66,6 +66,65 @@ const tangGangTokens = [
   { ticker: '9MM', name: '9mm' },
 ];
 
+// More PulseChain tokens (individually loaded)
+const moreTokens = [
+  { ticker: 'HELGO', name: 'Helgo' },
+  { ticker: 'TWO', name: 'Two' },
+  { ticker: 'SOLIDX', name: 'SolidX' },
+  { ticker: 'UFO', name: 'UFO' },
+  { ticker: 'pTGC', name: 'pTGC' },
+  { ticker: 'SOIL', name: 'Soil' },
+  { ticker: 'TSFi', name: 'TSFi' },
+  { ticker: 'pWBTC', name: 'pWBTC' },
+  { ticker: 'pWETH', name: 'pWETH' },
+  { ticker: 'eWBTC', name: 'eWBTC' },
+  { ticker: 'GOFURS', name: 'GOFURS' },
+  { ticker: 'BBC', name: 'BBC' },
+  { ticker: 'USDL', name: 'USDL' },
+  { ticker: 'WATT', name: 'WATT' },
+  { ticker: 'pUSDC', name: 'pUSDC' },
+  { ticker: '9INCH', name: '9INCH' },
+  { ticker: 'eUSDC', name: 'eUSDC' },
+  { ticker: 'DOGE', name: 'DOGE' },
+  { ticker: 'BEAR', name: 'BEAR' },
+  { ticker: 'APC', name: 'APC' },
+  { ticker: 'UPX', name: 'UPX' },
+  { ticker: 'pUSDT', name: 'pUSDT' },
+  { ticker: 'pDAI', name: 'pDAI' },
+  { ticker: 'eUSDT', name: 'eUSDT' },
+  { ticker: 'PTS', name: 'PTS' },
+  { ticker: 'ALIEN', name: 'ALIEN' },
+  { ticker: 'vPLS', name: 'vPLS' },
+  { ticker: 'WBNB', name: 'WBNB' },
+  { ticker: 'UP', name: 'UP' },
+  { ticker: 'BLAST', name: 'BLAST' },
+  { ticker: 'LEGAL', name: 'LEGAL' },
+  { ticker: 'MONAT', name: 'MONAT' },
+  { ticker: 'TBILL', name: 'TBILL' },
+  { ticker: 'PLSP', name: 'PLSP' },
+  { ticker: 'HEXDC', name: 'HEXDC' },
+  { ticker: 'PLSD', name: 'PLSD' },
+  { ticker: 'PZEN', name: 'PZEN' },
+  { ticker: 'DMND', name: 'DMND' },
+  { ticker: 'pSHIB', name: 'pSHIB' },
+  { ticker: 'PXDC', name: 'PXDC' },
+  { ticker: 'PTP', name: 'PTP' },
+  { ticker: 'pYFI', name: 'pYFI' },
+  { ticker: 'TETRA', name: 'TETRA' },
+  { ticker: 'NOPE', name: 'NOPE' },
+  { ticker: 'pBAL', name: 'pBAL' },
+  { ticker: 'pAAVE', name: 'pAAVE' },
+];
+
+// OA (Origin Address) supplies to subtract when toggle is enabled
+const OA_SUPPLIES = {
+  'PLS': 120_000_000_000_000, // Example OA supply for PLS
+  'PLSX': 122_000_000_000_000, // Example OA supply for PLSX  
+  'HEX': 0, // OA HEX supply
+  'eHEX': 0, // OA HEX supply (same as HEX)
+  // Add other tokens as needed
+};
+
 // Memoized TokenCard component for popup tokens (individually loaded)
 const TokenCard = React.memo(({ token }: { 
   token: { ticker: string; name: string };
@@ -95,14 +154,23 @@ const TokenCard = React.memo(({ token }: {
           </div>
         </motion.div>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto">
-        <div className="mt-4 pb-4">
+      <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ 
+            duration: 0.4,
+            ease: [0.23, 1, 0.32, 1]
+          }}
+          className="mt-4 pb-4"
+        >
           {/* No preloaded data - will fetch individually when opened */}
           <LeagueTable 
             tokenTicker={token.ticker} 
             containerStyle={false} 
           />
-        </div>
+        </motion.div>
       </DialogContent>
     </Dialog>
   );
@@ -118,6 +186,7 @@ TokenCard.displayName = 'TokenCard';
 
 export default function LeaguesPage() {
   const [mounted, setMounted] = useState(false);
+  const [excludeOA, setExcludeOA] = useState(true);
   
   // Batch fetch prices and supplies for main tokens only
   const { prices, isLoading: pricesLoading } = useTokenPrices(MAIN_TOKENS, { disableRefresh: true });
@@ -147,10 +216,18 @@ export default function LeaguesPage() {
     prices && MAIN_TOKENS.map(ticker => JSON.stringify(prices[ticker]?.priceChange)).join(',')
   ]);
 
-  // Memoize the supply data
+  // Memoize the supply data with OA exclusion logic
   const memoizedSupplies = useMemo(() => {
-    return supplies || null;
+    if (!supplies) return null;
+    
+    // Don't modify supplies here - just return the raw supplies
+    return supplies;
   }, [supplies]);
+
+  // Calculate OA deduction amounts for each token
+  const getOADeduction = (ticker: string): number => {
+    return excludeOA && OA_SUPPLIES[ticker] ? OA_SUPPLIES[ticker] : 0;
+  };
 
   // Check if we have valid data for at least some main tokens (not all)
   const hasValidData = useMemo(() => {
@@ -197,16 +274,19 @@ export default function LeaguesPage() {
           tokenTicker="PLS" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['PLS']}
+          supplyDeduction={getOADeduction('PLS')}
         />
         <LeagueTable 
           tokenTicker="PLSX" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['PLSX']}
+          supplyDeduction={getOADeduction('PLSX')}
         />
         <LeagueTable 
           tokenTicker="INC" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['INC']}
+          supplyDeduction={getOADeduction('INC')}
         />
       </div>
 
@@ -216,11 +296,13 @@ export default function LeaguesPage() {
           tokenTicker="eHEX" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['eHEX']}
+          supplyDeduction={getOADeduction('eHEX')}
         />
         <LeagueTable 
           tokenTicker="HEX" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['HEX']}
+          supplyDeduction={getOADeduction('HEX')}
         />
       </div>
 
@@ -230,11 +312,13 @@ export default function LeaguesPage() {
           tokenTicker="eHDRN" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['eHDRN']}
+          supplyDeduction={getOADeduction('eHDRN')}
         />
         <LeagueTable 
           tokenTicker="HDRN" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['HDRN']}
+          supplyDeduction={getOADeduction('HDRN')}
         />
       </div>
 
@@ -244,11 +328,13 @@ export default function LeaguesPage() {
           tokenTicker="eICSA" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['eICSA']}
+          supplyDeduction={getOADeduction('eICSA')}
         />
         <LeagueTable 
           tokenTicker="ICSA" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['ICSA']}
+          supplyDeduction={getOADeduction('ICSA')}
         />
       </div>
 
@@ -258,15 +344,17 @@ export default function LeaguesPage() {
           tokenTicker="eCOM" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['eCOM']}
+          supplyDeduction={getOADeduction('eCOM')}
         />
         <LeagueTable 
           tokenTicker="COM" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['COM']}
+          supplyDeduction={getOADeduction('COM')}
         />
       </div>
     </>
-  ), [memoizedPrices, memoizedSupplies]);
+  ), [memoizedPrices, memoizedSupplies, excludeOA]);
 
   if (!mounted || loading) {
     return <div className="bg-black h-screen" />;
@@ -283,6 +371,20 @@ export default function LeaguesPage() {
           }}
           className="max-w-[1200px] py-8 mx-auto w-full relative flex flex-col gap-4 sm:gap-8"
         >
+          {/* OA Toggle Button */}
+          <div className="flex justify-center mb-0">
+            <button
+              onClick={() => setExcludeOA(!excludeOA)}
+              className={`px-6 py-2 rounded-full border-2 font-medium transition-all duration-200 ${
+                excludeOA 
+                  ? 'bg-transparent text-white border-white/20 hover:border-white/40' 
+                  : 'bg-transparent text-white border-white/20 hover:border-white/40'
+              }`}
+            >
+              {excludeOA ? 'Include OA' : 'Exclude OA'}
+            </button>
+          </div>
+
           {mainLeagueTables}
 
           {/* Maximus Section */}
@@ -319,11 +421,21 @@ export default function LeaguesPage() {
             </div>
           </div>
 
+          {/* Popular Tokens Section */}
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-6 text-center">Popular Tokens</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {additionalTokens.map((token) => (
+                <TokenCard key={token.ticker} token={token} />
+              ))}
+            </div>
+          </div>
+
           {/* More Tokens Section */}
           <div className="mt-8">
             <h2 className="text-2xl font-bold mb-6 text-center">More Tokens</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {additionalTokens.map((token) => (
+              {moreTokens.map((token) => (
                 <TokenCard key={token.ticker} token={token} />
               ))}
             </div>

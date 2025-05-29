@@ -88,6 +88,42 @@ export const viewport = {
   initialScale: 1,
 }
 
+// Font Loading Component
+function FontLoadingOptimizer() {
+  return (
+    <>
+      <FontLoader priority={true} />
+      {/* Preconnect to font directory for faster loading */}
+      <link 
+        rel="preconnect" 
+        href="/fonts/Archia/" 
+        crossOrigin="anonymous" 
+      />
+      {/* Inline critical font CSS for immediate loading */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          /* Critical Departure Mono font loading */
+          @font-face {
+            font-family: 'Departure Mono';
+            src: url('/fonts/Archia/departure-mono-regular.otf') format('opentype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: block;
+            font-feature-settings: normal;
+          }
+          /* Ensure no FOUT with fallback strategy */
+          .font-loading {
+            font-family: 'ui-monospace', 'SFMono-Regular', 'SF Mono', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+          }
+          .font-loaded {
+            font-family: 'Departure Mono', 'ui-monospace', 'SFMono-Regular', 'SF Mono', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+          }
+        `
+      }} />
+    </>
+  );
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -97,8 +133,7 @@ export default function RootLayout({
     <html lang="en" className="font-sans">
       <head>
         <script defer data-domain="plscharts.com" src="https://plausible.io/js/script.js"></script>
-        <FontLoader weight="regular" priority={true} />
-        <FontLoader weight="bold" />
+        <FontLoadingOptimizer />
         {/* Preload essential token logos */}
         {ESSENTIAL_TOKENS.map(token => (
           <link 
