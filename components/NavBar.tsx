@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Menu } from 'lucide-react';
 
 // Static component with revalidation
 export const revalidate = 2592000; // 30 days in seconds
@@ -97,11 +96,16 @@ const NavBar = () => {
 
         {/* MOBILE VIEW */}
         <button
-          className="rgba(255, 255, 255, 0.2) xl:hidden flex flex-col justify-center items-center relative z-[100]"
+          className="xl:hidden flex flex-col justify-center items-center w-12 h-12 relative z-[100] bg-transparent border-0 p-2 touch-manipulation"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Toggle menu"
+          aria-expanded={isMenuOpen}
         >
-          <Menu className="w-6 h-6 text-white" />
+          <div className="flex flex-col justify-center items-center space-y-2">
+            <div className="w-6 h-0.5 bg-white transition-all duration-200"></div>
+            <div className="w-6 h-0.5 bg-white transition-all duration-200"></div>
+            <div className="w-6 h-0.5 bg-white transition-all duration-200"></div>
+          </div>
         </button>
       </div>
       

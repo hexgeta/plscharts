@@ -47,8 +47,10 @@ const Footer = () => {
         <div className="col-span-1">
           <h3 className="text-s font-semibold mb-2">Community</h3>
           <ul className="text-sm space-y-1">
-            <li><a href="https://twitter.com/plscharts" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Twitter</a></li>
-            <li><a href="https://richardheart.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Richard Heart</a></li>
+            <li><a href="https://twitter.com/plscharts" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Trending on Twitter</a></li>
+            <li><a href="https://richardheart.com/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Richard Heart's Twitter</a></li>
+            <li><a href="https://cryptovideos.io/" target="_blank" rel="noopener noreferrer" className="text-[rgb(153,153,153)] hover:text-gray-300">Top Streamers</a></li>
+
           </ul>
         </div>
       </div>

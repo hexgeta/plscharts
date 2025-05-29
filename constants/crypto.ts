@@ -8,6 +8,7 @@ export interface TokenConfig {
   decimals: number
   name: string
   origin?: [number, string]
+  supply?: number
 }
 
 export const TOKEN_CONSTANTS = [{
@@ -37,35 +38,40 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0xe181f3d1cf81c94d770768d48d42d07a9e9819c7",
   ticker: "eBASE",
   decimals: 8,
-  name: "Maximus BASE"
+  name: "Maximus BASE",
+  supply: 70668766.59912861
 }, {
   chain: 1,
   a: "0xf55cd1e399e1cc3d95303048897a680be3313308",
   dexs: ["0x0f3c6134f4022d85127476bc4d3787860e5c5569"],
   ticker: "eTRIO",
   decimals: 8,
-  name: "Maximus TRIO"
+  name: "Maximus TRIO",
+  supply: 69617911.47775
 }, {
   chain: 1,
   a: "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140",
   dexs: "0x7327325e5f41d4c1922a9dfc87d8a3b3f1ae5c1f",
   ticker: "eLUCKY",
   decimals: 8,
-  name: "Maximus LUCKY"
+  name: "Maximus LUCKY",
+  supply: 74985501.67671512
 }, {
   chain: 1,
   a: "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6",
   dexs: "0xf6ed2390be39c783ae78893c91669eeb635d0429",
   ticker: "eDECI",
   decimals: 8,
-  name: "Maximus DECI"
+  name: "Maximus DECI",
+  supply: 565991987.7294711
 }, {
   chain: 1,
   a: "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b",
   dexs: "0x2ae4517b2806b84a576c10f698d6567ce80a6490",
   ticker: "eMAXI",
   decimals: 8,
-  name: "Maximus"
+  name: "Maximus",
+  supply: 274546065
 }, {
   chain: 1,
   a: "0x4581af35199bbde87a89941220e04e27ce4b0099",
@@ -537,35 +543,40 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0xb39490b46d02146f59e80c6061bb3e56b824d672",
   ticker: "BASE",
   decimals: 8,
-  name: "Maximus BASE"
+  name: "Maximus BASE",
+  supply: 54165743.289
 }, {
   chain: 369,
   a: "0xf55cd1e399e1cc3d95303048897a680be3313308",
   dexs: "0x0b0f8f6c86c506b70e2a488a451e5ea7995d05c9",
   ticker: "TRIO",
   decimals: 8,
-  name: "Maximus TRIO"
+  name: "Maximus TRIO",
+  supply: 69617911.47775
 }, {
   chain: 369,
   a: "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140",
   dexs: "0x52d4b3f479537a15d0b37b6cdbdb2634cc78525e",
   ticker: "LUCKY",
   decimals: 8,
-  name: "Maximus LUCKY"
+  name: "Maximus LUCKY",
+  supply: 74985501.67671512
 }, {
   chain: 369,
   a: "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6",
   dexs: "0x969af590981bb9d19ff38638fa3bd88aed13603a",
   ticker: "DECI",
   decimals: 8,
-  name: "Maximus DECI"
+  name: "Maximus DECI",
+  supply: 565991987.7294711
 }, {
   chain: 369,
   a: "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b",
   dexs: "0xbfb22cc394c53c14dc8a5840a246dfdd2f7b2507",
   ticker: "MAXI",
   decimals: 8,
-  name: "Maximus"
+  name: "Maximus",
+  supply: 274546065
 }, {
   chain: 369,
   a: "0xb7c9e99da8a857ce576a830a9c19312114d9de02",
@@ -698,7 +709,8 @@ export const TOKEN_CONSTANTS = [{
   ticker: "weBASE",
   decimals: 8,
   name: "BASE from Ethereum",
-  origin: [1, "0xe9f84d418b008888a992ff8c6d22389c2c3504e0"]
+  origin: [1, "0xe9f84d418b008888a992ff8c6d22389c2c3504e0"],
+  supply: 70668766.59912861
 }, {
   chain: 369,
   a: "0x0f3c6134f4022d85127476bc4d3787860e5c5569",
@@ -706,7 +718,8 @@ export const TOKEN_CONSTANTS = [{
   ticker: "weTRIO",
   decimals: 8,
   name: "TRIO from Ethereum",
-  origin: [1, "0xf55cd1e399e1cc3d95303048897a680be3313308"]
+  origin: [1, "0xf55cd1e399e1cc3d95303048897a680be3313308"],
+  supply: 69617911.47775
 }, {
   chain: 369,
   a: "0x8924f56df76ca9e7babb53489d7bef4fb7caff19",
@@ -714,7 +727,8 @@ export const TOKEN_CONSTANTS = [{
   ticker: "weLUCKY",
   decimals: 8,
   name: "LUCKY from Ethereum",
-  origin: [1, "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140"]
+  origin: [1, "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140"],
+  supply: 74985501.67671512
 }, {
   chain: 369,
   a: "0x189a3ca3cc1337e85c7bc0a43b8d3457fd5aae89",
@@ -722,7 +736,8 @@ export const TOKEN_CONSTANTS = [{
   ticker: "weDECI",
   decimals: 8,
   name: "DECI from Ethereum",
-  origin: [1, "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6"]
+  origin: [1, "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6"],
+  supply: 565991987.7294711
 }, {
   chain: 369,
   a: "0x352511c9bc5d47dbc122883ed9353e987d10a3ba",
@@ -730,7 +745,8 @@ export const TOKEN_CONSTANTS = [{
   ticker: "weMAXI",
   decimals: 8,
   name: "MAXI from Ethereum",
-  origin: [1, "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b"]
+  origin: [1, "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b"],
+  supply: 274546065
 }, {
   chain: 369,
   a: "0x518076cce3729ef1a3877ea3647a26e278e764fe",
@@ -1427,7 +1443,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0xbbcf895bfcb57d0f457d050bb806d1499436c0ce",
-  dexs: "0x6312a9477e3bc81d5e3a44d77f0a43630904ff69",
+  dexs: "0x6312a9477e3BC81D5e3a44d77F0A43630904fF69",
   ticker: "IM",
   decimals: 18,
   name: "IM on PulseChain"
