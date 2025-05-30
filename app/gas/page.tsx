@@ -39,6 +39,7 @@ interface ChartDataPoint {
   ethereum: number;
   pulsechain: number;
   blockLabel: string;
+  displayLabel: string;
 }
 
 export default function GasTracker() {
@@ -126,7 +127,8 @@ export default function GasTracker() {
       pulsechain: plsBaseFees[i]?.usd || 0,
       ethereumGwei: ethBaseFees[i]?.gwei || 0,
       pulsechainBeats: plsBaseFees[i]?.beats || 0,
-      blockLabel: `Block -${maxLength - i - 1}`
+      blockLabel: `Block -${maxLength - i - 1}`,
+      displayLabel: i === 0 ? 'Yesterday' : i === maxLength - 1 ? 'Today' : ''
     }));
   }, [gasData, tokenPrices]);
 
@@ -223,7 +225,7 @@ export default function GasTracker() {
         {/* Current Gas Prices */}
         <div className="grid md:grid-cols-2 gap-6">
           {/* Ethereum */}
-          <div className="bg-black rounded-lg p-6 border-2 border-white/10">
+          <div className="bg-black rounded-xl p-6 border-2 border-white/10">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 flex items-center justify-center">
                 <img 
@@ -248,7 +250,7 @@ export default function GasTracker() {
           </div>
 
           {/* PulseChain */}
-          <div className="bg-black rounded-lg p-6 border-2 border-white/10">
+          <div className="bg-black rounded-xl p-6 border-2 border-white/10">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 flex items-center justify-center">
                 <img 
@@ -276,7 +278,7 @@ export default function GasTracker() {
         {/* Comparison and Gas Fee Table */}
         <div className="grid md:grid-cols-2 gap-6 items-start">
           {/* Gas Fee Comparison Table */}
-          <div className="bg-black rounded-lg border-2 border-white/10 overflow-hidden order-2 md:order-none">
+          <div className="bg-black rounded-xl border-2 border-white/10 overflow-hidden order-2 md:order-none">
             <div className="grid grid-cols-3 gap-4 p-6 border-b border-white/10">
               <div className="text-gray-400 font-medium text-center">Current Fees</div>
               <div className="flex items-center justify-center space-x-2">
@@ -325,7 +327,7 @@ export default function GasTracker() {
           </div>
 
           {/* Comparison */}
-          <div className="bg-black rounded-lg p-12 border-2 border-white/10 flex flex-col justify-center order-1 md:order-none">
+          <div className="bg-black rounded-xl p-12 border-2 border-white/10 flex flex-col justify-center order-1 md:order-none">
             <div className="flex items-baseline">
               <div className="text-4xl font-bold text-green-400">
                 {tokenPrices?.ETH?.price && tokenPrices?.PLS?.price ? (
@@ -352,24 +354,24 @@ export default function GasTracker() {
 
         {/* Historical Chart */}
         {chartData.length > 0 && (
-          <div className="w-full h-[450px] my-10 relative">
-            <div className="w-full h-full p-5 border-2 border-white/10 rounded-[15px]">
+          <div className="w-full h-[650px] my-10 relative">
+            <div className="w-full h-full p-4 border-2 border-white/10 rounded-xl">
               <h2 className="text-left text-white text-2xl mb-0 ml-10">
                 Gas Price History (Last 24 hrs)
               </h2>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 30, right: 50, left: 50, bottom: 30 }}>
+                <LineChart data={chartData}>
                   <CartesianGrid 
                     strokeDasharray="3 3" 
                     stroke="rgba(136, 136, 136, 0.2)" 
                     vertical={false} 
                   />
                   <XAxis 
-                    dataKey="blockLabel"
+                    dataKey="displayLabel"
                     axisLine={{ stroke: '#888', strokeWidth: 0 }}
                     tickLine={false}
                     tick={{ fill: '#888', fontSize: 14, dy: 5 }}
-                    interval={Math.floor(chartData.length / 6)}
+                    interval="preserveStartEnd"
                     label={{ 
                       value: 'BLOCKS', 
                       position: 'bottom',
@@ -386,7 +388,7 @@ export default function GasTracker() {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: '#888', fontSize: 14, dx: -5}}
-                    tickFormatter={(value) => value.toPrecision(2)}
+                    tickFormatter={(value) => `$${value.toPrecision(2)}`}
                   />
                   <Tooltip 
                     contentStyle={{ 
