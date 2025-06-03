@@ -1,8 +1,11 @@
 {
-  "version": 2,
   "crons": [
     {
       "path": "/api/cron/daily-token-supplies",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/daily-validator-count",
       "schedule": "0 0 * * *"
     }
   ]
