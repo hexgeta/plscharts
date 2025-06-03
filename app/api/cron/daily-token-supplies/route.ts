@@ -241,39 +241,35 @@ export async function GET(request: NextRequest) {
     }
     console.log('Successfully deleted existing data');
 
-    // Then insert new data
-    console.log(`Inserting ${supplies.length} new records...`);
+    // Upsert based on ticker only (replace existing ticker data with latest)
+    console.log(`Upserting ${supplies.length} records (latest data per ticker)...`);
     
-    // Insert in batches to avoid overwhelming Supabase
-    const insertBatchSize = 50; // Insert 50 records at a time
-    let totalInserted = 0;
+    // Upsert in batches to avoid overwhelming Supabase
+    const insertBatchSize = 50;
+    let totalUpserted = 0;
     
     for (let i = 0; i < supplies.length; i += insertBatchSize) {
       const batch = supplies.slice(i, i + insertBatchSize);
       const batchNum = Math.floor(i / insertBatchSize) + 1;
       const totalBatches = Math.ceil(supplies.length / insertBatchSize);
       
-      console.log(`Inserting batch ${batchNum}/${totalBatches} (${batch.length} records)...`);
+      console.log(`Upserting batch ${batchNum}/${totalBatches} (${batch.length} records)...`);
       
-      // Log some sample data from this batch for debugging
-      console.log(`Batch ${batchNum} sample records:`, batch.slice(0, 2).map(r => ({
-        ticker: r.ticker,
-        total_supply_formatted: r.total_supply_formatted,
-        total_supply_length: r.total_supply.length
-      })));
-      
-      const { data: insertedData, error: insertError } = await supabase
+      const { data: upsertedData, error: upsertError } = await supabase
         .from('daily_token_supplies')
-        .insert(batch);
+        .upsert(batch, {
+          onConflict: 'ticker',        // Use only ticker as the unique constraint
+          ignoreDuplicates: false      // Update existing records instead of ignoring
+        });
       
-      if (insertError) {
-        console.error(`Error inserting batch ${batchNum}:`, insertError);
+      if (upsertError) {
+        console.error(`Error upserting batch ${batchNum}:`, upsertError);
         console.error('Sample record from failed batch:', JSON.stringify(batch[0], null, 2));
-        throw new Error(`Failed to insert batch ${batchNum}: ${insertError.message}`);
+        throw new Error(`Failed to upsert batch ${batchNum}: ${upsertError.message}`);
       }
       
-      totalInserted += batch.length;
-      console.log(`✅ Batch ${batchNum} inserted successfully (${batch.length} records)`);
+      totalUpserted += batch.length;
+      console.log(`✅ Batch ${batchNum} upserted successfully (${batch.length} records)`);
       
       // Small delay between batches
       if (i + insertBatchSize < supplies.length) {
@@ -281,7 +277,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    console.log(`Successfully inserted all ${totalInserted} records`);
+    console.log(`Successfully upserted all ${totalUpserted} records`);
     
     // Summary statistics
     const totalSupplies = supplies.reduce((sum, token) => sum + token.total_supply_formatted, 0);
