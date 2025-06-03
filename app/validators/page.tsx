@@ -413,7 +413,7 @@ export default function ValidatorsTracker() {
             <h2 className="text-left text-white text-2xl mb-8 ml-10">
               Active Validators
             </h2>
-            <ResponsiveContainer width="100%" height="95%">
+            <ResponsiveContainer width="100%" height="90%">
               <LineChart data={historyData}>
                 <CartesianGrid 
                   strokeDasharray="3 3" 
