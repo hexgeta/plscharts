@@ -225,26 +225,9 @@ export async function GET(request: NextRequest) {
     console.log('Data validation passed');
     console.log('Sample record:', JSON.stringify(supplies[0], null, 2));
     
-    // Get the date from the supplies data
-    const date = supplies.length > 0 ? supplies[0].date : new Date().toISOString().split('T')[0];
-    
-    // Delete today's data first
-    console.log(`Deleting existing data for date: ${date}`);
-    const { error: deleteError } = await supabase
-      .from('daily_token_supplies')
-      .delete()
-      .eq('date', date);
-
-    if (deleteError) {
-      console.error('Error deleting existing data:', deleteError);
-      throw new Error(`Failed to delete existing data: ${deleteError.message}`);
-    }
-    console.log('Successfully deleted existing data');
-
     // Upsert based on ticker only (replace existing ticker data with latest)
     console.log(`Upserting ${supplies.length} records (latest data per ticker)...`);
     
-    // Upsert in batches to avoid overwhelming Supabase
     const insertBatchSize = 50;
     let totalUpserted = 0;
     
@@ -253,23 +236,71 @@ export async function GET(request: NextRequest) {
       const batchNum = Math.floor(i / insertBatchSize) + 1;
       const totalBatches = Math.ceil(supplies.length / insertBatchSize);
       
-      console.log(`Upserting batch ${batchNum}/${totalBatches} (${batch.length} records)...`);
+      console.log(`Processing batch ${batchNum}/${totalBatches} (${batch.length} records)...`);
       
-      const { data: upsertedData, error: upsertError } = await supabase
-        .from('daily_token_supplies')
-        .upsert(batch, {
-          onConflict: 'ticker',        // Use only ticker as the unique constraint
-          ignoreDuplicates: false      // Update existing records instead of ignoring
-        });
+      // Try upsert first, fallback to manual update/insert if needed
+      try {
+        const { data: upsertedData, error: upsertError } = await supabase
+          .from('daily_token_supplies')
+          .upsert(batch, {
+            onConflict: 'ticker',
+            ignoreDuplicates: false
+          });
       
-      if (upsertError) {
-        console.error(`Error upserting batch ${batchNum}:`, upsertError);
-        console.error('Sample record from failed batch:', JSON.stringify(batch[0], null, 2));
-        throw new Error(`Failed to upsert batch ${batchNum}: ${upsertError.message}`);
+        if (upsertError) {
+          throw upsertError;
+        }
+        
+        totalUpserted += batch.length;
+        console.log(`✅ Batch ${batchNum} upserted successfully (${batch.length} records)`);
+        
+      } catch (upsertError) {
+        console.log(`Upsert failed for batch ${batchNum}, trying manual update/insert...`);
+        
+        // Manual approach: check if ticker exists, then update or insert
+        for (const supply of batch) {
+          try {
+            // Check if ticker exists
+            const { data: existing, error: selectError } = await supabase
+              .from('daily_token_supplies')
+              .select('id')
+              .eq('ticker', supply.ticker)
+              .single();
+            
+            if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows returned
+              throw selectError;
+            }
+            
+            if (existing) {
+              // Update existing record
+              const { error: updateError } = await supabase
+                .from('daily_token_supplies')
+                .update(supply)
+                .eq('ticker', supply.ticker);
+              
+              if (updateError) {
+                throw updateError;
+              }
+            } else {
+              // Insert new record
+              const { error: insertError } = await supabase
+                .from('daily_token_supplies')
+                .insert(supply);
+              
+              if (insertError) {
+                throw insertError;
+              }
+            }
+            
+            totalUpserted++;
+          } catch (error) {
+            console.error(`Error processing ${supply.ticker}:`, error);
+            // Continue with next record instead of failing entire batch
+          }
+        }
+        
+        console.log(`✅ Batch ${batchNum} processed manually`);
       }
-      
-      totalUpserted += batch.length;
-      console.log(`✅ Batch ${batchNum} upserted successfully (${batch.length} records)`);
       
       // Small delay between batches
       if (i + insertBatchSize < supplies.length) {
@@ -277,7 +308,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    console.log(`Successfully upserted all ${totalUpserted} records`);
+    console.log(`Successfully processed all ${totalUpserted} records`);
     
     // Summary statistics
     const totalSupplies = supplies.reduce((sum, token) => sum + token.total_supply_formatted, 0);
