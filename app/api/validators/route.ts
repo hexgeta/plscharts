@@ -184,6 +184,47 @@ async function tryBeaconAPI(): Promise<any> {
   return null;
 }
 
+// Function to group validators by withdrawal credentials and calculate totals
+function groupValidatorsByWithdrawalCredentials(validators: any[]): any[] {
+  const groups = new Map<string, {
+    withdrawalCredentials: string;
+    totalBalance: number;
+    validatorCount: number;
+    averageBalance: number;
+    validators: string[]; // Store validator indices/pubkeys
+    statuses: string[];
+  }>();
+
+  validators.forEach(validator => {
+    const withdrawalCredentials = validator.validator?.withdrawal_credentials || 'unknown';
+    const balance = parseInt(validator.balance || '0');
+    const validatorIndex = validator.index;
+    const status = validator.status;
+    
+    if (groups.has(withdrawalCredentials)) {
+      const existing = groups.get(withdrawalCredentials)!;
+      existing.totalBalance += balance;
+      existing.validatorCount += 1;
+      existing.validators.push(validatorIndex);
+      existing.statuses.push(status);
+      existing.averageBalance = existing.totalBalance / existing.validatorCount;
+    } else {
+      groups.set(withdrawalCredentials, {
+        withdrawalCredentials,
+        totalBalance: balance,
+        validatorCount: 1,
+        averageBalance: balance,
+        validators: [validatorIndex],
+        statuses: [status]
+      });
+    }
+  });
+
+  // Convert to array and sort by total balance (descending)
+  return Array.from(groups.values())
+    .sort((a, b) => b.totalBalance - a.totalBalance);
+}
+
 // Function to filter active validators
 function filterActiveValidators(validators: any[]): any[] {
   const activeValidators = validators.filter(validator => {
@@ -236,6 +277,11 @@ export async function GET(request: NextRequest) {
         return balanceB - balanceA;
       });
       
+      // Group ALL active validators by withdrawal credentials
+      console.log(`Processing ${activeValidators.length} active validators for grouping...`);
+      const groupedValidators = groupValidatorsByWithdrawalCredentials(activeValidators);
+      console.log(`Created ${groupedValidators.length} validator groups`);
+      
       // Get status counts
       const statusCounts: Record<string, number> = {};
       beaconResult.validators?.forEach((validator: any) => {
@@ -251,16 +297,17 @@ export async function GET(request: NextRequest) {
           totalStaked: totalStaked, // Add total staked amount in Wei
           method: `beacon_api_${beaconResult.endpoint.split('/').pop()}`,
           endpoint: beaconResult.endpoint,
-          validators: beaconResult.validators?.slice(0, 100) || [], // Limit response size
-          activeValidators: sortedActiveValidators.slice(0, 100), // Return top 100 largest active validators
+          validators: beaconResult.validators?.slice(0, 100) || [], // Still limit individual validators for response size
+          activeValidators: sortedActiveValidators.slice(0, 100), // Return top 100 largest active validators for backward compatibility
+          groupedValidators: groupedValidators, // NEW: All validators grouped by withdrawal credentials
           statusCounts: statusCounts,
           timestamp: new Date().toISOString(),
           recentValidators: [],
           uniqueValidators: beaconResult.validators?.map((v: any) => v.validator?.pubkey || v.pubkey || v.index) || [],
           blocksAnalyzed: 0,
-          disclaimer: `Validator count retrieved from Beacon API endpoint ${beaconResult.endpoint}. ${activeValidators.length} validators are currently active with ${(totalStaked / 1e9).toLocaleString()} PLS total staked.`
+          disclaimer: `Validator count retrieved from Beacon API endpoint ${beaconResult.endpoint}. ${activeValidators.length} validators are currently active with ${(totalStaked / 1e9).toLocaleString()} PLS total staked. Grouped data includes ALL ${activeValidators.length} active validators.`
         },
-        message: `Found ${beaconResult.count} total validators, ${activeValidators.length} are active with ${(totalStaked / 1e9).toLocaleString()} PLS staked`
+        message: `Found ${beaconResult.count} total validators, ${activeValidators.length} are active with ${(totalStaked / 1e9).toLocaleString()} PLS staked. Grouped ${activeValidators.length} validators into ${groupedValidators.length} withdrawal address groups.`
       });
     } else if (beaconResult && beaconResult.data) {
       console.log(`✅ Found some data via Beacon API (${beaconResult.endpoint})`);

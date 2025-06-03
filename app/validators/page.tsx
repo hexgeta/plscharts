@@ -19,6 +19,16 @@ interface ValidatorData {
   };
 }
 
+interface GroupedValidator {
+  withdrawalCredentials?: string;
+  referenceAddress?: string; // For backward compatibility
+  totalBalance: number;
+  validatorCount: number;
+  averageBalance?: number;
+  validators?: string[] | ValidatorData[];
+  statuses?: string[];
+}
+
 interface ValidatorsResponse {
   success: boolean;
   data: {
@@ -28,6 +38,7 @@ interface ValidatorsResponse {
     endpoint: string;
     validators: ValidatorData[];
     activeValidators: ValidatorData[];
+    groupedValidators?: GroupedValidator[];
     statusCounts: Record<string, number>;
     timestamp: string;
     disclaimer: string;
@@ -73,37 +84,83 @@ export default function ValidatorsTracker() {
     return () => clearInterval(interval);
   }, []);
 
-  // Get top 20 largest active validators
-  const topValidators = useMemo(() => {
+  // Use grouped validators from API if available, otherwise fallback to client-side grouping
+  const groupedValidators = useMemo(() => {
+    // If API provides grouped data, use it directly
+    if (validatorsData?.data.groupedValidators) {
+      return validatorsData.data.groupedValidators
+        .slice(0, 20); // Top 20 groups
+    }
+
+    // Fallback to client-side grouping (for backward compatibility)
     if (!validatorsData?.data.activeValidators) return [];
     
-    return validatorsData.data.activeValidators
-      .filter(validator => validator.status.startsWith('active_'))
-      .slice(0, 20); // Just take the first 20 since they're already sorted by balance from the API
-  }, [validatorsData]);
+    const groups = new Map<string, {
+      referenceAddress: string;
+      totalBalance: number;
+      validatorCount: number;
+      validators: ValidatorData[];
+    }>();
 
-  // Calculate average validator balance
-  const averageBalance = useMemo(() => {
-    if (!validatorsData?.data.activeValidators) return 0;
-    
-    const totalBalance = validatorsData.data.activeValidators.reduce((sum, validator) => {
-      return sum + parseInt(validator.balance);
-    }, 0);
-    
-    return totalBalance / validatorsData.data.activeValidators.length;
+    // Group active validators by withdrawal_credentials
+    validatorsData.data.activeValidators
+      .filter(validator => validator.status.startsWith('active_'))
+      .forEach(validator => {
+        const refAddress = validator.validator.withdrawal_credentials;
+        const balance = parseInt(validator.balance);
+        
+        if (groups.has(refAddress)) {
+          const existing = groups.get(refAddress)!;
+          existing.totalBalance += balance;
+          existing.validatorCount += 1;
+          existing.validators.push(validator);
+        } else {
+          groups.set(refAddress, {
+            referenceAddress: refAddress,
+            totalBalance: balance,
+            validatorCount: 1,
+            validators: [validator]
+          });
+        }
+      });
+
+    // Convert to array and sort by total balance (largest to smallest)
+    return Array.from(groups.values())
+      .sort((a, b) => b.totalBalance - a.totalBalance)
+      .slice(0, 20); // Top 20 groups
   }, [validatorsData]);
 
   // Use total staked from API response instead of calculating locally
   const totalStaked = useMemo(() => {
     const total = validatorsData?.data.totalStaked || 0;
-    console.log('🔍 Debugging total staked:');
-    console.log('Raw totalStaked from API:', total);
-    console.log('Total in PLS:', total / 1e18);
-    console.log('Active validators count:', validatorsData?.data.activeValidators?.length);
-    console.log('PLS price:', tokenPrices?.PLS?.price);
-    console.log('Price loading?', pricesLoading);
     return total;
   }, [validatorsData, tokenPrices, pricesLoading]);
+
+  // Calculate total number of unique withdrawal addresses (from ALL data, not just top 20)
+  const totalWithdrawalAddresses = useMemo(() => {
+    // If API provides grouped data, get the full count
+    if (validatorsData?.data.groupedValidators) {
+      return validatorsData.data.groupedValidators.length;
+    }
+
+    // Fallback to client-side calculation from all active validators
+    if (!validatorsData?.data.activeValidators) return 0;
+    
+    const uniqueAddresses = new Set<string>();
+    validatorsData.data.activeValidators
+      .filter(validator => validator.status.startsWith('active_'))
+      .forEach(validator => {
+        uniqueAddresses.add(validator.validator.withdrawal_credentials);
+      });
+
+    return uniqueAddresses.size;
+  }, [validatorsData]);
+
+  // Calculate average withdrawal address balance (total staked / ALL withdrawal addresses)
+  const averageWithdrawalBalance = useMemo(() => {
+    if (!totalWithdrawalAddresses || !totalStaked) return 0;
+    return totalStaked / totalWithdrawalAddresses;
+  }, [totalWithdrawalAddresses, totalStaked]);
 
   // Format balance from Gwei to PLS
   const formatBalance = (gweiBalance: string) => {
@@ -123,6 +180,14 @@ export default function ValidatorsTracker() {
   const formatTotalStakedUSD = (totalGweiBalance: number) => {
     if (!tokenPrices?.PLS?.price) return '$0';
     const balance = totalGweiBalance / 1e9; // Convert Gwei to PLS
+    const usdValue = balance * tokenPrices.PLS.price;
+    return `$${usdValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  // Format average balance to USD
+  const formatAverageBalanceUSD = (avgGweiBalance: number) => {
+    if (!tokenPrices?.PLS?.price) return '$0';
+    const balance = avgGweiBalance / 1e9; // Convert Gwei to PLS
     const usdValue = balance * tokenPrices.PLS.price;
     return `$${usdValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
@@ -157,110 +222,134 @@ export default function ValidatorsTracker() {
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
-      <div className="container mx-auto">
-      
-
+      <div className="mx-auto max-w-6xl">
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center">
-            <div className="text-3xl font-bold text-green-400">
-              {validatorsData?.data.activeCount.toLocaleString()}
-            </div>
-            <div className="text-gray-400 mt-2">Active Validators</div>
-          </div>
-          
-          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center">
-            <div className="text-3xl font-bold text-blue-400">
-              {validatorsData?.data.count.toLocaleString()}
-            </div>
-            <div className="text-gray-400 mt-2">Total Historic Validators</div>
-          </div>
-          
-          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center">
-            <div className="text-3xl font-bold text-purple-400">
-              {formatBalanceUSD(averageBalance.toString())}
-            </div>
-            <div className="text-gray-400 mt-2">Average Balance</div>
-            <div className="text-sm text-gray-500 mt-1">
-              {(averageBalance / 1e9).toFixed(2)} PLS
-            </div>
-          </div>
-
-          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center">
-            <div className="text-3xl font-bold text-orange-400">
-              {(totalStaked / 1e9 / 1e12).toFixed(2)}T PLS
-            </div>
-            <div className="text-gray-400 mt-2">Total PLS Staked</div>
-            <div className="text-sm text-gray-500 mt-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
+            <div className="text-4xl font-bold text-white">
               {formatTotalStakedUSD(totalStaked)}
             </div>
+            <div className="text-xl text-gray-500 mt-1">
+              {(totalStaked / 1e9 / 1e12).toFixed(2)}T PLS
+            </div>
+            <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Total Staked</div>
+          </div>
+          
+          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
+            <div className="text-4xl font-bold text-white">
+              {validatorsData?.data.activeCount.toLocaleString()}
+            </div>
+            <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Active Validators</div>
+          </div>
+          
+          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
+            <div className="text-4xl font-bold text-white">
+              {validatorsData?.data.count.toLocaleString()}
+            </div>
+            <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">All Historic Validators</div>
           </div>
         </div>
 
-        {/* Top 20 Validators Table */}
-        <div className="bg-black rounded-xl border-2 border-white/10 overflow-hidden">
-          <div className="p-6 border-b border-white/10">
-            <h2 className="text-2xl font-bold">Top 20 Largest Active Validators</h2>
-            <p className="text-gray-400 mt-2">Ranked by validator balance</p>
+        {/* Table and Side Cards Container */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Side Cards - On mobile: show first, on desktop: show on right */}
+          <div className="flex flex-col gap-6 lg:order-2">
+            <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
+              <div className="text-4xl font-bold text-white">
+                {totalWithdrawalAddresses.toLocaleString()}
+              </div>
+              <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Unique Addresses</div>
+            </div>
+
+            <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[100px]">
+              <div className="text-4xl font-bold text-white">
+                {formatAverageBalanceUSD(averageWithdrawalBalance)}
+              </div>
+              <div className="text-xl text-gray-500 mt-1">
+                {(averageWithdrawalBalance / 1e9 / 1e9).toFixed(2)}B PLS
+              </div>
+              <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Avg Per Address</div>
+            </div>
           </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-800">
-                <tr>
-                  <th className="px-6 py-4 text-left text-gray-300 font-medium">#</th>
-                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Validator</th>
-                  <th className="px-6 py-4 text-center text-gray-300 font-medium">Balance (PLS)</th>
-                  <th className="px-6 py-4 text-center text-gray-300 font-medium">Balance (USD)</th>
-                  <th className="px-6 py-4 text-center text-gray-300 font-medium">Status</th>
-                  <th className="px-6 py-4 text-center text-gray-300 font-medium">Index</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {topValidators.map((validator, index) => (
-                  <tr key={validator.index} className="hover:bg-gray-800/50 transition-colors">
-                    <td className="px-6 py-4 text-center font-mono">
-                      {index + 1}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-mono text-sm">
-                        {formatValidatorName(validator.validator.pubkey, index)}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {validator.validator.pubkey.slice(0, 20)}...
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center font-mono">
-                      <div className="text-white">
-                        {formatBalance(validator.balance)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center font-mono">
-                      <div className="text-green-400">
-                        {formatBalanceUSD(validator.balance)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        validator.status === 'active_ongoing' 
-                          ? 'bg-green-900 text-green-300' 
-                          : validator.status === 'active_exiting'
-                          ? 'bg-yellow-900 text-yellow-300'
-                          : 'bg-red-900 text-red-300'
-                      }`}>
-                        {validator.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center font-mono text-gray-400">
-                      {validator.index}
-                    </td>
+
+          {/* Top 20 Validators Table - On mobile: show second, on desktop: show on left and span 2 columns */}
+          <div className="lg:col-span-2 lg:order-1 bg-black rounded-xl border-2 border-white/10 overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold">Top 20 Validators Ranked</h2>
+              <p className="text-gray-400 mt-2">Grouped by address, ranked by total staked PLS</p>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-black border-b border-white/10">
+                  <tr>
+                    <th className="px-6 py-4 text-center text-gray-300 font-medium">#</th>
+                    <th className="px-6 py-4 text-center text-gray-300 font-medium">Address</th>
+                    <th className="px-6 py-4 text-center text-gray-300 font-medium">No. of Validators</th>
+                    <th className="px-6 py-4 text-center text-gray-300 font-medium">Total Staked</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {groupedValidators.map((group, index) => {
+                    // Handle both API format and fallback format
+                    const withdrawalCredentials = group.withdrawalCredentials || group.referenceAddress;
+                    const totalBalance = group.totalBalance;
+                    const validatorCount = group.validatorCount;
+                    
+                    return (
+                      <tr key={withdrawalCredentials} className=" transition-colors">
+                        <td className="px-6 py-4 text-center font-mono">
+                          {index < 3 ? (
+                            <img 
+                              src={`/${index + 1}.png`} 
+                              alt={`Position ${index + 1}`}
+                              className="w-5 h-5 mx-auto"
+                            />
+                          ) : (
+                            index + 1
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <a 
+                            href={`https://midgard.wtf/address/${withdrawalCredentials}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-sm text-white hover:underline transition-colors cursor-pointer"
+                          >
+                            {withdrawalCredentials.slice(0, 4)}...{withdrawalCredentials.slice(-4)}
+                          </a>
+                        </td>
+                        <td className="px-6 py-4 text-center font-mono">
+                          <div className="text-white font-semibold">
+                            {validatorCount}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center font-mono">
+                          <div className="text-green-400 text-lg font-semibold">
+                            {tokenPrices?.PLS?.price 
+                              ? `$${((totalBalance / 1e9) * tokenPrices.PLS.price).toLocaleString('en-US', { 
+                                  minimumFractionDigits: 0, 
+                                  maximumFractionDigits: 0 
+                                })}`
+                              : '$0'
+                            }
+                          </div>
+                          <div className="text-gray-400 text-sm mt-1">
+                            {(totalBalance / 1e9).toLocaleString('en-US', { 
+                              minimumFractionDigits: 0, 
+                              maximumFractionDigits: 0 
+                            })} PLS
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}

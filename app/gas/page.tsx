@@ -148,44 +148,45 @@ export default function GasTracker() {
           display: 'flex', 
           justifyContent: 'center', 
           width: '100%', 
-          marginTop: '35px' 
+          marginTop: '30px',
+          marginBottom: '40px'
         }}>
           <ul style={{ 
             listStyle: 'none', 
             padding: 0, 
             display: 'flex', 
-            flexWrap: 'wrap', 
-            justifyContent: 'center' 
+            flexDirection: 'column',
+            gap: '0px',
+            alignItems: 'center'
           }}>
             {payload.map((entry: any, index: number) => (
               <li 
                 key={`item-${index}`}
                 style={{ 
-                  display: 'inline-flex', 
+                  display: 'flex', 
                   alignItems: 'center', 
-                  marginRight: 20, 
-                  marginBottom: 5,
-                  cursor: 'pointer' 
+                  cursor: 'pointer',
+                  padding: '2px 0'
                 }}
                 onClick={() => handleLegendClick(entry.dataKey)}
               >
-                <span style={{ 
-                  color: entry.color, 
-                  marginRight: 5,
-                  fontSize: '28px',
-                  lineHeight: '18px',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}>●</span>
-                <span style={{ 
-                  color: visibleLines[entry.dataKey as keyof typeof visibleLines] ? '#fff' : '#888',
-                  fontSize: '12px',
-                  lineHeight: '12px'
-                }}>
-                  {entry.value} - Current: {entry.dataKey === 'ethereum' 
-                    ? `$${tokenPrices?.ETH?.price ? calculateTransactionCost(gasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2) : '0.00'}`
-                    : `$${tokenPrices?.PLS?.price ? calculateTransactionCost(gasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2) : '0.00'}`}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <img 
+                    src={`/coin-logos/${entry.dataKey === 'ethereum' ? 'ETH' : 'PLS'}.svg`}
+                    alt={entry.dataKey === 'ethereum' ? 'Ethereum' : 'PulseChain'}
+                    style={{ width: '16px', height: '16px' }}
+                  />
+                  <span 
+                    style={{ 
+                      color: visibleLines[entry.dataKey as keyof typeof visibleLines] ? '#fff' : '#888',
+                      fontSize: '12px'
+                    }}
+                  >
+                    {entry.value} - Current: {entry.dataKey === 'ethereum' 
+                      ? `$${tokenPrices?.ETH?.price ? calculateTransactionCost(gasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2) : '0.00'}`
+                      : `$${tokenPrices?.PLS?.price ? calculateTransactionCost(gasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2) : '0.00'}`}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
@@ -234,7 +235,7 @@ export default function GasTracker() {
                   className="w-8 h-8"
                 />
               </div>
-              <h2 className="text-xl font-semibold">Ethereum</h2>
+              <h2 className="text-xl font-semibold hidden md:block">Ethereum</h2>
             </div>
             <div className="space-y-2">
               <div className="text-3xl font-bold text-indigo-400">
@@ -259,7 +260,7 @@ export default function GasTracker() {
                   className="w-8 h-8"
                 />
               </div>
-              <h2 className="text-xl font-semibold">PulseChain</h2>
+              <h2 className="text-xl font-semibold hidden md:block">PulseChain</h2>
             </div>
             <div className="space-y-2">
               <div className="text-3xl font-bold text-pink-400">
@@ -283,11 +284,11 @@ export default function GasTracker() {
               <div className="text-gray-400 font-medium text-center">Current Fees</div>
               <div className="flex items-center justify-center space-x-2">
                 <img src="/coin-logos/ETH.svg" alt="Ethereum" className="w-5 h-5" />
-                <span className="font-medium">Ethereum</span>
+                <span className="font-medium hidden md:block">Ethereum</span>
               </div>
               <div className="flex items-center justify-center space-x-2">
                 <img src="/coin-logos/PLS.svg" alt="PulseChain" className="w-5 h-5" />
-                <span className="font-medium">PulseChain</span>
+                <span className="font-medium hidden md:block">PulseChain</span>
               </div>
             </div>
 
@@ -354,8 +355,8 @@ export default function GasTracker() {
 
         {/* Historical Chart */}
         {chartData.length > 0 && (
-          <div className="w-full h-[650px] my-10 relative">
-            <div className="w-full h-full p-4 border-2 border-white/10 rounded-xl">
+          <div className="w-full h-[550px] my-10 relative">
+            <div className="w-full h-full p-8 border-2 border-white/10 rounded-xl">
               <h2 className="text-left text-white text-2xl mb-0 ml-10">
                 Gas Price History (Last 24 hrs)
               </h2>
