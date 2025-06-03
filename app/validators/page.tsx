@@ -50,26 +50,65 @@ interface ValidatorsResponse {
   message: string;
 }
 
+interface HistoryDataPoint {
+  date: string;
+  validators: number;
+  totalValidators: number;
+  totalStaked: number;
+  totalStakedFormatted: number;
+  withdrawalAddresses: number;
+  averagePerAddress: number;
+  averagePerAddressFormatted: number;
+  index: number;
+  displayLabel: string;
+}
+
+interface ValidatorHistoryResponse {
+  success: boolean;
+  data: HistoryDataPoint[];
+  summary: {
+    totalDays: number;
+    startDate: string;
+    endDate: string;
+    currentValidators: number;
+    startValidators: number;
+  };
+  message: string;
+}
+
 export default function ValidatorsTracker() {
   const [validatorsData, setValidatorsData] = useState<ValidatorsResponse | null>(null);
+  const [historyData, setHistoryData] = useState<HistoryDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
   // Fetch token prices for PLS
   const { prices: tokenPrices, isLoading: pricesLoading } = useTokenPrices(['PLS']);
 
-  // Historical validator data
-  const validatorHistoryData = [4096,4096,4096,4348,5371,6451,7412,8491,9568,10633,11708,12726,13803,14640,15669,16746,17821,18901,19949,20049,20397,20916,21406,21541,22114,22195,22182,22332,22493,21597,20696,19821,19947,19880,19005,19054,19138,19282,19200,19276,19279,19458,19456,19721,19896,20102,20155,20417,20805,20739,20908,21118,21247,21565,21737,22140,22966,23440,23901,24034,24433,24606,25351,25828,26065,26472,26886,26951,27808,28888,29961,30257,30715,31194,32106,32616,33428,33713,34333,34501,35035,36098,36661,36919,37209,37304,37522,37565,37525,37340,37229,37241,37433,37496,37805,37846,38441,38821,38896,38873,39182,39189,39305,39391,39389,39475,39533,39398,39507,39507,39545,39530,39550,39564,39277,39150,39173,39178,39199,39273,39302,39970,40385,40384,40423,40395,41139,40955,41507,42149,42715,43135,43119,43149,43173,43195,43201,43249,43270,43285,43296,43296,43686,43719,44152,44244,44247,44245,44255,44241,44247,44255,44255,44314,44332,44473,44939,45205,45217,45468,45901,46398,46449,46515,46520,46846,47126,47546,48079,48714,48722,48699,48713,48619,48657,48735,48822,48851,48884,48930,49417,50482,50718,50769,50818,50822,50822,50814,50811,50736,50875,50871,50930,50931,50939,51174,51192,51203,51204,51226,51164,51062,50879,50879,50785,50827,50713,50765,50751,50676,50704,50616,50503,50498,50389,50402,49712,49841,49930,50110,50204,50192,50128,50137,49936,49937,49949,49991,50007,50005,49992,50000,50212,50312,50360,50415,50415,50401,50381,50298,50444,50485,50511,50529,50842,51075,51226,51667,51724,52028,52037,52132,52257,52607,52626,52714,52606,52508,52463,52495,52540,52537,52537,52562,52576,52580,52697,52713,52754,52752,52792,52753,52760,52763,52785,52783,52786,52790,52749,52795,52830,52843,52859,52861,52795,52771,52596,52544,52555,52566,52587,52361,52355,52373,51952,51891,51759,51774,51967,52211,52213,52223,52351,51466,50417,49650,49598,49650,49562,49570,49454,49268,49270,49251,49137,49159,49270,49291,49317,49386,49380,49435,49436,49504,49545,49348,49349,49352,49308,49314,49317,49337,49352,49339,49314,49212,49151,49165,49165,48905,48910,49116,49157,49198,49199,49138,49125,48975,48973,49188,49189,49263,49264,49266,49268,49278,49278,49282,49285,49290,49099,48970,48975,48976,48983,48940,48885,48891,48891,48892,48940,48944,48915,48905,48823,48833,48826,48698,48694,48721,48806,48805,48809,48799,48748,48753,48752,48759,48726,48732,48863,48870,48874,48867,48845,48845,48863,48728,48733,48734,48736,48736,48736,48735,48739,48644,48642,48654,48677,48687,48693,48694,48650,48425,48428,48436,48438,48373,48374,48373,48372,48375,48383,48383,48367,48367,48404,48405,48320,48331,48331,48335,48336,48338,48367,48337,48439,48584,48582,48586,48780,48874,48875,48616,48617,48617,48609,48624,48625,48627,48627,48644,48384,48387,48398,48373,48375,48345,48344,48357,48490,48495,48502,48512,48510,48495,48501,48463,48468,48418,48420,48421,48425,48425,48437,48449,48456,48471,48485,48487,48489,48489,48487,48494,48506,48516,48516,48643,48644,48645,48645,48645,48648,48655,48657,48675,48676,48676,48676,48720,48727,48728,48728,48729,48730,48711,48703,48702,48678,48685,48684];
-
-  // Format data for the chart
-  const chartData = useMemo(() => {
-    return validatorHistoryData.map((count, index) => ({
-      index: index,
-      validators: count,
-      displayLabel: index === 0 ? 'May 13, 2023' : index === validatorHistoryData.length - 1 ? 'Now' : ''
-    }));
-  }, []);
+  // Fetch historical validator data
+  const fetchHistoryData = async () => {
+    try {
+      setHistoryLoading(true);
+      const response = await fetch('/api/validators/history');
+      const data: ValidatorHistoryResponse = await response.json();
+      
+      if (data.success) {
+        setHistoryData(data.data);
+      } else {
+        console.error('Failed to fetch history data:', data.message);
+        // Fallback to empty array if history fails
+        setHistoryData([]);
+      }
+    } catch (err) {
+      console.error('History data fetch error:', err);
+      // Fallback to empty array if history fails
+      setHistoryData([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
   const fetchValidatorsData = async () => {
     try {
@@ -93,8 +132,11 @@ export default function ValidatorsTracker() {
   };
 
   useEffect(() => {
+    // Fetch both current data and history
     fetchValidatorsData();
-    // Auto-refresh every 60 seconds
+    fetchHistoryData();
+    
+    // Auto-refresh current data every 60 seconds
     const interval = setInterval(fetchValidatorsData, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -212,7 +254,7 @@ export default function ValidatorsTracker() {
     return `${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`;
   };
 
-  if (loading) {
+  if (loading || historyLoading) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <div className="container mx-auto">
@@ -365,14 +407,14 @@ export default function ValidatorsTracker() {
           </div>
         </div>
 
-        {/* Historical Validator Count Chart */}
-        <div className="w-full h-[550px] my-10 relative">
+        {/* Historical Validator Count Chart - UPDATED */}
+        <div className="w-full h-[450px] my-10 relative">
           <div className="w-full h-full p-8 border-2 border-white/10 rounded-xl">
-            <h2 className="text-left text-white text-2xl mb-0 ml-10">
+            <h2 className="text-left text-white text-2xl mb-8 ml-10">
               Active Validators
             </h2>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+            <ResponsiveContainer width="100%" height="90%">
+              <LineChart data={historyData}>
                 <CartesianGrid 
                   strokeDasharray="3 3" 
                   stroke="rgba(136, 136, 136, 0.2)" 
@@ -409,7 +451,11 @@ export default function ValidatorsTracker() {
                           padding: '10px'
                         }}>
                           <p style={{ color: 'white', margin: 0, marginBottom: '8px', fontWeight: 'bold' }}>
-                            {label || `Day ${data.index + 1}`}
+                            {data.date ? new Date(data.date).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric' 
+                            }) : label}
                           </p>
                           <div style={{ color: '#10b981', marginBottom: '4px' }}>
                             <div>Active Validators</div>
@@ -434,33 +480,6 @@ export default function ValidatorsTracker() {
                 />
               </LineChart>
             </ResponsiveContainer>
-            
-            {/* Chart Legend */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              width: '100%', 
-              marginTop: '40px',
-              marginBottom: '40px'
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px' 
-              }}>
-                <div style={{ 
-                  width: '16px', 
-                  height: '2px', 
-                  backgroundColor: 'rgba(16, 185, 129, 1)' 
-                }}></div>
-                <span style={{ 
-                  color: '#fff', 
-                  fontSize: '12px' 
-                }}>
-                  Active Validators - Current: {validatorsData?.data.activeCount.toLocaleString()}
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
