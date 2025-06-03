@@ -1,0 +1,269 @@
+PULSECHAIN VALIDATOR API - DATA STRUCTURE DOCUMENTATION
+===========================================================
+
+API Endpoint: /api/validators
+Method: GET
+
+MAIN RESPONSE STRUCTURE
+=======================
+
+success: boolean
+  - true if API call succeeded
+  - false if error occurred
+
+message: string
+  - Human-readable summary of the results
+  - Example: "Found 88805 total validators, 50789 are active"
+
+data: object
+  - Main data container with all validator information
+
+error: string (only if success = false)
+  - Error message if API call failed
+
+DATA OBJECT STRUCTURE
+=====================
+
+count: number
+  - Total number of validators found
+  - Example: 88805
+
+activeCount: number
+  - Number of currently active validators
+  - Example: 50789
+
+historicalActiveValidators: array
+  - Array of historical active validator counts
+  - Each object contains:
+    timestamp: string (ISO format)
+    count: number
+  - Example: [
+    { timestamp: "2024-01-01T00:00:00Z", count: 50000 },
+    { timestamp: "2024-01-02T00:00:00Z", count: 50100 }
+  ]
+  - Note: Currently not implemented, planned for future
+
+method: string
+  - Method used to retrieve data
+  - Values: "beacon_api_validators", "staking_contract_[function]", "block_analysis_extended"
+
+endpoint: string
+  - Beacon API endpoint used
+  - Example: "/eth/v1/beacon/states/head/validators"
+
+validators: array
+  - Array of all validator objects (first 100 for performance)
+  - Each validator contains full validator data structure
+
+activeValidators: array
+  - Array of active validator objects (first 50 for performance)
+  - Filtered subset of validators with active status
+
+statusCounts: object
+  - Count of validators by status
+  - Keys are status strings, values are counts
+  - Example: { "active_ongoing": 50789, "pending_initialized": 12000, ... }
+
+timestamp: string (ISO format)
+  - When the data was retrieved
+  - Example: "2024-12-19T10:30:45.123Z"
+
+recentValidators: array
+  - Recent validator activity (from block analysis method)
+  - Array of ValidatorInfo objects
+
+uniqueValidators: array
+  - Array of unique validator identifiers
+  - Contains pubkeys, addresses, or indices
+
+blocksAnalyzed: number
+  - Number of blocks analyzed (for block analysis method)
+  - 0 for Beacon API method
+
+disclaimer: string
+  - Important context about the data
+  - Explains methodology and limitations
+
+INDIVIDUAL VALIDATOR OBJECT STRUCTURE (BEACON API)
+==================================================
+
+index: string
+  - Validator index number
+  - Example: "12345"
+
+balance: string
+  - Validator balance in Gwei
+  - Example: "32000000000"
+
+status: string
+  - Current validator status
+  - Possible values:
+    * "active_ongoing" - Currently active and attesting
+    * "active_exiting" - Active but exiting
+    * "active_slashed" - Active but slashed
+    * "pending_initialized" - Waiting to be activated
+    * "pending_queued" - In activation queue
+    * "withdrawal_possible" - Can withdraw
+    * "withdrawal_done" - Withdrawal completed
+    * "exited_unslashed" - Exited normally
+    * "exited_slashed" - Exited due to slashing
+
+validator: object
+  - Validator details object containing:
+  
+  pubkey: string
+    - Validator public key (48 bytes hex)
+    - Example: "0x1234567890abcdef..."
+  
+  withdrawal_credentials: string
+    - Withdrawal credentials (32 bytes hex)
+    - Example: "0x00abcdef..."
+  
+  effective_balance: string
+    - Effective balance for consensus in Gwei
+    - Example: "32000000000"
+  
+  slashed: boolean
+    - Whether validator has been slashed
+    - true/false
+  
+  activation_eligibility_epoch: string
+    - Epoch when eligible for activation
+    - Example: "194048"
+  
+  activation_epoch: string
+    - Epoch when activated
+    - Example: "194048"
+  
+  exit_epoch: string
+    - Epoch when exiting (if applicable)
+    - Example: "18446744073709551615" (max value if not exiting)
+  
+  withdrawable_epoch: string
+    - Epoch when withdrawable
+    - Example: "18446744073709551615"
+
+VALIDATOR INFO OBJECT (BLOCK ANALYSIS)
+======================================
+
+address: string
+  - Validator/miner address
+  - Example: "0x742d35cc6600c462..."
+
+blockNumber: string
+  - Block number where validator was active
+  - Example: "21234567"
+
+timestamp: string (ISO format)
+  - When the block was mined
+  - Example: "2024-12-19T10:25:30.000Z"
+
+STATUS COUNTS BREAKDOWN
+=======================
+
+Based on current PulseChain data, you might see these statuses:
+
+active_ongoing: number
+  - Validators currently participating in consensus
+  - These are earning rewards
+
+active_exiting: number
+  - Validators in the process of voluntary exit
+
+active_slashed: number  
+  - Validators that have been penalized but still active
+
+pending_initialized: number
+  - Validators that have deposited but waiting for activation
+
+pending_queued: number
+  - Validators waiting in the activation queue
+
+withdrawal_possible: number
+  - Validators that can withdraw their stake
+
+withdrawal_done: number
+  - Validators that have completed withdrawal
+
+exited_unslashed: number
+  - Validators that exited normally without penalty
+
+exited_slashed: number
+  - Validators that were slashed and exited
+
+BEACON API ADDITIONAL ENDPOINTS DATA
+====================================
+
+If other beacon endpoints are called, you might also see:
+
+beaconData: object
+  - Raw beacon API response data
+  - Structure varies by endpoint
+
+For /eth/v1/beacon/genesis:
+  - genesis_time
+  - genesis_validators_root  
+  - genesis_fork_version
+
+For /eth/v1/beacon/states/head/validator_balances:
+  - Array of balance objects with index and balance
+
+For /eth/v1/node/identity:
+  - p2p_addresses
+  - discovery_addresses
+  - metadata
+
+FILTERING AND PAGINATION
+========================
+
+The API automatically filters and limits data for performance:
+
+- validators: Limited to first 100 total validators
+- activeValidators: Limited to first 50 active validators  
+- recentValidators: Limited to last 20 validator activities
+- uniqueValidators: Full array of all unique identifiers
+
+SAMPLE USAGE EXAMPLES
+====================
+
+Get total validator count:
+  response.data.count
+
+Get active validator count:
+  response.data.activeCount
+
+Check if validator is active:
+  validator.status.startsWith('active_')
+
+Get all active validator pubkeys:
+  response.data.activeValidators.map(v => v.validator.pubkey)
+
+Get status distribution:
+  response.data.statusCounts
+
+Find specific validator by pubkey:
+  response.data.validators.find(v => v.validator.pubkey === 'target_pubkey')
+
+ERROR HANDLING
+==============
+
+If success === false, check:
+- error: string with error message
+- data will still contain default structure with zero values
+
+REAL-TIME DATA
+==============
+
+All data is fetched in real-time from:
+- PulseChain Beacon API: https://rpc-pulsechain.g4mm4.io/beacon-api/
+- PulseChain RPC: https://rpc-pulsechain.g4mm4.io
+
+Data reflects current network state at time of API call.
+
+PERFORMANCE NOTES
+=================
+
+- Full validator set (~88K) is retrieved but response is limited
+- API calls typically complete in 2-5 seconds
+- Data is not cached - each call fetches fresh data
+- Consider implementing client-side caching for frequent requests 

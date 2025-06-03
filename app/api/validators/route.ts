@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PULSECHAIN_RPC = 'https://rpc-pulsechain.g4mm4.io';
 
+// Beacon API endpoints
+const PULSECHAIN_BEACON_API = 'https://rpc-pulsechain.g4mm4.io/beacon-api';
+
 // Common staking contract addresses to try
 const POTENTIAL_STAKING_CONTRACTS = [
   '0x0000000000000000000000000000000000001000', // Common system contract
@@ -111,10 +114,173 @@ async function tryStakingContract(contractAddress: string): Promise<any> {
   return null;
 }
 
+async function tryBeaconAPI(): Promise<any> {
+  console.log('🔍 Trying Beacon API endpoints...');
+  
+  const beaconEndpoints = [
+    '/eth/v1/beacon/states/head/validators',
+    '/eth/v1/beacon/states/finalized/validators', 
+    '/eth/v1/beacon/genesis',
+    '/eth/v1/beacon/states/head/validator_balances',
+    '/eth/v1/node/identity',
+    '/eth/v1/beacon/pool/voluntary_exits',
+    '/eth/v1/beacon/states/head/committees'
+  ];
+
+  for (const endpoint of beaconEndpoints) {
+    try {
+      console.log(`Trying Beacon API endpoint: ${endpoint}`);
+      
+      const response = await fetch(`${PULSECHAIN_BEACON_API}${endpoint}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log(`Beacon API ${endpoint} status: ${response.status}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`✅ Beacon API ${endpoint} success:`, Object.keys(result));
+        
+        // Check for validator data
+        if (result.data && Array.isArray(result.data)) {
+          console.log(`Found ${result.data.length} items in ${endpoint}`);
+          
+          if (endpoint.includes('validators')) {
+            // Log first few validators to see structure
+            if (result.data.length > 0) {
+              console.log('Sample validator data:', JSON.stringify(result.data.slice(0, 3), null, 2));
+            }
+            
+            return {
+              method: 'beacon_api',
+              endpoint: endpoint,
+              count: result.data.length,
+              validators: result.data,
+              raw: result
+            };
+          }
+        } else if (result.data && typeof result.data === 'object') {
+          console.log(`Beacon API ${endpoint} returned object:`, Object.keys(result.data));
+          return {
+            method: 'beacon_api',
+            endpoint: endpoint,
+            data: result.data,
+            raw: result
+          };
+        }
+      } else {
+        const errorText = await response.text();
+        console.log(`❌ Beacon API ${endpoint} failed: ${response.status} - ${errorText.slice(0, 200)}`);
+      }
+    } catch (error) {
+      console.log(`❌ Beacon API ${endpoint} error:`, error);
+    }
+  }
+  
+  return null;
+}
+
+// Function to filter active validators
+function filterActiveValidators(validators: any[]): any[] {
+  const activeValidators = validators.filter(validator => {
+    const status = validator.status;
+    
+    // Common active statuses in Ethereum 2.0:
+    // - active_ongoing: Currently active and attesting
+    // - active_exiting: Active but in the process of exiting
+    // - active_slashed: Active but has been slashed
+    const isCurrentlyActive = [
+      'active_ongoing',
+      'active_exiting', 
+      'active_slashed'
+    ].includes(status);
+    
+    // For now, we'll consider currently active validators
+    // In the future, we could add logic to check recent activity
+    return isCurrentlyActive;
+  });
+  
+  console.log(`Filtered ${activeValidators.length} active validators from ${validators.length} total`);
+  return activeValidators;
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log('Fetching PulseChain validator information...');
     
+    // First try Beacon API
+    console.log('🔍 Trying Beacon API first...');
+    const beaconResult = await tryBeaconAPI();
+    if (beaconResult && beaconResult.count) {
+      console.log(`✅ Found validator data via Beacon API!`);
+      
+      // Filter for active validators
+      const activeValidators = filterActiveValidators(beaconResult.validators || []);
+      
+      // Calculate total staked amount
+      const totalStaked = activeValidators.reduce((sum, validator) => {
+        const balance = parseInt(validator.balance || '0');
+        return sum + balance;
+      }, 0);
+      
+      console.log(`Total PLS staked: ${totalStaked} Gwei (${totalStaked / 1e9} PLS)`);
+      
+      // Sort active validators by balance (descending) to get the largest ones
+      const sortedActiveValidators = activeValidators.sort((a, b) => {
+        const balanceA = parseInt(a.balance || '0');
+        const balanceB = parseInt(b.balance || '0');
+        return balanceB - balanceA;
+      });
+      
+      // Get status counts
+      const statusCounts: Record<string, number> = {};
+      beaconResult.validators?.forEach((validator: any) => {
+        const status = validator.status;
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          count: beaconResult.count,
+          activeCount: activeValidators.length,
+          totalStaked: totalStaked, // Add total staked amount in Wei
+          method: `beacon_api_${beaconResult.endpoint.split('/').pop()}`,
+          endpoint: beaconResult.endpoint,
+          validators: beaconResult.validators?.slice(0, 100) || [], // Limit response size
+          activeValidators: sortedActiveValidators.slice(0, 100), // Return top 100 largest active validators
+          statusCounts: statusCounts,
+          timestamp: new Date().toISOString(),
+          recentValidators: [],
+          uniqueValidators: beaconResult.validators?.map((v: any) => v.validator?.pubkey || v.pubkey || v.index) || [],
+          blocksAnalyzed: 0,
+          disclaimer: `Validator count retrieved from Beacon API endpoint ${beaconResult.endpoint}. ${activeValidators.length} validators are currently active with ${(totalStaked / 1e9).toLocaleString()} PLS total staked.`
+        },
+        message: `Found ${beaconResult.count} total validators, ${activeValidators.length} are active with ${(totalStaked / 1e9).toLocaleString()} PLS staked`
+      });
+    } else if (beaconResult && beaconResult.data) {
+      console.log(`✅ Found some data via Beacon API (${beaconResult.endpoint})`);
+      return NextResponse.json({
+        success: true,
+        data: {
+          count: 0,
+          method: `beacon_api_${beaconResult.endpoint.split('/').pop()}`,
+          endpoint: beaconResult.endpoint,
+          beaconData: beaconResult.data,
+          timestamp: new Date().toISOString(),
+          recentValidators: [],
+          uniqueValidators: [],
+          blocksAnalyzed: 0,
+          disclaimer: `Data retrieved from Beacon API endpoint ${beaconResult.endpoint}. Check beaconData field for details.`
+        },
+        message: `Retrieved beacon data from ${beaconResult.endpoint}`
+      });
+    }
+
     // First try to find staking contracts
     console.log('🔍 Searching for staking contracts...');
     for (const contractAddress of POTENTIAL_STAKING_CONTRACTS) {

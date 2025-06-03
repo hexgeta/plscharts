@@ -238,13 +238,13 @@ export default function GasTracker() {
             </div>
             <div className="space-y-2">
               <div className="text-3xl font-bold text-indigo-400">
-                {gasData.data.ethereum.currentGasPriceGwei.toFixed(2)} Gwei
-              </div>
-              <div className="text-sm text-gray-400">
                 {tokenPrices?.ETH?.price ? 
                   `$${calculateTransactionCost(gasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2)} USD` :
                   'Price loading...'
                 }
+              </div>
+              <div className="text-sm text-gray-400">
+                {gasData.data.ethereum.currentGasPriceGwei.toFixed(2)} Gwei
               </div>
             </div>
           </div>
@@ -263,13 +263,13 @@ export default function GasTracker() {
             </div>
             <div className="space-y-2">
               <div className="text-3xl font-bold text-pink-400">
-                {Math.round(gasData.data.pulsechain.currentGasPriceGwei).toLocaleString('en-US', {maximumFractionDigits: 0})} Beats
-              </div>
-              <div className="text-sm text-gray-400">
                 {tokenPrices?.PLS?.price ? 
                   `$${calculateTransactionCost(gasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2)} USD` :
                   'Price loading...'
                 }
+              </div>
+              <div className="text-sm text-gray-400">
+                {Math.round(gasData.data.pulsechain.currentGasPriceGwei).toLocaleString('en-US', {maximumFractionDigits: 0})} Beats
               </div>
             </div>
           </div>

@@ -290,16 +290,18 @@ export default function Bridge() {
                 )
                 
                 return (
-                <div key={`${token.chain}-${token.symbol}-${tokenIndex}`} className="flex items-start justify-between py-1">
-                  <div className="flex items-start space-x-3">
-                    <CoinLogo
-                      symbol={token.symbol}
-                      size="sm"
-                      className="rounded-none"
-                      variant="default"
-                    />
-                    <div>
-                      <div className="text-white font-medium text-lg">
+                <div key={`${token.chain}-${token.symbol}-${tokenIndex}`} className="flex items-top justify-between py-0">
+                  <div className="flex items-top space-x-3">
+                    <div className="flex-shrink-0">
+                      <CoinLogo
+                        symbol={token.symbol}
+                        size="md"
+                        className="rounded-none"
+                        variant="default"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-medium text-sm md:text-md">
                         {displayAmount} {token.symbol}
                       </div>
                       {/* Supply percentage - small text underneath token */}
@@ -314,8 +316,10 @@ export default function Bridge() {
                     </div>
                   </div>
                   {/* USD value only */}
-                  <div className="text-white font-medium text-lg">
-                    ${formatBalance(usdValue)}
+                  <div className="flex items-top">
+                    <div className="text-white font-medium text-sm md:text-lg">
+                      ${formatBalance(usdValue)}
+                    </div>
                   </div>
                 </div>
               )})}
@@ -379,16 +383,18 @@ export default function Bridge() {
                 const displayAmount = formatBalance(token.balanceFormatted)
                 
                 return (
-                <div key={`${token.chain}-${token.symbol}-${tokenIndex}`} className="flex items-start justify-between py-1">
-                  <div className="flex items-start space-x-3">
-                    <CoinLogo
-                      symbol={token.symbol}
-                      size="sm"
-                      className="rounded-none"
-                      variant="default"
-                    />
-                    <div>
-                      <div className="text-white font-medium text-lg">
+                <div key={`${token.chain}-${token.symbol}-${tokenIndex}`} className="flex items-top justify-between py-1">
+                  <div className="flex items-top space-x-3">
+                    <div className="flex-shrink-0">
+                      <CoinLogo
+                        symbol={token.symbol}
+                        size="md"
+                        className="rounded-none"
+                        variant="default"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-medium text-sm md:text-md">
                         {displayAmount} {token.symbol}
                       </div>
                       {/* Supply percentage - small text underneath token */}
@@ -403,8 +409,10 @@ export default function Bridge() {
                     </div>
                   </div>
                   {/* USD value only */}
-                  <div className="text-white font-medium text-lg">
-                    ${formatBalance(usdValue)}
+                  <div className="flex items-top">
+                    <div className="text-white font-medium text-sm md:text-lg">
+                      ${formatBalance(usdValue)}
+                    </div>
                   </div>
                 </div>
               )})}

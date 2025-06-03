@@ -1,72 +1,144 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { formatNumber } from '@/utils/format';
-
-interface ValidatorInfo {
-  address: string;
-  blockNumber: string;
-  timestamp: string;
-}
+import { useState, useEffect, useMemo } from 'react';
+import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
 
 interface ValidatorData {
-  count: number;
-  recentValidators: ValidatorInfo[];
-  uniqueValidators: string[];
-  method: string;
-  timestamp: string;
-  blocksAnalyzed: number;
+  index: string;
+  balance: string;
+  status: string;
+  validator: {
+    pubkey: string;
+    withdrawal_credentials: string;
+    effective_balance: string;
+    slashed: boolean;
+    activation_eligibility_epoch: string;
+    activation_epoch: string;
+    exit_epoch: string;
+    withdrawable_epoch: string;
+  };
 }
 
-interface ApiResponse {
+interface ValidatorsResponse {
   success: boolean;
-  data: ValidatorData;
+  data: {
+    count: number;
+    activeCount: number;
+    method: string;
+    endpoint: string;
+    validators: ValidatorData[];
+    activeValidators: ValidatorData[];
+    statusCounts: Record<string, number>;
+    timestamp: string;
+    disclaimer: string;
+    totalStaked: number;
+  };
   message: string;
-  error?: string;
 }
 
-export default function PulseChainValidators() {
-  const [validatorData, setValidatorData] = useState<ValidatorData | null>(null);
+export default function ValidatorsTracker() {
+  const [validatorsData, setValidatorsData] = useState<ValidatorsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
 
-  useEffect(() => {
-    fetchValidatorData();
-  }, []);
+  // Fetch token prices for PLS
+  const { prices: tokenPrices, isLoading: pricesLoading } = useTokenPrices(['PLS']);
 
-  const fetchValidatorData = async () => {
+  const fetchValidatorsData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/validators/pulsechain');
-      const data: ApiResponse = await response.json();
+      const response = await fetch('/api/validators');
+      const data: ValidatorsResponse = await response.json();
       
       if (data.success) {
-        setValidatorData(data.data);
+        setValidatorsData(data);
+        setLastUpdated(new Date().toLocaleTimeString());
         setError(null);
       } else {
-        setError(data.error || 'Failed to fetch validator data');
+        setError('Failed to fetch validators data');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch validator data');
+    } catch (err) {
+      setError('Error fetching validators data');
+      console.error('Validators data fetch error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  useEffect(() => {
+    fetchValidatorsData();
+    // Auto-refresh every 60 seconds
+    const interval = setInterval(fetchValidatorsData, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Get top 20 largest active validators
+  const topValidators = useMemo(() => {
+    if (!validatorsData?.data.activeValidators) return [];
+    
+    return validatorsData.data.activeValidators
+      .filter(validator => validator.status.startsWith('active_'))
+      .slice(0, 20); // Just take the first 20 since they're already sorted by balance from the API
+  }, [validatorsData]);
+
+  // Calculate average validator balance
+  const averageBalance = useMemo(() => {
+    if (!validatorsData?.data.activeValidators) return 0;
+    
+    const totalBalance = validatorsData.data.activeValidators.reduce((sum, validator) => {
+      return sum + parseInt(validator.balance);
+    }, 0);
+    
+    return totalBalance / validatorsData.data.activeValidators.length;
+  }, [validatorsData]);
+
+  // Use total staked from API response instead of calculating locally
+  const totalStaked = useMemo(() => {
+    const total = validatorsData?.data.totalStaked || 0;
+    console.log('🔍 Debugging total staked:');
+    console.log('Raw totalStaked from API:', total);
+    console.log('Total in PLS:', total / 1e18);
+    console.log('Active validators count:', validatorsData?.data.activeValidators?.length);
+    console.log('PLS price:', tokenPrices?.PLS?.price);
+    console.log('Price loading?', pricesLoading);
+    return total;
+  }, [validatorsData, tokenPrices, pricesLoading]);
+
+  // Format balance from Gwei to PLS
+  const formatBalance = (gweiBalance: string) => {
+    const balance = parseInt(gweiBalance) / 1e9; // Convert Gwei to PLS
+    return balance.toFixed(2);
   };
 
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
+  // Format balance to USD
+  const formatBalanceUSD = (gweiBalance: string) => {
+    if (!tokenPrices?.PLS?.price) return '$0.00';
+    const balance = parseInt(gweiBalance) / 1e9; // Convert Gwei to PLS
+    const usdValue = balance * tokenPrices.PLS.price;
+    return `$${usdValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  // Format total staked to USD
+  const formatTotalStakedUSD = (totalGweiBalance: number) => {
+    if (!tokenPrices?.PLS?.price) return '$0';
+    const balance = totalGweiBalance / 1e9; // Convert Gwei to PLS
+    const usdValue = balance * tokenPrices.PLS.price;
+    return `$${usdValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  // Generate a readable name for validator (using first and last 4 chars of pubkey)
+  const formatValidatorName = (pubkey: string, index: number) => {
+    return `${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mb-4"></div>
-          <p className="text-white text-xl">Loading PulseChain validators...</p>
+      <div className="min-h-screen bg-black text-white p-8">
+        <div className="container mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-xl">Loading validators data...</div>
+          </div>
         </div>
       </div>
     );
@@ -74,16 +146,10 @@ export default function PulseChainValidators() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">❌ Error</div>
-          <p className="text-white">{error}</p>
-          <button 
-            onClick={fetchValidatorData}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Retry
-          </button>
+      <div className="min-h-screen bg-black text-white p-8">
+        <div className="container mx-auto">
+          <h1 className="text-4xl font-bold mb-8">PulseChain Validators</h1>
+          <div className="text-red-500 text-xl">{error}</div>
         </div>
       </div>
     );
@@ -91,121 +157,109 @@ export default function PulseChainValidators() {
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">
-            PulseChain Validators
-          </h1>
-          <p className="text-gray-400">
-            Current network validator information
-          </p>
+      <div className="container mx-auto">
+      
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center">
+            <div className="text-3xl font-bold text-green-400">
+              {validatorsData?.data.activeCount.toLocaleString()}
+            </div>
+            <div className="text-gray-400 mt-2">Active Validators</div>
+          </div>
+          
+          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center">
+            <div className="text-3xl font-bold text-blue-400">
+              {validatorsData?.data.count.toLocaleString()}
+            </div>
+            <div className="text-gray-400 mt-2">Total Historic Validators</div>
+          </div>
+          
+          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center">
+            <div className="text-3xl font-bold text-purple-400">
+              {formatBalanceUSD(averageBalance.toString())}
+            </div>
+            <div className="text-gray-400 mt-2">Average Balance</div>
+            <div className="text-sm text-gray-500 mt-1">
+              {(averageBalance / 1e9).toFixed(2)} PLS
+            </div>
+          </div>
+
+          <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center">
+            <div className="text-3xl font-bold text-orange-400">
+              {(totalStaked / 1e9 / 1e12).toFixed(2)}T PLS
+            </div>
+            <div className="text-gray-400 mt-2">Total PLS Staked</div>
+            <div className="text-sm text-gray-500 mt-1">
+              {formatTotalStakedUSD(totalStaked)}
+            </div>
+          </div>
         </div>
 
-        {validatorData && (
-          <>
-            {/* Main Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-gray-900 rounded-lg p-6 text-center">
-                <div className="text-3xl font-bold text-green-400 mb-2">
-                  {formatNumber(validatorData.count)}
-                </div>
-                <div className="text-gray-400">Active Validators</div>
-              </div>
-              
-              <div className="bg-gray-900 rounded-lg p-6 text-center">
-                <div className="text-3xl font-bold text-blue-400 mb-2">
-                  {formatNumber(validatorData.blocksAnalyzed)}
-                </div>
-                <div className="text-gray-400">Blocks Analyzed</div>
-              </div>
-              
-              <div className="bg-gray-900 rounded-lg p-6 text-center">
-                <div className="text-3xl font-bold text-purple-400 mb-2">
-                  {validatorData.method === 'bor_getCurrentValidators' ? 'Direct' : 'Analysis'}
-                </div>
-                <div className="text-gray-400">Detection Method</div>
-              </div>
-            </div>
-
-            {/* Recent Validator Activity */}
-            <div className="bg-gray-900 rounded-lg p-6 mb-8">
-              <h2 className="text-2xl font-bold mb-4">Recent Validator Activity</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left py-2">Validator Address</th>
-                      <th className="text-left py-2">Block Number</th>
-                      <th className="text-left py-2">Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {validatorData.recentValidators.map((validator, index) => (
-                      <tr key={index} className="border-b border-gray-800 hover:bg-gray-800">
-                        <td className="py-2 font-mono">
-                          <a 
-                            href={`https://scan.pulsechain.com/address/${validator.address}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300"
-                          >
-                            {formatAddress(validator.address)}
-                          </a>
-                        </td>
-                        <td className="py-2">
-                          <a 
-                            href={`https://scan.pulsechain.com/block/${validator.blockNumber}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-green-400 hover:text-green-300"
-                          >
-                            {formatNumber(parseInt(validator.blockNumber))}
-                          </a>
-                        </td>
-                        <td className="py-2 text-gray-400">
-                          {formatTimestamp(validator.timestamp)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* All Validators */}
-            <div className="bg-gray-900 rounded-lg p-6">
-              <h2 className="text-2xl font-bold mb-4">All Active Validators</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-                {validatorData.uniqueValidators.map((address, index) => (
-                  <div key={index} className="font-mono">
-                    <a 
-                      href={`https://scan.pulsechain.com/address/${address}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300"
-                    >
-                      {formatAddress(address)}
-                    </a>
-                  </div>
+        {/* Top 20 Validators Table */}
+        <div className="bg-black rounded-xl border-2 border-white/10 overflow-hidden">
+          <div className="p-6 border-b border-white/10">
+            <h2 className="text-2xl font-bold">Top 20 Largest Active Validators</h2>
+            <p className="text-gray-400 mt-2">Ranked by validator balance</p>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-800">
+                <tr>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">#</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Validator</th>
+                  <th className="px-6 py-4 text-center text-gray-300 font-medium">Balance (PLS)</th>
+                  <th className="px-6 py-4 text-center text-gray-300 font-medium">Balance (USD)</th>
+                  <th className="px-6 py-4 text-center text-gray-300 font-medium">Status</th>
+                  <th className="px-6 py-4 text-center text-gray-300 font-medium">Index</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {topValidators.map((validator, index) => (
+                  <tr key={validator.index} className="hover:bg-gray-800/50 transition-colors">
+                    <td className="px-6 py-4 text-center font-mono">
+                      {index + 1}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-mono text-sm">
+                        {formatValidatorName(validator.validator.pubkey, index)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {validator.validator.pubkey.slice(0, 20)}...
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center font-mono">
+                      <div className="text-white">
+                        {formatBalance(validator.balance)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center font-mono">
+                      <div className="text-green-400">
+                        {formatBalanceUSD(validator.balance)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        validator.status === 'active_ongoing' 
+                          ? 'bg-green-900 text-green-300' 
+                          : validator.status === 'active_exiting'
+                          ? 'bg-yellow-900 text-yellow-300'
+                          : 'bg-red-900 text-red-300'
+                      }`}>
+                        {validator.status.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center font-mono text-gray-400">
+                      {validator.index}
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            </div>
-
-            {/* Metadata */}
-            <div className="mt-8 text-center text-gray-500 text-sm">
-              <p>
-                Last updated: {formatTimestamp(validatorData.timestamp)} | 
-                Method: {validatorData.method}
-              </p>
-              <button 
-                onClick={fetchValidatorData}
-                className="mt-2 px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
-              >
-                Refresh Data
-              </button>
-            </div>
-          </>
-        )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

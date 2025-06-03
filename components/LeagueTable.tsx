@@ -307,7 +307,7 @@ export default React.memo(function LeagueTable({
             <div className="text-white text-sm">{tokenTicker}</div>
           </div>
         </div>
-        <div className="text-center">
+        <div className="text-center ml-4 md:ml-2">
           <div className="text-gray-400 text-xs">Market Cap</div>
           <div className="text-white font-bold text-sm transition-all duration-300">
             {hasValidPriceData ? formatHeaderMarketCap(totalMarketCap) : 'No price'}
@@ -348,7 +348,7 @@ export default React.memo(function LeagueTable({
             </div>
 
             {/* Market Cap - Center Aligned */}
-            <div className="text-white font-medium text-center text-xs md:text-sm transition-all duration-300">
+            <div className="text-white font-medium text-center text-xs md:text-sm ml-4 md:ml-2 transition-all duration-300">
               {hasValidPriceData ? formatLeagueMarketCap(rank.marketCap) : 'No price'}
             </div>
 
@@ -385,7 +385,7 @@ export default React.memo(function LeagueTable({
   }
 
   return (
-    <div className="bg-black border-2 border-white/10 rounded-2xl p-6 min-w-[360px]">
+    <div className="bg-black border-2 border-white/10 rounded-2xl p-6 min-w-[340px]">
       {content}
     </div>
   )

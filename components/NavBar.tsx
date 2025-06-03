@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: '/leagues', label: 'Leagues', mobileLabel: 'Leagues' },
   { href: '/bridge', label: 'Bridge', mobileLabel: 'Bridge' },
   { href: '/gas', label: 'Gas', mobileLabel: 'Gas' },
+  // { href: '/validators', label: 'Validators', mobileLabel: 'Validators' },
 
   // { href: '/portfolio', label: 'Portfolio', mobileLabel: 'Portfolio' },
 ];
