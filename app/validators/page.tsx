@@ -157,16 +157,15 @@ export default function ValidatorsTracker() {
       y: 20,
       scale: 0.95
     },
-    visible: (index: number) => ({
+    visible: {
       opacity: 1, 
       y: 0,
       scale: 1,
       transition: {
-        delay: index * 0.03, // Stagger effect
-        duration: 0.4,
+        duration: 0.3,
         ease: [0.25, 0.46, 0.45, 0.94] // Smooth ease-out curve
       }
-    })
+    }
   };
 
   // Fetch token prices for PLS
@@ -504,7 +503,7 @@ export default function ValidatorsTracker() {
                   <p className="text-gray-400 mt-2">Grouped by address, ranked by total staked PLS</p>
                 </div>
                 
-                <div className="overflow-x-auto">
+                <div className="">
                   <table className="w-full">
                     <thead className="bg-black border-b border-white/10 sticky top-0 z-10">
                       <tr>
@@ -530,7 +529,6 @@ export default function ValidatorsTracker() {
                             variants={rowVariants}
                             initial="hidden"
                             animate="visible"
-                            custom={index}
                           >
                             <td className="px-6 py-4 text-center font-mono">
                               {index < 3 ? (
@@ -613,7 +611,7 @@ export default function ValidatorsTracker() {
             <div className="w-full h-[450px] my-10 relative">
               <div className="w-full h-full p-8 border-2 border-white/10 rounded-xl">
                 <h2 className="text-left text-white text-2xl mb-0 md:mb-8 ml-10">
-                  Top 100 Validators by Staked Amount
+                  Top 100 Staking Addresses Ranked
                 </h2>
                 <ResponsiveContainer width="100%" height="90%">
                   <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
