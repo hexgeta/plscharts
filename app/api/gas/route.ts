@@ -41,6 +41,22 @@ interface GasResponse {
   timestamp: string;
 }
 
+// Calculate seconds until next 1am UTC
+function getSecondsUntil1amUTC(): number {
+  const now = new Date();
+  const next1am = new Date();
+  
+  // Set to 1am UTC today
+  next1am.setUTCHours(1, 0, 0, 0);
+  
+  // If we're past 1am UTC today, set to 1am UTC tomorrow
+  if (now.getTime() >= next1am.getTime()) {
+    next1am.setUTCDate(next1am.getUTCDate() + 1);
+  }
+  
+  return Math.floor((next1am.getTime() - now.getTime()) / 1000);
+}
+
 async function fetchGasPrice(rpcUrl: string, networkName: string): Promise<GasData> {
   // Get current gas price
   const gasPriceResponse = await fetch(rpcUrl, {
@@ -141,6 +157,10 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Fetching gas price data for Ethereum and PulseChain...');
 
+    // Check if historical data is requested (for caching)
+    const { searchParams } = new URL(request.url);
+    const includeHistory = searchParams.get('history') !== 'false';
+
     // Fetch gas data from both networks in parallel
     const [ethereumData, pulsechainData] = await Promise.all([
       fetchGasPrice(ETHEREUM_RPC, 'Ethereum'),
@@ -153,7 +173,7 @@ export async function GET(request: NextRequest) {
     const difference = ethereumGwei - pulsechainGwei;
     const multiplier = ethereumGwei / pulsechainGwei;
 
-    const response: GasResponse = {
+    const responseData: GasResponse = {
       success: true,
       data: {
         ethereum: ethereumData,
@@ -170,7 +190,24 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Gas prices fetched - ETH: ${ethereumGwei.toFixed(2)} gwei, PLS: ${pulsechainGwei.toFixed(6)} gwei`);
 
-    return NextResponse.json(response);
+    const response = NextResponse.json(responseData);
+
+    // Only cache when historical data is included (since historical data doesn't change)
+    if (includeHistory) {
+      // Calculate cache duration until 1am UTC
+      const maxAge = getSecondsUntil1amUTC();
+      const staleWhileRevalidate = Math.min(maxAge, 3600); // Max 1 hour for SWR
+
+      // Add SWR caching headers for historical data
+      response.headers.set('Cache-Control', `public, max-age=${maxAge}, stale-while-revalidate=${staleWhileRevalidate}`);
+      response.headers.set('CDN-Cache-Control', `public, max-age=${maxAge}, stale-while-revalidate=${staleWhileRevalidate}`);
+      response.headers.set('Vercel-CDN-Cache-Control', `public, max-age=${maxAge}, stale-while-revalidate=${staleWhileRevalidate}`);
+    } else {
+      // No caching for current-only gas prices
+      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+
+    return response;
 
   } catch (error: any) {
     console.error('❌ Failed to fetch gas prices:', error);

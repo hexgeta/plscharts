@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { motion } from 'framer-motion';
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
 
 interface GasData {
@@ -43,7 +44,8 @@ interface ChartDataPoint {
 }
 
 export default function GasTracker() {
-  const [gasData, setGasData] = useState<GasResponse | null>(null);
+  const [currentGasData, setCurrentGasData] = useState<GasResponse | null>(null);
+  const [historicalGasData, setHistoricalGasData] = useState<GasResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
@@ -56,32 +58,63 @@ export default function GasTracker() {
   // Fetch token prices for ETH and PLS
   const { prices: tokenPrices, isLoading: pricesLoading } = useTokenPrices(['ETH', 'PLS']);
 
-  const fetchGasData = async () => {
+  const fetchCurrentGasData = async () => {
     try {
-      setLoading(true);
+      const response = await fetch('/api/gas?history=false');
+      const data: GasResponse = await response.json();
+      
+      if (data.success) {
+        setCurrentGasData(data);
+        setLastUpdated(new Date().toLocaleTimeString());
+        setError(null);
+      } else {
+        setError('Failed to fetch current gas data');
+      }
+    } catch (err) {
+      setError('Error fetching current gas data');
+      console.error('Current gas data fetch error:', err);
+    }
+  };
+
+  const fetchHistoricalGasData = async () => {
+    try {
       const response = await fetch('/api/gas');
       const data: GasResponse = await response.json();
       
       if (data.success) {
-        setGasData(data);
-        setLastUpdated(new Date().toLocaleTimeString());
+        setHistoricalGasData(data);
         setError(null);
       } else {
-        setError('Failed to fetch gas data');
+        setError('Failed to fetch historical gas data');
       }
     } catch (err) {
-      setError('Error fetching gas data');
-      console.error('Gas data fetch error:', err);
-    } finally {
-      setLoading(false);
+      setError('Error fetching historical gas data');
+      console.error('Historical gas data fetch error:', err);
     }
   };
 
   useEffect(() => {
-    fetchGasData();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchGasData, 30000);
-    return () => clearInterval(interval);
+    const initializeData = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchCurrentGasData(),
+        fetchHistoricalGasData()
+      ]);
+      setLoading(false);
+    };
+
+    initializeData();
+
+    // Auto-refresh current prices every 15 seconds
+    const currentPricesInterval = setInterval(fetchCurrentGasData, 15000);
+    
+    // Auto-refresh historical data every 5 minutes (since it's cached anyway)
+    const historicalDataInterval = setInterval(fetchHistoricalGasData, 300000);
+    
+    return () => {
+      clearInterval(currentPricesInterval);
+      clearInterval(historicalDataInterval);
+    };
   }, []);
 
   // Calculate USD costs for a standard 21,000 gas transaction
@@ -90,14 +123,14 @@ export default function GasTracker() {
     return (gasPriceGwei * 21000 / 1e9) * tokenPrice;
   };
 
-  // Format data for the chart
+  // Format data for the chart using historical data
   const chartData = useMemo(() => {
-    if (!gasData?.data.ethereum.feeHistory || !gasData?.data.pulsechain.feeHistory || !tokenPrices?.ETH?.price || !tokenPrices?.PLS?.price) {
+    if (!historicalGasData?.data.ethereum.feeHistory || !historicalGasData?.data.pulsechain.feeHistory || !tokenPrices?.ETH?.price || !tokenPrices?.PLS?.price) {
       return [];
     }
 
-    const ethHistory = gasData.data.ethereum.feeHistory;
-    const plsHistory = gasData.data.pulsechain.feeHistory;
+    const ethHistory = historicalGasData.data.ethereum.feeHistory;
+    const plsHistory = historicalGasData.data.pulsechain.feeHistory;
     
     console.log('ETH fee history length:', ethHistory.baseFeePerGas.length);
     console.log('PLS fee history length:', plsHistory.baseFeePerGas.length);
@@ -130,7 +163,7 @@ export default function GasTracker() {
       blockLabel: `Block -${maxLength - i - 1}`,
       displayLabel: i === 0 ? 'Yesterday' : i === maxLength - 1 ? 'Today' : ''
     }));
-  }, [gasData, tokenPrices]);
+  }, [historicalGasData, tokenPrices]);
 
   const handleLegendClick = (dataKey: string) => {
     setVisibleLines(prev => ({
@@ -142,7 +175,7 @@ export default function GasTracker() {
   const customLegend = (props: any) => {
     const { payload } = props;
     
-    if (payload && gasData) {
+    if (payload && currentGasData) {
       return (
         <div style={{ 
           display: 'flex', 
@@ -183,8 +216,8 @@ export default function GasTracker() {
                     }}
                   >
                     {entry.value} - Current: {entry.dataKey === 'ethereum' 
-                      ? `$${tokenPrices?.ETH?.price ? calculateTransactionCost(gasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2) : '0.00'}`
-                      : `$${tokenPrices?.PLS?.price ? calculateTransactionCost(gasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2) : '0.00'}`}
+                      ? `$${tokenPrices?.ETH?.price ? calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2) : '0.00'}`
+                      : `$${tokenPrices?.PLS?.price ? calculateTransactionCost(currentGasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2) : '0.00'}`}
                   </span>
                 </div>
               </li>
@@ -198,17 +231,11 @@ export default function GasTracker() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white p-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-xl">Loading gas data...</div>
-          </div>
-        </div>
-      </div>
+      <div className="min-h-screen bg-black" />
     );
   }
 
-  if (error || !gasData) {
+  if (error || !currentGasData) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <div className="max-w-6xl mx-auto">
@@ -221,10 +248,27 @@ export default function GasTracker() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ 
+        duration: 0.6,
+        ease: [0.23, 1, 0.32, 1]
+      }}
+      className="min-h-screen bg-black text-white p-8"
+    >
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Current Gas Prices */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ 
+            duration: 0.5,
+            delay: 0.1,
+            ease: [0.23, 1, 0.32, 1]
+          }}
+          className="grid md:grid-cols-2 gap-6"
+        >
           {/* Ethereum */}
           <div className="bg-black rounded-xl p-6 border-2 border-white/10">
             <div className="flex items-center space-x-3 mb-4">
@@ -240,12 +284,12 @@ export default function GasTracker() {
             <div className="space-y-2">
               <div className="text-3xl font-bold text-indigo-400">
                 {tokenPrices?.ETH?.price ? 
-                  `$${calculateTransactionCost(gasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2)} USD` :
+                  `$${calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2)} USD` :
                   'Price loading...'
                 }
               </div>
               <div className="text-sm text-gray-400">
-                {gasData.data.ethereum.currentGasPriceGwei.toFixed(2)} Gwei
+                {currentGasData.data.ethereum.currentGasPriceGwei.toFixed(2)} Gwei
               </div>
             </div>
           </div>
@@ -265,19 +309,28 @@ export default function GasTracker() {
             <div className="space-y-2">
               <div className="text-3xl font-bold text-pink-400">
                 {tokenPrices?.PLS?.price ? 
-                  `$${calculateTransactionCost(gasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2)} USD` :
+                  `$${calculateTransactionCost(currentGasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2)} USD` :
                   'Price loading...'
                 }
               </div>
               <div className="text-sm text-gray-400">
-                {Math.round(gasData.data.pulsechain.currentGasPriceGwei).toLocaleString('en-US', {maximumFractionDigits: 0})} Beats
+                {Math.round(currentGasData.data.pulsechain.currentGasPriceGwei).toLocaleString('en-US', {maximumFractionDigits: 0})} Beats
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Comparison and Gas Fee Table */}
-        <div className="grid md:grid-cols-2 gap-6 items-start">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ 
+            duration: 0.5,
+            delay: 0.2,
+            ease: [0.23, 1, 0.32, 1]
+          }}
+          className="grid md:grid-cols-2 gap-6 items-start"
+        >
           {/* Gas Fee Comparison Table */}
           <div className="bg-black rounded-xl border-2 border-white/10 overflow-hidden order-2 md:order-none">
             <div className="grid grid-cols-3 gap-4 p-6 border-b border-white/10">
@@ -302,11 +355,11 @@ export default function GasTracker() {
               { name: 'Sell NFT', gas: 601953 },
             ].map((transaction, index) => {
               const ethCostUSD = tokenPrices?.ETH?.price ? 
-                (gasData.data.ethereum.currentGasPriceGwei * transaction.gas / 1e9) * tokenPrices.ETH.price : 0;
+                (currentGasData.data.ethereum.currentGasPriceGwei * transaction.gas / 1e9) * tokenPrices.ETH.price : 0;
               const plsCostUSD = tokenPrices?.PLS?.price ? 
-                (gasData.data.pulsechain.currentGasPriceGwei * transaction.gas / 1e9) * tokenPrices.PLS.price : 0;
-              const ethAmount = gasData.data.ethereum.currentGasPriceGwei * transaction.gas / 1e9;
-              const plsAmount = gasData.data.pulsechain.currentGasPriceGwei * transaction.gas / 1e9;
+                (currentGasData.data.pulsechain.currentGasPriceGwei * transaction.gas / 1e9) * tokenPrices.PLS.price : 0;
+              const ethAmount = currentGasData.data.ethereum.currentGasPriceGwei * transaction.gas / 1e9;
+              const plsAmount = currentGasData.data.pulsechain.currentGasPriceGwei * transaction.gas / 1e9;
 
               return (
                 <div key={transaction.name} className="grid grid-cols-3 gap-4 p-6 border-b border-white/10 last:border-b-0">
@@ -332,8 +385,8 @@ export default function GasTracker() {
             <div className="flex items-baseline">
               <div className="text-4xl font-bold text-green-400">
                 {tokenPrices?.ETH?.price && tokenPrices?.PLS?.price ? (
-                  Math.round(calculateTransactionCost(gasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price) / 
-                      calculateTransactionCost(gasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price)).toLocaleString()
+                  Math.round(calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price) / 
+                      calculateTransactionCost(currentGasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price)).toLocaleString()
                 ) : (
                   'Calculating'
                 )}
@@ -341,9 +394,9 @@ export default function GasTracker() {
               <div className="text-4xl font-bold text-green-400 mr-4">x</div>
               <div className="text-sm text-gray-400">
                 {tokenPrices?.ETH?.price && tokenPrices?.PLS?.price ? (
-                  `(-${(((calculateTransactionCost(gasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price) - 
-                      calculateTransactionCost(gasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price)) / 
-                      calculateTransactionCost(gasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price)) * 100).toFixed(1)}%)`
+                  `(-${(((calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price) - 
+                      calculateTransactionCost(currentGasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price)) / 
+                      calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price)) * 100).toFixed(1)}%)`
                 ) : (
                   'Calculating...'
                 )}
@@ -351,11 +404,20 @@ export default function GasTracker() {
             </div>
             <div className="text-sm text-gray-400 mt-2">Cheaper than Ethereum</div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Historical Chart */}
         {chartData.length > 0 && (
-          <div className="w-full h-[550px] my-10 relative">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ 
+              duration: 0.5,
+              delay: 0.3,
+              ease: [0.23, 1, 0.32, 1]
+            }}
+            className="w-full h-[550px] my-10 relative"
+          >
             <div className="w-full h-full p-8 border-2 border-white/10 rounded-xl">
               <h2 className="text-left text-white text-2xl mb-0 ml-10">
                 Gas Price History (Last 24 hrs)
@@ -453,9 +515,9 @@ export default function GasTracker() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 } 

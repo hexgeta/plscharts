@@ -426,29 +426,34 @@ export default function ValidatorsTracker() {
 
   if (isInitialLoad && (!validatorsData || loading || historyLoading || pricesLoading || error)) {
     return (
-      <div className="min-h-screen bg-black text-white">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-xl">
-              {error ? (
-                <div className="text-red-500">{error}</div>
-              ) : (
-                "Loading validators data..."
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <div className="min-h-screen bg-black" />
     );
   }
 
   return (
-    <div className={`min-h-screen bg-black text-white transition-opacity duration-1000 ${showContent ? 'opacity-100' : 'opacity-0'}`}>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ 
+        duration: 0.6,
+        ease: [0.23, 1, 0.32, 1]
+      }}
+      className="min-h-screen bg-black text-white"
+    >
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="space-y-8">
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ 
+                duration: 0.5,
+                delay: 0.1,
+                ease: [0.23, 1, 0.32, 1]
+              }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+            >
               <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
                 <div className="text-4xl font-bold text-white">
                   {formatTotalStakedUSD(totalStaked)}
@@ -472,10 +477,19 @@ export default function ValidatorsTracker() {
                 </div>
                 <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">All Historic Validators</div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Table and Side Cards Container */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ 
+                duration: 0.5,
+                delay: 0.2,
+                ease: [0.23, 1, 0.32, 1]
+              }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+            >
               {/* Side Cards */}
               <div className="flex flex-col gap-6 lg:order-2">
                 <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
@@ -605,10 +619,19 @@ export default function ValidatorsTracker() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
 
             {/* Top Validators Bar Chart */}
-            <div className="w-full h-[450px] my-10 relative">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ 
+                duration: 0.5,
+                delay: 0.3,
+                ease: [0.23, 1, 0.32, 1]
+              }}
+              className="w-full h-[450px] my-10 relative"
+            >
               <div className="w-full h-full p-8 border-2 border-white/10 rounded-xl">
                 <h2 className="text-left text-white text-2xl mb-0 md:mb-8 ml-10">
                   Top 100 Staking Addresses Ranked
@@ -681,11 +704,20 @@ export default function ValidatorsTracker() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </div>
+            </motion.div>
 
             {/* Historical Validator Count Chart */}
             {/* 
-            <div className="w-full h-[450px] my-10 relative">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ 
+                duration: 0.5,
+                delay: 0.4,
+                ease: [0.23, 1, 0.32, 1]
+              }}
+              className="w-full h-[450px] my-10 relative"
+            >
               <div className="w-full h-full p-8 border-2 border-white/10 rounded-xl">
                 <h2 className="text-left text-white text-2xl mb-8 ml-10">
                   Active Validators
@@ -758,7 +790,7 @@ export default function ValidatorsTracker() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            </div>
+            </motion.div>
             */}
           </div>
         </div>
@@ -802,6 +834,6 @@ export default function ValidatorsTracker() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </motion.div>
   );
 }

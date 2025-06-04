@@ -4,7 +4,7 @@ import { TOKEN_CONSTANTS } from '@/constants/crypto';
 import { formatNumber, formatPrice, formatPercent, formatPriceSigFig } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
 import { CoinLogo } from '@/components/ui/CoinLogo';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceChange';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -46,6 +46,8 @@ const getTokenConfig = (ticker: string) => {
 
 export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   const [selected, setSelected] = useState<Period>('24h');
+  const [showMotion, setShowMotion] = useState(true);
+  const animationCompleteRef = useRef(false);
   const pulseChainDay = usePulsechainDay();
 
   const { prices, isLoading: pricesLoading, error } = useTokenPrices(TOKENS);
@@ -70,6 +72,15 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   // Overall loading state - now includes validation of actual price data
   const isLoading = pricesLoading || isHistoricLoading || !hasValidPriceData;
 
+  // Handle animation completion without state updates that cause re-renders
+  const handleAnimationComplete = useCallback(() => {
+    if (!animationCompleteRef.current) {
+      animationCompleteRef.current = true;
+      // Switch to regular divs after a delay to avoid any flashing
+      setTimeout(() => setShowMotion(false), 50);
+    }
+  }, []);
+
   // Show loading state if we don't have valid price data
   if (isLoading) {
     return LoadingComponent ? <LoadingComponent /> : <div className="bg-black h-screen" />;
@@ -80,29 +91,42 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
     console.error('Error loading token prices:', error);
   }
 
+  // Container component - motion or regular div
+  const Container = showMotion ? motion.div : 'div';
+  const Header = showMotion ? motion.div : 'div';
+  const Toggle = showMotion ? motion.div : 'div';
+  const Card = showMotion ? motion.div : 'div';
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ 
-        duration: 0.4,
-        ease: [0.23, 1, 0.32, 1]
-      }}
+    <Container 
+      {...(showMotion ? {
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+        transition: { 
+          duration: 0.4,
+          ease: [0.23, 1, 0.32, 1]
+        },
+        onAnimationComplete: handleAnimationComplete
+      } : {})}
       className="w-full max-w-5xl mx-auto rounded-xl p-4 h-auto relative flex flex-col gap-4"
     >
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
+      <Header 
+        {...(showMotion ? {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          transition: { duration: 0.3 }
+        } : {})}
         className="text-3xl md:text-2xl lg:text-3xl mt-0 md:mt-2 font-bold text-white/15 select-none pointer-events-none static mb-2 ml-4 md:absolute md:top-4 md:left-6 md:z-10 md:mb-0 md:ml-0"
       >
         Day {pulseChainDay} ~ PlsCharts.com
-      </motion.div>
+      </Header>
       {/* Toggle group */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
+      <Toggle 
+        {...(showMotion ? {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          transition: { duration: 0.3 }
+        } : {})}
         className="w-full flex flex-col md:flex-row justify-center md:justify-end"
       >
         <div className="w-full md:w-auto flex items-center justify-between p-1 rounded-full border-2 border-white/10 bg-black/40">
@@ -129,7 +153,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
             );
           })}
         </div>
-      </motion.div>
+      </Toggle>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {TOKENS.map(ticker => {
           const config = getTokenConfig(ticker);
@@ -158,12 +182,14 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
           const volume = dexPeriod ? priceData?.volume?.[dexPeriod] : null;
 
           return (
-            <motion.div 
+            <Card 
               key={ticker}
+              {...(showMotion ? {
+                initial: { opacity: 0 },
+                animate: { opacity: 1 },
+                transition: { duration: 0.3 }
+              } : {})}
               className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col gap-0 border-2 border-white/10 relative min-w-[300px]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
             >
               {/* Chart icon link in top right */}
               {config.dexs && (
@@ -282,16 +308,18 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                   <div className="font-bold text-white"></div>
                 </div>
               </div>
-            </motion.div>
+            </Card>
           );
         })}
 
         {/* Custom 6th Block */}
-        <motion.div 
+        <Card 
+          {...(showMotion ? {
+            initial: { opacity: 0 },
+            animate: { opacity: 1 },
+            transition: { duration: 0.3 }
+          } : {})}
           className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col justify-between gap-2 border-2 border-white/10 relative min-h-[300px] min-w-[300px]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
         >
           <div>
             <h3 className="text-2xl font-bold text-white mb-6">Get Started</h3>
@@ -312,8 +340,8 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               <path d="M7 17L17 7M17 7H8M17 7V16" strokeWidth="2" stroke="currentColor" fill="none"/>
             </svg>
           </a>
-        </motion.div>
+        </Card>
       </div>
-    </motion.div>
+    </Container>
   );
 } 
