@@ -5,6 +5,67 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
+import { Info, Globe, MessageCircle, Send, Users } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+
+// Constants
+const ADDRESS_DISPLAY_NAMES: Record<string, string> = {
+  '0x1F082785Ca889388Ce523BF3de6781E40b99B060': 'Vouch (vPLS)',
+  '0xc7EA05E91eB81776d63D073D196E72349082Dc60': 'ValidatorX (uPLS)',
+  '0xAE94A6eef313C136E260EbdB9E1EeC3cc9C15d4c': 'Project Pi (stPLS)',
+  '0xa48da3dd749872c13e3cdff2941882de77215144': 'BW',
+  '0x496cf17010a986f43093fc0a6dafaccf0059234c': 'BWX',
+};
+
+const VALIDATOR_INFO: Record<string, { 
+  title: string; 
+  description: string; 
+  socials: { type: 'website' | 'twitter' | 'telegram' | 'discord'; url: string; label: string }[];
+}> = {
+  '0x1F082785Ca889388Ce523BF3de6781E40b99B060': {
+    title: 'Vouch (vPLS)',
+    description: 'Vouch is a liquid staking protocol on PulseChain that allows users to stake PLS while maintaining liquidity.',
+    socials: [
+      { type: 'website', url: 'https://vouch.run/', label: 'Website' },
+      { type: 'twitter', url: 'https://x.com/vouchLSD', label: 'Twitter' },
+      { type: 'telegram', url: 'https://t.me/vouchrun', label: 'Telegram' }
+    ]
+  },
+  '0xc7EA05E91eB81776d63D073D196E72349082Dc60': {
+    title: 'ValidatorX (uPLS)',
+    description: 'ValidatorX is a liquid staking protocol on PulseChain that allows users to stake PLS while maintaining liquidity.',
+    socials: [
+      { type: 'website', url: 'https://www.plusx.app/', label: 'Website' },
+      { type: 'twitter', url: 'https://x.com/PlusxApp', label: 'Twitter' },
+      { type: 'telegram', url: 'https://t.me/uPabns', label: 'Telegram' }
+    ]
+  },
+  '0xAE94A6eef313C136E260EbdB9E1EeC3cc9C15d4c': {
+    title: 'Project Pi (stPLS)',
+    description: 'Project Pi is a liquid staking protocol on PulseChain that allows users to stake PLS while maintaining liquidity.',
+    socials: [
+      { type: 'website', url: 'https://app.projectpi.xyz/', label: 'Website' },
+      { type: 'twitter', url: 'https://x.com/ProjectPiLabs', label: 'Twitter' },
+      { type: 'telegram', url: 'https://t.me/Project_Pi314', label: 'Telegram' }
+    ]
+  },
+  '0xa48da3dd749872c13e3cdff2941882de77215144': {
+    title: 'BW',
+    description: 'BW is group of private validators hosted by the UpX team.',
+    socials: []
+  },
+  '0x496cf17010a986f43093fc0a6dafaccf0059234c': {
+    title: 'BWX',
+    description: 'BWX is group of private validators hosted by the UpX team.',
+    socials: []
+  }
+};
 
 interface ValidatorData {
   index: string;
@@ -84,6 +145,23 @@ export default function ValidatorsTracker() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [showContent, setShowContent] = useState(false);
+  const [selectedValidatorInfo, setSelectedValidatorInfo] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [displayCount, setDisplayCount] = useState(() => {
+    // Load from localStorage on initial render
+    if (typeof window !== 'undefined') {
+      const savedCount = localStorage.getItem('validators-display-count');
+      return savedCount ? parseInt(savedCount, 10) : 20;
+    }
+    return 20;
+  });
+
+  // Save displayCount to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('validators-display-count', displayCount.toString());
+    }
+  }, [displayCount]);
 
   // Fetch token prices for PLS
   const { prices: tokenPrices, isLoading: pricesLoading } = useTokenPrices(['PLS']);
@@ -111,7 +189,9 @@ export default function ValidatorsTracker() {
 
   const fetchValidatorsData = async () => {
     try {
-      setLoading(true);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       const response = await fetch('/api/validators');
       const data: ValidatorsResponse = await response.json();
       
@@ -126,7 +206,9 @@ export default function ValidatorsTracker() {
       setError('Error fetching validators data');
       console.error('Validators data fetch error:', err);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
 
@@ -134,14 +216,17 @@ export default function ValidatorsTracker() {
     fetchValidatorsData();
     fetchHistoryData();
     
-    const interval = setInterval(fetchValidatorsData, 60000);
+    const interval = setInterval(() => {
+      setIsInitialLoad(false);
+      fetchValidatorsData();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
   // Use grouped validators from API if available, otherwise fallback to client-side grouping
   const groupedValidators = useMemo(() => {
     if (validatorsData?.data.groupedValidators) {
-      return validatorsData.data.groupedValidators.slice(0, 20);
+      return validatorsData.data.groupedValidators.slice(0, displayCount);
     }
 
     if (!validatorsData?.data.activeValidators) return [];
@@ -176,8 +261,8 @@ export default function ValidatorsTracker() {
 
     return Array.from(groups.values())
       .sort((a, b) => b.totalBalance - a.totalBalance)
-      .slice(0, 20);
-  }, [validatorsData]);
+      .slice(0, displayCount);
+  }, [validatorsData, displayCount]);
 
   const totalStaked = useMemo(() => {
     const total = validatorsData?.data.totalStaked || 0;
@@ -247,18 +332,71 @@ export default function ValidatorsTracker() {
     return credentials; // fallback to original if format is unexpected
   };
 
-  // Check if everything is ready to display
+  // Get display text for address
+  const getAddressDisplayText = (address: string) => {
+    const lowerAddress = address.toLowerCase();
+    const foundKey = Object.keys(ADDRESS_DISPLAY_NAMES).find(key => key.toLowerCase() === lowerAddress);
+    if (foundKey) {
+      return ADDRESS_DISPLAY_NAMES[foundKey];
+    }
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
+
+  // Check if address has info available
+  const hasValidatorInfo = (address: string) => {
+    const lowerAddress = address.toLowerCase();
+    return Object.keys(VALIDATOR_INFO).some(key => key.toLowerCase() === lowerAddress);
+  };
+
+  // Get validator info
+  const getValidatorInfo = (address: string) => {
+    const lowerAddress = address.toLowerCase();
+    const foundKey = Object.keys(VALIDATOR_INFO).find(key => key.toLowerCase() === lowerAddress);
+    return foundKey ? VALIDATOR_INFO[foundKey] : null;
+  };
+
+  // Render social icon
+  const renderSocialIcon = (type: string) => {
+    const iconProps = { size: 20, className: "" };
+    
+    switch (type) {
+      case 'website':
+        return <Globe {...iconProps} />;
+      case 'twitter':
+      case 'x':
+        return (
+          <svg 
+            width={iconProps.size} 
+            height={iconProps.size} 
+            className={iconProps.className}
+            viewBox="0 0 24 24" 
+            fill="currentColor"
+          >
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+        );
+      case 'telegram':
+        return <Send {...iconProps} />;
+      case 'discord':
+        return <Users {...iconProps} />;
+      default:
+        return <Globe {...iconProps} />;
+    }
+  };
+
+  // Check if everything is ready to display (only for initial load)
   const isDataReady = !loading && !historyLoading && !pricesLoading && validatorsData && !error;
 
-  // Trigger fade-in effect when data is ready
+  // Trigger fade-in effect when data is ready (only on initial load)
   useEffect(() => {
-    if (isDataReady) {
-      // Small delay to ensure smooth transition
+    if (isDataReady && isInitialLoad) {
       setTimeout(() => setShowContent(true), 50);
+    } else if (!isInitialLoad && validatorsData) {
+      setShowContent(true);
     }
-  }, [isDataReady]);
+  }, [isDataReady, isInitialLoad, validatorsData]);
 
-  if (!isDataReady) {
+  if (isInitialLoad && (!validatorsData || loading || historyLoading || pricesLoading || error)) {
     return (
       <div className="min-h-screen bg-black text-white">
         <div className="container mx-auto px-4 py-8">
@@ -333,7 +471,7 @@ export default function ValidatorsTracker() {
               {/* Top 20 Validators Table */}
               <div className="lg:col-span-2 lg:order-1 bg-black rounded-xl border-2 border-white/10 overflow-hidden">
                 <div className="p-6">
-                  <h2 className="text-2xl font-bold">Top 20 Validators Ranked</h2>
+                  <h2 className="text-2xl font-bold">Top {displayCount} Validators Ranked</h2>
                   <p className="text-gray-400 mt-2">Grouped by address, ranked by total staked PLS</p>
                 </div>
                 
@@ -367,14 +505,27 @@ export default function ValidatorsTracker() {
                               )}
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <a 
-                                href={`https://midgard.wtf/address/${extractAddressFromCredentials(withdrawalCredentials)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-mono text-sm text-white hover:underline cursor-pointer"
-                              >
-                                {extractAddressFromCredentials(withdrawalCredentials).slice(0, 4)}...{extractAddressFromCredentials(withdrawalCredentials).slice(-4)}
-                              </a>
+                              <div className="flex items-center justify-center gap-2">
+                                <a 
+                                  href={`https://midgard.wtf/address/${extractAddressFromCredentials(withdrawalCredentials)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-mono text-sm text-white hover:underline cursor-pointer"
+                                >
+                                  {getAddressDisplayText(extractAddressFromCredentials(withdrawalCredentials))}
+                                </a>
+                                {hasValidatorInfo(extractAddressFromCredentials(withdrawalCredentials)) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedValidatorInfo(extractAddressFromCredentials(withdrawalCredentials));
+                                    }}
+                                    className="text-gray-400 hover:text-white transition-colors"
+                                  >
+                                    <Info size={14} />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-center font-mono">
                               <div className="text-white font-semibold">
@@ -404,6 +555,18 @@ export default function ValidatorsTracker() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Load More Button */}
+                {validatorsData?.data.groupedValidators && displayCount < validatorsData.data.groupedValidators.length && (
+                  <div className="flex justify-center p-6 border-t border-white/10">
+                    <button
+                      onClick={() => setDisplayCount(prev => prev + 100)}
+                      className="px-6 py-2 rounded-full border-2 font-medium transition-all duration-200 bg-transparent text-white border-white/20 hover:border-white/40"
+                    >
+                      Load More ({Math.min(100, validatorsData.data.groupedValidators.length - displayCount)} more)
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -457,9 +620,9 @@ export default function ValidatorsTracker() {
                                   year: 'numeric' 
                                 }) : label}
                               </p>
-                              <div style={{ color: '#10b981', marginBottom: '4px' }}>
+                              <div style={{ color: 'white', marginBottom: '4px' }}>
                                 <div>Active Validators</div>
-                                <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                                <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'gray' }}>
                                   {data.validators?.toLocaleString()}
                                 </div>
                               </div>
@@ -475,8 +638,8 @@ export default function ValidatorsTracker() {
                       name="Active Validators"
                       dot={false} 
                       strokeWidth={2} 
-                      stroke="rgba(16, 185, 129, 1)"
-                      activeDot={{ r: 4, fill: 'rgba(16, 185, 129, 1)', stroke: 'white' }}
+                      stroke='white'
+                      activeDot={{ r: 4, fill: 'white', stroke: 'white' }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -484,6 +647,45 @@ export default function ValidatorsTracker() {
             </div>
           </div>
         </div>
+
+        {/* Validator Info Dialog */}
+        <Dialog 
+          open={!!selectedValidatorInfo} 
+          onOpenChange={(open) => !open && setSelectedValidatorInfo(null)}
+        >
+          <DialogContent className="bg-black border-2 border-white/20 text-white max-w-md">
+            {selectedValidatorInfo && getValidatorInfo(selectedValidatorInfo) && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-bold text-white">
+                    {getValidatorInfo(selectedValidatorInfo)!.title}
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-300 mt-2">
+                    {getValidatorInfo(selectedValidatorInfo)!.description}
+                  </DialogDescription>
+                </DialogHeader>
+                
+                {getValidatorInfo(selectedValidatorInfo)!.socials.length > 0 && (
+                  <div className="mt-0">
+                    <div className="flex flex-wrap gap-3">
+                      {getValidatorInfo(selectedValidatorInfo)!.socials.map((social, index) => (
+                        <a
+                          key={index}
+                          href={social.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-3 py-2 text-white/60 hover:text-white text-md"
+                        >
+                          {renderSocialIcon(social.type)}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -284,10 +284,10 @@ export async function GET(request: NextRequest) {
             } else {
               // Insert new record
               const { error: insertError } = await supabase
-                .from('daily_token_supplies')
+        .from('daily_token_supplies')
                 .insert(supply);
-              
-              if (insertError) {
+      
+      if (insertError) {
                 throw insertError;
               }
             }
