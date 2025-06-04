@@ -433,13 +433,6 @@ function CustomLeagueDisplay({
             >
               {/* Rank Info - Left Aligned */}
               <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 relative">
-                  <img
-                    src={rank.icon}
-                    alt={rank.name}
-                    className="w-6 h-6 object-contain"
-                  />
-                </div>
                 <div className="text-white font-bold text-xs">
                   {rank.name}
                 </div>

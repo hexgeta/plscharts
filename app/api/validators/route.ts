@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force dynamic rendering since we're fetching live data
+export const dynamic = 'force-dynamic';
+
 const PULSECHAIN_RPC = 'https://rpc-pulsechain.g4mm4.io';
+
+// Calculate seconds until next UTC+1
+function getSecondsUntilNextUTC1(): number {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(1, 0, 0, 0);
+  return Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+}
 
 // Beacon API endpoints
 const PULSECHAIN_BEACON_API = 'https://rpc-pulsechain.g4mm4.io/beacon-api';
@@ -288,18 +300,22 @@ export async function GET(request: NextRequest) {
         const status = validator.status;
         statusCounts[status] = (statusCounts[status] || 0) + 1;
       });
+
+      // Calculate cache duration until next UTC+1
+      const maxAge = getSecondsUntilNextUTC1();
       
-      return NextResponse.json({
+      // Return response with caching headers that expire at UTC+1
+      return new NextResponse(JSON.stringify({
         success: true,
         data: {
           count: beaconResult.count,
           activeCount: activeValidators.length,
-          totalStaked: totalStaked, // Add total staked amount in Wei
+          totalStaked: totalStaked,
           method: `beacon_api_${beaconResult.endpoint.split('/').pop()}`,
           endpoint: beaconResult.endpoint,
-          validators: beaconResult.validators?.slice(0, 100) || [], // Still limit individual validators for response size
-          activeValidators: sortedActiveValidators.slice(0, 100), // Return top 100 largest active validators for backward compatibility
-          groupedValidators: groupedValidators, // NEW: All validators grouped by withdrawal credentials
+          validators: beaconResult.validators?.slice(0, 100) || [],
+          activeValidators: sortedActiveValidators.slice(0, 100),
+          groupedValidators: groupedValidators,
           statusCounts: statusCounts,
           timestamp: new Date().toISOString(),
           recentValidators: [],
@@ -308,6 +324,14 @@ export async function GET(request: NextRequest) {
           disclaimer: `Validator count retrieved from Beacon API endpoint ${beaconResult.endpoint}. ${activeValidators.length} validators are currently active with ${(totalStaked / 1e9).toLocaleString()} PLS total staked. Grouped data includes ALL ${activeValidators.length} active validators.`
         },
         message: `Found ${beaconResult.count} total validators, ${activeValidators.length} are active with ${(totalStaked / 1e9).toLocaleString()} PLS staked. Grouped ${activeValidators.length} validators into ${groupedValidators.length} withdrawal address groups.`
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=60`,
+          'CDN-Cache-Control': `public, max-age=${maxAge}`,
+          'Vercel-CDN-Cache-Control': `public, max-age=${maxAge}`,
+        }
       });
     } else if (beaconResult && beaconResult.data) {
       console.log(`✅ Found some data via Beacon API (${beaconResult.endpoint})`);

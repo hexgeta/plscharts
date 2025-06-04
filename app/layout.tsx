@@ -24,6 +24,18 @@ const SEA_CREATURE_IMAGES = [
   'shell.png'
 ];
 
+// Ranking badge images used in validator table
+const RANKING_BADGE_IMAGES = [
+  '1.png',
+  '2.png',
+  '3.png'
+];
+
+// Favicon files that should be preloaded immediately
+const FAVICON_FILES = [
+  { src: 'favicon.svg', type: 'image/svg+xml' }
+];
+
 export const metadata: Metadata = {
   title: 'PlsCharts.com',
   description: 'Live, real-time PulseChain price charts and statistics tracking PLS, HEX, PLSX and more!',
@@ -39,8 +51,8 @@ export const metadata: Metadata = {
     ],
     apple: [
       {
-        url: '/favicon.svg',
-        type: 'image/svg+xml',
+        url: '/favicon-apple.png',
+        type: 'image/png',
         sizes: '180x180'
       }
     ]
@@ -134,6 +146,17 @@ export default function RootLayout({
       <head>
         <script defer data-domain="plscharts.com" src="https://plausible.io/js/script.js"></script>
         <FontLoadingOptimizer />
+        {/* Preload favicon files for immediate availability */}
+        {FAVICON_FILES.map((favicon) => (
+          <link 
+            key={favicon.src}
+            rel="preload"
+            href={`/${favicon.src}`}
+            as="image"
+            type={favicon.type}
+            fetchPriority="high"
+          />
+        ))}
         {/* Preload essential token logos */}
         {ESSENTIAL_TOKENS.map(token => (
           <link 
@@ -153,6 +176,17 @@ export default function RootLayout({
             as="image"
             type="image/png"
             fetchPriority={index < 3 ? 'high' : 'auto'} // High priority for top 3 ranks
+          />
+        ))}
+        {/* Preload ranking badge images for validator table */}
+        {RANKING_BADGE_IMAGES.map((image) => (
+          <link 
+            key={image}
+            rel="preload"
+            href={`/${image}`}
+            as="image"
+            type="image/png"
+            fetchPriority="high" // High priority since these are always visible
           />
         ))}
       </head>

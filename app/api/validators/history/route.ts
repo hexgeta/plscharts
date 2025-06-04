@@ -4,6 +4,15 @@ import { createClient } from '@supabase/supabase-js';
 // Force dynamic rendering since we're fetching live data
 export const dynamic = 'force-dynamic';
 
+// Calculate seconds until next UTC+1
+function getSecondsUntilNextUTC1(): number {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(1, 0, 0, 0);
+  return Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+}
+
 interface ValidatorHistoryPoint {
   date: string;
   total_validators: number;
@@ -58,7 +67,11 @@ export async function GET(request: NextRequest) {
                    index === historyData.length - 1 ? 'Now' : ''
     }));
 
-    return NextResponse.json({
+    // Calculate cache duration until next UTC+1
+    const maxAge = getSecondsUntilNextUTC1();
+    
+    // Return response with caching headers that expire at UTC+1
+    return new NextResponse(JSON.stringify({
       success: true,
       data: chartData,
       summary: {
@@ -69,6 +82,14 @@ export async function GET(request: NextRequest) {
         startValidators: historyData[0].active_validators
       },
       message: `Successfully retrieved ${historyData.length} days of validator history`
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=60`,
+        'CDN-Cache-Control': `public, max-age=${maxAge}`,
+        'Vercel-CDN-Cache-Control': `public, max-age=${maxAge}`,
+      }
     });
 
   } catch (error: any) {

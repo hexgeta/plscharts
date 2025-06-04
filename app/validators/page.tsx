@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
 import { Info, Globe, MessageCircle, Send, Users } from 'lucide-react';
 import {
@@ -147,24 +148,49 @@ export default function ValidatorsTracker() {
   const [showContent, setShowContent] = useState(false);
   const [selectedValidatorInfo, setSelectedValidatorInfo] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [displayCount, setDisplayCount] = useState(() => {
-    // Load from localStorage on initial render
-    if (typeof window !== 'undefined') {
-      const savedCount = localStorage.getItem('validators-display-count');
-      return savedCount ? parseInt(savedCount, 10) : 20;
-    }
-    return 20;
-  });
+  const [displayCount, setDisplayCount] = useState(20);
 
-  // Save displayCount to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('validators-display-count', displayCount.toString());
-    }
-  }, [displayCount]);
+  // Animation variants for table rows
+  const rowVariants = {
+    hidden: { 
+      opacity: 0, 
+      y: 20,
+      scale: 0.95
+    },
+    visible: (index: number) => ({
+      opacity: 1, 
+      y: 0,
+      scale: 1,
+      transition: {
+        delay: index * 0.03, // Stagger effect
+        duration: 0.4,
+        ease: [0.25, 0.46, 0.45, 0.94] // Smooth ease-out curve
+      }
+    })
+  };
 
   // Fetch token prices for PLS
   const { prices: tokenPrices, isLoading: pricesLoading } = useTokenPrices(['PLS']);
+
+  // Extract Ethereum address from withdrawal credentials
+  const extractAddressFromCredentials = (credentials: string) => {
+    // Withdrawal credentials format: 0x01 + 11 zero bytes + 20 byte address
+    // So we take the last 40 characters (20 bytes) and add 0x prefix
+    if (credentials.length >= 42) {
+      return '0x' + credentials.slice(-40);
+    }
+    return credentials; // fallback to original if format is unexpected
+  };
+
+  // Get display text for address
+  const getAddressDisplayText = (address: string) => {
+    const lowerAddress = address.toLowerCase();
+    const foundKey = Object.keys(ADDRESS_DISPLAY_NAMES).find(key => key.toLowerCase() === lowerAddress);
+    if (foundKey) {
+      return ADDRESS_DISPLAY_NAMES[foundKey];
+    }
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
 
   // Fetch historical validator data
   const fetchHistoryData = async () => {
@@ -291,6 +317,29 @@ export default function ValidatorsTracker() {
     return totalStaked / totalWithdrawalAddresses;
   }, [totalWithdrawalAddresses, totalStaked]);
 
+  // Prepare data for bar chart - top 100 validators by staked amount
+  const barChartData = useMemo(() => {
+    if (!validatorsData?.data.groupedValidators) return [];
+    
+    return validatorsData.data.groupedValidators
+      .slice(0, 100) // Top 100 validators
+      .map((group, index) => {
+        const withdrawalCredentials = group.withdrawalCredentials || group.referenceAddress || '';
+        const address = extractAddressFromCredentials(withdrawalCredentials);
+        const displayName = getAddressDisplayText(address);
+        const balanceInPLS = group.totalBalance / 1e9;
+        
+        return {
+          rank: index + 1,
+          name: displayName,
+          address: address,
+          balancePLS: balanceInPLS,
+          balanceUSD: tokenPrices?.PLS?.price ? balanceInPLS * tokenPrices.PLS.price : 0,
+          validatorCount: group.validatorCount
+        };
+      });
+  }, [validatorsData, tokenPrices]);
+
   // Format functions
   const formatBalance = (gweiBalance: string) => {
     const balance = parseInt(gweiBalance) / 1e9;
@@ -320,26 +369,6 @@ export default function ValidatorsTracker() {
 
   const formatValidatorName = (pubkey: string, index: number) => {
     return `${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`;
-  };
-
-  // Extract Ethereum address from withdrawal credentials
-  const extractAddressFromCredentials = (credentials: string) => {
-    // Withdrawal credentials format: 0x01 + 11 zero bytes + 20 byte address
-    // So we take the last 40 characters (20 bytes) and add 0x prefix
-    if (credentials.length >= 42) {
-      return '0x' + credentials.slice(-40);
-    }
-    return credentials; // fallback to original if format is unexpected
-  };
-
-  // Get display text for address
-  const getAddressDisplayText = (address: string) => {
-    const lowerAddress = address.toLowerCase();
-    const foundKey = Object.keys(ADDRESS_DISPLAY_NAMES).find(key => key.toLowerCase() === lowerAddress);
-    if (foundKey) {
-      return ADDRESS_DISPLAY_NAMES[foundKey];
-    }
-    return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
   // Check if address has info available
@@ -425,7 +454,7 @@ export default function ValidatorsTracker() {
                 <div className="text-4xl font-bold text-white">
                   {formatTotalStakedUSD(totalStaked)}
                 </div>
-                <div className="text-xl text-gray-500 mt-1">
+                <div className="text-md text-gray-500 mt-1">
                   {(totalStaked / 1e9 / 1e12).toFixed(2)}T PLS
                 </div>
                 <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Total Staked</div>
@@ -461,7 +490,7 @@ export default function ValidatorsTracker() {
                   <div className="text-4xl font-bold text-white">
                     {formatAverageBalanceUSD(averageWithdrawalBalance)}
                   </div>
-                  <div className="text-xl text-gray-500 mt-1">
+                  <div className="text-md text-gray-500 mt-1">
                     {(averageWithdrawalBalance / 1e9 / 1e9).toFixed(2)}B PLS
                   </div>
                   <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Avg Per Address</div>
@@ -477,7 +506,7 @@ export default function ValidatorsTracker() {
                 
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-black border-b border-white/10">
+                    <thead className="bg-black border-b border-white/10 sticky top-0 z-10">
                       <tr>
                         <th className="px-6 py-4 text-center text-gray-300 font-medium">#</th>
                         <th className="px-6 py-4 text-center text-gray-300 font-medium">Address</th>
@@ -485,14 +514,24 @@ export default function ValidatorsTracker() {
                         <th className="px-6 py-4 text-center text-gray-300 font-medium">Total Staked</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/10">
+                    <motion.tbody 
+                      className="divide-y divide-white/10"
+                      initial="hidden"
+                      animate="visible"
+                    >
                       {groupedValidators.map((group, index) => {
                         const withdrawalCredentials = group.withdrawalCredentials || group.referenceAddress;
                         const totalBalance = group.totalBalance;
                         const validatorCount = group.validatorCount;
                         
                         return (
-                          <tr key={withdrawalCredentials}>
+                          <motion.tr
+                            key={withdrawalCredentials}
+                            variants={rowVariants}
+                            initial="hidden"
+                            animate="visible"
+                            custom={index}
+                          >
                             <td className="px-6 py-4 text-center font-mono">
                               {index < 3 ? (
                                 <img 
@@ -549,10 +588,10 @@ export default function ValidatorsTracker() {
                                 })} PLS
                               </div>
                             </td>
-                          </tr>
+                          </motion.tr>
                         );
                       })}
-                    </tbody>
+                    </motion.tbody>
                   </table>
                 </div>
 
@@ -563,14 +602,91 @@ export default function ValidatorsTracker() {
                       onClick={() => setDisplayCount(prev => prev + 100)}
                       className="px-6 py-2 rounded-full border-2 font-medium transition-all duration-200 bg-transparent text-white border-white/20 hover:border-white/40"
                     >
-                      Load More ({Math.min(100, validatorsData.data.groupedValidators.length - displayCount)} more)
+                      Load {Math.min(100, validatorsData.data.groupedValidators.length - displayCount)} more
                     </button>
                   </div>
                 )}
               </div>
             </div>
 
+            {/* Top Validators Bar Chart */}
+            <div className="w-full h-[450px] my-10 relative">
+              <div className="w-full h-full p-8 border-2 border-white/10 rounded-xl">
+                <h2 className="text-left text-white text-2xl mb-0 md:mb-8 ml-10">
+                  Top 100 Validators by Staked Amount
+                </h2>
+                <ResponsiveContainer width="100%" height="90%">
+                  <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      stroke="rgba(136, 136, 136, 0.2)" 
+                      horizontal={true}
+                      vertical={false} 
+                    />
+                    <XAxis 
+                      axisLine={{ stroke: '#888', strokeWidth: 1 }}
+                      tickLine={false}
+                      tick={false}
+                      height={20}
+                      label={{ value: 'Address', position: 'insideBottom', offset: -10, style: { textAnchor: 'middle', fill: '#888', fontSize: '14px' } }}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#888', fontSize: 14, dx: -5}}
+                      tickFormatter={(value) => `$${(value / 1e6).toFixed(0)}M`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(0, 0, 0, 0.4)', 
+                        border: '1px solid rgba(255, 255, 255, 0.2)', 
+                        borderRadius: '10px'
+                      }}
+                      labelStyle={{ color: 'white' }}
+                      cursor={{ fill: 'rgba(255, 255, 255, 0.1)' }}
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div style={{
+                              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              borderRadius: '10px',
+                              padding: '10px'
+                            }}>
+                              <p style={{ color: 'white', margin: 0, marginBottom: '8px', fontWeight: 'bold' }}>
+                                #{data.rank} {data.name}
+                              </p>
+                              <div style={{ color: 'white', marginBottom: '4px' }}>
+                                <div>Total Staked</div>
+                                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#4ade80' }}>
+                                  ${data.balanceUSD?.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                </div>
+                                <div style={{ fontSize: '14px', color: '#888' }}>
+                                  {data.balancePLS?.toLocaleString('en-US', { maximumFractionDigits: 0 })} PLS
+                                </div>
+                              </div>
+                              <div style={{ color: '#888', fontSize: '12px' }}>
+                                {data.validatorCount} validators
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="balanceUSD" 
+                      fill="#4ade80"
+                      radius={[2, 2, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
             {/* Historical Validator Count Chart */}
+            {/* 
             <div className="w-full h-[450px] my-10 relative">
               <div className="w-full h-full p-8 border-2 border-white/10 rounded-xl">
                 <h2 className="text-left text-white text-2xl mb-8 ml-10">
@@ -645,6 +761,7 @@ export default function ValidatorsTracker() {
                 </ResponsiveContainer>
               </div>
             </div>
+            */}
           </div>
         </div>
 
