@@ -11,7 +11,6 @@ interface LeagueGeneratorFormData {
   contractAddress: string
   chain: 'ethereum' | 'pulsechain'
   supplyDeduction: number
-  logoFile: File | null
 }
 
 function LeagueGeneratorContent() {
@@ -20,8 +19,7 @@ function LeagueGeneratorContent() {
   const [formData, setFormData] = useState<LeagueGeneratorFormData>({
     contractAddress: '',
     chain: 'pulsechain',
-    supplyDeduction: 0,
-    logoFile: null
+    supplyDeduction: 0
   })
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
@@ -54,7 +52,7 @@ function LeagueGeneratorContent() {
     }
   }, [searchParams])
 
-  const handleInputChange = (field: keyof LeagueGeneratorFormData, value: string | number | File) => {
+  const handleInputChange = (field: keyof LeagueGeneratorFormData, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -152,28 +150,6 @@ function LeagueGeneratorContent() {
                     Amount to subtract from total supply (e.g., burned tokens, locked tokens)
                   </p>
                 </div>
-
-                {/* Logo File */}
-                <div>
-                  <label htmlFor="logoFile" className="block text-sm font-medium text-gray-300 mb-2">
-                    Logo File (Optional)
-                  </label>
-                  <input
-                    type="file"
-                    id="logoFile"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        const file = e.target.files[0]
-                        handleInputChange('logoFile', file)
-                      }
-                    }}
-                    className="w-full px-4 py-3 bg-gray-900 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-white/40 transition-colors"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Upload a logo file for the token
-                  </p>
-                </div>
               </div>
             </div>
 
@@ -185,9 +161,6 @@ function LeagueGeneratorContent() {
                   className="w-full bg-white hover:bg-gray-100 text-black px-6 py-4 rounded-lg text-lg font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
                 >
                   Generate League
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
                 </button>
               </DialogTrigger>
               <DialogContent className="max-w-4xl w-full max-w-[400px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto">
@@ -197,7 +170,6 @@ function LeagueGeneratorContent() {
                       contractAddress={formData.contractAddress}
                       chain={formData.chain}
                       supplyDeduction={formData.supplyDeduction}
-                      logoFile={formData.logoFile}
                     />
                   )}
                 </div>
@@ -211,7 +183,6 @@ function LeagueGeneratorContent() {
             <ul className="text-gray-400 space-y-2 text-sm">
               <li>• Enter any token contract address</li>
               <li>• Select the blockchain (Ethereum or PulseChain)</li>
-              <li>• Optionally upload a custom logo image</li>
               <li>• Add supply deduction for burned or locked tokens</li>
               <li>• View league tables with real-time data from the blockchain</li>
             </ul>
@@ -229,13 +200,11 @@ function LeagueGeneratorContent() {
 function CustomLeagueTable({ 
   contractAddress, 
   chain, 
-  supplyDeduction,
-  logoFile
+  supplyDeduction
 }: {
   contractAddress: string
   chain: 'ethereum' | 'pulsechain'
   supplyDeduction: number
-  logoFile: File | null
 }) {
   const { data, loading, error } = useCustomTokenData(contractAddress, chain)
 
@@ -274,7 +243,6 @@ function CustomLeagueTable({
         totalSupply={adjustedSupply}
         price={data.price}
         supplyDeduction={supplyDeduction}
-        logoFile={logoFile}
       />
     </div>
   )
@@ -285,30 +253,25 @@ function CustomLeagueDisplay({
   tokenSymbol,
   totalSupply,
   price,
-  supplyDeduction,
-  logoFile
+  supplyDeduction
 }: {
   tokenSymbol: string
   totalSupply: number | null
   price: number | null
   supplyDeduction: number
-  logoFile: File | null
 }) {
   // Sea creature ranks from highest to lowest (same as LeagueTable)
   const LEAGUE_RANKS = [
-    { name: 'Poseidon', icon: '/poseidon.png', percentage: 10 },
-    { name: 'Whale', icon: '/whale.png', percentage: 1 },
-    { name: 'Shark', icon: '/shark.png', percentage: 0.1 },
-    { name: 'Dolphin', icon: '/dolphin.png', percentage: 0.01 },
-    { name: 'Squid', icon: '/squid.png', percentage: 0.001 },
-    { name: 'Turtle', icon: '/turtle.png', percentage: 0.0001 },
-    { name: 'Crab', icon: '/crab.png', percentage: 0.00001 },
-    { name: 'Shrimp', icon: '/shrimp.png', percentage: 0.000001 },
-    { name: 'Shell', icon: '/shell.png', percentage: 0.0000001 }
+    { name: 'Poseidon', percentage: 10 },
+    { name: 'Whale', percentage: 1 },
+    { name: 'Shark', percentage: 0.1 },
+    { name: 'Dolphin', percentage: 0.01 },
+    { name: 'Squid', percentage: 0.001 },
+    { name: 'Turtle', percentage: 0.0001 },
+    { name: 'Crab', percentage: 0.00001 },
+    { name: 'Shrimp', percentage: 0.000001 },
+    { name: 'Shell', percentage: 0.0000001 }
   ]
-
-  // Create URL from uploaded logo file
-  const logoUrl = logoFile ? URL.createObjectURL(logoFile) : null
 
   const formatCompactNumber = (num: number | null): string => {
     if (num === null || num === undefined || isNaN(num)) return '0'
@@ -392,15 +355,8 @@ function CustomLeagueDisplay({
   return (
     <div className="w-full">
       {/* Header */}
-      <div className={`grid items-center gap-4 my-2 ${logoUrl ? 'grid-cols-3' : 'grid-cols-[auto_1fr_auto]'}`}>
+      <div className="grid grid-cols-3 items-center gap-4 my-2">
         <div className="flex items-center space-x-3">
-          {logoUrl && (
-            <img 
-              src={logoUrl} 
-              alt={tokenSymbol}
-              className="w-6 h-6 rounded-full object-cover"
-            />
-          )}
           <div>
             <div className="text-white font-bold text-sm">{tokenSymbol}</div>
           </div>
@@ -445,10 +401,7 @@ function CustomLeagueDisplay({
 
               {/* Supply Required - Right Aligned */}
               <div className="text-gray-400 text-right flex items-center justify-end text-sm mr-0">
-                {formatCompactNumber(minTokens)}
-                <span className="ml-0 text-xs text-white">
-                  {tokenSymbol}
-                </span>
+                {formatCompactNumber(minTokens)} {tokenSymbol}
               </div>
             </div>
           )

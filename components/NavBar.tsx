@@ -15,7 +15,6 @@ const NAV_LINKS = [
   { href: '/bridge', label: 'Bridge', mobileLabel: 'Bridge' },
   { href: '/gas', label: 'Gas', mobileLabel: 'Gas' },
   { href: '/validators', label: 'Validators', mobileLabel: 'Validators' },
-
   // { href: '/portfolio', label: 'Portfolio', mobileLabel: 'Portfolio' },
 ];
 
@@ -83,7 +82,7 @@ const NavBar = () => {
           PlsCharts
         </Link>
         
-        <div className="hidden xl:flex items-center justify-left flex-grow ml-10 relative z-[100]">
+        <div className="hidden md:flex items-center justify-left flex-grow ml-10 relative z-[100]">
           <div className="flex space-x-6">
             {NAV_LINKS.map((link) => (
               <Link 
@@ -99,15 +98,15 @@ const NavBar = () => {
 
         {/* MOBILE VIEW */}
         <button
-          className="xl:hidden flex flex-col justify-center items-center w-12 h-12 relative z-[100] bg-transparent border-0 p-2 touch-manipulation"
+          className="md:hidden flex flex-col justify-center items-center w-12 h-6 relative z-[100] bg-transparent border-0 p-2 touch-manipulation"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Toggle menu"
           aria-expanded={isMenuOpen}
         >
-          <div className="flex flex-col justify-center items-center space-y-2">
-            <div className="w-6 h-0.5 bg-white transition-all duration-200"></div>
-            <div className="w-6 h-0.5 bg-white transition-all duration-200"></div>
-            <div className="w-6 h-0.5 bg-white transition-all duration-200"></div>
+          <div className="flex flex-col justify-center items-center space-y-1.5">
+            <div className="w-6 h-0.5 bg-gray-400 transition-all duration-200"></div>
+            <div className="w-6 h-0.5 bg-gray-400 transition-all duration-200"></div>
+            <div className="w-6 h-0.5 bg-gray-400 transition-all duration-200"></div>
           </div>
         </button>
       </div>

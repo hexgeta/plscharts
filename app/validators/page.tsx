@@ -637,7 +637,7 @@ export default function ValidatorsTracker() {
                   Top 100 Staking Addresses Ranked
                 </h2>
                 <ResponsiveContainer width="100%" height="90%">
-                  <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <BarChart data={barChartData} margin={{ top: 20, right: 5, left: 5, bottom: 20 }}>
                     <CartesianGrid 
                       strokeDasharray="3 3" 
                       stroke="rgba(136, 136, 136, 0.2)" 

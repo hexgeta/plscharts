@@ -24,8 +24,9 @@ export function CoinLogo({
   inverted = false,
   variant = 'default'
 }: CoinLogoProps) {
-  // Remove any 'p' or 'e' prefix from the symbol
-  const baseSymbol = symbol.replace(/^[pe]/, '')
+  // Remove 'w' prefix for wrapped tokens (wBTC -> BTC, wETH -> ETH)
+  // Keep other prefixes like 'p' for PulseChain tokens (pBAT stays pBAT)
+  const baseSymbol = symbol.startsWith('w') ? symbol.slice(1) : symbol
   
   // Special case for ETH with no background
   let logoPath = baseSymbol === 'ETH' && variant === 'no-bg'
