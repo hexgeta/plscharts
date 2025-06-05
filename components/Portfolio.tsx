@@ -8,6 +8,9 @@ import { usePortfolioBalance } from '@/hooks/crypto/usePortfolioBalance'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { X, Edit, Trash2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import LeagueTable from '@/components/LeagueTable'
+import Image from 'next/image'
 
 interface StoredAddress {
   address: string
@@ -18,6 +21,15 @@ interface StoredAddress {
 export default function Portfolio() {
   // Priority tokens to display - PulseChain tokens
   const MAIN_TOKENS = ['PLS', 'PLSX', 'HEX', 'INC', 'WPLS', 'CST', 'USDC', 'DAI', 'MAXI', 'DECI', 'LUCKY', 'TRIO', 'BASE']
+
+  // OA (Origin Address) supplies to subtract when calculating league positions
+  const OA_SUPPLIES: Record<string, number> = {
+    'PLS': 120_000_000_000_000, // OA supply for PLS
+    'PLSX': 122_000_000_000_000, // OA supply for PLSX  
+    'HEX': 0, // OA HEX supply
+    'eHEX': 0, // OA HEX supply (same as HEX)
+    // Add other tokens as needed
+  }
 
   // State for address management
   const [addresses, setAddresses] = useState<StoredAddress[]>([])
@@ -61,10 +73,6 @@ export default function Portfolio() {
     }
   }, [addresses])
 
-  useEffect(() => {
-    console.log('[Portfolio Component] Mounted/Re-rendered')
-  }, [])
-
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
     return /^0x[a-fA-F0-9]{40}$/.test(address)
@@ -95,6 +103,22 @@ export default function Portfolio() {
       setDuplicateError(null)
     }
   }
+
+  // Optimized address filter handler
+  const handleAddressFilter = useCallback((addressId: string) => {
+    setSelectedAddressIds(prev => {
+      const newSelection = prev.includes(addressId) 
+        ? prev.filter(id => id !== addressId)
+        : [...prev, addressId]
+      
+      // If all addresses would be selected, clear the selection instead
+      if (newSelection.length === addresses.length) {
+        return []
+      } else {
+        return newSelection
+      }
+    })
+  }, [addresses.length])
 
   // Add helper functions for managing editing states
   const setAddressEditing = (addressId: string, isEditing: boolean) => {
@@ -217,73 +241,14 @@ export default function Portfolio() {
   // Fetch prices for all tokens with balances plus CST
   const { prices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
 
-  // Calculate total USD value from ALL addresses combined (or filtered by selected address)
-  const { totalUsdValue, addressValues } = useMemo(() => {
-    if (!balances || !Array.isArray(balances)) {
-      return { totalUsdValue: 0, addressValues: [] }
-    }
-
-    let totalValue = 0
-    const addressVals: Array<{ address: string; label: string; value: number }> = []
-
-    // Filter balances by selected address if one is chosen
-    const filteredBalances = selectedAddressIds.length > 0 
-      ? balances.filter(addressData => {
-          const matchingStoredAddress = addresses.find(addr => addr.address === addressData.address)
-          return matchingStoredAddress && selectedAddressIds.includes(matchingStoredAddress.id)
-        })
-      : balances
-
-    // Calculate value for each address
-    filteredBalances.forEach(addressData => {
-      let addressValue = 0
-      
-      // Add native PLS value
-      const nativePrice = prices[addressData.nativeBalance.symbol]?.price || 0
-      addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
-      
-      // Add token values
-      addressData.tokenBalances?.forEach(token => {
-        let tokenPrice = 0
-        
-        // Use $1 for stablecoins
-        if (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT') {
-          tokenPrice = 1
-        } else {
-          tokenPrice = prices[token.symbol]?.price || 0
-        }
-        
-        addressValue += token.balanceFormatted * tokenPrice
-      })
-
-      totalValue += addressValue
-
-      // Add to address values array
-      addressVals.push({
-        address: addressData.address,
-        label: addresses.find(a => a.address === addressData.address)?.label || '',
-        value: addressValue
-      })
-    })
-
-    return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [balances, prices, addresses, selectedAddressIds])
-
-  // Comprehensive loading state - wait for relevant data to be ready
-  const isEverythingReady = addresses.length > 0 && 
-                           !balancesLoading && 
-                           !pricesLoading && 
-                           !balancesError &&
-                           balances.length > 0 &&
-                           prices &&
-                           Object.keys(prices).length > 0
-
   // Get all tokens with balances combined from all addresses (or filtered by selected address)
-  const mainTokensWithBalances = useMemo(() => {
-    if (!balances || !Array.isArray(balances)) return []
+  const { filteredBalances, mainTokensWithBalances } = useMemo(() => {
+    if (!balances || !Array.isArray(balances)) {
+      return { filteredBalances: [], mainTokensWithBalances: [] }
+    }
     
     // Filter balances by selected address if one is chosen
-    const filteredBalances = selectedAddressIds.length > 0 
+    const filtered = selectedAddressIds.length > 0 
       ? balances.filter(addressData => {
           const matchingStoredAddress = addresses.find(addr => addr.address === addressData.address)
           return matchingStoredAddress && selectedAddressIds.includes(matchingStoredAddress.id)
@@ -293,7 +258,7 @@ export default function Portfolio() {
     // Group tokens by symbol and sum their balances - show ALL tokens, not just predefined ones
     const tokenGroups = new Map()
     
-    filteredBalances.forEach(addressData => {
+    filtered.forEach(addressData => {
       // Add native balance
       if (addressData.nativeBalance.balanceFormatted > 0) {
         const existing = tokenGroups.get(addressData.nativeBalance.symbol)
@@ -321,7 +286,10 @@ export default function Portfolio() {
       })
     })
     
-    return Array.from(tokenGroups.values())
+    return {
+      filteredBalances: filtered,
+      mainTokensWithBalances: Array.from(tokenGroups.values())
+    }
   }, [balances, selectedAddressIds, addresses])
 
   // Memoized sorted tokens to prevent re-sorting on every render
@@ -389,20 +357,56 @@ export default function Portfolio() {
     const usdValue = token.balanceFormatted * tokenPrice
     const displayAmount = formatBalance(token.balanceFormatted)
     
+    // Get supply from constants (existing logic)
     const supply = useMemo(() => {
       const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
       return tokenConfig?.supply || null
     }, [token.symbol])
     
+    // Get supply from API using the hook
+    const { totalSupply: apiSupply, loading: supplyLoading } = useTokenSupply(token.symbol)
+    
+    // Use API supply if available, otherwise fall back to constants
+    const finalSupply = apiSupply > 0 ? apiSupply : supply
+    
     const supplyPercentage = useMemo(() => {
-      if (!supply || token.balanceFormatted === 0) return ''
-      const percentage = (token.balanceFormatted / supply) * 100
+      if (!finalSupply || token.balanceFormatted === 0) return ''
+      
+      // Subtract OA supply if available for this token
+      const oaSupply = OA_SUPPLIES[token.symbol] || 0
+      const adjustedSupply = finalSupply - oaSupply
+      
+      const percentage = (token.balanceFormatted / adjustedSupply) * 100
       return formatPercentage(percentage)
-    }, [supply, token.balanceFormatted])
+    }, [finalSupply, token.balanceFormatted])
+
+    // Calculate league position based on percentage
+    const leagueInfo = useMemo(() => {
+      if (!finalSupply || token.balanceFormatted === 0) return { league: '', icon: '' }
+      
+      // Subtract OA supply if available for this token
+      const oaSupply = OA_SUPPLIES[token.symbol] || 0
+      const adjustedSupply = finalSupply - oaSupply
+      
+      // Use adjusted supply for percentage calculation
+      const percentage = (token.balanceFormatted / adjustedSupply) * 100
+      
+      // Use the exact same league system as LeagueTable.tsx
+      if (percentage >= 10) return { league: 'Poseidon', icon: '/poseidon.png' }
+      if (percentage >= 1) return { league: 'Whale', icon: '/whale.png' }
+      if (percentage >= 0.1) return { league: 'Shark', icon: '/shark.png' }
+      if (percentage >= 0.01) return { league: 'Dolphin', icon: '/dolphin.png' }
+      if (percentage >= 0.001) return { league: 'Squid', icon: '/squid.png' }
+      if (percentage >= 0.0001) return { league: 'Turtle', icon: '/turtle.png' }
+      if (percentage >= 0.00001) return { league: 'Crab', icon: '/crab.png' }
+      if (percentage >= 0.000001) return { league: 'Shrimp', icon: '/shrimp.png' }
+      return { league: 'Shell', icon: '/shell.png' }
+    }, [finalSupply, token.balanceFormatted])
 
     return (
-      <div className="flex items-top justify-between py-0">
-        <div className="flex items-top space-x-3">
+      <div className="grid grid-cols-[2fr_1fr_2fr] items-center gap-3 py-2">
+        {/* Token Info - Left Column */}
+        <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
             <CoinLogo
               symbol={token.symbol}
@@ -416,23 +420,118 @@ export default function Portfolio() {
               {token.symbol}
             </div>
             <div className="text-gray-400 text-[10px]">
-              {supplyPercentage}
+              {token.name || ''}
             </div>
           </div>
         </div>
-        <div className="flex items-top">
-          <div className="text-right">
-            <div className="text-white font-medium text-sm md:text-lg">
-              ${formatBalance(usdValue)}
-            </div>
-            <div className="text-gray-400 text-xs mt-0.5">
-              {displayAmount} {token.symbol}
-            </div>
+        
+        {/* League Column - Center */}
+        <div className="flex flex-col items-center justify-center ml-14">
+          <Dialog>
+            <DialogTrigger asChild>
+              <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-1 rounded-lg">
+                {leagueInfo.icon && (
+                  <Image
+                    src={leagueInfo.icon}
+                    alt={leagueInfo.league}
+                    width={14}
+                    height={14}
+                    className="object-contain"
+                  />
+                )}
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ 
+                  duration: 0.4,
+                  ease: [0.23, 1, 0.32, 1]
+                }}
+                className="p-4"
+              >
+                <LeagueTable 
+                  tokenTicker={token.symbol} 
+                  containerStyle={false}
+                  supplyDeduction={OA_SUPPLIES[token.symbol] || 0}
+                  userBalance={token.balanceFormatted}
+                />
+              </motion.div>
+            </DialogContent>
+          </Dialog>
+          <div className="text-gray-400 text-[9px] text-center leading-tight w-full">
+            {supplyPercentage}
+          </div>
+        </div>
+        
+        {/* Value - Right Column */}
+        <div className="text-right">
+          <div className="text-white font-medium text-sm md:text-lg">
+            ${formatBalance(usdValue)}
+          </div>
+          <div className="text-gray-400 text-[8px] mt-0.5">
+            {displayAmount} {token.symbol}
           </div>
         </div>
       </div>
     )
   })
+
+  // Calculate total USD value from ALL addresses combined (or filtered by selected address)
+  const { totalUsdValue, addressValues } = useMemo(() => {
+    if (!filteredBalances || !Array.isArray(filteredBalances)) {
+      return { totalUsdValue: 0, addressValues: [] }
+    }
+
+    let totalValue = 0
+    const addressVals: Array<{ address: string; label: string; value: number }> = []
+
+    // Calculate value for each address
+    filteredBalances.forEach(addressData => {
+      let addressValue = 0
+      
+      // Add native PLS value
+      const nativePrice = prices[addressData.nativeBalance.symbol]?.price || 0
+      addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+      
+      // Add token values
+      addressData.tokenBalances?.forEach(token => {
+        let tokenPrice = 0
+        
+        // Use $1 for stablecoins
+        if (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT') {
+          tokenPrice = 1
+        } else {
+          tokenPrice = prices[token.symbol]?.price || 0
+        }
+        
+        addressValue += token.balanceFormatted * tokenPrice
+      })
+
+      totalValue += addressValue
+
+      // Add to address values array
+      addressVals.push({
+        address: addressData.address,
+        label: addresses.find(a => a.address === addressData.address)?.label || '',
+        value: addressValue
+      })
+    })
+
+    return { totalUsdValue: totalValue, addressValues: addressVals }
+  }, [filteredBalances, prices, addresses])
+
+  // Comprehensive loading state - wait for relevant data to be ready
+  const isEverythingReady = addresses.length > 0 && 
+                           !balancesLoading && 
+                           !pricesLoading && 
+                           !balancesError &&
+                           balances && 
+                           balances.length > 0 &&
+                           prices &&
+                           Object.keys(prices).length > 0
 
   return (
     <motion.div 
@@ -501,7 +600,7 @@ export default function Portfolio() {
           }}
           className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[460px] w-full"
         >
-          <div className="text-gray-400">Loading portfolio data...</div>
+          <div className="text-gray-400">Loading portfolio...</div>
         </motion.div>
       )}
 
@@ -555,18 +654,7 @@ export default function Portfolio() {
             {addresses.map((addr, index) => (
               <span 
                 key={addr.id}
-                onClick={() => {
-                  const newSelection = selectedAddressIds.includes(addr.id) 
-                    ? selectedAddressIds.filter(id => id !== addr.id)
-                    : [...selectedAddressIds, addr.id]
-                  
-                  // If all addresses would be selected, clear the selection instead
-                  if (newSelection.length === addresses.length) {
-                    setSelectedAddressIds([])
-                  } else {
-                    setSelectedAddressIds(newSelection)
-                  }
-                }}
+                onClick={() => handleAddressFilter(addr.id)}
                 className={`px-3 py-1 border rounded-full text-xs transition-colors cursor-pointer ${
                   selectedAddressIds.includes(addr.id) 
                     ? 'border-white bg-white text-black' 

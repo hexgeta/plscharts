@@ -250,13 +250,15 @@ a {
   pointer-events: none !important;
 }
 
-/* Additional rule for text selection */
+/* Text selection styling for better visibility */
 ::selection {
-  background: transparent !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
 }
 
 ::-moz-selection {
-  background: transparent !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
 }
 
 /* Only hide overflow on desktop for radio page */

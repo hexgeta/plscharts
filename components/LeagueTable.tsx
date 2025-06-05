@@ -22,6 +22,7 @@ interface LeagueTableProps {
   preloadedPrices?: any // Prices from parent component for main tokens
   preloadedSupply?: number // Supply from parent component for main tokens
   supplyDeduction?: number // Amount to subtract from total supply (e.g., burned tokens)
+  userBalance?: number // User's token balance to highlight current league
 }
 
 // Sea creature ranks from highest to lowest
@@ -173,7 +174,8 @@ export default React.memo(function LeagueTable({
   containerStyle = true, 
   preloadedPrices,
   preloadedSupply,
-  supplyDeduction
+  supplyDeduction,
+  userBalance
 }: LeagueTableProps) {
   
   const [showError, setShowError] = useState(false);
@@ -245,6 +247,21 @@ export default React.memo(function LeagueTable({
       supplyError
     })
   }
+
+  // Calculate user's current league based on their balance
+  const userCurrentLeague = useMemo(() => {
+    if (!userBalance || !hasValidSupplyData || userBalance <= 0) return null
+    
+    const userPercentage = (userBalance / totalSupply) * 100
+    
+    // Find the highest league they qualify for
+    for (const rank of LEAGUE_RANKS) {
+      if (userPercentage >= rank.percentage) {
+        return rank.name
+      }
+    }
+    return null
+  }, [userBalance, totalSupply, hasValidSupplyData])
 
   // Memoize the league calculations to prevent recalculation on every render
   const leagueRanks = useMemo(() => {
@@ -331,6 +348,13 @@ export default React.memo(function LeagueTable({
           >
             {/* Rank Info - Left Aligned */}
             <div className="flex items-center space-x-2">
+              {/* Green dot for current league */}
+              {userCurrentLeague === rank.name && (
+                <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
+              )}
+              {userCurrentLeague !== rank.name && (
+                <div className="w-2 h-2 flex-shrink-0"></div>
+              )}
               <div className="w-6 h-6 relative">
                 <Image
                   src={rank.icon}
@@ -341,9 +365,6 @@ export default React.memo(function LeagueTable({
                   priority={index < 3} // Priority load first 3 ranks (most important)
                   sizes="24px"
                 />
-              </div>
-              <div className="text-white font-bold text-xs">
-                {rank.name}
               </div>
             </div>
 
