@@ -344,17 +344,14 @@ export default React.memo(function LeagueTable({
         {leagueRanks.map((rank, index) => (
           <div
             key={rank.name}
-            className="grid grid-cols-3 items-center gap-4 py-1 transition-all duration-300"
+            className={`grid grid-cols-3 items-center gap-4 py-1 transition-all duration-300 ${
+              userCurrentLeague === rank.name 
+                ? 'bg-gray-500/20 rounded-lg ml-[-12px] mr-[-12px] px-3' 
+                : ''
+            }`}
           >
             {/* Rank Info - Left Aligned */}
             <div className="flex items-center space-x-2">
-              {/* Green dot for current league */}
-              {userCurrentLeague === rank.name && (
-                <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
-              )}
-              {userCurrentLeague !== rank.name && (
-                <div className="w-2 h-2 flex-shrink-0"></div>
-              )}
               <div className="w-6 h-6 relative">
                 <Image
                   src={rank.icon}

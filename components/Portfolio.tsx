@@ -52,6 +52,21 @@ export default function Portfolio() {
     duplicates: string[]
   } | null>(null)
 
+  // Prevent body scroll when edit modal is open
+  useEffect(() => {
+    if (showEditModal) {
+      // Save current overflow value
+      const originalOverflow = document.body.style.overflow
+      // Disable scrolling
+      document.body.style.overflow = 'hidden'
+      
+      // Cleanup function to restore scroll when modal closes
+      return () => {
+        document.body.style.overflow = originalOverflow
+      }
+    }
+  }, [showEditModal])
+
   // Load addresses from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('portfolioAddresses')
@@ -788,7 +803,7 @@ export default function Portfolio() {
                 id="bulkAddress"
                 value={bulkAddressInput}
                 onChange={(e) => setBulkAddressInput(e.target.value)}
-                placeholder="Paste addresses here...&#10;Supports: comma-separated, line-separated, or Excel format&#10;&#10;0xfebbe88de358c3aE931fFde2118E4FF3e471E9C8&#10;0x67b5C9a01904cc143e990a1c9dE1719E6C295e6f&#10;0x08611A63583A0a1a156b3BE1B2637B3d224b401f"
+                placeholder="Paste addresses here..."
                 rows={6}
                 className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none transition-colors resize-vertical"
               />
