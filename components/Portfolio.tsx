@@ -20,7 +20,7 @@ interface StoredAddress {
 
 export default function Portfolio() {
   // Priority tokens to display - PulseChain tokens
-  const MAIN_TOKENS = ['PLS', 'PLSX', 'HEX', 'INC', 'WPLS', 'CST', 'USDC', 'DAI', 'MAXI', 'DECI', 'LUCKY', 'TRIO', 'BASE']
+  const MAIN_TOKENS = ['PLS', 'PLSX', 'HEX', 'eHEX', 'INC', 'WPLS', 'CST', 'USDC', 'DAI', 'MAXI', 'DECI', 'LUCKY', 'TRIO', 'BASE']
 
   // OA (Origin Address) supplies to subtract when calculating league positions
   const OA_SUPPLIES: Record<string, number> = {
@@ -34,6 +34,8 @@ export default function Portfolio() {
   // State for address management
   const [addresses, setAddresses] = useState<StoredAddress[]>([])
   const [addressInput, setAddressInput] = useState('')
+  const [bulkAddressInput, setBulkAddressInput] = useState('')
+  const [showBulkMode, setShowBulkMode] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [newAddressInput, setNewAddressInput] = useState('')
   const [newLabelInput, setNewLabelInput] = useState('')
@@ -43,6 +45,12 @@ export default function Portfolio() {
   const [selectedAddressIds, setSelectedAddressIds] = useState<string[]>([])
   // Add state for duplicate address error
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
+  // Add state for bulk parsing results
+  const [bulkParseResults, setBulkParseResults] = useState<{
+    valid: string[]
+    invalid: string[]
+    duplicates: string[]
+  } | null>(null)
 
   // Load addresses from localStorage on mount
   useEffect(() => {
@@ -83,10 +91,100 @@ export default function Portfolio() {
     return addresses.some(addr => addr.address.toLowerCase() === address.toLowerCase())
   }
 
-  // Handle adding address from main input
+  // Parse bulk addresses from various formats
+  const parseBulkAddresses = (text: string) => {
+    // Remove extra whitespace and normalize
+    const cleaned = text.trim()
+    if (!cleaned) return { valid: [], invalid: [], duplicates: [] }
+
+    // Split by various separators: newlines, commas, semicolons, spaces, tabs
+    const potentialAddresses = cleaned
+      .split(/[\n\r,;|\s\t]+/)
+      .map(addr => addr.trim())
+      .filter(addr => addr.length > 0)
+
+    const valid: string[] = []
+    const invalid: string[] = []
+    const duplicates: string[] = []
+
+    potentialAddresses.forEach(addr => {
+      // Clean up any extra characters that might be around the address
+      const cleanAddr = addr.replace(/[^0-9a-fA-Fx]/g, '')
+      
+      if (isValidAddress(cleanAddr)) {
+        if (isDuplicateAddress(cleanAddr)) {
+          duplicates.push(cleanAddr)
+        } else {
+          valid.push(cleanAddr)
+        }
+      } else if (addr.length > 0) {
+        invalid.push(addr)
+      }
+    })
+
+    return { valid, invalid, duplicates }
+  }
+
+  // Handle bulk address submission
+  const handleBulkAddressSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    const results = parseBulkAddresses(bulkAddressInput)
+    setBulkParseResults(results)
+
+    // Add all valid addresses
+    if (results.valid.length > 0) {
+      const newAddresses = results.valid.map(address => ({
+        address,
+        label: '',
+        id: Date.now().toString() + Math.random().toString()
+      }))
+      
+      setAddresses(prev => [...prev, ...newAddresses])
+      
+      // If all addresses were added successfully, clear the input
+      if (results.invalid.length === 0 && results.duplicates.length === 0) {
+        setBulkAddressInput('')
+        setBulkParseResults(null)
+      }
+    }
+
+    // Clear results after 10 seconds
+    setTimeout(() => setBulkParseResults(null), 10000)
+  }
+
+  // Handle adding address from main input (now supports bulk pasting)
   const handleAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (isValidAddress(addressInput)) {
+    
+    // Check if multiple addresses were pasted
+    const results = parseBulkAddresses(addressInput)
+    
+    if (results.valid.length > 1 || results.invalid.length > 0 || results.duplicates.length > 0) {
+      // Multiple addresses detected - handle as bulk
+      setBulkParseResults(results)
+      
+      // Add all valid addresses
+      if (results.valid.length > 0) {
+        const newAddresses = results.valid.map(address => ({
+          address,
+          label: '',
+          id: Date.now().toString() + Math.random().toString()
+        }))
+        
+        setAddresses(prev => [...prev, ...newAddresses])
+        
+        // Clear input if all were processed successfully
+        if (results.invalid.length === 0 && results.duplicates.length === 0) {
+          setAddressInput('')
+          setBulkParseResults(null)
+        }
+      }
+      
+      // Clear results after 10 seconds
+      setTimeout(() => setBulkParseResults(null), 10000)
+    } else if (isValidAddress(addressInput)) {
+      // Single address handling (original logic)
       if (isDuplicateAddress(addressInput)) {
         setDuplicateError('You already added this address')
         setTimeout(() => setDuplicateError(null), 3000)
@@ -152,9 +250,44 @@ export default function Portfolio() {
     }))
   }
 
-  // Handle adding address from modal
+  // Handle adding address from modal (now supports bulk pasting)
   const handleAddAddressInModal = () => {
-    if (isValidAddress(newAddressInput)) {
+    // Check if multiple addresses were pasted
+    const results = parseBulkAddresses(newAddressInput)
+    
+    if (results.valid.length > 1 || results.invalid.length > 0 || results.duplicates.length > 0) {
+      // Multiple addresses detected - handle as bulk
+      setBulkParseResults(results)
+      
+      // Add all valid addresses
+      if (results.valid.length > 0) {
+        const newAddresses = results.valid.map(address => ({
+          address,
+          label: newLabelInput || '', // Use the label for all addresses if provided
+          id: Date.now().toString() + Math.random().toString()
+        }))
+        
+        const updatedAddresses = [...addresses, ...newAddresses]
+        setAddresses(updatedAddresses)
+        localStorage.setItem('portfolioAddresses', JSON.stringify(updatedAddresses))
+        
+        // Initialize editing states for new addresses
+        newAddresses.forEach(addr => {
+          initializeEditingState(addr.id, newLabelInput)
+        })
+        
+        // Clear inputs if all were processed successfully
+        if (results.invalid.length === 0 && results.duplicates.length === 0) {
+          setNewAddressInput('')
+          setNewLabelInput('')
+          setBulkParseResults(null)
+        }
+      }
+      
+      // Clear results after 10 seconds
+      setTimeout(() => setBulkParseResults(null), 10000)
+    } else if (isValidAddress(newAddressInput)) {
+      // Single address handling (original logic)
       if (isDuplicateAddress(newAddressInput)) {
         setDuplicateError('You already added this address')
         setTimeout(() => setDuplicateError(null), 3000)
@@ -363,11 +496,18 @@ export default function Portfolio() {
       return tokenConfig?.supply || null
     }, [token.symbol])
     
-    // Get supply from API using the hook
-    const { totalSupply: apiSupply, loading: supplyLoading } = useTokenSupply(token.symbol)
+    // Check if this token should use hardcoded supply instead of API
+    const shouldUseHardcodedSupply = ['eDECI', 'weDECI', 'eMAXI', 'weMAXI', 'TRIO', 'LUCKY', 'BASE', 'DECI', 'MAXI'].includes(token.symbol)
     
-    // Use API supply if available, otherwise fall back to constants
-    const finalSupply = apiSupply > 0 ? apiSupply : supply
+    // Get supply from API using the hook (skip for hardcoded tokens)
+    const { totalSupply: apiSupply, loading: supplyLoading } = useTokenSupply(
+      shouldUseHardcodedSupply ? null : token.symbol
+    )
+    
+    // Use hardcoded supply for specific tokens, otherwise use API supply with constants fallback
+    const finalSupply = shouldUseHardcodedSupply 
+      ? supply 
+      : (apiSupply > 0 ? apiSupply : supply)
     
     const supplyPercentage = useMemo(() => {
       if (!finalSupply || token.balanceFormatted === 0) return ''
@@ -434,8 +574,8 @@ export default function Portfolio() {
                   <Image
                     src={leagueInfo.icon}
                     alt={leagueInfo.league}
-                    width={14}
-                    height={14}
+                    width={16}
+                    height={16}
                     className="object-contain"
                   />
                 )}
@@ -555,37 +695,135 @@ export default function Portfolio() {
         className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[460px] w-full"
         style={{ display: addresses.length > 0 ? 'none' : 'block' }}
       >
-        <form onSubmit={handleAddressSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-300 mb-2 text-center">
-              Enter PulseChain address
-            </label>
-            <input
-              type="text"
-              id="address"
-              value={addressInput}
-              onChange={(e) => setAddressInput(e.target.value)}
-              placeholder="0x..."
-              className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none transition-colors"
-            />
+        {/* Mode Toggle */}
+        <div className="flex items-center justify-center mb-4">
+          <div className="flex bg-black border border-white/20 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => setShowBulkMode(false)}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                !showBulkMode 
+                  ? 'bg-white text-black' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Single Address
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBulkMode(true)}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                showBulkMode 
+                  ? 'bg-white text-black' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Bulk Import
+            </button>
           </div>
-          
-          {/* Duplicate Error Message */}
-          {duplicateError && (
-            <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm flex items-center gap-2">
-              <span>⚠️</span>
-              <span>{duplicateError}</span>
+        </div>
+
+        {!showBulkMode ? (
+          /* Single Address Mode */
+          <form onSubmit={handleAddressSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="address" className="block text-sm font-medium text-gray-300 mb-2 text-center">
+                Enter PulseChain address
+              </label>
+              <input
+                type="text"
+                id="address"
+                value={addressInput}
+                onChange={(e) => setAddressInput(e.target.value)}
+                placeholder="0x..."
+                className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none transition-colors"
+              />
             </div>
-          )}
-          
-          <button
-            type="submit"
-            disabled={!isValidAddress(addressInput)}
-            className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-          >
-            Add Address
-          </button>
-        </form>
+            
+            {/* Duplicate Error Message */}
+            {duplicateError && (
+              <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm flex items-center gap-2">
+                <span>⚠️</span>
+                <span>{duplicateError}</span>
+              </div>
+            )}
+            
+            {/* Bulk Parse Results for main input */}
+            {bulkParseResults && !showBulkMode && (
+              <div className="space-y-2">
+                {bulkParseResults.valid.length > 0 && (
+                  <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
+                    ✅ {bulkParseResults.valid.length} address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
+                  </div>
+                )}
+                {bulkParseResults.invalid.length > 0 && (
+                  <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
+                    ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 2).join(', ')}{bulkParseResults.invalid.length > 2 ? '...' : ''}
+                  </div>
+                )}
+                {bulkParseResults.duplicates.length > 0 && (
+                  <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
+                    ⚠️ {bulkParseResults.duplicates.length} duplicate{bulkParseResults.duplicates.length !== 1 ? 's' : ''} skipped
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <button
+              type="submit"
+              disabled={!addressInput.trim()}
+              className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+            >
+              Add Address{parseBulkAddresses(addressInput).valid.length > 1 ? 'es' : ''}
+            </button>
+          </form>
+        ) : (
+          /* Bulk Address Mode */
+          <form onSubmit={handleBulkAddressSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="bulkAddress" className="block text-sm font-medium text-gray-300 mb-2 text-center">
+                Paste multiple addresses
+              </label>
+              <textarea
+                id="bulkAddress"
+                value={bulkAddressInput}
+                onChange={(e) => setBulkAddressInput(e.target.value)}
+                placeholder="Paste addresses here...&#10;Supports: comma-separated, line-separated, or Excel format&#10;&#10;0xfebbe88de358c3aE931fFde2118E4FF3e471E9C8&#10;0x67b5C9a01904cc143e990a1c9dE1719E6C295e6f&#10;0x08611A63583A0a1a156b3BE1B2637B3d224b401f"
+                rows={6}
+                className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none transition-colors resize-vertical"
+              />
+            </div>
+            
+            {/* Bulk Parse Results */}
+            {bulkParseResults && (
+              <div className="space-y-2">
+                {bulkParseResults.valid.length > 0 && (
+                  <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
+                    ✅ {bulkParseResults.valid.length} valid address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
+                  </div>
+                )}
+                {bulkParseResults.invalid.length > 0 && (
+                  <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
+                    ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 3).join(', ')}{bulkParseResults.invalid.length > 3 ? '...' : ''}
+                  </div>
+                )}
+                {bulkParseResults.duplicates.length > 0 && (
+                  <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
+                    ⚠️ {bulkParseResults.duplicates.length} duplicate address{bulkParseResults.duplicates.length !== 1 ? 'es' : ''} skipped
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <button
+              type="submit"
+              disabled={!bulkAddressInput.trim()}
+              className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+            >
+              Parse & Add Addresses
+            </button>
+          </form>
+        )}
       </motion.div>
 
       {/* Show loading state when fetching data */}
@@ -825,10 +1063,31 @@ export default function Portfolio() {
                   </div>
                 )}
                 
+                {/* Bulk Parse Results for modal */}
+                {bulkParseResults && (
+                  <div className="space-y-2">
+                    {bulkParseResults.valid.length > 0 && (
+                      <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
+                        ✅ {bulkParseResults.valid.length} address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
+                      </div>
+                    )}
+                    {bulkParseResults.invalid.length > 0 && (
+                      <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
+                        ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 2).join(', ')}{bulkParseResults.invalid.length > 2 ? '...' : ''}
+                      </div>
+                    )}
+                    {bulkParseResults.duplicates.length > 0 && (
+                      <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
+                        ⚠️ {bulkParseResults.duplicates.length} duplicate{bulkParseResults.duplicates.length !== 1 ? 's' : ''} skipped
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 <div className="flex gap-3">
                   <input
                     type="text"
-                    placeholder="0x..."
+                    placeholder="0x... (paste multiple addresses supported)"
                     value={newAddressInput}
                     onChange={(e) => setNewAddressInput(e.target.value)}
                     className="flex-1 px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none"
@@ -842,10 +1101,10 @@ export default function Portfolio() {
                   />
                   <button
                     onClick={handleAddAddressInModal}
-                    disabled={!isValidAddress(newAddressInput)}
+                    disabled={!newAddressInput.trim()}
                     className="px-6 py-2 bg-white text-black font-medium rounded-lg disabled:bg-white disabled:text-black disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                   >
-                    Add
+                    Add{parseBulkAddresses(newAddressInput).valid.length > 1 ? ' All' : ''}
                   </button>
                 </div>
               </div>
