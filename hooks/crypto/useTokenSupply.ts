@@ -92,11 +92,14 @@ export function useTokenSupply(tokenTicker: string | null) {
       return data.totalSupply;
     },
     {
-      dedupingInterval: getMillisecondsUntilNext1AMUTC(), // Cache until next 1 AM UTC
+      dedupingInterval: 300000, // 5 minute cache like portfolio balances
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      refreshInterval: 0, // No automatic refresh, only revalidate at 1 AM UTC
-      fallbackData: shouldFetch ? getCachedData() : undefined
+      refreshInterval: 0, // No automatic refresh
+      fallbackData: shouldFetch ? getCachedData() : undefined,
+      // Aggressive caching - keep data fresh for a long time
+      errorRetryCount: 1,
+      errorRetryInterval: 30000
     }
   );
 

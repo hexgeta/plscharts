@@ -354,13 +354,21 @@ export default function Portfolio() {
     localStorage.setItem('portfolioAddresses', JSON.stringify(updatedAddresses))
   }
 
-  // Get all addresses for balance checking
-  const allAddressStrings = addresses.map(addr => addr.address)
-  console.log('Portfolio Debug - All address strings:', allAddressStrings)
+  // Get all addresses for balance checking - memoize to prevent unnecessary re-fetches
+  const allAddressStrings = useMemo(() => {
+    const strings = addresses.map(addr => addr.address)
+    console.log('Portfolio Debug - Creating new address strings array:', strings)
+    return strings
+  }, [addresses])
+  
+  console.log('Portfolio Debug - Using address strings:', allAddressStrings)
 
   // Fetch balances for ALL addresses using the updated hook
-  const { balances, isLoading: balancesLoading, error: balancesError } = usePortfolioBalance(allAddressStrings)
-  console.log('Portfolio Debug - Balance hook result:', { balances, balancesLoading, balancesError })
+  const { balances: rawBalances, isLoading: balancesLoading, error: balancesError } = usePortfolioBalance(allAddressStrings)
+  console.log('Portfolio Debug - Balance hook result:', { balances: rawBalances, balancesLoading, balancesError })
+  
+  // Stabilize balances reference to prevent unnecessary re-renders
+  const balances = useMemo(() => rawBalances || [], [rawBalances])
 
   // Fetch CST supply using existing hook (CST is on PulseChain, chain 369)
   const { totalSupply: cstSupplyPulseChain, loading: cstSupplyLoading, error: cstSupplyError } = useTokenSupply('CST')
@@ -371,6 +379,7 @@ export default function Portfolio() {
   const anyBalancesError = balancesError
 
   // Get all unique token tickers from balances for both chains
+  // This should be stable regardless of filtering to prevent unnecessary price refetches
   const allTokenTickers = useMemo(() => {
     if (!balances || !Array.isArray(balances)) return []
     
@@ -380,14 +389,22 @@ export default function Portfolio() {
       return chainTokens
     })
     
-    return [...new Set(tokens)]
+    // Always include the base tokens to ensure consistent ticker set
+    const baseTokens = ['PLS', 'PLSX', 'HEX', 'ETH', 'USDC', 'DAI', 'USDT']
+    
+    return [...new Set([...tokens, ...baseTokens])]
   }, [balances])
+
+  // Debug: Track when this effect runs to identify unnecessary re-renders
+  console.log('[Portfolio] Component render - balances:', balances?.length, 'tickers:', allTokenTickers.length, 'chainFilter:', chainFilter, 'selectedIds:', selectedAddressIds.length)
 
   // Fetch prices for all tokens with balances plus CST
   const { prices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
 
   // Get all tokens with balances combined from all addresses (or filtered by selected address)
   const { filteredBalances, mainTokensWithBalances } = useMemo(() => {
+    console.log('[Portfolio] Filtering balances - chainFilter:', chainFilter, 'selectedAddressIds:', selectedAddressIds.length)
+    
     if (!balances || !Array.isArray(balances)) {
       return { filteredBalances: [], mainTokensWithBalances: [] }
     }
@@ -403,8 +420,6 @@ export default function Portfolio() {
       const addressMatch = selectedAddressIds.length > 0 
         ? selectedAddressIds.some(id => addresses.find(addr => addr.id === id && addr.address === addressData.address))
         : true
-      
-      console.log(`[Portfolio] Chain filter: ${chainFilter}, Address: ${addressData.address}, Chain: ${addressData.chain}, ChainMatch: ${chainMatch}, AddressMatch: ${addressMatch}`)
       
       return chainMatch && addressMatch
     })
@@ -538,6 +553,8 @@ export default function Portfolio() {
     tokenPrice: number; 
     tokenIndex: number; 
   }) => {
+    console.log(`[TokenRow] Rendering row for ${token.symbol} - chain: ${token.chain}`)
+    
     const usdValue = token.balanceFormatted * tokenPrice
     const displayAmount = formatBalance(token.balanceFormatted)
     
@@ -561,6 +578,8 @@ export default function Portfolio() {
     const { totalSupply: apiSupply, loading: supplyLoading } = useTokenSupply(
       shouldUseHardcodedSupply ? null : token.symbol
     )
+    
+    console.log(`[TokenRow] ${token.symbol} - shouldUseHardcodedSupply: ${shouldUseHardcodedSupply}, apiSupply: ${apiSupply}, supply: ${supply}`)
     
     // Use hardcoded supply for specific tokens, otherwise use API supply with constants fallback
     const finalSupply = shouldUseHardcodedSupply 
@@ -1278,7 +1297,7 @@ export default function Portfolio() {
                     disabled={!newAddressInput.trim()}
                     className="px-6 py-2 bg-white text-black font-medium rounded-lg disabled:bg-white disabled:text-black disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                   >
-                    Add{parseBulkAddresses(newAddressInput).valid.length > 1 ? ' All' : ''}
+                    +
                   </button>
       </div>
     </div>

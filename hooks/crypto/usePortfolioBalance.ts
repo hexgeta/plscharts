@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import useSWR from 'swr'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 
 // RPC endpoints for both chains
@@ -240,65 +240,61 @@ async function getAddressBalances(address: string, chainId: number): Promise<Bal
   }
 }
 
-export function usePortfolioBalance(walletAddresses: string[]): UsePortfolioBalanceResult {
-  const [balances, setBalances] = useState<BalanceData[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<any>(null)
+// Create cache keys
+const BALANCE_CACHE_KEYS = {
+  balances: (addresses: string[]) => `portfolio-balances:${addresses.sort().join(',')}`
+}
+
+// Fetcher function for SWR
+async function fetchAllAddressBalances(addresses: string[]): Promise<BalanceData[]> {
+  if (!Array.isArray(addresses) || addresses.length === 0) {
+    return []
+  }
+
+  console.log(`[usePortfolioBalance] Fetching balances for ${addresses.length} addresses`)
   
-  useEffect(() => {
-    // Ensure walletAddresses is an array and has length
-    if (!Array.isArray(walletAddresses) || walletAddresses.length === 0) {
-      setBalances([])
-      setIsLoading(false)
-      setError(null)
-      return
-    }
+  // Fetch balances for all addresses on both chains
+  const balancePromises: Promise<BalanceData>[] = []
+  
+  addresses.forEach(address => {
+    // Fetch PulseChain balances
+    balancePromises.push(getAddressBalances(address, 369))
+    // Fetch Ethereum balances
+    balancePromises.push(getAddressBalances(address, 1))
+  })
+  
+  const allBalanceData = await Promise.all(balancePromises)
+  
+  // Filter out any failed requests
+  const validBalances = allBalanceData.filter(data => !data.error)
+  
+  console.log(`[usePortfolioBalance] Successfully fetched balances for ${validBalances.length}/${addresses.length * 2} address/chain combinations`)
+  
+  return validBalances
+}
 
-    const fetchAllBalances = async () => {
-      setIsLoading(true)
-      setError(null)
-      
-      try {
-        console.log(`[usePortfolioBalance] Fetching balances for ${walletAddresses.length} addresses`)
-        
-        // Fetch balances for all addresses on both chains
-        const balancePromises: Promise<BalanceData>[] = []
-        
-        walletAddresses.forEach(address => {
-          // Fetch PulseChain balances
-          balancePromises.push(getAddressBalances(address, 369))
-          // Fetch Ethereum balances
-          balancePromises.push(getAddressBalances(address, 1))
-        })
-        
-        const allBalanceData = await Promise.all(balancePromises)
-        
-        // Filter out any failed requests
-        const validBalances = allBalanceData.filter(data => !data.error)
-        
-        console.log(`[usePortfolioBalance] Successfully fetched balances for ${validBalances.length}/${walletAddresses.length} addresses`)
-        
-        setBalances(validBalances)
-        
-        // If some addresses failed, set a warning error
-        if (validBalances.length < walletAddresses.length) {
-          const failedAddresses = allBalanceData.filter(data => data.error)
-          setError(`Failed to fetch balances for ${failedAddresses.length} address(es)`)
-        }
-      } catch (err) {
-        console.error('[usePortfolioBalance] Error fetching balances:', err)
-        setError(err)
-        setBalances([])
-      } finally {
-        setIsLoading(false)
-      }
+export function usePortfolioBalance(walletAddresses: string[]): UsePortfolioBalanceResult {
+  // Create cache key
+  const cacheKey = walletAddresses.length > 0 ? BALANCE_CACHE_KEYS.balances(walletAddresses) : null
+  
+  // Debug: Log when this hook is called and with what cache key
+  console.log('[usePortfolioBalance] Hook called with addresses:', walletAddresses.length, 'cacheKey:', cacheKey)
+  
+  const { data: balances, error, isLoading } = useSWR(
+    cacheKey,
+    () => fetchAllAddressBalances(walletAddresses),
+    {
+      refreshInterval: 300000, // Refresh every 5 minutes
+      dedupingInterval: 300000, // 5 minute cache
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false, // Don't refetch on reconnect
+      errorRetryInterval: 10000,
+      errorRetryCount: 2
     }
-
-    fetchAllBalances()
-  }, [JSON.stringify(walletAddresses)]) // Use JSON.stringify to compare array contents
+  )
   
   return {
-    balances,
+    balances: balances || [],
     isLoading,
     error
   }
