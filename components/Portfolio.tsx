@@ -395,15 +395,15 @@ export default function Portfolio() {
     return [...new Set([...tokens, ...baseTokens])]
   }, [balances])
 
-  // Debug: Track when this effect runs to identify unnecessary re-renders
-  console.log('[Portfolio] Component render - balances:', balances?.length, 'tickers:', allTokenTickers.length, 'chainFilter:', chainFilter, 'selectedIds:', selectedAddressIds.length)
+  // Minimal debug logging (only when needed)
+  // console.log('[Portfolio] Component render - balances:', balances?.length, 'tickers:', allTokenTickers.length, 'chainFilter:', chainFilter, 'selectedIds:', selectedAddressIds.length)
 
   // Fetch prices for all tokens with balances plus CST
   const { prices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
 
   // Get all tokens with balances combined from all addresses (or filtered by selected address)
   const { filteredBalances, mainTokensWithBalances } = useMemo(() => {
-    console.log('[Portfolio] Filtering balances - chainFilter:', chainFilter, 'selectedAddressIds:', selectedAddressIds.length)
+    // console.log('[Portfolio] Filtering balances - chainFilter:', chainFilter, 'selectedAddressIds:', selectedAddressIds.length)
     
     if (!balances || !Array.isArray(balances)) {
       return { filteredBalances: [], mainTokensWithBalances: [] }
@@ -553,8 +553,6 @@ export default function Portfolio() {
     tokenPrice: number; 
     tokenIndex: number; 
   }) => {
-    console.log(`[TokenRow] Rendering row for ${token.symbol} - chain: ${token.chain}`)
-    
     const usdValue = token.balanceFormatted * tokenPrice
     const displayAmount = formatBalance(token.balanceFormatted)
     
@@ -578,8 +576,6 @@ export default function Portfolio() {
     const { totalSupply: apiSupply, loading: supplyLoading } = useTokenSupply(
       shouldUseHardcodedSupply ? null : token.symbol
     )
-    
-    console.log(`[TokenRow] ${token.symbol} - shouldUseHardcodedSupply: ${shouldUseHardcodedSupply}, apiSupply: ${apiSupply}, supply: ${supply}`)
     
     // Use hardcoded supply for specific tokens, otherwise use API supply with constants fallback
     const finalSupply = shouldUseHardcodedSupply 
@@ -773,6 +769,15 @@ export default function Portfolio() {
           })()}
             </div>
         </div>
+    )
+  }, (prevProps, nextProps) => {
+    // Custom comparison function to prevent unnecessary re-renders
+    return (
+      prevProps.token.symbol === nextProps.token.symbol &&
+      prevProps.token.chain === nextProps.token.chain &&
+      prevProps.token.balanceFormatted === nextProps.token.balanceFormatted &&
+      prevProps.tokenPrice === nextProps.tokenPrice &&
+      prevProps.tokenIndex === nextProps.tokenIndex
     )
   })
 
@@ -1115,8 +1120,10 @@ export default function Portfolio() {
             {sortedTokens.map((token, tokenIndex) => {
               const tokenPrice = (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT') ? 1 : 
                                (prices[token.symbol]?.price || 0)
+              // Use a stable key that includes the token address to prevent unnecessary remounting
+              const stableKey = `${token.chain}-${token.symbol}-${token.address || 'native'}`
               return (
-                <TokenRow key={`${token.chain}-${token.symbol}-${tokenIndex}`} token={token} tokenPrice={tokenPrice} tokenIndex={tokenIndex} />
+                <TokenRow key={stableKey} token={token} tokenPrice={tokenPrice} tokenIndex={tokenIndex} />
               )
             })}
                 </div>
