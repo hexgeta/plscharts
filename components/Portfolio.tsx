@@ -35,6 +35,7 @@ export default function Portfolio() {
   const [addresses, setAddresses] = useState<StoredAddress[]>([])
   const [addressInput, setAddressInput] = useState('')
   const [showEditModal, setShowEditModal] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [newAddressInput, setNewAddressInput] = useState('')
   const [newLabelInput, setNewLabelInput] = useState('')
   // Add state for managing editing states of addresses
@@ -49,6 +50,8 @@ export default function Portfolio() {
     invalid: string[]
     duplicates: string[]
   } | null>(null)
+  // Add to Portfolio component state
+  const [chainFilter, setChainFilter] = useState<'pulsechain' | 'ethereum' | 'both'>('both')
 
   // Prevent body scroll when edit modal is open
   useEffect(() => {
@@ -65,7 +68,7 @@ export default function Portfolio() {
     }
   }, [showEditModal])
 
-  // Load addresses from localStorage on mount
+  // Load addresses and preferences from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('portfolioAddresses')
     if (saved) {
@@ -85,6 +88,25 @@ export default function Portfolio() {
         console.error('Error parsing saved addresses:', e)
       }
     }
+
+    // Load saved chain filter
+    const savedChainFilter = localStorage.getItem('portfolioChainFilter')
+    if (savedChainFilter && ['pulsechain', 'ethereum', 'both'].includes(savedChainFilter)) {
+      setChainFilter(savedChainFilter as 'pulsechain' | 'ethereum' | 'both')
+    }
+
+    // Load saved selected address IDs
+    const savedSelectedIds = localStorage.getItem('portfolioSelectedAddresses')
+    if (savedSelectedIds) {
+      try {
+        const parsedSelectedIds = JSON.parse(savedSelectedIds)
+        if (Array.isArray(parsedSelectedIds)) {
+          setSelectedAddressIds(parsedSelectedIds)
+        }
+      } catch (e) {
+        console.error('Error parsing saved selected addresses:', e)
+      }
+    }
   }, [])
 
   // Save addresses to localStorage whenever addresses change
@@ -93,6 +115,16 @@ export default function Portfolio() {
       localStorage.setItem('portfolioAddresses', JSON.stringify(addresses))
     }
   }, [addresses])
+
+  // Save chain filter to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('portfolioChainFilter', chainFilter)
+  }, [chainFilter])
+
+  // Save selected address IDs to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('portfolioSelectedAddresses', JSON.stringify(selectedAddressIds))
+  }, [selectedAddressIds])
 
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
@@ -137,8 +169,6 @@ export default function Portfolio() {
 
     return { valid, invalid, duplicates }
   }
-
-
 
   // Handle adding address from main input (now supports bulk pasting)
   const handleAddressSubmit = (e: React.FormEvent) => {
@@ -326,9 +356,11 @@ export default function Portfolio() {
 
   // Get all addresses for balance checking
   const allAddressStrings = addresses.map(addr => addr.address)
+  console.log('Portfolio Debug - All address strings:', allAddressStrings)
 
   // Fetch balances for ALL addresses using the updated hook
   const { balances, isLoading: balancesLoading, error: balancesError } = usePortfolioBalance(allAddressStrings)
+  console.log('Portfolio Debug - Balance hook result:', { balances, balancesLoading, balancesError })
 
   // Fetch CST supply using existing hook (CST is on PulseChain, chain 369)
   const { totalSupply: cstSupplyPulseChain, loading: cstSupplyLoading, error: cstSupplyError } = useTokenSupply('CST')
@@ -338,24 +370,17 @@ export default function Portfolio() {
   const anyBalancesLoading = balancesLoading
   const anyBalancesError = balancesError
 
-  // Get all unique token tickers from balances for price fetching
+  // Get all unique token tickers from balances for both chains
   const allTokenTickers = useMemo(() => {
-    if (!balances || !Array.isArray(balances)) return ['CST']
+    if (!balances || !Array.isArray(balances)) return []
     
-    const balanceTokens = balances.flatMap(addressData => {
-      // Include native PLS balance
-      const tokens = [addressData.nativeBalance.symbol]
-      
-      // Add token balances
-      addressData.tokenBalances?.forEach(token => {
-        tokens.push(token.symbol)
-      })
-      
-      return tokens
-    }).filter((ticker, index, array) => array.indexOf(ticker) === index) // Remove duplicates
-
-    // Add CST to price fetching if not already included
-    return [...new Set([...balanceTokens, 'CST'])]
+    const tokens = balances.flatMap(addressData => {
+      const chainTokens = [addressData.nativeBalance.symbol]
+      addressData.tokenBalances?.forEach(token => chainTokens.push(token.symbol))
+      return chainTokens
+    })
+    
+    return [...new Set(tokens)]
   }, [balances])
 
   // Fetch prices for all tokens with balances plus CST
@@ -367,50 +392,75 @@ export default function Portfolio() {
       return { filteredBalances: [], mainTokensWithBalances: [] }
     }
     
-    // Filter balances by selected address if one is chosen
-    const filtered = selectedAddressIds.length > 0 
-      ? balances.filter(addressData => {
-          const matchingStoredAddress = addresses.find(addr => addr.address === addressData.address)
-          return matchingStoredAddress && selectedAddressIds.includes(matchingStoredAddress.id)
-        })
-      : balances
+    // Filter balances by selected chain and address
+    const filtered = balances.filter(addressData => {
+      // Filter by chain - only apply if not 'both'
+      const chainMatch = chainFilter === 'both' || 
+        (chainFilter === 'pulsechain' && addressData.chain === 369) ||
+        (chainFilter === 'ethereum' && addressData.chain === 1)
+      
+      // Filter by selected addresses
+      const addressMatch = selectedAddressIds.length > 0 
+        ? selectedAddressIds.some(id => addresses.find(addr => addr.id === id && addr.address === addressData.address))
+        : true
+      
+      console.log(`[Portfolio] Chain filter: ${chainFilter}, Address: ${addressData.address}, Chain: ${addressData.chain}, ChainMatch: ${chainMatch}, AddressMatch: ${addressMatch}`)
+      
+      return chainMatch && addressMatch
+    })
     
-    // Group tokens by symbol and sum their balances - show ALL tokens, not just predefined ones
+    // Group tokens by symbol across chains when 'both' is selected, otherwise keep chain distinction
     const tokenGroups = new Map()
     
     filtered.forEach(addressData => {
-      // Add native balance
+      // Handle native balances
       if (addressData.nativeBalance.balanceFormatted > 0) {
-        const existing = tokenGroups.get(addressData.nativeBalance.symbol)
+        // Use different keys based on chain filter
+        const key = chainFilter === 'both' 
+          ? addressData.nativeBalance.symbol 
+          : `${addressData.nativeBalance.symbol}-${addressData.chain}`
+        
+        const existing = tokenGroups.get(key)
         if (existing) {
           existing.balanceFormatted += addressData.nativeBalance.balanceFormatted
         } else {
-          tokenGroups.set(addressData.nativeBalance.symbol, {
+          tokenGroups.set(key, {
             ...addressData.nativeBalance,
-            chain: addressData.chain
+            chain: addressData.chain,
+            displaySymbol: addressData.nativeBalance.symbol // For display purposes
           })
         }
       }
       
-      // Add token balances
+      // Handle token balances
       addressData.tokenBalances?.forEach(token => {
-        const existing = tokenGroups.get(token.symbol)
+        // Use different keys based on chain filter
+        const key = chainFilter === 'both' 
+          ? token.symbol 
+          : `${token.symbol}-${addressData.chain}`
+        
+        const existing = tokenGroups.get(key)
         if (existing) {
           existing.balanceFormatted += token.balanceFormatted
         } else {
-          tokenGroups.set(token.symbol, {
+          tokenGroups.set(key, {
             ...token,
-            chain: addressData.chain
+            chain: addressData.chain,
+            displaySymbol: token.symbol
           })
         }
       })
     })
     
+    const tokensWithBalances = Array.from(tokenGroups.values())
+    console.log(`[Portfolio] Found ${tokensWithBalances.length} tokens with balances across ${filtered.length} address/chain combinations`)
+    console.log(`[Portfolio] Tokens found:`, tokensWithBalances.map(t => `${t.symbol} (${t.balanceFormatted}) on chain ${t.chain}`))
+    
     return {
       filteredBalances: filtered,
-      mainTokensWithBalances: Array.from(tokenGroups.values())
+      mainTokensWithBalances: tokensWithBalances
     }
-  }, [balances, selectedAddressIds, addresses])
+  }, [balances, selectedAddressIds, addresses, chainFilter])
 
   // Memoized sorted tokens to prevent re-sorting on every render
   const sortedTokens = useMemo(() => {
@@ -551,8 +601,19 @@ export default function Portfolio() {
       return { league: 'Shell', icon: '/shell.png' }
     }, [finalSupply, token.balanceFormatted])
 
-    return (
-      <div className="grid grid-cols-[2fr_1fr_2fr_auto] items-center gap-1 py-2">
+    // Get 24h price change data from prices hook
+    const priceData = prices[token.symbol]
+    const priceChange24h = priceData?.priceChange?.h24
+
+    // In TokenRow component, add chain context to league calculations
+    const leagueSupplyDeduction = useMemo(() => {
+      // Use chain-specific OA supplies
+      const chainKey = `${token.symbol}-${token.chain}`
+      return OA_SUPPLIES[chainKey] || OA_SUPPLIES[token.symbol] || 0
+    }, [token.symbol, token.chain])
+
+  return (
+      <div className="grid grid-cols-[2fr_1fr_2fr_auto] sm:grid-cols-[2fr_1fr_1fr_1fr_2fr_auto] items-center gap-4 py-3 border-b border-white/10 mx-4 last:border-b-0">
         {/* Token Info - Left Column */}
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
@@ -568,13 +629,36 @@ export default function Portfolio() {
               {token.symbol}
             </div>
             <div className="text-gray-400 text-[10px]">
-              {token.name || ''}
+              <span className="sm:hidden">{displayAmount} {token.symbol}</span>
             </div>
           </div>
         </div>
         
-        {/* League Column - Center */}
-        <div className="flex flex-col items-center justify-center ml-14">
+        {/* Price Column - Hidden on Mobile */}
+        <div className="hidden sm:block text-center">
+          <div className="text-gray-400 text-xs font-medium">
+            {tokenPrice > 0 ? `$${tokenPrice.toFixed(tokenPrice < 0.01 ? 6 : tokenPrice < 1 ? 4 : 2)}` : '$0.00'}
+          </div>
+        </div>
+
+        {/* 24h Price Change Column */}
+        <div className="text-center ml-4 sm:ml-0">
+          <div className={`text-xs font-bold ${
+            priceChange24h !== undefined
+              ? priceChange24h >= 0 
+                ? 'text-[#00ff55]' 
+                : 'text-red-500'
+              : 'text-gray-400'
+          }`}>
+            {priceChange24h !== undefined
+              ? `${priceChange24h >= 0 ? '+' : ''}${priceChange24h.toFixed(1)}%`
+              : '0%'
+            }
+          </div>
+        </div>
+
+        {/* League Column - Hidden on Mobile */}
+        <div className="hidden sm:flex flex-col items-center justify-center ml-14">
           <Dialog>
             <DialogTrigger asChild>
               <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-0 rounded-lg">
@@ -603,26 +687,26 @@ export default function Portfolio() {
                 <LeagueTable 
                   tokenTicker={token.symbol} 
                   containerStyle={false}
-                  supplyDeduction={OA_SUPPLIES[token.symbol] || 0}
+                  supplyDeduction={leagueSupplyDeduction}
                   userBalance={token.balanceFormatted}
                 />
               </motion.div>
             </DialogContent>
           </Dialog>
-          <div className="text-gray-400 text-[9px] text-center leading-tight w-full">
+          <div className="text-gray-400 text-[9px] text-center leading-tight w-full mt-0.5">
             {supplyPercentage}
           </div>
-        </div>
-        
-        {/* Value - Right Column */}
+              </div>
+              
+                {/* Value - Right Column */}
         <div className="text-right">
-          <div className="text-white font-medium text-sm md:text-lg">
+          <div className="text-white font-medium text-sm md:text-lg transition-all duration-200">
             ${formatBalance(usdValue)}
           </div>
-          <div className="text-gray-400 text-[12px] mt-0.5">
+          <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
             {displayAmount} {token.symbol}
           </div>
-        </div>
+              </div>
 
         {/* Chart & Copy Icons - Far Right Column */}
         <div className="flex flex-col items-center ml-2">
@@ -655,21 +739,21 @@ export default function Portfolio() {
                   <TrendingUp size={16} />
                 </a>
 
-                {/* Copy Icon - Copy Contract Address (only for non-native tokens) */}
+                {/* Copy Icon - Copy Contract Address (only for non-native tokens, hidden on mobile) */}
                 {!token.isNative && (
-                  <button
+                <button
                     onClick={() => copyContractAddress(copyAddress, token.symbol)}
-                    className="p-1 -mt-0 transition-colors text-gray-400 hover:text-white"
+                    className="hidden sm:block p-1 -mt-0 transition-colors text-gray-400 hover:text-white"
                     title="Copy contract address"
-                  >
+                >
                     <Copy size={16} />
-                  </button>
-                )}
+                </button>
+              )}
               </>
             ) : null
           })()}
+            </div>
         </div>
-      </div>
     )
   })
 
@@ -727,6 +811,65 @@ export default function Portfolio() {
                            prices &&
                            Object.keys(prices).length > 0
 
+  // Debug logging
+  console.log('Portfolio Debug:', {
+    addresses: addresses.length,
+    balancesLoading,
+    pricesLoading,
+    balancesError,
+    balances: balances ? balances.length : 'null',
+    prices: prices ? Object.keys(prices).length : 'null',
+    allTokenTickers,
+    filteredBalances: filteredBalances.length,
+    sortedTokens: sortedTokens.length
+  })
+
+  // Additional debugging for isEverythingReady condition
+  console.log('Portfolio Debug - isEverythingReady check:', {
+    addressesLength: addresses.length,
+    hasAddresses: addresses.length > 0,
+    balancesLoading,
+    pricesLoading,
+    hasBalancesError: !!balancesError,
+    hasBalances: balances && balances.length > 0,
+    hasPrices: prices && Object.keys(prices).length > 0,
+    isEverythingReady
+  })
+
+  // Debug filteredBalances
+  console.log('Portfolio Debug - filteredBalances:', {
+    chainFilter,
+    balancesRaw: balances,
+    filteredBalances,
+    mainTokensWithBalances
+  })
+
+  // Effect to handle initial load completion
+  useEffect(() => {
+    if (isEverythingReady && isInitialLoad) {
+      setIsInitialLoad(false)
+    }
+  }, [isEverythingReady, isInitialLoad])
+
+  // Add toggle UI component (3-way toggle) - memoized to prevent unnecessary re-renders
+  const ChainToggle = useCallback(() => (
+    <div className="flex bg-black border border-white/20 rounded-lg p-1">
+      {['pulsechain', 'both', 'ethereum'].map((chain) => (
+          <button
+          key={chain}
+          onClick={() => setChainFilter(chain as any)}
+          className={`px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 ${
+            chainFilter === chain 
+              ? 'bg-white text-black' 
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          {chain === 'pulsechain' ? 'PulseChain' : chain === 'ethereum' ? 'Ethereum' : 'Both'}
+          </button>
+      ))}
+    </div>
+  ), [chainFilter])
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -746,7 +889,7 @@ export default function Portfolio() {
           delay: 0.1,
           ease: [0.23, 1, 0.32, 1]
         }}
-        className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[660px] w-full"
+        className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[860px] w-full"
         style={{ display: addresses.length > 0 ? 'none' : 'block' }}
       >
         {/* Unified Address Input */}
@@ -759,31 +902,31 @@ export default function Portfolio() {
               id="address"
               value={addressInput}
               onChange={(e) => setAddressInput(e.target.value)}
-              placeholder="0x... (single address or paste multiple addresses)"
+              placeholder="0x..)"
               rows={4}
               className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none transition-colors resize-vertical"
             />
-          </div>
-          
+        </div>
+
           {/* Parse Results */}
           {bulkParseResults && (
             <div className="space-y-2">
               {bulkParseResults.valid.length > 0 && (
                 <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
                   ✅ {bulkParseResults.valid.length} valid address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
-                </div>
-              )}
+          </div>
+        )}
               {bulkParseResults.invalid.length > 0 && (
                 <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
                   ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 3).join(', ')}{bulkParseResults.invalid.length > 3 ? '...' : ''}
-                </div>
+      </div>
               )}
               {bulkParseResults.duplicates.length > 0 && (
                 <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
                   ⚠️ {bulkParseResults.duplicates.length} duplicate address{bulkParseResults.duplicates.length !== 1 ? 'es' : ''} skipped
                 </div>
               )}
-            </div>
+              </div>
           )}
           
           <button
@@ -799,8 +942,8 @@ export default function Portfolio() {
         </form>
       </motion.div>
 
-      {/* Show loading state when fetching data */}
-      {addresses.length > 0 && balancesLoading && (
+      {/* Show loading state when fetching data (only on initial load) */}
+      {addresses.length > 0 && balancesLoading && isInitialLoad && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -809,7 +952,7 @@ export default function Portfolio() {
             delay: 0.2,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[860px] w-full"
         >
           <div className="text-gray-400">Loading portfolio...</div>
         </motion.div>
@@ -825,11 +968,11 @@ export default function Portfolio() {
             delay: 0.2,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[660px] w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[860px] w-full"
         >
           <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
             Error: {balancesError?.message || balancesError || 'Failed to load portfolio data'}
-          </div>
+                </div>
         </motion.div>
       )}
 
@@ -843,24 +986,80 @@ export default function Portfolio() {
             delay: 0.3,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full relative"
+          className="bg-black border-2 border-white/10 rounded-2xl py-8 text-center max-w-[860px] w-full relative"
         >
-          {/* Edit button in top right */}
+                    {/* Chain Toggle and Edit button in top right */}
           {addresses.length > 0 && (
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="absolute top-4 right-4 p-2 rounded-lg text-gray-400 hover:text-white transition-colors"
-            >
-              <Edit size={16} />
-            </button>
+            <div className="absolute top-4 right-2 flex items-center gap-2">
+              {/* Chain Toggle - fixed width container for consistent positioning */}
+              <button
+                onClick={() => {
+                  setChainFilter(prev => 
+                    prev === 'both' ? 'ethereum' : 
+                    prev === 'ethereum' ? 'pulsechain' : 
+                    'both'
+                  )
+                }}
+                className="group p-2 rounded-lg text-gray-400 hover:text-white flex items-center justify-center w-16 h-10"
+                title={`Current: ${chainFilter === 'ethereum' ? 'Ethereum' : chainFilter === 'pulsechain' ? 'PulseChain' : 'Both Chains'}`}
+              >
+                <div className="flex items-center gap-1">
+                                      {chainFilter === 'ethereum' && (
+                      <Image 
+                        src="/coin-logos/ETH-white.svg" 
+                        alt="Ethereum" 
+                        width={16} 
+                        height={16}
+                        className="w-4 h-4 opacity-60 group-hover:opacity-100"
+                      />
+                    )}
+                                      {chainFilter === 'pulsechain' && (
+                      <Image 
+                        src="/coin-logos/PLS-white.svg" 
+                        alt="PulseChain" 
+                        width={16} 
+                        height={16}
+                        className="w-4 h-4 opacity-60 group-hover:opacity-100"
+                      />
+                    )}
+                  {chainFilter === 'both' && (
+                    <>
+                                              <Image 
+                          src="/coin-logos/ETH-white.svg" 
+                          alt="Ethereum" 
+                          width={16} 
+                          height={16}
+                          className="w-4 h-4 opacity-60 group-hover:opacity-100 ml-1"
+                        />
+                        <span className="text-xs text-gray-400 group-hover:text-white">+</span>
+                        <Image 
+                          src="/coin-logos/PLS-white.svg" 
+                          alt="PulseChain" 
+                          width={16} 
+                          height={16}
+                          className="w-4 h-4 opacity-60 group-hover:opacity-100"
+                        />
+                    </>
+                  )}
+                </div>
+              </button>
+              
+              {/* Edit button */}
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="p-2 rounded-lg text-gray-400 hover:text-white transition-colors"
+              >
+                <Edit size={16} />
+              </button>
+            </div>
           )}
           
           <h2 className="text-xs font-bold mb-2">
             {selectedAddressIds.length > 0 ? `${selectedAddressIds.length}/${addresses.length} Addresses` : 'Total Portfolio Value'}
           </h2>
-          <div className="text-4xl font-bold text-white">
+          <div className="text-5xl font-bold text-white transition-all duration-300">
             ${formatBalance(totalUsdValue)}
-          </div>
+                    </div>
           <div className="text-sm text-gray-400 mt-4 flex flex-wrap gap-2 justify-center">
             {addresses.map((addr, index) => (
               <span 
@@ -869,15 +1068,17 @@ export default function Portfolio() {
                 className={`px-3 py-1 border rounded-full text-xs transition-colors cursor-pointer ${
                   selectedAddressIds.includes(addr.id) 
                     ? 'border-white bg-white text-black' 
-                    : 'border-white hover:bg-white/20 text-white'
+                    : 'border-white/20 hover:bg-white/20 text-white'
                 }`}
               >
                 {addr.label || formatAddress(addr.address)}
               </span>
             ))}
-          </div>
+                  </div>
         </motion.div>
       )}
+
+
 
       {/* Tokens Table */}
       {isEverythingReady && sortedTokens.length > 0 && (
@@ -889,7 +1090,7 @@ export default function Portfolio() {
             delay: 0.4,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[660px] w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[860px] w-full"
         >
           <div className="space-y-3">
             {sortedTokens.map((token, tokenIndex) => {
@@ -899,7 +1100,7 @@ export default function Portfolio() {
                 <TokenRow key={`${token.chain}-${token.symbol}-${tokenIndex}`} token={token} tokenPrice={tokenPrice} tokenIndex={tokenIndex} />
               )
             })}
-          </div>
+                </div>
         </motion.div>
       )}
 
@@ -913,11 +1114,11 @@ export default function Portfolio() {
             delay: 0.4,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[860px] w-full"
         >
           <div className="text-gray-400">
             No tokens found for tracked addresses
-          </div>
+              </div>
         </motion.div>
       )}
 
@@ -946,7 +1147,7 @@ export default function Portfolio() {
                 >
                   <X size={20} />
                 </button>
-              </div>
+                                </div>
 
               {/* Address List */}
               <div className="space-y-4 mb-6">
@@ -969,7 +1170,7 @@ export default function Portfolio() {
                       {/* Address */}
                       <div className="flex-1 font-mono text-sm text-white">
                         {addr.address}
-                      </div>
+                              </div>
                       
                       {/* Name/Label Field */}
                       <div className="w-64">
@@ -995,7 +1196,7 @@ export default function Portfolio() {
                           }}
                           className="w-full px-3 py-2 bg-black border border-white/20 rounded-lg text-sm text-white placeholder-gray-500 focus:border-white/40 focus:outline-none"
                         />
-                      </div>
+                              </div>
                       
                       {/* Save/Delete Button */}
                       <div className="flex-shrink-0">
@@ -1018,11 +1219,11 @@ export default function Portfolio() {
                             <Trash2 size={16} />
                           </button>
                         )}
-                      </div>
-                    </div>
+                              </div>
+                  </div>
                   )
                 })}
-              </div>
+                </div>
 
               {/* Add New Address */}
               <div className="space-y-3 pt-4 border-t border-white/10">
@@ -1033,30 +1234,30 @@ export default function Portfolio() {
                   <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm flex items-center gap-2">
                     <span>⚠️</span>
                     <span>{duplicateError}</span>
-                  </div>
-                )}
-                
+                </div>
+              )}
+
                 {/* Bulk Parse Results for modal */}
                 {bulkParseResults && (
                   <div className="space-y-2">
                     {bulkParseResults.valid.length > 0 && (
                       <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
                         ✅ {bulkParseResults.valid.length} address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
-                      </div>
+              </div>
                     )}
                     {bulkParseResults.invalid.length > 0 && (
                       <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
                         ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 2).join(', ')}{bulkParseResults.invalid.length > 2 ? '...' : ''}
-                      </div>
+            </div>
                     )}
                     {bulkParseResults.duplicates.length > 0 && (
                       <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
                         ⚠️ {bulkParseResults.duplicates.length} duplicate{bulkParseResults.duplicates.length !== 1 ? 's' : ''} skipped
                       </div>
                     )}
-                  </div>
-                )}
-                
+        </div>
+      )}
+
                 <div className="flex gap-3">
                   <input
                     type="text"
@@ -1079,8 +1280,8 @@ export default function Portfolio() {
                   >
                     Add{parseBulkAddresses(newAddressInput).valid.length > 1 ? ' All' : ''}
                   </button>
-                </div>
-              </div>
+      </div>
+    </div>
             </motion.div>
           </motion.div>
         )}

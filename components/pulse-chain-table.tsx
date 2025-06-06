@@ -48,6 +48,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   const [selected, setSelected] = useState<Period>('24h');
   const [showMotion, setShowMotion] = useState(true);
   const animationCompleteRef = useRef(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const pulseChainDay = usePulsechainDay();
 
   const { prices, isLoading: pricesLoading, error } = useTokenPrices(TOKENS);
@@ -69,8 +70,8 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
     return priceData && priceData.price && priceData.price > 0;
   });
 
-  // Overall loading state - now includes validation of actual price data
-  const isLoading = pricesLoading || isHistoricLoading || !hasValidPriceData;
+  // Overall loading state - only for initial load
+  const isLoading = (pricesLoading || isHistoricLoading || !hasValidPriceData) && isInitialLoad;
 
   // Handle animation completion without state updates that cause re-renders
   const handleAnimationComplete = useCallback(() => {
@@ -81,7 +82,14 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
     }
   }, []);
 
-  // Show loading state if we don't have valid price data
+  // Effect to handle initial load completion
+  useEffect(() => {
+    if (hasValidPriceData && !isHistoricLoading && isInitialLoad) {
+      setIsInitialLoad(false);
+    }
+  }, [hasValidPriceData, isHistoricLoading, isInitialLoad]);
+
+  // Show loading state only on initial load
   if (isLoading) {
     return LoadingComponent ? <LoadingComponent /> : <div className="bg-black h-screen" />;
   }

@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 
-// RPC endpoint for PulseChain
+// RPC endpoints for both chains
 const PULSECHAIN_RPC = 'https://rpc-pulsechain.g4mm4.io'
+const ETHEREUM_RPC = 'https://rpc-ethereum.g4mm4.io'
 
 interface TokenBalance {
   address: string
@@ -19,7 +20,7 @@ interface TokenBalance {
 
 interface BalanceData {
   address: string
-  chain: 'pulsechain'
+  chain: number
   timestamp: string
   nativeBalance: TokenBalance
   tokenBalances: TokenBalance[]
@@ -32,10 +33,14 @@ interface UsePortfolioBalanceResult {
   error: any
 }
 
-// Function to get native PLS balance
-async function getNativeBalance(address: string): Promise<TokenBalance> {
+// Function to get native balance (PLS or ETH)
+async function getNativeBalance(address: string, chainId: number): Promise<TokenBalance> {
   try {
-    const response = await fetch(PULSECHAIN_RPC, {
+    const rpcUrl = chainId === 369 ? PULSECHAIN_RPC : ETHEREUM_RPC
+    const nativeSymbol = chainId === 369 ? 'PLS' : 'ETH'
+    const nativeName = chainId === 369 ? 'PulseChain' : 'Ethereum'
+    
+    const response = await fetch(rpcUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -64,8 +69,8 @@ async function getNativeBalance(address: string): Promise<TokenBalance> {
 
     return {
       address: '0x0', // Native token
-      symbol: 'PLS',
-      name: 'PulseChain',
+      symbol: nativeSymbol,
+      name: nativeName,
       balance: balanceWei.toString(),
       balanceFormatted,
       decimals: 18,
@@ -74,8 +79,8 @@ async function getNativeBalance(address: string): Promise<TokenBalance> {
   } catch (error) {
     return {
       address: '0x0',
-      symbol: 'PLS',
-      name: 'PulseChain',
+      symbol: chainId === 369 ? 'PLS' : 'ETH',
+      name: chainId === 369 ? 'PulseChain' : 'Ethereum',
       balance: '0',
       balanceFormatted: 0,
       decimals: 18,
@@ -91,13 +96,16 @@ async function getTokenBalance(
   tokenAddress: string, 
   decimals: number,
   symbol: string,
-  name: string
+  name: string,
+  chainId: number
 ): Promise<TokenBalance> {
   try {
+    const rpcUrl = chainId === 369 ? PULSECHAIN_RPC : ETHEREUM_RPC
+    
     // ERC-20 balanceOf(address) function signature + padded wallet address
     const data = '0x70a08231' + walletAddress.slice(2).padStart(64, '0')
     
-    const response = await fetch(PULSECHAIN_RPC, {
+    const response = await fetch(rpcUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -153,23 +161,24 @@ async function getTokenBalance(
   }
 }
 
-// Function to get all balances for an address on PulseChain
-async function getAddressBalances(address: string): Promise<BalanceData> {
+// Function to get all balances for an address on a specific chain
+async function getAddressBalances(address: string, chainId: number): Promise<BalanceData> {
   try {
-    console.log(`[usePortfolioBalance] Fetching balances for ${address} on PulseChain`)
+    const chainName = chainId === 369 ? 'PulseChain' : 'Ethereum'
+    console.log(`[usePortfolioBalance] Fetching balances for ${address} on ${chainName}`)
     
-    // Get native PLS balance
-    const nativeBalance = await getNativeBalance(address)
+    // Get native balance (PLS or ETH)
+    const nativeBalance = await getNativeBalance(address, chainId)
 
-    // Get relevant PulseChain tokens (chain ID 369)
+    // Get relevant tokens for this chain
     const relevantTokens = TOKEN_CONSTANTS.filter(token => 
-      token.chain === 369 && 
+      token.chain === chainId && 
       token.a !== "0x0" && // Skip native tokens
       token.a && 
       token.a.length === 42 // Valid address format
     )
 
-    console.log(`[usePortfolioBalance] Checking ${relevantTokens.length} PulseChain tokens for ${address}`)
+    console.log(`[usePortfolioBalance] Checking ${relevantTokens.length} ${chainName} tokens for ${address}`)
 
     // Get token balances in batches to avoid overwhelming the RPC
     const batchSize = 10
@@ -179,7 +188,7 @@ async function getAddressBalances(address: string): Promise<BalanceData> {
       const batch = relevantTokens.slice(i, i + batchSize)
       
       const batchPromises = batch.map(async (token) => {
-        return getTokenBalance(address, token.a, token.decimals, token.ticker, token.name)
+        return getTokenBalance(address, token.a, token.decimals, token.ticker, token.name, chainId)
       })
 
       const batchResults = await Promise.all(batchPromises)
@@ -197,25 +206,28 @@ async function getAddressBalances(address: string): Promise<BalanceData> {
       }
     }
 
-    console.log(`[usePortfolioBalance] Found ${tokenBalances.length} tokens with balances for ${address}`)
+    console.log(`[usePortfolioBalance] Found ${tokenBalances.length} tokens with balances for ${address} on ${chainName}`)
 
     return {
       address,
-      chain: 'pulsechain',
+      chain: chainId,
       timestamp: new Date().toISOString(),
       nativeBalance,
       tokenBalances
     }
   } catch (error) {
-    console.error(`[usePortfolioBalance] Error fetching balances for ${address}:`, error)
+    console.error(`[usePortfolioBalance] Error fetching balances for ${address} on chain ${chainId}:`, error)
+    const nativeSymbol = chainId === 369 ? 'PLS' : 'ETH'
+    const nativeName = chainId === 369 ? 'PulseChain' : 'Ethereum'
+    
     return {
       address,
-      chain: 'pulsechain',
+      chain: chainId,
       timestamp: new Date().toISOString(),
       nativeBalance: {
         address: '0x0',
-        symbol: 'PLS',
-        name: 'PulseChain',
+        symbol: nativeSymbol,
+        name: nativeName,
         balance: '0',
         balanceFormatted: 0,
         decimals: 18,
@@ -249,8 +261,16 @@ export function usePortfolioBalance(walletAddresses: string[]): UsePortfolioBala
       try {
         console.log(`[usePortfolioBalance] Fetching balances for ${walletAddresses.length} addresses`)
         
-        // Fetch balances for all addresses in parallel
-        const balancePromises = walletAddresses.map(address => getAddressBalances(address))
+        // Fetch balances for all addresses on both chains
+        const balancePromises: Promise<BalanceData>[] = []
+        
+        walletAddresses.forEach(address => {
+          // Fetch PulseChain balances
+          balancePromises.push(getAddressBalances(address, 369))
+          // Fetch Ethereum balances
+          balancePromises.push(getAddressBalances(address, 1))
+        })
+        
         const allBalanceData = await Promise.all(balancePromises)
         
         // Filter out any failed requests

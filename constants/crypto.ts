@@ -1442,13 +1442,6 @@ export const TOKEN_CONSTANTS = [{
   name: "ASIC on PulseChain"
 }, {
   chain: 369,
-  a: "0xbbcf895bfcb57d0f457d050bb806d1499436c0ce",
-  dexs: "0x6312a9477e3BC81D5e3a44d77F0A43630904fF69",
-  ticker: "IM",
-  decimals: 18,
-  name: "IM on PulseChain"
-}, {
-  chain: 369,
   a: "0xca35638a3fddd02fec597d8c1681198c06b23f58",
   dexs: "0xefab2c9c33c42960f2ff653adb39dc5c4c10630e",
   ticker: "TIME",

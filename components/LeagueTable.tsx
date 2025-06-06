@@ -191,10 +191,18 @@ export default React.memo(function LeagueTable({
     hasPreloadedPrice ? [] : [tokenTicker]
   )
   
+  // For tokens starting with "we", use the "e" version for supply lookup (e.g., weDECI -> eDECI)
+  const supplyTokenTicker = useMemo(() => {
+    if (tokenTicker.startsWith('we')) {
+      return tokenTicker.replace('we', 'e')
+    }
+    return tokenTicker
+  }, [tokenTicker])
+
   // Only fetch supply if we don't have valid preloaded supply for this token
   // IMPORTANT: Pass null to skip the hook entirely when we have valid preloaded data
   const { totalSupply: fetchedSupply, loading: supplyLoading, error: supplyError } = useTokenSupply(
-    hasPreloadedSupply ? null : tokenTicker
+    hasPreloadedSupply ? null : supplyTokenTicker
   )
   
   // Use preloaded data if available, otherwise use fetched data

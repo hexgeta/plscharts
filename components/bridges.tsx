@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
@@ -15,6 +15,7 @@ export default function Bridge() {
   // Priority tokens to display
   const MAIN_TOKENS = ['DAI', 'eHEX', 'WETH', 'USDC', 'CST', 'USDT', 'WBTC']
   const MAXIMUS_TOKENS = ['eMAXI', 'eDECI', 'eLUCKY', 'eTRIO', 'eBASE']
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   useEffect(() => {
     console.log('[Bridge Component] Mounted/Re-rendered')
@@ -183,8 +184,15 @@ export default function Bridge() {
     return percentage.toFixed(4) + '%'
   }
 
-  // Show loading state until everything is ready
-  if (!isEverythingReady) {
+  // Effect to handle initial load completion
+  useEffect(() => {
+    if (isEverythingReady && isInitialLoad) {
+      setIsInitialLoad(false)
+    }
+  }, [isEverythingReady, isInitialLoad])
+
+  // Show loading state only on initial load
+  if (!isEverythingReady && isInitialLoad) {
     return (
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
