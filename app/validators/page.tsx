@@ -517,8 +517,8 @@ export default function ValidatorsTracker() {
                   <p className="text-gray-400 mt-2">Grouped by address, ranked by total staked PLS</p>
                 </div>
                 
-                <div className="">
-                  <table className="w-full">
+                <div className="overflow-x-auto scrollbar-hide">
+                  <table className="w-full min-w-[600px]">
                     <thead className="bg-black border-b border-white/10 sticky top-0 z-10">
                       <tr>
                         <th className="px-6 py-4 text-center text-gray-300 font-medium">#</th>

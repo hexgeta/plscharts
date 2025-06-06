@@ -186,7 +186,18 @@ export default function Bridge() {
   // Show loading state until everything is ready
   if (!isEverythingReady) {
     return (
-      <div className="min-h-screen bg-black" />
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ 
+          duration: 0.5,
+          delay: 0.2,
+          ease: [0.23, 1, 0.32, 1]
+        }}
+        className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full mx-auto"
+      >
+        <div className="text-gray-400">Loading bridge data...</div>
+      </motion.div>
     )
   }
 

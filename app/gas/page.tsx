@@ -165,73 +165,24 @@ export default function GasTracker() {
     }));
   }, [historicalGasData, tokenPrices]);
 
-  const handleLegendClick = (dataKey: string) => {
-    setVisibleLines(prev => ({
-      ...prev,
-      [dataKey]: !prev[dataKey]
-    }));
-  };
-
-  const customLegend = (props: any) => {
-    const { payload } = props;
-    
-    if (payload && currentGasData) {
-      return (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          width: '100%', 
-          marginTop: '30px',
-          marginBottom: '40px'
-        }}>
-          <ul style={{ 
-            listStyle: 'none', 
-            padding: 0, 
-            display: 'flex', 
-            flexDirection: 'column',
-            gap: '0px',
-            alignItems: 'center'
-          }}>
-            {payload.map((entry: any, index: number) => (
-              <li 
-                key={`item-${index}`}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  cursor: 'pointer',
-                  padding: '2px 0'
-                }}
-                onClick={() => handleLegendClick(entry.dataKey)}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <img 
-                    src={`/coin-logos/${entry.dataKey === 'ethereum' ? 'ETH' : 'PLS'}.svg`}
-                    alt={entry.dataKey === 'ethereum' ? 'Ethereum' : 'PulseChain'}
-                    style={{ width: '16px', height: '16px' }}
-                  />
-                  <span 
-                    style={{ 
-                      color: visibleLines[entry.dataKey as keyof typeof visibleLines] ? '#fff' : '#888',
-                      fontSize: '12px'
-                    }}
-                  >
-                    {entry.value} - Current: {entry.dataKey === 'ethereum' 
-                      ? `$${tokenPrices?.ETH?.price ? calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2) : '0.00'}`
-                      : `$${tokenPrices?.PLS?.price ? calculateTransactionCost(currentGasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2) : '0.00'}`}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
-    return null;
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-black" />
+      <div className="min-h-screen bg-black text-white p-8">
+        <div className="max-w-6xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ 
+              duration: 0.5,
+              delay: 0.2,
+              ease: [0.23, 1, 0.32, 1]
+            }}
+            className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full mx-auto"
+          >
+            <div className="text-gray-400">Loading gas data...</div>
+          </motion.div>
+        </div>
+      </div>
     );
   }
 
@@ -418,12 +369,12 @@ export default function GasTracker() {
             }}
             className="w-full h-[550px] my-10 relative"
           >
-            <div className="w-full h-full p-8 border-2 border-white/10 rounded-xl">
-              <h2 className="text-left text-white text-2xl mb-0 ml-10">
+            <div className="w-full h-full p-4 border-2 border-white/10 rounded-xl flex flex-col justify-center">
+              <h2 className="text-left text-white text-2xl mb-4 ml-10">
                 Gas Price History (Last 24 hrs)
               </h2>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+              <ResponsiveContainer width="100%" height="90%">
+                <LineChart data={chartData} margin={{ top: 20, right: 5, left: 5, bottom: 20 }}>
                   <CartesianGrid 
                     strokeDasharray="3 3" 
                     stroke="rgba(136, 136, 136, 0.2)" 
@@ -491,7 +442,6 @@ export default function GasTracker() {
                       return null;
                     }}
                   />
-                  <Legend content={customLegend} />
                   <Line 
                     type="monotone" 
                     dataKey="ethereum" 

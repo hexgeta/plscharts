@@ -23,6 +23,7 @@ interface LeagueTableProps {
   preloadedSupply?: number // Supply from parent component for main tokens
   supplyDeduction?: number // Amount to subtract from total supply (e.g., burned tokens)
   userBalance?: number // User's token balance to highlight current league
+  showLeagueNames?: boolean // Whether to show league names next to icons (only on main leagues page)
 }
 
 // Sea creature ranks from highest to lowest
@@ -175,7 +176,8 @@ export default React.memo(function LeagueTable({
   preloadedPrices,
   preloadedSupply,
   supplyDeduction,
-  userBalance
+  userBalance,
+  showLeagueNames = false
 }: LeagueTableProps) {
   
   const [showError, setShowError] = useState(false);
@@ -363,6 +365,11 @@ export default React.memo(function LeagueTable({
                   sizes="24px"
                 />
               </div>
+              {showLeagueNames && (
+                <div className="text-white text-[10px] sm:text-xs font-medium">
+                  {rank.name}
+                </div>
+              )}
             </div>
 
             {/* Market Cap - Center Aligned */}
@@ -413,6 +420,7 @@ export default React.memo(function LeagueTable({
   if (prevProps.tokenTicker !== nextProps.tokenTicker) return false;
   if (prevProps.containerStyle !== nextProps.containerStyle) return false;
   if (prevProps.supplyDeduction !== nextProps.supplyDeduction) return false;
+  if (prevProps.showLeagueNames !== nextProps.showLeagueNames) return false;
   
   // Compare preloaded supply
   if (prevProps.preloadedSupply !== nextProps.preloadedSupply) return false;

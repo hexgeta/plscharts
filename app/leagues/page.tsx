@@ -275,18 +275,21 @@ export default function LeaguesPage() {
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['PLS']}
           supplyDeduction={getOADeduction('PLS')}
+          showLeagueNames={true}
         />
         <LeagueTable 
           tokenTicker="PLSX" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['PLSX']}
           supplyDeduction={getOADeduction('PLSX')}
+          showLeagueNames={true}
         />
         <LeagueTable 
           tokenTicker="INC" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['INC']}
           supplyDeduction={getOADeduction('INC')}
+          showLeagueNames={true}
         />
       </div>
 
@@ -297,12 +300,14 @@ export default function LeaguesPage() {
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['eHEX']}
           supplyDeduction={getOADeduction('eHEX')}
+          showLeagueNames={true}
         />
         <LeagueTable 
           tokenTicker="HEX" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['HEX']}
           supplyDeduction={getOADeduction('HEX')}
+          showLeagueNames={true}
         />
       </div>
 
@@ -313,12 +318,14 @@ export default function LeaguesPage() {
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['eHDRN']}
           supplyDeduction={getOADeduction('eHDRN')}
+          showLeagueNames={true}
         />
         <LeagueTable 
           tokenTicker="HDRN" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['HDRN']}
           supplyDeduction={getOADeduction('HDRN')}
+          showLeagueNames={true}
         />
       </div>
 
@@ -329,12 +336,14 @@ export default function LeaguesPage() {
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['eICSA']}
           supplyDeduction={getOADeduction('eICSA')}
+          showLeagueNames={true}
         />
         <LeagueTable 
           tokenTicker="ICSA" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['ICSA']}
           supplyDeduction={getOADeduction('ICSA')}
+          showLeagueNames={true}
         />
       </div>
 
@@ -345,12 +354,14 @@ export default function LeaguesPage() {
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['eCOM']}
           supplyDeduction={getOADeduction('eCOM')}
+          showLeagueNames={true}
         />
         <LeagueTable 
           tokenTicker="COM" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['COM']}
           supplyDeduction={getOADeduction('COM')}
+          showLeagueNames={true}
         />
       </div>
     </>

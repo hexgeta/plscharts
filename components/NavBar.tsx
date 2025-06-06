@@ -98,7 +98,7 @@ const NavBar = () => {
 
         {/* MOBILE VIEW */}
         <button
-          className="md:hidden flex flex-col justify-center items-center w-12 h-6 relative z-[100] bg-transparent border-0 p-2 touch-manipulation"
+          className="md:hidden flex flex-col justify-center items-center w-16 h-12 relative z-[100] bg-transparent border-0 p-0 touch-manipulation"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Toggle menu"
           aria-expanded={isMenuOpen}

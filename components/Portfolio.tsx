@@ -7,7 +7,7 @@ import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
 import { usePortfolioBalance } from '@/hooks/crypto/usePortfolioBalance'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
-import { X, Edit, Trash2 } from 'lucide-react'
+import { X, Edit, Trash2, TrendingUp, Copy } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import LeagueTable from '@/components/LeagueTable'
 import Image from 'next/image'
@@ -34,8 +34,6 @@ export default function Portfolio() {
   // State for address management
   const [addresses, setAddresses] = useState<StoredAddress[]>([])
   const [addressInput, setAddressInput] = useState('')
-  const [bulkAddressInput, setBulkAddressInput] = useState('')
-  const [showBulkMode, setShowBulkMode] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [newAddressInput, setNewAddressInput] = useState('')
   const [newLabelInput, setNewLabelInput] = useState('')
@@ -140,33 +138,7 @@ export default function Portfolio() {
     return { valid, invalid, duplicates }
   }
 
-  // Handle bulk address submission
-  const handleBulkAddressSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    const results = parseBulkAddresses(bulkAddressInput)
-    setBulkParseResults(results)
 
-    // Add all valid addresses
-    if (results.valid.length > 0) {
-      const newAddresses = results.valid.map(address => ({
-        address,
-        label: '',
-        id: Date.now().toString() + Math.random().toString()
-      }))
-      
-      setAddresses(prev => [...prev, ...newAddresses])
-      
-      // If all addresses were added successfully, clear the input
-      if (results.invalid.length === 0 && results.duplicates.length === 0) {
-        setBulkAddressInput('')
-        setBulkParseResults(null)
-      }
-    }
-
-    // Clear results after 10 seconds
-    setTimeout(() => setBulkParseResults(null), 10000)
-  }
 
   // Handle adding address from main input (now supports bulk pasting)
   const handleAddressSubmit = (e: React.FormEvent) => {
@@ -496,6 +468,20 @@ export default function Portfolio() {
     return percentage.toFixed(4) + '%'
   }
 
+  // Copy contract address to clipboard
+  const copyContractAddress = useCallback(async (address: string, symbol: string) => {
+    try {
+      await navigator.clipboard.writeText(address)
+      const popup = document.createElement('div')
+      popup.textContent = '✓ Copied!'
+      popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[1000]'
+      document.body.appendChild(popup)
+      setTimeout(() => popup.remove(), 2000)
+    } catch (err) {
+      console.error('Failed to copy address:', err)
+    }
+  }, [])
+
   // Memoized token row component to prevent unnecessary re-renders
   const TokenRow = memo(({ token, tokenPrice, tokenIndex }: { 
     token: any; 
@@ -507,7 +493,14 @@ export default function Portfolio() {
     
     // Get supply from constants (existing logic)
     const supply = useMemo(() => {
-      const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
+      let symbolToSearch = token.symbol
+      
+      // For tokens starting with "we", use the "e" version supply (e.g., weDECI -> eDECI)
+      if (token.symbol.startsWith('we')) {
+        symbolToSearch = token.symbol.replace('we', 'e')
+      }
+      
+      const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === symbolToSearch)
       return tokenConfig?.supply || null
     }, [token.symbol])
     
@@ -559,7 +552,7 @@ export default function Portfolio() {
     }, [finalSupply, token.balanceFormatted])
 
     return (
-      <div className="grid grid-cols-[2fr_1fr_2fr] items-center gap-3 py-2">
+      <div className="grid grid-cols-[2fr_1fr_2fr_auto] items-center gap-1 py-2">
         {/* Token Info - Left Column */}
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
@@ -584,13 +577,13 @@ export default function Portfolio() {
         <div className="flex flex-col items-center justify-center ml-14">
           <Dialog>
             <DialogTrigger asChild>
-              <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-1 rounded-lg">
+              <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-0 rounded-lg">
                 {leagueInfo.icon && (
                   <Image
                     src={leagueInfo.icon}
                     alt={leagueInfo.league}
-                    width={16}
-                    height={16}
+                    width={20}
+                    height={20}
                     className="object-contain"
                   />
                 )}
@@ -626,9 +619,55 @@ export default function Portfolio() {
           <div className="text-white font-medium text-sm md:text-lg">
             ${formatBalance(usdValue)}
           </div>
-          <div className="text-gray-400 text-[8px] mt-0.5">
+          <div className="text-gray-400 text-[12px] mt-0.5">
             {displayAmount} {token.symbol}
           </div>
+        </div>
+
+        {/* Chart & Copy Icons - Far Right Column */}
+        <div className="flex flex-col items-center ml-2">
+          {(() => {
+            // Get the appropriate address for charts/copying
+            let chartAddress = token.address
+            let copyAddress = token.address
+            
+            // For PLS (native token), use the dexs address from constants
+            if (token.isNative && token.symbol === 'PLS') {
+              const plsConstant = TOKEN_CONSTANTS.find(t => t.ticker === 'PLS')
+              if (plsConstant?.dexs) {
+                chartAddress = plsConstant.dexs
+                copyAddress = plsConstant.dexs
+              }
+            }
+            
+            const shouldShowIcons = chartAddress && chartAddress !== '0x0'
+            
+            return shouldShowIcons ? (
+              <>
+                {/* Chart Icon - Link to DexScreener */}
+                <a
+                  href={`https://dexscreener.com/pulsechain/${chartAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1 mt-0 text-gray-400 hover:text-white transition-colors"
+                  title="View chart on DexScreener"
+                >
+                  <TrendingUp size={16} />
+                </a>
+
+                {/* Copy Icon - Copy Contract Address (only for non-native tokens) */}
+                {!token.isNative && (
+                  <button
+                    onClick={() => copyContractAddress(copyAddress, token.symbol)}
+                    className="p-1 -mt-0 transition-colors text-gray-400 hover:text-white"
+                    title="Copy contract address"
+                  >
+                    <Copy size={16} />
+                  </button>
+                )}
+              </>
+            ) : null
+          })()}
         </div>
       </div>
     )
@@ -707,138 +746,57 @@ export default function Portfolio() {
           delay: 0.1,
           ease: [0.23, 1, 0.32, 1]
         }}
-        className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[460px] w-full"
+        className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[660px] w-full"
         style={{ display: addresses.length > 0 ? 'none' : 'block' }}
       >
-        {/* Mode Toggle */}
-        <div className="flex items-center justify-center mb-4">
-          <div className="flex bg-black border border-white/20 rounded-lg p-1">
-            <button
-              type="button"
-              onClick={() => setShowBulkMode(false)}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                !showBulkMode 
-                  ? 'bg-white text-black' 
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Single Address
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowBulkMode(true)}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                showBulkMode 
-                  ? 'bg-white text-black' 
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Bulk Import
-            </button>
+        {/* Unified Address Input */}
+        <form onSubmit={handleAddressSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-300 mb-2 text-center">
+              Enter PulseChain address(es)
+            </label>
+            <textarea
+              id="address"
+              value={addressInput}
+              onChange={(e) => setAddressInput(e.target.value)}
+              placeholder="0x... (single address or paste multiple addresses)"
+              rows={4}
+              className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none transition-colors resize-vertical"
+            />
           </div>
-        </div>
-
-        {!showBulkMode ? (
-          /* Single Address Mode */
-          <form onSubmit={handleAddressSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="address" className="block text-sm font-medium text-gray-300 mb-2 text-center">
-                Enter PulseChain address
-              </label>
-              <input
-                type="text"
-                id="address"
-                value={addressInput}
-                onChange={(e) => setAddressInput(e.target.value)}
-                placeholder="0x..."
-                className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none transition-colors"
-              />
+          
+          {/* Parse Results */}
+          {bulkParseResults && (
+            <div className="space-y-2">
+              {bulkParseResults.valid.length > 0 && (
+                <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
+                  ✅ {bulkParseResults.valid.length} valid address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
+                </div>
+              )}
+              {bulkParseResults.invalid.length > 0 && (
+                <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
+                  ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 3).join(', ')}{bulkParseResults.invalid.length > 3 ? '...' : ''}
+                </div>
+              )}
+              {bulkParseResults.duplicates.length > 0 && (
+                <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
+                  ⚠️ {bulkParseResults.duplicates.length} duplicate address{bulkParseResults.duplicates.length !== 1 ? 'es' : ''} skipped
+                </div>
+              )}
             </div>
-            
-            {/* Duplicate Error Message */}
-            {duplicateError && (
-              <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm flex items-center gap-2">
-                <span>⚠️</span>
-                <span>{duplicateError}</span>
-              </div>
-            )}
-            
-            {/* Bulk Parse Results for main input */}
-            {bulkParseResults && !showBulkMode && (
-              <div className="space-y-2">
-                {bulkParseResults.valid.length > 0 && (
-                  <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
-                    ✅ {bulkParseResults.valid.length} address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
-                  </div>
-                )}
-                {bulkParseResults.invalid.length > 0 && (
-                  <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
-                    ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 2).join(', ')}{bulkParseResults.invalid.length > 2 ? '...' : ''}
-                  </div>
-                )}
-                {bulkParseResults.duplicates.length > 0 && (
-                  <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
-                    ⚠️ {bulkParseResults.duplicates.length} duplicate{bulkParseResults.duplicates.length !== 1 ? 's' : ''} skipped
-                  </div>
-                )}
-              </div>
-            )}
-            
-            <button
-              type="submit"
-              disabled={!addressInput.trim()}
-              className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-            >
-              Add Address{parseBulkAddresses(addressInput).valid.length > 1 ? 'es' : ''}
-            </button>
-          </form>
-        ) : (
-          /* Bulk Address Mode */
-          <form onSubmit={handleBulkAddressSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="bulkAddress" className="block text-sm font-medium text-gray-300 mb-2 text-center">
-                Paste multiple addresses
-              </label>
-              <textarea
-                id="bulkAddress"
-                value={bulkAddressInput}
-                onChange={(e) => setBulkAddressInput(e.target.value)}
-                placeholder="Paste addresses here..."
-                rows={6}
-                className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none transition-colors resize-vertical"
-              />
-            </div>
-            
-            {/* Bulk Parse Results */}
-            {bulkParseResults && (
-              <div className="space-y-2">
-                {bulkParseResults.valid.length > 0 && (
-                  <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
-                    ✅ {bulkParseResults.valid.length} valid address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
-                  </div>
-                )}
-                {bulkParseResults.invalid.length > 0 && (
-                  <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
-                    ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 3).join(', ')}{bulkParseResults.invalid.length > 3 ? '...' : ''}
-                  </div>
-                )}
-                {bulkParseResults.duplicates.length > 0 && (
-                  <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
-                    ⚠️ {bulkParseResults.duplicates.length} duplicate address{bulkParseResults.duplicates.length !== 1 ? 'es' : ''} skipped
-                  </div>
-                )}
-              </div>
-            )}
-            
-            <button
-              type="submit"
-              disabled={!bulkAddressInput.trim()}
-              className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-            >
-              Parse & Add Addresses
-            </button>
-          </form>
-        )}
+          )}
+          
+          <button
+            type="submit"
+            disabled={!addressInput.trim()}
+            className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+          >
+            Add Address{(() => {
+              const results = parseBulkAddresses(addressInput)
+              return results.valid.length > 1 ? 'es' : ''
+            })()}
+          </button>
+        </form>
       </motion.div>
 
       {/* Show loading state when fetching data */}
@@ -851,7 +809,7 @@ export default function Portfolio() {
             delay: 0.2,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[460px] w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full"
         >
           <div className="text-gray-400">Loading portfolio...</div>
         </motion.div>
@@ -867,7 +825,7 @@ export default function Portfolio() {
             delay: 0.2,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[460px] w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[660px] w-full"
         >
           <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
             Error: {balancesError?.message || balancesError || 'Failed to load portfolio data'}
@@ -885,7 +843,7 @@ export default function Portfolio() {
             delay: 0.3,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[460px] w-full relative"
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full relative"
         >
           {/* Edit button in top right */}
           {addresses.length > 0 && (
@@ -900,7 +858,7 @@ export default function Portfolio() {
           <h2 className="text-xs font-bold mb-2">
             {selectedAddressIds.length > 0 ? `${selectedAddressIds.length}/${addresses.length} Addresses` : 'Total Portfolio Value'}
           </h2>
-          <div className="text-5xl font-bold text-green-400">
+          <div className="text-4xl font-bold text-white">
             ${formatBalance(totalUsdValue)}
           </div>
           <div className="text-sm text-gray-400 mt-4 flex flex-wrap gap-2 justify-center">
@@ -931,7 +889,7 @@ export default function Portfolio() {
             delay: 0.4,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[460px] w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[660px] w-full"
         >
           <div className="space-y-3">
             {sortedTokens.map((token, tokenIndex) => {
@@ -955,7 +913,7 @@ export default function Portfolio() {
             delay: 0.4,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[460px] w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full"
         >
           <div className="text-gray-400">
             No tokens found for tracked addresses
@@ -1102,7 +1060,7 @@ export default function Portfolio() {
                 <div className="flex gap-3">
                   <input
                     type="text"
-                    placeholder="0x... (paste multiple addresses supported)"
+                    placeholder="0x..."
                     value={newAddressInput}
                     onChange={(e) => setNewAddressInput(e.target.value)}
                     className="flex-1 px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none"
