@@ -11,7 +11,7 @@ export default function PortfolioPage() {
             </div>
 
         <div className="space-y-0">
-          {/* Portfolio Component */}
+          {/* Portfolio Componen */}
           <Portfolio />
         </div>
       </div>
