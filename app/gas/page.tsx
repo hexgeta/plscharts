@@ -235,7 +235,7 @@ export default function GasTracker() {
             <div className="space-y-2">
               <div className="text-3xl font-bold text-indigo-400">
                 {tokenPrices?.ETH?.price ? 
-                  `$${calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2)} USD` :
+                  `$${calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2)}` :
                   'Price loading...'
                 }
               </div>
@@ -260,7 +260,7 @@ export default function GasTracker() {
             <div className="space-y-2">
               <div className="text-3xl font-bold text-pink-400">
                 {tokenPrices?.PLS?.price ? 
-                  `$${calculateTransactionCost(currentGasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2)} USD` :
+                  `$${calculateTransactionCost(currentGasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2)}` :
                   'Price loading...'
                 }
               </div>
@@ -332,7 +332,7 @@ export default function GasTracker() {
           </div>
 
           {/* Comparison */}
-          <div className="bg-black rounded-xl p-12 border-2 border-white/10 flex flex-col justify-center order-1 md:order-none">
+          <div className="bg-black rounded-xl p-6 border-2 border-white/10 flex flex-col justify-center order-1 md:order-none">
             <div className="flex items-baseline">
               <div className="text-4xl font-bold text-green-400">
                 {tokenPrices?.ETH?.price && tokenPrices?.PLS?.price ? (
