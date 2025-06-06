@@ -645,6 +645,10 @@ export default function Portfolio() {
             </div>
             <div className="text-gray-400 text-[10px]">
               <span className="sm:hidden">{displayAmount} {token.symbol}</span>
+              <span className="hidden sm:block">{(() => {
+                const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
+                return tokenConfig?.name || token.symbol
+              })()}</span>
             </div>
           </div>
         </div>
