@@ -548,13 +548,51 @@ export default function Portfolio() {
   }, [])
 
   // Memoized token row component to prevent unnecessary re-renders
-  const TokenRow = memo(({ token, tokenPrice, tokenIndex }: { 
+  const TokenRow = memo(({ token, tokenPrice, tokenIndex, allTokens }: { 
     token: any; 
     tokenPrice: number; 
     tokenIndex: number; 
+    allTokens: any[];
   }) => {
     const usdValue = token.balanceFormatted * tokenPrice
     const displayAmount = formatBalance(token.balanceFormatted)
+    
+    // Helper function to get the base token name (remove 'e' or 'we' prefix)
+    const getBaseTokenName = (symbol: string): string => {
+      if (symbol.startsWith('we')) return symbol.substring(2)
+      if (symbol.startsWith('e')) return symbol.substring(1)
+      return symbol
+    }
+    
+    // Find corresponding e/we version of this token
+    const findPairedToken = (currentSymbol: string) => {
+      const baseToken = getBaseTokenName(currentSymbol)
+      
+      if (currentSymbol.startsWith('e')) {
+        // This is an 'e' token, look for 'we' version
+        return allTokens.find(t => t.symbol === `we${baseToken}`)
+      } else if (currentSymbol.startsWith('we')) {
+        // This is a 'we' token, look for 'e' version
+        return allTokens.find(t => t.symbol === `e${baseToken}`)
+      }
+      return null
+    }
+    
+    const pairedToken = findPairedToken(token.symbol)
+    const isEVersion = token.symbol.startsWith('e')
+    const isWeVersion = token.symbol.startsWith('we')
+    const hasPairedToken = pairedToken !== null
+    
+    // Calculate combined balance for league calculation (if there's a paired token)
+    const combinedBalance = hasPairedToken && pairedToken?.balanceFormatted !== undefined
+      ? token.balanceFormatted + pairedToken.balanceFormatted 
+      : token.balanceFormatted
+    
+    // Only show league on 'e' version when there's a paired 'we' version
+    // For all other tokens (not starting with e or we), always show league
+    const shouldShowLeague = !isEVersion && !isWeVersion 
+      ? true  // Always show for regular tokens (PLS, PLSX, HEX, etc.)
+      : !isWeVersion || !(hasPairedToken && pairedToken?.balanceFormatted !== undefined)
     
     // Get supply from constants (existing logic)
     const supply = useMemo(() => {
@@ -583,26 +621,26 @@ export default function Portfolio() {
       : (apiSupply > 0 ? apiSupply : supply)
     
     const supplyPercentage = useMemo(() => {
-      if (!finalSupply || token.balanceFormatted === 0) return ''
+      if (!finalSupply || combinedBalance === 0) return ''
       
       // Subtract OA supply if available for this token
       const oaSupply = OA_SUPPLIES[token.symbol] || 0
       const adjustedSupply = finalSupply - oaSupply
       
-      const percentage = (token.balanceFormatted / adjustedSupply) * 100
+      const percentage = (combinedBalance / adjustedSupply) * 100
       return formatPercentage(percentage)
-    }, [finalSupply, token.balanceFormatted])
+    }, [finalSupply, combinedBalance])
 
     // Calculate league position based on percentage
     const leagueInfo = useMemo(() => {
-      if (!finalSupply || token.balanceFormatted === 0) return { league: '', icon: '' }
+      if (!finalSupply || combinedBalance === 0) return { league: '', icon: '' }
       
       // Subtract OA supply if available for this token
       const oaSupply = OA_SUPPLIES[token.symbol] || 0
       const adjustedSupply = finalSupply - oaSupply
       
-      // Use adjusted supply for percentage calculation
-      const percentage = (token.balanceFormatted / adjustedSupply) * 100
+      // Use adjusted supply for percentage calculation with combined balance
+      const percentage = (combinedBalance / adjustedSupply) * 100
       
       // Use the exact same league system as LeagueTable.tsx
       if (percentage >= 10) return { league: 'Poseidon', icon: '/poseidon.png' }
@@ -614,7 +652,7 @@ export default function Portfolio() {
       if (percentage >= 0.00001) return { league: 'Crab', icon: '/crab.png' }
       if (percentage >= 0.000001) return { league: 'Shrimp', icon: '/shrimp.png' }
       return { league: 'Shell', icon: '/shell.png' }
-    }, [finalSupply, token.balanceFormatted])
+    }, [finalSupply, combinedBalance])
 
     // Get 24h price change data from prices hook
     const priceData = prices[token.symbol]
@@ -678,43 +716,53 @@ export default function Portfolio() {
 
         {/* League Column - Hidden on Mobile */}
         <div className="hidden sm:flex flex-col items-center justify-center ml-14">
-          <Dialog>
-            <DialogTrigger asChild>
-              <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-0 rounded-lg">
-                {leagueInfo.icon && (
-                  <Image
-                    src={leagueInfo.icon}
-                    alt={leagueInfo.league}
-                    width={20}
-                    height={20}
-                    className="object-contain"
-                  />
-                )}
-              </button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ 
-                  duration: 0.4,
-                  ease: [0.23, 1, 0.32, 1]
-                }}
-                className="p-4"
-              >
-                <LeagueTable 
+          {shouldShowLeague ? (
+            <>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-0 rounded-lg">
+                    {leagueInfo.icon && (
+                      <Image
+                        src={leagueInfo.icon}
+                        alt={leagueInfo.league}
+                        width={20}
+                        height={20}
+                        className="object-contain"
+                      />
+                    )}
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ 
+                      duration: 0.4,
+                      ease: [0.23, 1, 0.32, 1]
+                    }}
+                    className="p-4"
+                  >
+                                    <LeagueTable 
                   tokenTicker={token.symbol} 
                   containerStyle={false}
+                  preloadedSupply={finalSupply || undefined}
+                  preloadedPrices={prices}
                   supplyDeduction={leagueSupplyDeduction}
-                  userBalance={token.balanceFormatted}
+                  userBalance={combinedBalance}
                 />
-              </motion.div>
-            </DialogContent>
-          </Dialog>
-          <div className="text-gray-400 text-[9px] text-center leading-tight w-full mt-0.5">
-            {supplyPercentage}
-          </div>
+                  </motion.div>
+                </DialogContent>
+              </Dialog>
+              <div className="text-gray-400 text-[9px] text-center leading-tight w-full mt-0.5">
+                {supplyPercentage}
+              </div>
+            </>
+          ) : (
+            <div className="w-8 h-8 flex items-center justify-center mb-0">
+              {/* Empty space for 'we' tokens when 'e' version exists */}
+            </div>
+          )}
               </div>
               
                 {/* Value - Right Column */}
@@ -781,7 +829,8 @@ export default function Portfolio() {
       prevProps.token.chain === nextProps.token.chain &&
       prevProps.token.balanceFormatted === nextProps.token.balanceFormatted &&
       prevProps.tokenPrice === nextProps.tokenPrice &&
-      prevProps.tokenIndex === nextProps.tokenIndex
+      prevProps.tokenIndex === nextProps.tokenIndex &&
+      prevProps.allTokens.length === nextProps.allTokens.length
     )
   })
 
@@ -1075,7 +1124,7 @@ export default function Portfolio() {
               {/* Edit button */}
               <button
                 onClick={() => setShowEditModal(true)}
-                className="p-2 rounded-lg text-gray-400 hover:text-white transition-colors"
+                className="p-2 mr-8 rounded-lg text-gray-400 hover:text-white transition-colors"
               >
                 <Edit size={16} />
               </button>
@@ -1127,7 +1176,7 @@ export default function Portfolio() {
               // Use a stable key that includes the token address to prevent unnecessary remounting
               const stableKey = `${token.chain}-${token.symbol}-${token.address || 'native'}`
               return (
-                <TokenRow key={stableKey} token={token} tokenPrice={tokenPrice} tokenIndex={tokenIndex} />
+                <TokenRow key={stableKey} token={token} tokenPrice={tokenPrice} tokenIndex={tokenIndex} allTokens={sortedTokens} />
               )
             })}
                 </div>

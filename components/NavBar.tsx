@@ -30,6 +30,8 @@ const NavBar = () => {
   // Helper function to get link classes
   const getLinkClasses = (href: string, isMobile = false) => {
     const baseClasses = "transition-colors";
+    const desktopPadding = "px-2 py-3 rounded-md";
+    const mobilePadding = "block py-2";
     const activeClasses = isMobile 
       ? 'text-white cursor-default' 
       : 'text-white cursor-default';
@@ -37,7 +39,9 @@ const NavBar = () => {
       ? 'text-white/80 hover:text-white' 
       : 'text-[rgb(153,153,153)] hover:text-gray-300';
     
-    return cn(baseClasses, isActive(href) ? activeClasses : inactiveClasses);
+    const padding = isMobile ? mobilePadding : desktopPadding;
+    
+    return cn(baseClasses, padding, isActive(href) ? activeClasses : inactiveClasses);
   };
 
   useEffect(() => {
@@ -68,12 +72,12 @@ const NavBar = () => {
   }, []);
 
   return (
-    <nav className={`w-full bg-black px-4 pt-4 pb-4 border-b-1 border-b border-[rgba(255,255,255,0.2)] relative z-[100] ${isBannerVisible ? 'md:mt-[52px]' : ''}`}>
+    <nav className={`w-full bg-black px-4 pt-2 pb-2 border-b-1 border-b border-[rgba(255,255,255,0.2)] relative z-[100] ${isBannerVisible ? 'md:mt-[52px]' : ''}`}>
       <div className="max-w-[1200px] mx-auto flex items-center justify-between relative">
         <Link 
           href="/" 
           className={cn(
-            "font-bold text-xl relative z-[100] transition-colors",
+            "font-bold text-xl relative z-[100] transition-colors px-4 py-4 rounded-md",
             isActive('/') 
               ? 'text-white cursor-default' 
               : 'text-[rgb(153,153,153)] hover:text-gray-300'
@@ -132,10 +136,7 @@ const NavBar = () => {
                 <Link 
                   key={link.href}
                   href={link.href} 
-                  className={cn(
-                    "block py-2",
-                    getLinkClasses(link.href, true)
-                  )}
+                  className={getLinkClasses(link.href, true)}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {link.mobileLabel}

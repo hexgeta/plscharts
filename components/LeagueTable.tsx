@@ -321,6 +321,20 @@ export default React.memo(function LeagueTable({
 
   const content = (
     <div className="w-full transition-all duration-300 ease-in-out">
+      {/* User Balance Header - Only show if userBalance is provided */}
+      {userBalance && userBalance > 0 && (
+        <div className="text-center mb-3 pb-2 border-b border-white/10">
+          {hasValidPriceData && (
+            <div className="text-white text-sm font-medium">
+              ${Math.round(userBalance * tokenPrice.price).toLocaleString('en-US')}
+            </div>
+          )}
+          <div className="text-gray-400 text-xs">
+            {formatCompactNumber(userBalance)} {tokenTicker}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="grid grid-cols-3 items-center gap-4 mb-2">
         <div className="flex items-center space-x-3">
