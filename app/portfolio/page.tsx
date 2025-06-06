@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react'
-import Portfolio from '@/components/portfolio'
+import Portfolio from '@/components/Portfolio'
 
 export default function PortfolioPage() {
     return (
