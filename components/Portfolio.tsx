@@ -1269,7 +1269,7 @@ export default function Portfolio() {
                                               <Image 
                           src="/coin-logos/ETH-white.svg" 
                           alt="Ethereum" 
-                          width={16} 
+                          width={15} 
                           height={16}
                           className="w-4 h-4 opacity-60 group-hover:opacity-100 ml-1"
                         />
