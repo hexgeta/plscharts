@@ -585,6 +585,7 @@ export default function Portfolio() {
     tokenIndex: number; 
     allTokens: any[];
   }) => {
+    const [isDialogOpen, setIsDialogOpen] = useState(false)
     const usdValue = token.balanceFormatted * tokenPrice
     const displayAmount = formatBalance(token.balanceFormatted)
     
@@ -760,7 +761,7 @@ export default function Portfolio() {
         <div className="hidden sm:flex flex-col items-center justify-center ml-14">
           {shouldShowLeague ? (
             <>
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-0 rounded-lg">
                 {leagueInfo.icon && (
@@ -1251,7 +1252,7 @@ export default function Portfolio() {
                         alt="Ethereum" 
                         width={16} 
                         height={16}
-                        className="w-4 h-4 opacity-60 group-hover:opacity-100"
+                        className="w-4 h-4 opacity-70 group-hover:opacity-100"
                       />
                     )}
                                       {chainFilter === 'pulsechain' && (
@@ -1260,7 +1261,7 @@ export default function Portfolio() {
                         alt="PulseChain" 
                         width={16} 
                         height={16}
-                        className="w-4 h-4 opacity-60 group-hover:opacity-100"
+                        className="w-4 h-4 opacity-70 group-hover:opacity-100"
                       />
                     )}
                   {chainFilter === 'both' && (
@@ -1288,7 +1289,7 @@ export default function Portfolio() {
               {/* Edit button */}
               <button
                 onClick={() => setShowEditModal(true)}
-                className="p-2 mr-8 rounded-lg text-gray-400 hover:text-white transition-colors"
+                className="p-2 mr-2 rounded-lg text-gray-400 hover:text-white transition-colors"
               >
                 <Edit size={16} />
               </button>
