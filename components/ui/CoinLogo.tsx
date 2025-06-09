@@ -24,9 +24,22 @@ export function CoinLogo({
   inverted = false,
   variant = 'default'
 }: CoinLogoProps) {
-  // Remove 'w' prefix for wrapped tokens (wBTC -> BTC, wETH -> ETH)
-  // Keep other prefixes like 'p' for PulseChain tokens (pBAT stays pBAT)
-  const baseSymbol = symbol.startsWith('w') ? symbol.slice(1) : symbol
+  // Handle different token prefixes:
+  // - Remove 'e' prefix for Ethereum tokens (eDECI -> DECI, eHEX -> HEX)
+  // - Remove 'w' prefix for wrapped tokens (wBTC -> BTC, wETH -> ETH) but NOT 'we' tokens
+  // - Keep 'we' tokens exactly as they are (weDECI stays weDECI)
+  // - Keep other prefixes like 'p' for PulseChain tokens (pBAT stays pBAT)
+  let baseSymbol = symbol
+  if (symbol.startsWith('we')) {
+    // Keep 'we' tokens exactly as they are
+    baseSymbol = symbol
+  } else if (symbol.startsWith('e')) {
+    // Remove 'e' prefix for Ethereum tokens
+    baseSymbol = symbol.slice(1)
+  } else if (symbol.startsWith('w')) {
+    // Remove 'w' prefix for other wrapped tokens
+    baseSymbol = symbol.slice(1)
+  }
   
   // Special case for ETH with no background
   let logoPath = baseSymbol === 'ETH' && variant === 'no-bg'

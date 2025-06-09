@@ -6,6 +6,7 @@ import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { getDisplayTicker } from '@/utils/ticker-display'
 import React from 'react'
 
 interface LeagueRank {
@@ -181,15 +182,6 @@ export default React.memo(function LeagueTable({
   showLeagueNames = false
 }: LeagueTableProps) {
   
-  // Helper function to get display ticker (remove 'e' prefix for specific tokens)
-  const getDisplayTicker = (ticker: string): string => {
-    const eTokensToDisplay = ['eHEX', 'eCOM', 'eHDRN', 'eICSA'];
-    if (eTokensToDisplay.includes(ticker)) {
-      return ticker.substring(1); // Remove the 'e' prefix
-    }
-    return ticker;
-  };
-  
   const displayTicker = getDisplayTicker(tokenTicker);
   
   const [showError, setShowError] = useState(false);
@@ -335,14 +327,31 @@ export default React.memo(function LeagueTable({
     <div className="w-full transition-all duration-300 ease-in-out">
       {/* User Balance Header - Only show if userBalance is provided */}
       {userBalance && userBalance > 0 && (
-        <div className="text-center mb-3 pb-2 border-b border-white/10">
-          {hasValidPriceData && (
-            <div className="text-white text-sm font-medium">
-              ${Math.round(userBalance * tokenPrice.price).toLocaleString('en-US')}
-            </div>
-          )}
-          <div className="text-gray-400 text-xs">
-            {formatCompactNumber(userBalance)} {displayTicker}
+        <div className="text-center mb-3 pb-6 border-b border-white/10">
+          <div className="text-white text-2xl font-bold">
+            {hasValidPriceData && `$${Math.round(userBalance * tokenPrice.price).toLocaleString('en-US')}`}
+          </div>
+          <div className="text-gray-400 text-sm flex items-center justify-center gap-1">
+            {formatCompactNumber(userBalance)} {displayTicker} (
+            {(() => {
+              const userPercentage = (userBalance / totalSupply) * 100;
+              const userLeague = LEAGUE_RANKS.find(rank => userPercentage >= rank.percentage);
+              return (
+                <span className="flex items-center gap-1">
+                  {userLeague && (
+                    <Image
+                      src={userLeague.icon}
+                      alt={userLeague.name}
+                      width={16}
+                      height={16}
+                      className="object-contain"
+                    />
+                  )}
+                  {userPercentage.toFixed(4)}%
+                </span>
+              );
+            })()}
+            )
           </div>
         </div>
       )}

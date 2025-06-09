@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Image from 'next/image'
+import { getDisplayTicker } from '@/utils/ticker-display'
 
 interface TokenCardProps {
   token: {
@@ -32,7 +33,7 @@ const TokenCard = React.memo(React.forwardRef<HTMLDivElement, TokenCardProps>(({
         />
       </div>
       <div className="text-center">
-        <div className="font-semibold text-sm">{token.ticker}</div>
+        <div className="font-semibold text-sm">{getDisplayTicker(token.ticker)}</div>
         <div className="text-xs text-gray-400 truncate">{token.name}</div>
       </div>
     </div>

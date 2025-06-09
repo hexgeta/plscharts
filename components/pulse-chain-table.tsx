@@ -4,6 +4,7 @@ import { TOKEN_CONSTANTS } from '@/constants/crypto';
 import { formatNumber, formatPrice, formatPercent, formatPriceSigFig } from '@/utils/format';
 import { Skeleton } from '@/components/ui/skeleton2';
 import { CoinLogo } from '@/components/ui/CoinLogo';
+import { getDisplayTicker } from '@/utils/ticker-display';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceChange';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -220,7 +221,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                   priority={true}
                 />
                 <div>
-                  <div className="font-bold text-white">{ticker === 'eHEX' ? 'HEX' : ticker}</div>
+                  <div className="font-bold text-white">{getDisplayTicker(ticker)}</div>
                   <div className="text-xs text-gray-400">{TOKEN_SUBTITLES[ticker] || 'Token'}</div>
                 </div>
               </div>

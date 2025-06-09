@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, memo, useCallback } from 'react'
+import { useState, useMemo, useEffect, memo, useCallback, useRef } from 'react'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
@@ -10,6 +10,7 @@ import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { X, Edit, Trash2, TrendingUp, Copy } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import LeagueTable from '@/components/LeagueTable'
+import { getDisplayTicker } from '@/utils/ticker-display'
 import Image from 'next/image'
 
 interface StoredAddress {
@@ -36,12 +37,30 @@ export default function Portfolio() {
   const [addressInput, setAddressInput] = useState('')
   const [showEditModal, setShowEditModal] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [showMotion, setShowMotion] = useState(true)
+  const animationCompleteRef = useRef(false)
   const [newAddressInput, setNewAddressInput] = useState('')
   const [newLabelInput, setNewLabelInput] = useState('')
   // Add state for managing editing states of addresses
   const [editingStates, setEditingStates] = useState<Record<string, { isEditing: boolean; tempLabel: string }>>({})
   // Add state for filtering by specific addresses (now supports multiple)
-  const [selectedAddressIds, setSelectedAddressIds] = useState<string[]>([])
+  const [selectedAddressIds, setSelectedAddressIds] = useState<string[]>(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioSelectedAddresses')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed)) {
+            return parsed
+          }
+        } catch (e) {
+          console.error('Error parsing saved selected addresses:', e)
+        }
+      }
+    }
+    return []
+  })
   // Add state for duplicate address error
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   // Add state for bulk parsing results
@@ -51,7 +70,16 @@ export default function Portfolio() {
     duplicates: string[]
   } | null>(null)
   // Add to Portfolio component state
-  const [chainFilter, setChainFilter] = useState<'pulsechain' | 'ethereum' | 'both'>('both')
+  const [chainFilter, setChainFilter] = useState<'pulsechain' | 'ethereum' | 'both'>(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioChainFilter')
+      if (saved && ['pulsechain', 'ethereum', 'both'].includes(saved)) {
+        return saved as 'pulsechain' | 'ethereum' | 'both'
+      }
+    }
+    return 'both'
+  })
 
   // Prevent body scroll when edit modal is open
   useEffect(() => {
@@ -89,24 +117,7 @@ export default function Portfolio() {
       }
     }
 
-    // Load saved chain filter
-    const savedChainFilter = localStorage.getItem('portfolioChainFilter')
-    if (savedChainFilter && ['pulsechain', 'ethereum', 'both'].includes(savedChainFilter)) {
-      setChainFilter(savedChainFilter as 'pulsechain' | 'ethereum' | 'both')
-    }
-
-    // Load saved selected address IDs
-    const savedSelectedIds = localStorage.getItem('portfolioSelectedAddresses')
-    if (savedSelectedIds) {
-      try {
-        const parsedSelectedIds = JSON.parse(savedSelectedIds)
-        if (Array.isArray(parsedSelectedIds)) {
-          setSelectedAddressIds(parsedSelectedIds)
-        }
-      } catch (e) {
-        console.error('Error parsing saved selected addresses:', e)
-      }
-    }
+    // Note: Chain filter and selected addresses are now initialized from localStorage in useState
   }, [])
 
   // Save addresses to localStorage whenever addresses change
@@ -118,11 +129,13 @@ export default function Portfolio() {
 
   // Save chain filter to localStorage whenever it changes
   useEffect(() => {
+    console.log('[Portfolio] Saving chain filter:', chainFilter)
     localStorage.setItem('portfolioChainFilter', chainFilter)
   }, [chainFilter])
 
   // Save selected address IDs to localStorage whenever they change
   useEffect(() => {
+    console.log('[Portfolio] Saving selected addresses:', selectedAddressIds.length, 'addresses')
     localStorage.setItem('portfolioSelectedAddresses', JSON.stringify(selectedAddressIds))
   }, [selectedAddressIds])
 
@@ -392,14 +405,32 @@ export default function Portfolio() {
     // Always include the base tokens to ensure consistent ticker set
     const baseTokens = ['PLS', 'PLSX', 'HEX', 'ETH', 'USDC', 'DAI', 'USDT']
     
-    return [...new Set([...tokens, ...baseTokens])]
-  }, [balances])
+    const allTickers = [...new Set([...tokens, ...baseTokens])]
+    
+    // Return a stable array - only change if the actual content changes
+    return allTickers.sort() // Sort for consistent ordering
+  }, [
+    // Only depend on the actual token symbols, not the balance objects
+    balances && balances.map(b => [
+      b.nativeBalance.symbol,
+      ...(b.tokenBalances?.map(t => t.symbol) || [])
+    ].join(',')).sort().join('|')
+  ])
 
   // Minimal debug logging (only when needed)
   // console.log('[Portfolio] Component render - balances:', balances?.length, 'tickers:', allTokenTickers.length, 'chainFilter:', chainFilter, 'selectedIds:', selectedAddressIds.length)
 
   // Fetch prices for all tokens with balances plus CST
-  const { prices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
+  const { prices: rawPrices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
+
+  // Stabilize prices reference to prevent unnecessary re-renders
+  const prices = useMemo(() => {
+    // Add some debugging to see if prices are updating
+    if (rawPrices && !isInitialLoad) {
+      console.log('[Portfolio] Prices updated:', Object.keys(rawPrices).length, 'tokens');
+    }
+    return rawPrices || {};
+  }, [rawPrices, isInitialLoad])
 
   // Get all tokens with balances combined from all addresses (or filtered by selected address)
   const { filteredBalances, mainTokensWithBalances } = useMemo(() => {
@@ -666,9 +697,20 @@ export default function Portfolio() {
     }, [token.symbol, token.chain])
 
   return (
-      <div className="grid grid-cols-[2fr_1fr_2fr_auto] sm:grid-cols-[2fr_1fr_1fr_1fr_2fr_auto] items-center gap-4 py-3 border-b border-white/10 mx-4 last:border-b-0">
+      <div className="grid grid-cols-[auto_2fr_1fr_2fr_auto] sm:grid-cols-[auto_2fr_1fr_1fr_1fr_2fr_auto] items-center gap-4 py-3 border-b border-white/10 mx-6 last:border-b-0">
+        {/* Chain Icon - Furthest Left Column */}
+        <div className="flex items-center justify-center">
+          <Image
+            src={Number(token.chain) === 1 ? "/coin-logos/ETH-white.svg" : "/coin-logos/PLS-white.svg"}
+            alt={Number(token.chain) === 1 ? "Ethereum" : "PulseChain"}
+            width={14}
+            height={14}
+            className="w-4 h-4 opacity-30"
+          />
+        </div>
+        
         {/* Token Info - Left Column */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 min-w-[40px]">
           <div className="flex-shrink-0">
             <CoinLogo
               symbol={token.symbol}
@@ -679,13 +721,13 @@ export default function Portfolio() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-white font-medium text-sm md:text-md">
-              {token.symbol}
+              {getDisplayTicker(token.symbol)}
             </div>
             <div className="text-gray-400 text-[10px]">
-              <span className="sm:hidden">{displayAmount} {token.symbol}</span>
+              <span className="sm:hidden">{displayAmount} {getDisplayTicker(token.symbol)}</span>
               <span className="hidden sm:block">{(() => {
                 const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
-                return tokenConfig?.name || token.symbol
+                return tokenConfig?.name || getDisplayTicker(token.symbol)
               })()}</span>
             </div>
           </div>
@@ -700,7 +742,7 @@ export default function Portfolio() {
 
         {/* 24h Price Change Column */}
         <div className="text-center ml-4 sm:ml-0">
-          <div className={`text-xs font-bold ${
+          <div className={`text-[12px] sm:text-xs font-bold ${
             priceChange24h !== undefined
               ? priceChange24h >= 0 
                 ? 'text-[#00ff55]' 
@@ -732,7 +774,7 @@ export default function Portfolio() {
                 )}
               </button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
+            <DialogContent className="max-w-4xl w-full max-w-[360px] sm:max-w-[560px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -746,6 +788,7 @@ export default function Portfolio() {
                 <LeagueTable 
                   tokenTicker={token.symbol} 
                   containerStyle={false}
+                  showLeagueNames={true}
                   preloadedSupply={finalSupply || undefined}
                   preloadedPrices={prices}
                   supplyDeduction={leagueSupplyDeduction}
@@ -771,16 +814,17 @@ export default function Portfolio() {
             ${formatBalance(usdValue)}
           </div>
           <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
-            {displayAmount} {token.symbol}
+            {displayAmount} {getDisplayTicker(token.symbol)}
           </div>
               </div>
 
         {/* Chart & Copy Icons - Far Right Column */}
         <div className="flex flex-col items-center ml-2">
           {(() => {
-            // Get the appropriate address for charts/copying
+            // Get the appropriate address and chain for charts/copying
             let chartAddress = token.address
             let copyAddress = token.address
+            let chartChain = 'pulsechain' // Default to pulsechain
             
             // For PLS (native token), use the dexs address from constants
             if (token.isNative && token.symbol === 'PLS') {
@@ -791,13 +835,23 @@ export default function Portfolio() {
               }
             }
             
+            // For ETH (native token), use the dexs address from constants and ethereum chain
+            if (token.isNative && token.symbol === 'ETH') {
+              const ethConstant = TOKEN_CONSTANTS.find(t => t.ticker === 'ETH')
+              if (ethConstant?.dexs) {
+                chartAddress = ethConstant.dexs
+                copyAddress = ethConstant.dexs
+                chartChain = 'ethereum'
+              }
+            }
+            
             const shouldShowIcons = chartAddress && chartAddress !== '0x0'
             
             return shouldShowIcons ? (
               <>
                 {/* Chart Icon - Link to DexScreener */}
                 <a
-                  href={`https://dexscreener.com/pulsechain/${chartAddress}`}
+                  href={`https://dexscreener.com/${chartChain}/${chartAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1 mt-0 text-gray-400 hover:text-white transition-colors"
@@ -878,15 +932,88 @@ export default function Portfolio() {
     return { totalUsdValue: totalValue, addressValues: addressVals }
   }, [filteredBalances, prices, addresses])
 
+  // Calculate 24h portfolio change percentage
+  const portfolio24hChange = useMemo(() => {
+    if (!filteredBalances || !Array.isArray(filteredBalances) || !prices) {
+      return 0
+    }
+
+    let currentTotalValue = 0
+    let previousTotalValue = 0
+
+    // Calculate both current and 24h ago values for each token
+    filteredBalances.forEach(addressData => {
+      // Native token (PLS/ETH)
+      const nativeSymbol = addressData.nativeBalance.symbol
+      const nativeBalance = addressData.nativeBalance.balanceFormatted
+      const nativePriceData = prices[nativeSymbol]
+      const nativeCurrentPrice = nativePriceData?.price || 0
+      const native24hChange = nativePriceData?.priceChange?.h24 || 0
+      
+      // Calculate 24h ago price: current price / (1 + (24h change / 100))
+      const nativePrevPrice = native24hChange !== 0 
+        ? nativeCurrentPrice / (1 + (native24hChange / 100))
+        : nativeCurrentPrice
+
+      currentTotalValue += nativeBalance * nativeCurrentPrice
+      previousTotalValue += nativeBalance * nativePrevPrice
+
+      // Token balances
+      addressData.tokenBalances?.forEach(token => {
+        const tokenBalance = token.balanceFormatted
+        let tokenCurrentPrice = 0
+        let tokenPrevPrice = 0
+
+        // Use $1 for stablecoins (no change)
+        if (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT') {
+          tokenCurrentPrice = 1
+          tokenPrevPrice = 1
+        } else {
+          const tokenPriceData = prices[token.symbol]
+          tokenCurrentPrice = tokenPriceData?.price || 0
+          const token24hChange = tokenPriceData?.priceChange?.h24 || 0
+          
+          tokenPrevPrice = token24hChange !== 0 
+            ? tokenCurrentPrice / (1 + (token24hChange / 100))
+            : tokenCurrentPrice
+        }
+
+        currentTotalValue += tokenBalance * tokenCurrentPrice
+        previousTotalValue += tokenBalance * tokenPrevPrice
+      })
+    })
+
+    // Calculate percentage change
+    if (previousTotalValue === 0) return 0
+    return ((currentTotalValue - previousTotalValue) / previousTotalValue) * 100
+  }, [filteredBalances, prices])
+
   // Comprehensive loading state - wait for relevant data to be ready
-  const isEverythingReady = addresses.length > 0 && 
-                           !balancesLoading && 
-                           !pricesLoading && 
-                           !balancesError &&
-                           balances && 
-                           balances.length > 0 &&
-                           prices &&
-                           Object.keys(prices).length > 0
+  // Once ready, stay ready (don't hide UI during price updates)
+  const isEverythingReady = useMemo(() => {
+    const hasInitialData = addresses.length > 0 && 
+                          !balancesError &&
+                          balances && 
+                          balances.length > 0 &&
+                          prices &&
+                          Object.keys(prices).length > 0
+    
+    // Only consider loading states on initial load
+    if (isInitialLoad) {
+      return hasInitialData && !balancesLoading && !pricesLoading
+    }
+    
+    // After initial load, stay ready as long as we have data
+    return hasInitialData
+  }, [
+    addresses.length,
+    balancesLoading,
+    pricesLoading,
+    balancesError,
+    balances?.length,
+    Object.keys(prices).length,
+    isInitialLoad
+  ])
 
   // Debug logging
   console.log('Portfolio Debug:', {
@@ -921,6 +1048,15 @@ export default function Portfolio() {
     mainTokensWithBalances
   })
 
+  // Handle animation completion without state updates that cause re-renders
+  const handleAnimationComplete = useCallback(() => {
+    if (!animationCompleteRef.current) {
+      animationCompleteRef.current = true;
+      // Switch to regular divs after a delay to avoid any flashing
+      setTimeout(() => setShowMotion(false), 50);
+    }
+  }, []);
+
   // Effect to handle initial load completion
   useEffect(() => {
     if (isEverythingReady && isInitialLoad) {
@@ -947,25 +1083,47 @@ export default function Portfolio() {
     </div>
   ), [chainFilter])
 
+  // Container component - motion or regular div
+  const Container = showMotion ? motion.div : 'div';
+  const Section = showMotion ? motion.div : 'div';
+
+  // Show loading state only on initial load
+  if (isInitialLoad && !isEverythingReady) {
+    return (
+      <div className="min-h-screen bg-black text-white p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full mx-auto">
+            <div className="text-gray-400">Loading portfolio data...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ 
-        duration: 0.6,
-        ease: [0.23, 1, 0.32, 1]
-      }}
+    <Container 
+      {...(showMotion ? {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0 },
+        transition: { 
+          duration: 0.6,
+          ease: [0.23, 1, 0.32, 1]
+        },
+        onAnimationComplete: handleAnimationComplete
+      } : {})}
       className="space-y-6 flex flex-col items-center"
     >
       {/* Address Input Section */}
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ 
-          duration: 0.5,
-          delay: 0.1,
-          ease: [0.23, 1, 0.32, 1]
-        }}
+      <Section 
+        {...(showMotion ? {
+          initial: { opacity: 0, scale: 0.95 },
+          animate: { opacity: 1, scale: 1 },
+          transition: { 
+            duration: 0.5,
+            delay: 0.1,
+            ease: [0.23, 1, 0.32, 1]
+          }
+        } : {})}
         className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[860px] w-full"
         style={{ display: addresses.length > 0 ? 'none' : 'block' }}
       >
@@ -1017,52 +1175,58 @@ export default function Portfolio() {
             })()}
           </button>
         </form>
-      </motion.div>
+      </Section>
 
       {/* Show loading state when fetching data (only on initial load) */}
       {addresses.length > 0 && balancesLoading && isInitialLoad && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            duration: 0.5,
-            delay: 0.2,
-            ease: [0.23, 1, 0.32, 1]
-          }}
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.2,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
           className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[860px] w-full"
         >
           <div className="text-gray-400">Loading portfolio...</div>
-        </motion.div>
+        </Section>
       )}
 
       {/* Show error state if any critical errors occurred */}
       {addresses.length > 0 && balancesError && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            duration: 0.5,
-            delay: 0.2,
-            ease: [0.23, 1, 0.32, 1]
-          }}
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.2,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
           className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[860px] w-full"
         >
           <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
             Error: {balancesError?.message || balancesError || 'Failed to load portfolio data'}
                 </div>
-        </motion.div>
+        </Section>
       )}
 
       {/* Total Value */}
       {isEverythingReady && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ 
-            duration: 0.5,
-            delay: 0.3,
-            ease: [0.23, 1, 0.32, 1]
-          }}
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, scale: 0.95 },
+            animate: { opacity: 1, scale: 1 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.3,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
           className="bg-black border-2 border-white/10 rounded-2xl py-8 text-center max-w-[860px] w-full relative"
         >
                     {/* Chain Toggle and Edit button in top right */}
@@ -1131,12 +1295,25 @@ export default function Portfolio() {
             </div>
           )}
           
-          <h2 className="text-xs font-bold mb-2">
+          <div className="flex items-center justify-left sm:justify-center gap-2 ml-6">
+            <h2 className="text-xs sm:text-xs font-bold mb-2 text-gray-400">
             {selectedAddressIds.length > 0 ? `${selectedAddressIds.length}/${addresses.length} Addresses` : 'Total Portfolio Value'}
-          </h2>
-          <div className="text-5xl font-bold text-white transition-all duration-300">
-            ${formatBalance(totalUsdValue)}
-                    </div>
+            </h2>
+          </div>
+                    <div className="flex items-center justify-left sm:justify-center gap-2 ml-6">
+            <div className="text-4xl sm:text-5xl font-bold text-white py-2">
+              ${formatBalance(totalUsdValue)}
+            </div>
+            <div className={`text-xs md:text-sm font-bold ml-1 ${
+              portfolio24hChange <= -1
+                ? 'text-red-500'
+                : portfolio24hChange >= 1
+                  ? 'text-[#00ff55]'
+                  : 'text-gray-400'
+            }`}>
+              {portfolio24hChange >= 0 ? '+' : ''}{portfolio24hChange.toFixed(2)}%
+            </div>
+          </div>
           <div className="text-sm text-gray-400 mt-4 flex flex-wrap gap-2 justify-center">
             {addresses.map((addr, index) => (
               <span 
@@ -1152,22 +1329,24 @@ export default function Portfolio() {
               </span>
             ))}
                   </div>
-        </motion.div>
+        </Section>
       )}
 
 
 
       {/* Tokens Table */}
       {isEverythingReady && sortedTokens.length > 0 && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            duration: 0.5,
-            delay: 0.4,
-            ease: [0.23, 1, 0.32, 1]
-          }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[860px] w-full"
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.4,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
+          className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6 max-w-[860px] w-full"
         >
           <div className="space-y-3">
             {sortedTokens.map((token, tokenIndex) => {
@@ -1180,25 +1359,27 @@ export default function Portfolio() {
               )
             })}
                 </div>
-        </motion.div>
+        </Section>
       )}
 
       {/* No tokens found message */}
       {addresses.length > 0 && isEverythingReady && sortedTokens.length === 0 && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            duration: 0.5,
-            delay: 0.4,
-            ease: [0.23, 1, 0.32, 1]
-          }}
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.4,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
           className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[860px] w-full"
         >
           <div className="text-gray-400">
             No tokens found for tracked addresses
               </div>
-        </motion.div>
+        </Section>
       )}
 
       {/* Edit Addresses Modal */}
@@ -1365,6 +1546,6 @@ export default function Portfolio() {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </Container>
   )
 } 

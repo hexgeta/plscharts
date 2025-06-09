@@ -24,21 +24,21 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x035a397725d3c9fc5ddd3e56066b7b64c749014e",
   ticker: "eHDRN",
   decimals: 9,
-  name: "Hedron on Eth"
+  name: "Hedron on Ethereum"
 }, {
   chain: 1,
   a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
   dexs: "0xbaaf3b7a0b9de67de3097420d31800a885db6b41",
   ticker: "eICSA",
   decimals: 9,
-  name: "ICSA on Eth"
+  name: "ICSA on Ethereum"
 }, {
   chain: 1,
   a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
   dexs: "0xe181f3d1cf81c94d770768d48d42d07a9e9819c7",
   ticker: "eBASE",
   decimals: 8,
-  name: "Maximus BASE",
+  name: "BASE on Ethereum",
   supply: 70668766.59912861
 }, {
   chain: 1,
@@ -46,7 +46,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: ["0x0f3c6134f4022d85127476bc4d3787860e5c5569"],
   ticker: "eTRIO",
   decimals: 8,
-  name: "Maximus TRIO",
+  name: "TRIO on Ethereum",
   supply: 69617911.47775
 }, {
   chain: 1,
@@ -54,7 +54,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x7327325e5f41d4c1922a9dfc87d8a3b3f1ae5c1f",
   ticker: "eLUCKY",
   decimals: 8,
-  name: "Maximus LUCKY",
+  name: "LUCKY on Ethereum",
   supply: 74985501.67671512
 }, {
   chain: 1,
@@ -62,7 +62,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0xf6ed2390be39c783ae78893c91669eeb635d0429",
   ticker: "eDECI",
   decimals: 8,
-  name: "Maximus DECI",
+  name: "DECI on Ethereum",
   supply: 565991987.7294711
 }, {
   chain: 1,
@@ -70,7 +70,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x2ae4517b2806b84a576c10f698d6567ce80a6490",
   ticker: "eMAXI",
   decimals: 8,
-  name: "Maximus",
+  name: "MAXI on Ethereum",
   supply: 274546065
 }, {
   chain: 1,
@@ -85,7 +85,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: ["0x0"],
   ticker: "WPLS",
   decimals: 18,
-  name: "PLS from PulseChain",
+  name: "Wrapped PLS from PulseChain",
   origin: [369, "0x0"]
 },  {
   chain: 1,
@@ -98,7 +98,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 1,
   a: "0x0a58153a0cd1cfaea94ce1f7fdc5d7e679eca936",
   dexs: "0xa6237656d15a7f15348c7fd9a0e11551c516e378",
-  ticker: "IM",
+  ticker: "eIM",
   decimals: 18,
   name: "IM on Ethereum"
 }, {
@@ -133,7 +133,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 1,
   a: "0x015628ce9150db1bce2fbb717a09e846f8a32436",
   dexs: "0xcb1a01c4b3217472ba74ca3e8f217ee0d0531ed6",
-  ticker: "BBC",
+  ticker: "eBBC",
   decimals: 18,
   name: "BBC on Ethereum"
 }, {
@@ -149,7 +149,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0xf3f3dccc31235b22d0e5624283e36922c754dc7b",
   ticker: "eGOFURS",
   decimals: 18,
-  name: "GOFURS on Ethereum"
+  name: "GOFURS on Eth"
 }, {
   chain: 1,
   a: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
@@ -163,14 +163,14 @@ export const TOKEN_CONSTANTS = [{
   dexs: null,
   ticker: "USDT",
   decimals: 6,
-  name: "Tether"
+  name: "Tether on Ethereum"
 }, {
   chain: 1,
   a: "0x6b175474e89094c44da98b954eedeac495271d0f",
   dexs: null,
   ticker: "DAI",
   decimals: 18,
-  name: "DAI Stablecoin"
+  name: "DAI Stablecoin on Ethereum"
 }, {
   chain: 1,
   a: "0x4fabb145d64652a948d72533023f6e7a623c7c53",
@@ -217,7 +217,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 1,
   a: "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce",
   dexs: "0x2f62f2b4c5fcd7570a709dec05d68ea19c82a9ec",
-  ticker: "SHIB",
+  ticker: "eSHIB",
   decimals: 18,
   name: "Shiba Inu on Ethereum"
 }, {
@@ -231,7 +231,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 1,
   a: "0x6982508145454ce325ddbe47a25d4ec3d2311933",
   dexs: "0x11950d141ecb863f01007add7d1a342041227b58",
-  ticker: "PEPE",
+  ticker: "ePEPE",
   decimals: 18,
   name: "Pepe on Ethereum"
 }, {
@@ -245,9 +245,9 @@ export const TOKEN_CONSTANTS = [{
   chain: 1,
   a: "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
   dexs: "0x1d42064fc4beb5f8aaf85f4617ae8b3b5b8bd801",
-  ticker: "UNI",
+  ticker: "eUNI",
   decimals: 18,
-  name: "Uniswap"
+  name: "Uniswap on Ethereum"
 }, {
   chain: 1,
   a: "0x111111111117dc0aa78b770fa6a738034120c302",
@@ -353,7 +353,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
   ticker: "WETH",
   decimals: 18,
-  name: "Wrapped Ether",
+  name: "Wrapped Ether on Eth",
   origin: [1, "0x0"]
 }, {
   chain: 1,
@@ -394,7 +394,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 1,
   a: "0x514910771af9ca656af840dff83e8264ecf986ca",
   dexs: "0xa6cc3c2531fdaa6ae1a3ca84c2855806728693e8",
-  ticker: "LINK",
+  ticker: "eLINK",
   decimals: 18,
   name: "ChainLink"
 }, {
@@ -529,21 +529,21 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x5f4cb14a7858bdb9066f9e4b561cdc1623807da0",
   ticker: "HDRN",
   decimals: 9,
-  name: "Hedron on Pls"
+  name: "Hedron on PulseChain"
 }, {
   chain: 369,
   a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
   dexs: "0xe5bb65e7a384d2671c96cfe1ee9663f7b03a573e",
   ticker: "ICSA",
   decimals: 9,
-  name: "ICSA on Pls"
+  name: "ICSA on PulseChain"
 }, {
   chain: 369,
   a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
   dexs: "0xb39490b46d02146f59e80c6061bb3e56b824d672",
   ticker: "BASE",
   decimals: 8,
-  name: "Maximus BASE",
+  name: "BASE on PulseChain",
   supply: 54165743.289
 }, {
   chain: 369,
@@ -551,7 +551,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x0b0f8f6c86c506b70e2a488a451e5ea7995d05c9",
   ticker: "TRIO",
   decimals: 8,
-  name: "Maximus TRIO",
+  name: "TRIO on PulseChain",
   supply: 69617911.47775
 }, {
   chain: 369,
@@ -559,7 +559,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x52d4b3f479537a15d0b37b6cdbdb2634cc78525e",
   ticker: "LUCKY",
   decimals: 8,
-  name: "Maximus LUCKY",
+  name: "LUCKY on PulseChain",
   supply: 74985501.67671512
 }, {
   chain: 369,
@@ -567,7 +567,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x969af590981bb9d19ff38638fa3bd88aed13603a",
   ticker: "DECI",
   decimals: 8,
-  name: "Maximus DECI",
+  name: "DECI on PulseChain",
   supply: 565991987.7294711
 }, {
   chain: 369,
@@ -575,7 +575,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0xbfb22cc394c53c14dc8a5840a246dfdd2f7b2507",
   ticker: "MAXI",
   decimals: 8,
-  name: "Maximus",
+  name: "Maxi on PulseChain",
   supply: 274546065
 }, {
   chain: 369,
@@ -605,7 +605,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x6312a9477e3BC81D5e3a44d77F0A43630904fF69",
   ticker: "IM",
   decimals: 18,
-  name: "Internet Money"
+  name: "Internet Money on PulseChain"
 }, {
   chain: 369,
   a: "0xa1077a294dde1b09bb078844df40758a5d0f9a27",
@@ -620,7 +620,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: ["0x0"],
   ticker: "WETH",
   decimals: 18,
-  name: "WETH from Ethereum",
+  name: "Wrapped WETH from Eth",
   origin: [1, "0x0"]
 },  {
   chain: 369,
@@ -628,23 +628,23 @@ export const TOKEN_CONSTANTS = [{
   dexs: null,
   ticker: "eDAI",
   decimals: 18,
-  name: "DAI from Ethereum",
+  name: "Wrapped DAI from Eth",
   origin: [1, "0x6b175474e89094c44da98b954eedeac495271d0f"]
 }, {
   chain: 369,
   a: "0x15d38573d2feeb82e7ad5187ab8c1d52810b1f07",
   dexs: "0x52ca8c5c6a5c7c56cf5e01bde9473b3b7f7c0b1e",
-  ticker: "eUSDC",
+  ticker: "weUSDC",
   decimals: 6,
-  name: "USDC from Ethereum",
+  name: "Wrapped USDC from Eth",
   origin: [1, "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"]
 }, {
   chain: 369,
   a: "0x0cb6f5a34ad42ec934882a05265a7d5f59b51a2f",
   dexs: "0xc8bbdb5a0652877eb1f774cba684eb8fbdd7bbb7",
-  ticker: "eUSDT",
+  ticker: "weUSDT",
   decimals: 6,
-  name: "USDT from Ethereum",
+  name: "Wrapped USDT from Eth",
   origin: [1, "0xdac17f958d2ee523a2206206994597c13d831ec7"]
 }, {
   chain: 369,
@@ -666,41 +666,41 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x3ab667c153b8dd2248bb96e7a2e1575197667784",
   dexs: ["0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce"],
-  ticker: "eSHIB",
+  ticker: "weSHIB",
   decimals: 18,
-  name: "SHIB from Ethereum",
+  name: "Wrapped SHIB from Eth",
   origin: [1, "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce"]
 }, {
   chain: 369,
   a: "0xb17d901469b9208b17d916112988a3fed19b5ca1",
   dexs: ["0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"],
-  ticker: "eWBTC",
+  ticker: "weWBTC",
   decimals: 8,
-  name: "WBTC from Ethereum",
+  name: "Wrapped BTC from Eth",
   origin: [1, "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"]
 }, {
   chain: 369,
   a: "0xee2d275dbb79c7871f8c6eb2a4d0687dd85409d1",
   dexs: ["0x514910771af9ca656af840dff83e8264ecf986ca"],
-  ticker: "eLINK",
+  ticker: "weLINK",
   decimals: 18,
-  name: "LINK from Ethereum",
+  name: "Wrapped LINK from Eth",
   origin: [1, "0x514910771af9ca656af840dff83e8264ecf986ca"]
 }, {
   chain: 369,
   a: "0x3f105121a10247de9a92e818554dd5fcd2063ae7",
   dexs: ["0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"],
-  ticker: "eUNI",
+  ticker: "weUNI",
   decimals: 18,
-  name: "UNI from Ethereum",
+  name: "Wrapped UNI from Eth",
   origin: [1, "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"]
 }, {
   chain: 369,
   a: "0x4d3aea379b7689e0cb722826c909fab39e54123d",
   dexs: ["0x6982508145454ce325ddbe47a25d4ec3d2311933"],
-  ticker: "ePEPE",
+  ticker: "wePEPE",
   decimals: 18,
-  name: "PEPE from Ethereum",
+  name: "Wrapped PEPE from Eth",
   origin: [1, "0x6982508145454ce325ddbe47a25d4ec3d2311933"]
 }, {
   chain: 369,
@@ -708,7 +708,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: ["0xe9f84d418b008888a992ff8c6d22389c2c3504e0"],
   ticker: "weBASE",
   decimals: 8,
-  name: "BASE from Ethereum",
+  name: "Wrapped BASE from Eth",
   origin: [1, "0xe9f84d418b008888a992ff8c6d22389c2c3504e0"],
   supply: 70668766.59912861
 }, {
@@ -717,7 +717,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x518b8CE0C7CE74a85774814fBFac7ADCDf702b2C",
   ticker: "weTRIO",
   decimals: 8,
-  name: "TRIO from Ethereum",
+  name: "Wrapped TRIO from Eth",
   origin: [1, "0xf55cd1e399e1cc3d95303048897a680be3313308"],
   supply: 69617911.47775
 }, {
@@ -726,7 +726,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: ["0x6b0956258ff7bd7645aa35369b55b61b8e6d6140"],
   ticker: "weLUCKY",
   decimals: 8,
-  name: "LUCKY from Ethereum",
+  name: "Wrapped LUCKY from Eth",
   origin: [1, "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140"],
   supply: 74985501.67671512
 }, {
@@ -735,7 +735,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x39e87e2baa67f3c7f1dd58f58014f23f97e3265e",
   ticker: "weDECI",
   decimals: 8,
-  name: "DECI from Ethereum",
+  name: "Wrapped DECI from Eth",
   origin: [1, "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6"],
   supply: 565991987.7294711
 }, {
@@ -744,7 +744,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x90b629cbbefc1efcae0b4cb027a51f0e0c3dcd76",
   ticker: "weMAXI",
   decimals: 8,
-  name: "MAXI from Ethereum",
+  name: "Wrapped MAXI from Eth",
   origin: [1, "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b"],
   supply: 274546065
 }, {
@@ -1138,7 +1138,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0xe34c1a936aa844da23fb6e70aa143e97135691d5",
   ticker: "GOFURS",
   decimals: 18,
-  name: "GOFURS"
+  name: "GOFURS on PulseChain"
 }, {
   chain: 369,
   a: "0x880dd541e00b966d829968c3198f11c8ca38a877",
@@ -1509,7 +1509,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x7994d526a127979bcb9ec7c98509bb5c7ebd78fd",
   ticker: "pWETH",
   decimals: 18,
-  name: "WETH on PulseChain"
+  name: "pWETH on PulseChain"
 }, {
   chain: 369,
   a: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
@@ -1734,7 +1734,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x922723FC4de3122F7DC837E2CD2b82Dce9dA81d2",
   ticker: "weHEX",
   decimals: 8,
-  name: "Wrapped HEX from Ethereum"
+  name: "Wrapped HEX from Eth"
 }];
 
 export const API_ENDPOINTS = {
