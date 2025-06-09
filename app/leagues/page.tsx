@@ -1,10 +1,10 @@
 'use client'
 
 import LeagueTable from '../../components/LeagueTable'
+import PopupLeagueTable from '../../components/PopupLeagueTable'
+import TokenCard from '../../components/TokenCard'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import Image from 'next/image'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupplies } from '@/hooks/crypto/useTokenSupplies'
 import React from 'react'
@@ -125,54 +125,14 @@ const OA_SUPPLIES = {
   // Add other tokens as needed
 };
 
-// Memoized TokenCard component for popup tokens (individually loaded)
-const TokenCard = React.memo(({ token }: { 
+// Memoized component for popup tokens (individually loaded)
+const PopupTokenCard = React.memo(({ token }: { 
   token: { ticker: string; name: string };
 }) => {
   return (
-    <Dialog key={token.ticker}>
-      <DialogTrigger asChild>
-        <motion.div
-          className="bg-black border border-2 border-white/10 rounded-2xl p-4 cursor-pointer hover:bg-gray-800/50 transition-all duration-200 flex flex-col items-center gap-3 w-full"
-        >
-          <div className="w-12 h-12 relative">
-            <Image
-              src={`/coin-logos/${token.ticker}.svg`}
-              alt={token.name}
-              width={48}
-              height={48}
-              className="rounded-full"
-              onError={(e) => {
-                // Fallback to a default icon if logo doesn't exist
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          </div>
-          <div className="text-center">
-            <div className="font-semibold text-sm">{token.ticker}</div>
-            <div className="text-xs text-gray-400 truncate">{token.name}</div>
-          </div>
-        </motion.div>
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ 
-            duration: 0.4,
-            ease: [0.23, 1, 0.32, 1]
-          }}
-          className="mt-4 pb-4"
-        >
-          {/* No preloaded data - will fetch individually when opened */}
-          <LeagueTable 
-            tokenTicker={token.ticker} 
-            containerStyle={false} 
-          />
-        </motion.div>
-      </DialogContent>
-    </Dialog>
+    <PopupLeagueTable token={token}>
+      {(onClick) => <TokenCard token={token} onClick={onClick} />}
+    </PopupLeagueTable>
   );
 }, (prevProps, nextProps) => {
   // Only re-render if token data changed
@@ -182,7 +142,7 @@ const TokenCard = React.memo(({ token }: {
   );
 });
 
-TokenCard.displayName = 'TokenCard';
+PopupTokenCard.displayName = 'PopupTokenCard';
 
 export default function LeaguesPage() {
   const [mounted, setMounted] = useState(false);
@@ -403,7 +363,7 @@ export default function LeaguesPage() {
             <h2 className="text-2xl font-bold mb-6 text-center">Maximus</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {maximusTokens.map((token) => (
-                <TokenCard key={token.ticker} token={token} />
+                <PopupTokenCard key={token.ticker} token={token} />
               ))}
             </div>
           </div>
@@ -414,7 +374,7 @@ export default function LeaguesPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 place-items-center md:place-items-start">
               <div className="hidden md:block"></div>
               {memeTokens.map((token) => (
-                <TokenCard key={token.ticker} token={token} />
+                <PopupTokenCard key={token.ticker} token={token} />
               ))}
               <div className="hidden md:block"></div>
             </div>
@@ -426,7 +386,7 @@ export default function LeaguesPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 place-items-center md:place-items-start">
               <div className="hidden md:block"></div>
               {tangGangTokens.map((token) => (
-                <TokenCard key={token.ticker} token={token} />
+                <PopupTokenCard key={token.ticker} token={token} />
               ))}
               <div className="hidden md:block"></div>
             </div>
@@ -437,7 +397,7 @@ export default function LeaguesPage() {
             <h2 className="text-2xl font-bold mb-6 text-center">Popular Tokens</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {additionalTokens.map((token) => (
-                <TokenCard key={token.ticker} token={token} />
+                <PopupTokenCard key={token.ticker} token={token} />
               ))}
             </div>
           </div>
@@ -447,7 +407,7 @@ export default function LeaguesPage() {
             <h2 className="text-2xl font-bold mb-6 text-center">More Tokens</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {moreTokens.map((token) => (
-                <TokenCard key={token.ticker} token={token} />
+                <PopupTokenCard key={token.ticker} token={token} />
               ))}
             </div>
           </div>

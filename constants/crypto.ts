@@ -24,14 +24,14 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x035a397725d3c9fc5ddd3e56066b7b64c749014e",
   ticker: "eHDRN",
   decimals: 9,
-  name: "Hedron on Ethereum"
+  name: "Hedron on Eth"
 }, {
   chain: 1,
   a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
   dexs: "0xbaaf3b7a0b9de67de3097420d31800a885db6b41",
   ticker: "eICSA",
   decimals: 9,
-  name: "Icosa on Ethereum"
+  name: "ICSA on Eth"
 }, {
   chain: 1,
   a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
@@ -93,7 +93,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x8ffdc8c69e1c1afdbd4d37e9df98eba3e3aca92d",
   ticker: "eCOM",
   decimals: 12,
-  name: "Communis on Ethereum"
+  name: "Communis on Eth"
 }, {
   chain: 1,
   a: "0x0a58153a0cd1cfaea94ce1f7fdc5d7e679eca936",
@@ -529,14 +529,14 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x5f4cb14a7858bdb9066f9e4b561cdc1623807da0",
   ticker: "HDRN",
   decimals: 9,
-  name: "Hedron on PulseChain"
+  name: "Hedron on Pls"
 }, {
   chain: 369,
   a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
   dexs: "0xe5bb65e7a384d2671c96cfe1ee9663f7b03a573e",
   ticker: "ICSA",
   decimals: 9,
-  name: "Icosa on PulseChain"
+  name: "ICSA on Pls"
 }, {
   chain: 369,
   a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
@@ -652,7 +652,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: ["0x3819f64f282bf135d62168c1e513280daf905e06"],
   ticker: "weHDRN",
   decimals: 9,
-  name: "HDRN from Ethereum",
+  name: "Wrapped HDRN from Eth",
   origin: [1, "0x3819f64f282bf135d62168c1e513280daf905e06"]
 }, {
   chain: 369,
@@ -660,7 +660,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: ["0xfc4913214444af5c715cc9f7b52655e788a569ed"],
   ticker: "weICSA",
   decimals: 9,
-  name: "ICSA from Ethereum",
+  name: "Wrapped ICSA from Eth",
   origin: [1, "0xfc4913214444af5c715cc9f7b52655e788a569ed"]
 }, {
   chain: 369,
@@ -1453,7 +1453,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x5137a308dbf822aae9fb34467633baaa516ed099",
   ticker: "COM",
   decimals: 12,
-  name: "Communis on PulseChain"
+  name: "Communis on Pls"
 }, {
   chain: 369,
   a: "0xcfcffe432a48db53f59c301422d2edd77b2a88d7",
@@ -1642,7 +1642,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x57251492b7f9b8ecd8a7209c9eef555501c268bb",
   ticker: "pCOMP",
   decimals: 18,
-  name: "Compound on PulseChain"
+  name: "Compound on Pls"
 }, {
   chain: 369,
   a: "0xc18360217d8f7ab5e7c516566761ea12ce7f9d72",
@@ -1734,7 +1734,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x922723FC4de3122F7DC837E2CD2b82Dce9dA81d2",
   ticker: "weHEX",
   decimals: 8,
-  name: "HEX from Ethereum"
+  name: "Wrapped HEX from Ethereum"
 }];
 
 export const API_ENDPOINTS = {

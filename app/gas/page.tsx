@@ -233,7 +233,7 @@ export default function GasTracker() {
               <h2 className="text-xl font-semibold hidden md:block">Ethereum</h2>
             </div>
             <div className="space-y-2">
-              <div className="text-3xl font-bold text-indigo-400">
+              <div className="text-4xl font-bold text-white">
                 {tokenPrices?.ETH?.price ? 
                   `$${calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2)}` :
                   'Price loading...'
@@ -258,7 +258,7 @@ export default function GasTracker() {
               <h2 className="text-xl font-semibold hidden md:block">PulseChain</h2>
             </div>
             <div className="space-y-2">
-              <div className="text-3xl font-bold text-pink-400">
+              <div className="text-4xl font-bold text-white">
                 {tokenPrices?.PLS?.price ? 
                   `$${calculateTransactionCost(currentGasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2)}` :
                   'Price loading...'
@@ -319,11 +319,11 @@ export default function GasTracker() {
                     <div className="text-sm text-gray-400">{transaction.gas.toLocaleString()} gas</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-bold text-indigo-400">${ethCostUSD.toPrecision(2)}</div>
+                    <div className="font-bold text-white">${ethCostUSD.toPrecision(2)}</div>
                     <div className="text-sm text-gray-400">{ethAmount.toFixed(4)} ETH</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-bold text-pink-400">${plsCostUSD.toPrecision(2)}</div>
+                    <div className="font-bold text-white">${plsCostUSD.toPrecision(2)}</div>
                     <div className="text-sm text-gray-400">{Math.round(plsAmount).toLocaleString()} PLS</div>
                   </div>
                 </div>

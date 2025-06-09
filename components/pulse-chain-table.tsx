@@ -18,8 +18,8 @@ const TOKEN_SUBTITLES: Record<string, string> = {
   'PLS': 'Gas Coin',
   'PLSX': 'Dex Token',
   'INC': 'Green Token',
-  'HEX': 'Real HEX',
-  'eHEX': 'Also Real HEX',
+  'HEX': 'HEX on PulseChain',
+  'eHEX': 'HEX on Ethereum',
 };
 
 const PERIODS = ['5m', '1h', '6h', '24h', '7d', '30d', '90d', 'ATL'];
@@ -215,12 +215,12 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               )}
               <div className="flex items-center gap-2 mb-2">
                 <CoinLogo 
-                  symbol={ticker}
+                  symbol={ticker === 'eHEX' ? 'eHEX' : ticker}
                   size="lg"
                   priority={true}
                 />
                 <div>
-                  <div className="font-bold text-white">{ticker}</div>
+                  <div className="font-bold text-white">{ticker === 'eHEX' ? 'HEX' : ticker}</div>
                   <div className="text-xs text-gray-400">{TOKEN_SUBTITLES[ticker] || 'Token'}</div>
                 </div>
               </div>

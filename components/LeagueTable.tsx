@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
+import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import React from 'react'
 
 interface LeagueRank {
@@ -180,6 +181,17 @@ export default React.memo(function LeagueTable({
   showLeagueNames = false
 }: LeagueTableProps) {
   
+  // Helper function to get display ticker (remove 'e' prefix for specific tokens)
+  const getDisplayTicker = (ticker: string): string => {
+    const eTokensToDisplay = ['eHEX', 'eCOM', 'eHDRN', 'eICSA'];
+    if (eTokensToDisplay.includes(ticker)) {
+      return ticker.substring(1); // Remove the 'e' prefix
+    }
+    return ticker;
+  };
+  
+  const displayTicker = getDisplayTicker(tokenTicker);
+  
   const [showError, setShowError] = useState(false);
   
   // Determine if we should use preloaded data or fetch individually
@@ -330,7 +342,7 @@ export default React.memo(function LeagueTable({
             </div>
           )}
           <div className="text-gray-400 text-xs">
-            {formatCompactNumber(userBalance)} {tokenTicker}
+            {formatCompactNumber(userBalance)} {displayTicker}
           </div>
         </div>
       )}
@@ -345,7 +357,13 @@ export default React.memo(function LeagueTable({
             variant="default"
           />
           <div>
-            <div className="text-white text-sm">{tokenTicker}</div>
+            <div className="text-white text-sm">{displayTicker}</div>
+            {containerStyle && (
+              <div className="text-gray-400 text-[10px] sm:text-xs">{(() => {
+                const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === tokenTicker)
+                return tokenConfig?.name || tokenTicker
+              })()}</div>
+            )}
           </div>
         </div>
         <div className="text-center ml-4 md:ml-2">
@@ -436,28 +454,4 @@ export default React.memo(function LeagueTable({
       {content}
     </div>
   )
-}, (prevProps, nextProps) => {
-  // Custom comparison function for React.memo
-  // Only re-render if the specific token's data has changed
-  if (prevProps.tokenTicker !== nextProps.tokenTicker) return false;
-  if (prevProps.containerStyle !== nextProps.containerStyle) return false;
-  if (prevProps.supplyDeduction !== nextProps.supplyDeduction) return false;
-  if (prevProps.showLeagueNames !== nextProps.showLeagueNames) return false;
-  
-  // Compare preloaded supply
-  if (prevProps.preloadedSupply !== nextProps.preloadedSupply) return false;
-  
-  // Compare the specific token's price data
-  const prevTokenPrice = prevProps.preloadedPrices?.[prevProps.tokenTicker];
-  const nextTokenPrice = nextProps.preloadedPrices?.[nextProps.tokenTicker];
-  
-  if (!prevTokenPrice && !nextTokenPrice) return true; // Both null/undefined
-  if (!prevTokenPrice || !nextTokenPrice) return false; // One is null/undefined
-  
-  // Compare the actual price values that matter for rendering
-  return (
-    prevTokenPrice.price === nextTokenPrice.price &&
-    JSON.stringify(prevTokenPrice.priceChange) === JSON.stringify(nextTokenPrice.priceChange) &&
-    prevTokenPrice.liquidity === nextTokenPrice.liquidity
-  );
 }) 

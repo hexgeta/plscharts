@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
@@ -138,6 +138,142 @@ interface ValidatorHistoryResponse {
   message: string;
 }
 
+// Helper functions - moved above ValidatorRow component
+const extractAddressFromCredentials = (credentials: string) => {
+  // Withdrawal credentials format: 0x01 + 11 zero bytes + 20 byte address
+  // So we take the last 40 characters (20 bytes) and add 0x prefix
+  if (credentials.length >= 42) {
+    return '0x' + credentials.slice(-40);
+  }
+  return credentials; // fallback to original if format is unexpected
+};
+
+const getAddressDisplayText = (address: string) => {
+  const lowerAddress = address.toLowerCase();
+  const foundKey = Object.keys(ADDRESS_DISPLAY_NAMES).find(key => key.toLowerCase() === lowerAddress);
+  if (foundKey) {
+    return ADDRESS_DISPLAY_NAMES[foundKey];
+  }
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+};
+
+const hasValidatorInfo = (address: string) => {
+  const lowerAddress = address.toLowerCase();
+  return Object.keys(VALIDATOR_INFO).some(key => key.toLowerCase() === lowerAddress);
+};
+
+const getValidatorInfo = (address: string) => {
+  const lowerAddress = address.toLowerCase();
+  const foundKey = Object.keys(VALIDATOR_INFO).find(key => key.toLowerCase() === lowerAddress);
+  return foundKey ? VALIDATOR_INFO[foundKey] : null;
+};
+
+// Memoized table row component to prevent unnecessary re-renders
+const ValidatorRow = memo(({ 
+  group, 
+  index, 
+  onInfoClick, 
+  tokenPrices 
+}: { 
+  group: GroupedValidator;
+  index: number;
+  onInfoClick: (address: string) => void;
+  tokenPrices: any;
+}) => {
+  const withdrawalCredentials = group.withdrawalCredentials || group.referenceAddress;
+  if (!withdrawalCredentials) return null;
+  
+  const totalBalance = group.totalBalance;
+  const validatorCount = group.validatorCount;
+  const address = extractAddressFromCredentials(withdrawalCredentials);
+  const displayName = getAddressDisplayText(address);
+  
+  const handleInfoClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onInfoClick(address);
+  }, [address, onInfoClick]);
+
+  return (
+    <motion.tr
+      key={withdrawalCredentials}
+      variants={{
+        hidden: { 
+          opacity: 0, 
+          y: 20,
+          scale: 0.95
+        },
+        visible: {
+          opacity: 1, 
+          y: 0,
+          scale: 1,
+          transition: {
+            duration: 0.3,
+            ease: [0.25, 0.46, 0.45, 0.94]
+          }
+        }
+      }}
+      initial="hidden"
+      animate="visible"
+    >
+      <td className="px-6 py-4 text-center font-mono">
+        {index < 3 ? (
+          <img 
+            src={`/${index + 1}.png`} 
+            alt={`Position ${index + 1}`}
+            className="w-5 h-5 mx-auto"
+          />
+        ) : (
+          index + 1
+        )}
+      </td>
+      <td className="px-6 py-4 text-center">
+        <div className="flex items-center justify-center gap-2">
+          <a 
+            href={`https://midgard.wtf/address/${address}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-sm text-white hover:underline cursor-pointer"
+          >
+            {displayName}
+          </a>
+          {hasValidatorInfo(address) && (
+            <button
+              onClick={handleInfoClick}
+              className="text-gray-400 hover:text-white transition-colors ml-2"
+            >
+              <Info size={16} />
+            </button>
+          )}
+        </div>
+      </td>
+      <td className="px-6 py-4 text-center font-mono">
+        <div className="text-white font-semibold">
+          {validatorCount}
+        </div>
+      </td>
+      <td className="px-6 py-4 text-center font-mono">
+        <div className="text-green-400 text-lg font-semibold">
+          {tokenPrices?.PLS?.price 
+            ? `$${((totalBalance / 1e9) * tokenPrices.PLS.price).toLocaleString('en-US', { 
+                minimumFractionDigits: 0, 
+                maximumFractionDigits: 0 
+              })}`
+            : '$0'
+          }
+        </div>
+        <div className="text-gray-400 text-sm mt-1">
+          {(totalBalance / 1e9).toLocaleString('en-US', { 
+            minimumFractionDigits: 0, 
+            maximumFractionDigits: 0 
+          })} PLS
+        </div>
+      </td>
+    </motion.tr>
+  );
+});
+
+ValidatorRow.displayName = 'ValidatorRow';
+
 export default function ValidatorsTracker() {
   const [validatorsData, setValidatorsData] = useState<ValidatorsResponse | null>(null);
   const [historyData, setHistoryData] = useState<HistoryDataPoint[]>([]);
@@ -150,46 +286,12 @@ export default function ValidatorsTracker() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [displayCount, setDisplayCount] = useState(20);
 
-  // Animation variants for table rows
-  const rowVariants = {
-    hidden: { 
-      opacity: 0, 
-      y: 20,
-      scale: 0.95
-    },
-    visible: {
-      opacity: 1, 
-      y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.3,
-        ease: [0.25, 0.46, 0.45, 0.94] // Smooth ease-out curve
-      }
-    }
-  };
+
 
   // Fetch token prices for PLS
   const { prices: tokenPrices, isLoading: pricesLoading } = useTokenPrices(['PLS']);
 
-  // Extract Ethereum address from withdrawal credentials
-  const extractAddressFromCredentials = (credentials: string) => {
-    // Withdrawal credentials format: 0x01 + 11 zero bytes + 20 byte address
-    // So we take the last 40 characters (20 bytes) and add 0x prefix
-    if (credentials.length >= 42) {
-      return '0x' + credentials.slice(-40);
-    }
-    return credentials; // fallback to original if format is unexpected
-  };
 
-  // Get display text for address
-  const getAddressDisplayText = (address: string) => {
-    const lowerAddress = address.toLowerCase();
-    const foundKey = Object.keys(ADDRESS_DISPLAY_NAMES).find(key => key.toLowerCase() === lowerAddress);
-    if (foundKey) {
-      return ADDRESS_DISPLAY_NAMES[foundKey];
-    }
-    return `${address.slice(0, 4)}...${address.slice(-4)}`;
-  };
 
   // Fetch historical validator data
   const fetchHistoryData = async () => {
@@ -370,18 +472,12 @@ export default function ValidatorsTracker() {
     return `${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`;
   };
 
-  // Check if address has info available
-  const hasValidatorInfo = (address: string) => {
-    const lowerAddress = address.toLowerCase();
-    return Object.keys(VALIDATOR_INFO).some(key => key.toLowerCase() === lowerAddress);
-  };
 
-  // Get validator info
-  const getValidatorInfo = (address: string) => {
-    const lowerAddress = address.toLowerCase();
-    const foundKey = Object.keys(VALIDATOR_INFO).find(key => key.toLowerCase() === lowerAddress);
-    return foundKey ? VALIDATOR_INFO[foundKey] : null;
-  };
+
+  // Memoized callback for handling info click to prevent re-renders
+  const handleInfoClick = useCallback((address: string) => {
+    setSelectedValidatorInfo(address);
+  }, []);
 
   // Render social icon
   const renderSocialIcon = (type: string) => {
@@ -527,83 +623,17 @@ export default function ValidatorsTracker() {
                         <th className="px-6 py-4 text-center text-gray-300 font-medium">Total Staked</th>
                       </tr>
                     </thead>
-                    <motion.tbody 
-                      className="divide-y divide-white/10"
-                      initial="hidden"
-                      animate="visible"
-                    >
-                      {groupedValidators.map((group, index) => {
-                        const withdrawalCredentials = group.withdrawalCredentials || group.referenceAddress;
-                        const totalBalance = group.totalBalance;
-                        const validatorCount = group.validatorCount;
-                        
-                        return (
-                          <motion.tr
-                            key={withdrawalCredentials}
-                            variants={rowVariants}
-                            initial="hidden"
-                            animate="visible"
-                          >
-                            <td className="px-6 py-4 text-center font-mono">
-                              {index < 3 ? (
-                                <img 
-                                  src={`/${index + 1}.png`} 
-                                  alt={`Position ${index + 1}`}
-                                  className="w-5 h-5 mx-auto"
-                                />
-                              ) : (
-                                index + 1
-                              )}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <a 
-                                  href={`https://midgard.wtf/address/${extractAddressFromCredentials(withdrawalCredentials)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="font-mono text-sm text-white hover:underline cursor-pointer"
-                                >
-                                  {getAddressDisplayText(extractAddressFromCredentials(withdrawalCredentials))}
-                                </a>
-                                {hasValidatorInfo(extractAddressFromCredentials(withdrawalCredentials)) && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedValidatorInfo(extractAddressFromCredentials(withdrawalCredentials));
-                                    }}
-                                    className="text-gray-400 hover:text-white transition-colors"
-                                  >
-                                    <Info size={14} />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-center font-mono">
-                              <div className="text-white font-semibold">
-                                {validatorCount}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-center font-mono">
-                              <div className="text-green-400 text-lg font-semibold">
-                                {tokenPrices?.PLS?.price 
-                                  ? `$${((totalBalance / 1e9) * tokenPrices.PLS.price).toLocaleString('en-US', { 
-                                      minimumFractionDigits: 0, 
-                                      maximumFractionDigits: 0 
-                                    })}`
-                                  : '$0'
-                                }
-                              </div>
-                              <div className="text-gray-400 text-sm mt-1">
-                                {(totalBalance / 1e9).toLocaleString('en-US', { 
-                                  minimumFractionDigits: 0, 
-                                  maximumFractionDigits: 0 
-                                })} PLS
-                              </div>
-                            </td>
-                          </motion.tr>
-                        );
-                      })}
-                    </motion.tbody>
+                    <tbody className="divide-y divide-white/10">
+                      {groupedValidators.map((group, index) => (
+                        <ValidatorRow
+                          key={group.withdrawalCredentials || group.referenceAddress || index}
+                          group={group}
+                          index={index}
+                          onInfoClick={handleInfoClick}
+                          tokenPrices={tokenPrices}
+                        />
+                      ))}
+                    </tbody>
                   </table>
                 </div>
 
@@ -800,21 +830,21 @@ export default function ValidatorsTracker() {
           open={!!selectedValidatorInfo} 
           onOpenChange={(open) => !open && setSelectedValidatorInfo(null)}
         >
-          <DialogContent className="bg-black border-2 border-white/20 text-white max-w-md">
+          <DialogContent className="bg-black border-2 rounded-xl border-white/20 text-white max-w-[300px] md:max-w-md">
             {selectedValidatorInfo && getValidatorInfo(selectedValidatorInfo) && (
               <>
                 <DialogHeader>
                   <DialogTitle className="text-xl font-bold text-white">
                     {getValidatorInfo(selectedValidatorInfo)!.title}
                   </DialogTitle>
-                  <DialogDescription className="text-gray-300 mt-2">
+                  <DialogDescription className="text-gray-300 md:mt-2">
                     {getValidatorInfo(selectedValidatorInfo)!.description}
                   </DialogDescription>
                 </DialogHeader>
                 
                 {getValidatorInfo(selectedValidatorInfo)!.socials.length > 0 && (
                   <div className="mt-0">
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                       {getValidatorInfo(selectedValidatorInfo)!.socials.map((social, index) => (
                         <a
                           key={index}

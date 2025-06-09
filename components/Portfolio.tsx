@@ -718,32 +718,32 @@ export default function Portfolio() {
         <div className="hidden sm:flex flex-col items-center justify-center ml-14">
           {shouldShowLeague ? (
             <>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-0 rounded-lg">
-                    {leagueInfo.icon && (
-                      <Image
-                        src={leagueInfo.icon}
-                        alt={leagueInfo.league}
-                        width={20}
-                        height={20}
-                        className="object-contain"
-                      />
-                    )}
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ 
-                      duration: 0.4,
-                      ease: [0.23, 1, 0.32, 1]
-                    }}
-                    className="p-4"
-                  >
-                                    <LeagueTable 
+          <Dialog>
+            <DialogTrigger asChild>
+              <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-0 rounded-lg">
+                {leagueInfo.icon && (
+                  <Image
+                    src={leagueInfo.icon}
+                    alt={leagueInfo.league}
+                    width={20}
+                    height={20}
+                    className="object-contain"
+                  />
+                )}
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl w-full max-w-[360px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ 
+                  duration: 0.4,
+                  ease: [0.23, 1, 0.32, 1]
+                }}
+                className="p-4"
+              >
+                <LeagueTable 
                   tokenTicker={token.symbol} 
                   containerStyle={false}
                   preloadedSupply={finalSupply || undefined}
@@ -751,12 +751,12 @@ export default function Portfolio() {
                   supplyDeduction={leagueSupplyDeduction}
                   userBalance={combinedBalance}
                 />
-                  </motion.div>
-                </DialogContent>
-              </Dialog>
-              <div className="text-gray-400 text-[9px] text-center leading-tight w-full mt-0.5">
-                {supplyPercentage}
-              </div>
+              </motion.div>
+            </DialogContent>
+          </Dialog>
+          <div className="text-gray-400 text-[9px] text-center leading-tight w-full mt-0.5">
+            {supplyPercentage}
+          </div>
             </>
           ) : (
             <div className="w-8 h-8 flex items-center justify-center mb-0">
