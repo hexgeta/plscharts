@@ -1,0 +1,20 @@
+HEX+COM Coupon Rate and Rebate Calculator,,,,,,,,
+,,,,,,,,
+PulseChain Data,,,,Shares and Bonuses (PulseChain),,,,
+HEX to USD,COM to USD,Share Rate,,Staked HEX,BPB Bonus,,LPB Bonus,
+$0.008735,$8.895E-12,413095,,"⬣100,000.000",⬣6.667,,"⬣305,164.835",
+,,,,Staked Days,Effective HEX,,T-Shares,B-Shares
+,,,,5555,"⬣405,171.502",,9.808192,"9,808.191864620"
+,,,,,,,,
+COM Price - 100% CR,COM Start Bonus (365+ Days),COM Coupon Rate,COM Rebate,COM Rebate Value,COM Start Bonus (180-364 Days),,COM Rebate,COM Rebate Value
+$3.562E-10,"2,452,047,966,154.9 COM",2.50%,Same as Coupon Rate,$21.81,Invalid Stake Length,,Invalid Length,Invalid Length
+,,,,,,,,
+,,,,,,,,
+Ethereum Data,,,,Shares and Bonuses (Ethereum),,,,
+eHEX to USD,eCOM to USD,Share Rate,,Staked eHEX,BPB Bonus,,LPB Bonus,
+$0.002722,$3.710E-12,416185,,"⬣100,000.000",⬣6.667,,"⬣305,164.835",
+,,,,Staked Days,Effective HEX,,T-Shares,B-Shares
+,,,,5555,"⬣405,171.502",,9.735370,"9,735.370131828"
+,,,,,,,,
+eCOM Price - 100% CR,eCOM Start Bonus (365+ Days),eCOM Coupon Rate,eCOM Rebate,eCOM Rebate Value,eCOM Start Bonus (180-364 Days),,COM Rebate,COM Rebate Value
+$1.118E-10,"2,433,842,532,957.1 eCOM",3.32%,Same as Coupon Rate,$9.03,Invalid Stake Length,,Invalid Length,Invalid Length

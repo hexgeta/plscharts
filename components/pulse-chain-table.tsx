@@ -10,6 +10,8 @@ import { useHistoricPriceChange, Period } from '@/hooks/crypto/useHistoricPriceC
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
+import { useCOMCouponRate } from '@/hooks/crypto/useCOMCouponRate';
+import { useECOMCouponRate } from '@/hooks/crypto/useECOMCouponRate';
 
 // Only show these tokens in this exact order
 const TOKENS = ['PLS', 'PLSX', 'INC', 'HEX', 'eHEX'];
@@ -54,6 +56,12 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
 
   const { prices, isLoading: pricesLoading, error } = useTokenPrices(TOKENS);
   
+  // COM coupon rate calculation
+  const { couponRate: comCouponRate, isLoading: comLoading } = useCOMCouponRate();
+  
+  // eCOM coupon rate calculation
+  const { couponRate: ecomCouponRate, isLoading: ecomLoading } = useECOMCouponRate();
+  
   // Historic change for each token
   const changeDataMap = Object.fromEntries(
     TOKENS.map(ticker => [
@@ -72,7 +80,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   });
 
   // Overall loading state - only for initial load
-  const isLoading = (pricesLoading || isHistoricLoading || !hasValidPriceData) && isInitialLoad;
+  const isLoading = (pricesLoading || isHistoricLoading || comLoading || ecomLoading || !hasValidPriceData) && isInitialLoad;
 
   // Handle animation completion without state updates that cause re-renders
   const handleAnimationComplete = useCallback(() => {
@@ -267,10 +275,22 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                   {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} eHEX | incl. eHEX: {formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}
                 </div>
               )}
+              {/* Add COM coupon rate for HEX */}
+              {ticker === "HEX" && comCouponRate !== null && (
+                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                  COM Coupon Rate: {formatNumber(comCouponRate, { decimals: 2 })}%
+                </div>
+              )}
               {/* Add PLS price equivalent and HEX ratio for eHEX */}
               {ticker === "eHEX" && prices?.PLS?.price && prices?.HEX?.price && (
                 <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price / prices.HEX.price, { decimals: 2 })} HEX
+                </div>
+              )}
+              {/* Add eCOM coupon rate for eHEX */}
+              {ticker === "eHEX" && ecomCouponRate !== null && (
+                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                  eCOM Coupon Rate: {formatNumber(ecomCouponRate, { decimals: 2 })}%
                 </div>
               )}
               
