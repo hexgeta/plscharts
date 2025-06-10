@@ -15,7 +15,7 @@ export interface COMCouponRateData {
 export function useCOMCouponRate(
   stakedDays: number = 5555,
   hexPrincipal: number = 100000,
-  shareRate: number = 41442.8
+  shareRate: number = 41442.8 //change to dynamic soon!!
 ): COMCouponRateData {
   // Fetch prices for HEX and COM tokens
   const { prices, isLoading, error } = useTokenPrices(['HEX', 'COM'])
@@ -23,7 +23,7 @@ export function useCOMCouponRate(
   // Calculate T-Shares based on hex principal and share rate
   const tShares = useMemo(() => {
     // For now, using the provided value of 9.808192
-    return 9.808192
+    return 9.776644 //change to dynamic soon!!
   }, [hexPrincipal, shareRate])
 
   // Calculate COM start bonus using the Excel formula

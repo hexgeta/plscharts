@@ -15,7 +15,7 @@ export interface ECOMCouponRateData {
 export function useECOMCouponRate(
   stakedDays: number = 5555,
   eHexPrincipal: number = 100000,
-  shareRate: number = 	41770.5 // Ethereum share rate from CSV
+  shareRate: number = 	41770.5 //change to dynamic soon!!
 ): ECOMCouponRateData {
   // Fetch prices for eHEX and eCOM tokens
   const { prices, isLoading, error } = useTokenPrices(['eHEX', 'eCOM'])
@@ -23,7 +23,7 @@ export function useECOMCouponRate(
   // Calculate T-Shares based on eHEX principal and share rate
   const tShares = useMemo(() => {
     // Using the provided value from CSV for Ethereum: 9.735370
-    return 9.735370
+    return 9.699944 //change to dynamic soon!!
   }, [eHexPrincipal, shareRate])
 
   // Calculate eCOM start bonus using the Excel formula
