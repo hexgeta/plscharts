@@ -8,28 +8,8 @@ import type { Metadata } from 'next'
 // Static layout with revalidation
 export const revalidate = 2592000; // 30 days in seconds
 
-// Essential tokens that should be preloaded
+// Essential tokens that should be preloaded globally (used across multiple pages)
 const ESSENTIAL_TOKENS = ['PLS', 'PLSX', 'INC', 'pHEX', 'eHEX'];
-
-// Sea creature images used in league tables
-const SEA_CREATURE_IMAGES = [
-  'poseidon.png',
-  'whale.png', 
-  'shark.png',
-  'dolphin.png',
-  'squid.png',
-  'turtle.png',
-  'crab.png',
-  'shrimp.png',
-  'shell.png'
-];
-
-// Ranking badge images used in validator table
-const RANKING_BADGE_IMAGES = [
-  '1.png',
-  '2.png',
-  '3.png'
-];
 
 // Favicon files that should be preloaded immediately
 const FAVICON_FILES = [
@@ -157,7 +137,7 @@ export default function RootLayout({
             fetchPriority="high"
           />
         ))}
-        {/* Preload essential token logos */}
+        {/* Preload essential token logos (used across multiple pages) */}
         {ESSENTIAL_TOKENS.map(token => (
           <link 
             key={token}
@@ -165,28 +145,6 @@ export default function RootLayout({
             href={`/coin-logos/${token.replace(/^[pe]/, '')}.svg`}
             as="image"
             type="image/svg+xml"
-          />
-        ))}
-        {/* Preload sea creature images for league tables */}
-        {SEA_CREATURE_IMAGES.map((image, index) => (
-          <link 
-            key={image}
-            rel="preload"
-            href={`/${image}`}
-            as="image"
-            type="image/png"
-            fetchPriority={index < 3 ? 'high' : 'auto'} // High priority for top 3 ranks
-          />
-        ))}
-        {/* Preload ranking badge images for validator table */}
-        {RANKING_BADGE_IMAGES.map((image) => (
-          <link 
-            key={image}
-            rel="preload"
-            href={`/${image}`}
-            as="image"
-            type="image/png"
-            fetchPriority="high" // High priority since these are always visible
           />
         ))}
       </head>

@@ -284,10 +284,13 @@ export function usePortfolioBalance(walletAddresses: string[]): UsePortfolioBala
     cacheKey,
     () => fetchAllAddressBalances(walletAddresses),
     {
-      refreshInterval: 300000, // Refresh every 5 minutes
-      dedupingInterval: 300000, // 5 minute cache
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false, // Don't refetch on reconnect
+      // Disable all automatic revalidation - only fetch on mount/reload
+      refreshInterval: 0, // No automatic refresh
+      dedupingInterval: 0, // No deduping - always fresh on mount
+      revalidateOnFocus: false, // Don't refetch when window gets focus
+      revalidateOnReconnect: false, // Don't refetch on network reconnect
+      revalidateIfStale: false, // Don't refetch if data is stale
+      revalidateOnMount: true, // Only fetch on component mount
       errorRetryInterval: 10000,
       errorRetryCount: 2
     }

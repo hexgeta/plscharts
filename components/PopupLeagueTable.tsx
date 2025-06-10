@@ -23,7 +23,7 @@ const PopupLeagueTable = React.memo(({ token, children }: PopupLeagueTableProps)
     <>
       {children(handleClick)}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl w-full max-w-[360px] sm:max-w-lg max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
+        <DialogContent className="w-full max-w-[360px] sm:max-w-lg max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

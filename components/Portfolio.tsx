@@ -69,6 +69,16 @@ export default function Portfolio() {
     invalid: string[]
     duplicates: string[]
   } | null>(null)
+  // Add state for modal tabs
+  const [activeTab, setActiveTab] = useState<'addresses' | 'settings'>('addresses')
+  // Add state for backing price toggle
+  const [useBackingPrice, setUseBackingPrice] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioUseBackingPrice')
+      return saved === 'true'
+    }
+    return false
+  })
   // Add to Portfolio component state
   const [chainFilter, setChainFilter] = useState<'pulsechain' | 'ethereum' | 'both'>(() => {
     // Initialize from localStorage if available
@@ -80,6 +90,35 @@ export default function Portfolio() {
     }
     return 'both'
   })
+
+  // Preload portfolio-specific images on component mount
+  useEffect(() => {
+    // Preload chain icons
+    const chainIcons = ['/coin-logos/ETH-white.svg', '/coin-logos/PLS-white.svg']
+    chainIcons.forEach(src => {
+      const link = document.createElement('link')
+      link.rel = 'preload'
+      link.href = src
+      link.as = 'image'
+      link.type = 'image/svg+xml'
+      document.head.appendChild(link)
+    })
+
+    // Preload league images
+    const leagueImages = [
+      '/poseidon.png', '/whale.png', '/shark.png', '/dolphin.png',
+      '/squid.png', '/turtle.png', '/crab.png', '/shrimp.png', '/shell.png'
+    ]
+    leagueImages.forEach((src, index) => {
+      const link = document.createElement('link')
+      link.rel = 'preload'
+      link.href = src
+      link.as = 'image'
+      link.type = 'image/png'
+      if (index < 3) link.fetchPriority = 'high' // High priority for top 3 ranks
+      document.head.appendChild(link)
+    })
+  }, [])
 
   // Prevent body scroll when edit modal is open
   useEffect(() => {
@@ -138,6 +177,11 @@ export default function Portfolio() {
     console.log('[Portfolio] Saving selected addresses:', selectedAddressIds.length, 'addresses')
     localStorage.setItem('portfolioSelectedAddresses', JSON.stringify(selectedAddressIds))
   }, [selectedAddressIds])
+
+  // Save backing price setting to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('portfolioUseBackingPrice', useBackingPrice.toString())
+  }, [useBackingPrice])
 
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
@@ -508,15 +552,48 @@ export default function Portfolio() {
     }
   }, [balances, selectedAddressIds, addresses, chainFilter])
 
+  // Helper function to check if a token is a stablecoin (including e-versions)
+  const isStablecoin = useCallback((symbol: string): boolean => {
+    const stablecoins = ['weDAI', 'weUSDC', 'weUSDT', 'CST', 'weUSDL']
+    return stablecoins.includes(symbol)
+  }, [])
+
+  // Helper function to check if a token should use backing price
+  const shouldUseBackingPrice = useCallback((symbol: string): boolean => {
+    const backingTokens = ['MAXI', 'DECI', 'LUCKY', 'TRIO', 'BASE', 'eMAXI', 'eDECI', 'weMAXI', 'weDECI']
+    return backingTokens.includes(symbol)
+  }, [])
+
+  // Helper function to get token price (market or backing)
+  const getTokenPrice = useCallback((symbol: string): number => {
+    // Stablecoins are always $1
+    if (isStablecoin(symbol)) return 1
+    
+    // Check if this token should use backing price
+    if (useBackingPrice && shouldUseBackingPrice(symbol)) {
+      // For e/we tokens, use eHEX price
+      if (symbol.startsWith('e') || symbol.startsWith('we')) {
+        const eHexPrice = prices['eHEX']?.price || 0
+        return eHexPrice * 2 // Backing price is 2.0 * eHEX price
+      }
+      // For regular MAXI tokens, use HEX price  
+      else {
+        const hexPrice = prices['HEX']?.price || 0
+        return hexPrice * 2 // Backing price is 2.0 * HEX price
+      }
+    }
+    
+    // Use market price
+    return prices[symbol]?.price || 0
+  }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices])
+
   // Memoized sorted tokens to prevent re-sorting on every render
   const sortedTokens = useMemo(() => {
     if (!mainTokensWithBalances.length || !prices) return []
     
     return [...mainTokensWithBalances].sort((a, b) => {
-      const aPrice = (a.symbol === 'DAI' || a.symbol === 'USDC' || a.symbol === 'USDT') ? 1 : 
-                   (prices[a.symbol]?.price || 0)
-      const bPrice = (b.symbol === 'DAI' || b.symbol === 'USDC' || b.symbol === 'USDT') ? 1 : 
-                   (prices[b.symbol]?.price || 0)
+      const aPrice = getTokenPrice(a.symbol)
+      const bPrice = getTokenPrice(b.symbol)
       const aValue = a.balanceFormatted * aPrice
       const bValue = b.balanceFormatted * bPrice
       
@@ -535,13 +612,29 @@ export default function Portfolio() {
       // Tertiary sort by symbol for stability
       return a.symbol.localeCompare(b.symbol)
     })
-  }, [mainTokensWithBalances, prices])
+  }, [mainTokensWithBalances, prices, getTokenPrice])
 
   // Format balance for display
   const formatBalance = (balance: number): string => {
     if (balance === 0) return '0'
+    if (balance >= 1e15) return (balance / 1e15).toFixed(1) + 'Q' // Quadrillion
+    if (balance >= 1e12) return (balance / 1e12).toFixed(1) + 'T' // Trillion
+    if (balance >= 1e9) return (balance / 1e9).toFixed(1) + 'B'   // Billion
+    if (balance >= 1e6) return (balance / 1e6).toFixed(1) + 'M'   // Million
     if (balance < 10) return balance.toFixed(2)
     return Math.floor(balance).toLocaleString('en-US')
+  }
+
+  // Format large numbers for mobile with K, M, B, T, Q suffixes and 1 decimal place
+  const formatBalanceMobile = (balance: number): string => {
+    if (balance === 0) return '0'
+    if (balance >= 1e15) return (balance / 1e15).toFixed(1) + 'Q' // Quadrillion
+    if (balance >= 1e12) return (balance / 1e12).toFixed(1) + 'T' // Trillion
+    if (balance >= 1e9) return (balance / 1e9).toFixed(1) + 'B'   // Billion
+    if (balance >= 1e6) return (balance / 1e6).toFixed(1) + 'M'   // Million
+    if (balance >= 1e3) return (balance / 1e3).toFixed(1) + 'K'   // Thousand
+    if (balance < 10) return balance.toFixed(2)
+    return Math.floor(balance).toString()
   }
 
   // Format address for display
@@ -698,20 +791,20 @@ export default function Portfolio() {
     }, [token.symbol, token.chain])
 
   return (
-      <div className="grid grid-cols-[auto_2fr_1fr_2fr_auto] sm:grid-cols-[auto_2fr_1fr_1fr_1fr_2fr_auto] items-center gap-4 py-3 border-b border-white/10 mx-6 last:border-b-0">
+      <div className="grid grid-cols-[auto_2fr_1fr_2fr_auto] sm:grid-cols-[auto_2fr_1fr_1fr_1fr_2fr_auto] items-center gap-4 border-b border-white/10 mx-4 md:mx-4 py-4 last:border-b-0">
         {/* Chain Icon - Furthest Left Column */}
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center min-w-[18px]">
           <Image
             src={Number(token.chain) === 1 ? "/coin-logos/ETH-white.svg" : "/coin-logos/PLS-white.svg"}
             alt={Number(token.chain) === 1 ? "Ethereum" : "PulseChain"}
             width={14}
             height={14}
-            className="w-4 h-4 opacity-30"
+            className="w-4 h-4 brightness-50 contrast-75"
           />
         </div>
         
         {/* Token Info - Left Column */}
-        <div className="flex items-center space-x-3 min-w-[40px]">
+        <div className="flex items-center space-x-3 min-w-[100px] md:min-w-[140px]">
           <div className="flex-shrink-0">
             <CoinLogo
               symbol={token.symbol}
@@ -725,7 +818,7 @@ export default function Portfolio() {
               {getDisplayTicker(token.symbol)}
             </div>
             <div className="text-gray-400 text-[10px]">
-              <span className="sm:hidden">{displayAmount} {getDisplayTicker(token.symbol)}</span>
+              <span className="sm:hidden">{displayAmount}</span>
               <span className="hidden sm:block">{(() => {
                 const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
                 return tokenConfig?.name || getDisplayTicker(token.symbol)
@@ -743,7 +836,7 @@ export default function Portfolio() {
 
         {/* 24h Price Change Column */}
         <div className="text-center ml-4 sm:ml-0">
-          <div className={`text-[12px] sm:text-xs font-bold ${
+          <div className={`text-[10px] sm:text-xs font-bold ${
             priceChange24h !== undefined
               ? priceChange24h >= 0 
                 ? 'text-[#00ff55]' 
@@ -758,7 +851,7 @@ export default function Portfolio() {
         </div>
 
         {/* League Column - Hidden on Mobile */}
-        <div className="hidden sm:flex flex-col items-center justify-center ml-14">
+        <div className="hidden sm:flex flex-col items-center justify-center min-w-[40px]">
           {shouldShowLeague ? (
             <>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -775,7 +868,7 @@ export default function Portfolio() {
                 )}
               </button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl w-full max-w-[360px] sm:max-w-[560px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
+            <DialogContent className="w-full max-w-[360px] md:max-w-[560px] max-h-[70vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -903,20 +996,12 @@ export default function Portfolio() {
       let addressValue = 0
       
       // Add native PLS value
-      const nativePrice = prices[addressData.nativeBalance.symbol]?.price || 0
+      const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
       addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
       
       // Add token values
       addressData.tokenBalances?.forEach(token => {
-        let tokenPrice = 0
-        
-        // Use $1 for stablecoins
-        if (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT') {
-          tokenPrice = 1
-        } else {
-          tokenPrice = prices[token.symbol]?.price || 0
-        }
-        
+        const tokenPrice = getTokenPrice(token.symbol)
         addressValue += token.balanceFormatted * tokenPrice
       })
 
@@ -931,7 +1016,7 @@ export default function Portfolio() {
     })
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses])
+  }, [filteredBalances, prices, addresses, getTokenPrice])
 
   // Calculate 24h portfolio change percentage
   const portfolio24hChange = useMemo(() => {
@@ -965,15 +1050,26 @@ export default function Portfolio() {
         let tokenCurrentPrice = 0
         let tokenPrevPrice = 0
 
-        // Use $1 for stablecoins (no change)
-        if (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT') {
-          tokenCurrentPrice = 1
+        // Get current and previous prices
+        tokenCurrentPrice = getTokenPrice(token.symbol)
+        
+        // For backing price tokens, calculate 24h change based on HEX or eHEX
+        if (useBackingPrice && shouldUseBackingPrice(token.symbol)) {
+          // Use eHEX for e/we tokens, HEX for regular tokens
+          const hexSymbol = (token.symbol.startsWith('e') || token.symbol.startsWith('we')) ? 'eHEX' : 'HEX'
+          const hexPriceData = prices[hexSymbol]
+          const hex24hChange = hexPriceData?.priceChange?.h24 || 0
+          const hexPrevPrice = hex24hChange !== 0 
+            ? (hexPriceData?.price || 0) / (1 + (hex24hChange / 100))
+            : (hexPriceData?.price || 0)
+          tokenPrevPrice = hexPrevPrice * 2
+        } else if (isStablecoin(token.symbol)) {
+          // Stablecoins don't change
           tokenPrevPrice = 1
         } else {
+          // Regular market price 24h change
           const tokenPriceData = prices[token.symbol]
-          tokenCurrentPrice = tokenPriceData?.price || 0
           const token24hChange = tokenPriceData?.priceChange?.h24 || 0
-          
           tokenPrevPrice = token24hChange !== 0 
             ? tokenCurrentPrice / (1 + (token24hChange / 100))
             : tokenCurrentPrice
@@ -987,7 +1083,7 @@ export default function Portfolio() {
     // Calculate percentage change
     if (previousTotalValue === 0) return 0
     return ((currentTotalValue - previousTotalValue) / previousTotalValue) * 100
-  }, [filteredBalances, prices])
+  }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin])
 
   // Comprehensive loading state - wait for relevant data to be ready
   // Once ready, stay ready (don't hide UI during price updates)
@@ -1252,7 +1348,7 @@ export default function Portfolio() {
                         alt="Ethereum" 
                         width={16} 
                         height={16}
-                        className="w-4 h-4 opacity-70 group-hover:opacity-100"
+                        className="w-4 h-4 brightness-75 contrast-75 group-hover:brightness-100 group-hover:contrast-100"
                       />
                     )}
                                       {chainFilter === 'pulsechain' && (
@@ -1261,7 +1357,7 @@ export default function Portfolio() {
                         alt="PulseChain" 
                         width={16} 
                         height={16}
-                        className="w-4 h-4 opacity-70 group-hover:opacity-100"
+                        className="w-4 h-4 brightness-75 contrast-75 group-hover:brightness-100 group-hover:contrast-100"
                       />
                     )}
                   {chainFilter === 'both' && (
@@ -1271,7 +1367,7 @@ export default function Portfolio() {
                           alt="Ethereum" 
                           width={16} 
                           height={16}
-                          className="w-4 h-4 opacity-60 group-hover:opacity-100 ml-1"
+                          className="w-4 h-4 brightness-75 contrast-75 group-hover:brightness-100 group-hover:contrast-100 ml-1"
                         />
                         <span className="text-xs text-gray-400 group-hover:text-white">+</span>
                         <Image 
@@ -1279,7 +1375,7 @@ export default function Portfolio() {
                           alt="PulseChain" 
                           width={16} 
                           height={16}
-                          className="w-4 h-4 opacity-60 group-hover:opacity-100"
+                          className="w-4 h-4 brightness-75 contrast-75 group-hover:brightness-100 group-hover:contrast-100"
                         />
                     </>
                   )}
@@ -1303,7 +1399,8 @@ export default function Portfolio() {
           </div>
                     <div className="flex items-center justify-left sm:justify-center gap-2 ml-6">
             <div className="text-4xl sm:text-5xl font-bold text-white py-2">
-              ${formatBalance(totalUsdValue)}
+              <span className="sm:hidden">${formatBalanceMobile(totalUsdValue)}</span>
+              <span className="hidden sm:inline">${formatBalance(totalUsdValue)}</span>
             </div>
             <div className={`text-xs md:text-sm font-bold ml-1 ${
               portfolio24hChange <= -1
@@ -1317,17 +1414,17 @@ export default function Portfolio() {
           </div>
           <div className="text-sm text-gray-400 mt-4 flex flex-wrap gap-2 justify-center">
             {addresses.map((addr, index) => (
-              <span 
+              <button 
                 key={addr.id}
                 onClick={() => handleAddressFilter(addr.id)}
-                className={`px-3 py-1 border rounded-full text-xs transition-colors cursor-pointer ${
+                className={`px-3 py-1 border rounded-full text-xs transition-colors cursor-pointer focus:outline-none ${
                   selectedAddressIds.includes(addr.id) 
                     ? 'border-white bg-white text-black' 
                     : 'border-white/20 hover:bg-white/20 text-white'
                 }`}
               >
                 {addr.label || formatAddress(addr.address)}
-              </span>
+              </button>
             ))}
                   </div>
         </Section>
@@ -1351,8 +1448,7 @@ export default function Portfolio() {
         >
           <div className="space-y-3">
             {sortedTokens.map((token, tokenIndex) => {
-              const tokenPrice = (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT') ? 1 : 
-                               (prices[token.symbol]?.price || 0)
+              const tokenPrice = getTokenPrice(token.symbol)
               // Use a stable key that includes the token address to prevent unnecessary remounting
               const stableKey = `${token.chain}-${token.symbol}-${token.address || 'native'}`
               return (
@@ -1390,28 +1486,54 @@ export default function Portfolio() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-8 sm:pt-4"
             onClick={() => setShowEditModal(false)}
           >
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-black border-2 border-white/20 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+              className="bg-black border-2 border-white/20 rounded-2xl w-full max-w-[85vw] sm:max-w-2xl max-h-[80vh] sm:max-h-[65vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold">Edit Addresses</h2>
+                          >
+              {/* Fixed Header */}
+              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10">
+                <div className="flex bg-white/5 border border-white/10 rounded-full p-1">
+                  <button
+                    onClick={() => setActiveTab('addresses')}
+                    className={`px-6 py-2.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
+                      activeTab === 'addresses' 
+                        ? 'bg-white text-black shadow-lg' 
+                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {addresses.length} Address{addresses.length !== 1 ? 'es' : ''}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`px-6 py-2.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
+                      activeTab === 'settings' 
+                        ? 'bg-white text-black shadow-lg' 
+                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    Settings
+                  </button>
+                </div>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
                 >
                   <X size={20} />
                 </button>
-                                </div>
+              </div>
 
-              {/* Address List */}
-              <div className="space-y-4 mb-6">
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 sm:p-6">
+                {activeTab === 'addresses' && (
+                  <>
+                    {/* Address List */}
+                    <div className="space-y-4">
                 {addresses.map((addr, index) => {
                   const editingState = editingStates[addr.id] || { isEditing: false, tempLabel: addr.label || '' }
                   const { isEditing, tempLabel } = editingState
@@ -1427,14 +1549,15 @@ export default function Portfolio() {
                   }
                   
                   return (
-                    <div key={addr.id} className="flex items-center gap-4 py-3 border-b border-white/10 last:border-b-0">
+                    <div key={addr.id} className="flex items-center gap-2 sm:gap-4 py-3 border-b border-white/10 last:border-b-0">
                       {/* Address */}
                       <div className="flex-1 font-mono text-sm text-white">
-                        {addr.address}
+                        <span className="sm:hidden">0x...{addr.address.slice(-4)}</span>
+                        <span className="hidden sm:block">{addr.address}</span>
                               </div>
                       
                       {/* Name/Label Field */}
-                      <div className="w-64">
+                      <div className="w-32 sm:w-64">
                         <input
                           type="text"
                           placeholder="Name (optional)"
@@ -1485,64 +1608,104 @@ export default function Portfolio() {
                   )
                 })}
                 </div>
-
-              {/* Add New Address */}
-              <div className="space-y-3 pt-4 border-t border-white/10">
-                <h3 className="text-lg font-semibold">Add New Address</h3>
-                
-                {/* Duplicate Error Message */}
-                {duplicateError && (
-                  <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm flex items-center gap-2">
-                    <span>⚠️</span>
-                    <span>{duplicateError}</span>
-                </div>
+                </>
               )}
 
-                {/* Bulk Parse Results for modal */}
-                {bulkParseResults && (
-                  <div className="space-y-2">
-                    {bulkParseResults.valid.length > 0 && (
-                      <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
-                        ✅ {bulkParseResults.valid.length} address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
+              {/* Settings Tab */}
+              {activeTab === 'settings' && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold">Price Settings</h3>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex-1">
+                        <div className="font-medium text-white mb-1">MAXI Tokens</div>
+                        <div className="text-sm text-gray-400">
+                          Use the backing price instead of the current market price
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setUseBackingPrice(!useBackingPrice)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          useBackingPrice ? 'bg-white' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                            useBackingPrice ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+  
+                  </div>
+                </div>
+              )}
               </div>
-                    )}
-                    {bulkParseResults.invalid.length > 0 && (
-                      <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
-                        ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 2).join(', ')}{bulkParseResults.invalid.length > 2 ? '...' : ''}
-            </div>
-                    )}
-                    {bulkParseResults.duplicates.length > 0 && (
-                      <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
-                        ⚠️ {bulkParseResults.duplicates.length} duplicate{bulkParseResults.duplicates.length !== 1 ? 's' : ''} skipped
+
+              {/* Fixed Footer - Add New Address (only for addresses tab) */}
+              {activeTab === 'addresses' && (
+                <div className="border-t border-white/10 p-4 sm:p-6 bg-black">
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold">Add New Address</h3>
+                    
+                    {/* Duplicate Error Message */}
+                    {duplicateError && (
+                      <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span>{duplicateError}</span>
                       </div>
                     )}
-        </div>
-      )}
 
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    placeholder="0x..."
-                    value={newAddressInput}
-                    onChange={(e) => setNewAddressInput(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Name (optional)"
-                    value={newLabelInput}
-                    onChange={(e) => setNewLabelInput(e.target.value)}
-                    className="w-64 px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none"
-                  />
-                  <button
-                    onClick={handleAddAddressInModal}
-                    disabled={!newAddressInput.trim()}
-                    className="px-6 py-2 bg-white text-black font-medium rounded-lg disabled:bg-white disabled:text-black disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-                  >
-                    +
-                  </button>
-      </div>
-    </div>
+                    {/* Bulk Parse Results for modal */}
+                    {bulkParseResults && (
+                      <div className="space-y-2">
+                        {bulkParseResults.valid.length > 0 && (
+                          <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
+                            ✅ {bulkParseResults.valid.length} address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
+                          </div>
+                        )}
+                        {bulkParseResults.invalid.length > 0 && (
+                          <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
+                            ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 2).join(', ')}{bulkParseResults.invalid.length > 2 ? '...' : ''}
+                          </div>
+                        )}
+                        {bulkParseResults.duplicates.length > 0 && (
+                          <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
+                            ⚠️ {bulkParseResults.duplicates.length} duplicate{bulkParseResults.duplicates.length !== 1 ? 's' : ''} skipped
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input
+                        type="text"
+                        placeholder="0x..."
+                        value={newAddressInput}
+                        onChange={(e) => setNewAddressInput(e.target.value)}
+                        className="w-full sm:w-1/2 px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none text-sm"
+                      />
+                      <div className="flex gap-3 w-full sm:w-1/2">
+                        <input
+                          type="text"
+                          placeholder="Name (optional)"
+                          value={newLabelInput}
+                          onChange={(e) => setNewLabelInput(e.target.value)}
+                          className="flex-1 px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none text-sm"
+                        />
+                        <button
+                          onClick={handleAddAddressInModal}
+                          disabled={!newAddressInput.trim()}
+                          className="px-6 py-2 bg-white text-black font-medium rounded-lg disabled:bg-white disabled:text-black disabled:cursor-not-allowed hover:bg-gray-100 transition-colors whitespace-nowrap"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

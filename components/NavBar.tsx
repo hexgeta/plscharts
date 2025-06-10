@@ -30,7 +30,7 @@ const NavBar = () => {
   // Helper function to get link classes
   const getLinkClasses = (href: string, isMobile = false) => {
     const baseClasses = "transition-colors";
-    const desktopPadding = "px-2 py-3 rounded-md";
+    const desktopPadding = "px-0 py-3 rounded-md";
     const mobilePadding = "block py-2";
     const activeClasses = isMobile 
       ? 'text-white cursor-default' 
@@ -108,9 +108,9 @@ const NavBar = () => {
           aria-expanded={isMenuOpen}
         >
           <div className="flex flex-col justify-center items-center space-y-1.5">
-            <div className="w-6 h-0.5 bg-gray-400 transition-all duration-200"></div>
-            <div className="w-6 h-0.5 bg-gray-400 transition-all duration-200"></div>
-            <div className="w-6 h-0.5 bg-gray-400 transition-all duration-200"></div>
+            <div className="w-6 h-0.5 bg-[rgb(153,153,153)] transition-all duration-200"></div>
+            <div className="w-6 h-0.5 bg-[rgb(153,153,153)] transition-all duration-200"></div>
+            <div className="w-6 h-0.5 bg-[rgb(153,153,153)] transition-all duration-200"></div>
           </div>
         </button>
       </div>

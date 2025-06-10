@@ -156,7 +156,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: null,
   ticker: "USDC",
   decimals: 6,
-  name: "USD Coin"
+  name: "USDC on Ethereum"
 }, {
   chain: 1,
   a: "0xdac17f958d2ee523a2206206994597c13d831ec7",
@@ -170,7 +170,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: null,
   ticker: "DAI",
   decimals: 18,
-  name: "DAI Stablecoin on Ethereum"
+  name: "DAI on Ethereum"
 }, {
   chain: 1,
   a: "0x4fabb145d64652a948d72533023f6e7a623c7c53",
@@ -626,7 +626,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0xefd766ccb38eaf1dfd701853bfce31359239f305",
   dexs: null,
-  ticker: "eDAI",
+  ticker: "weDAI",
   decimals: 18,
   name: "Wrapped DAI from Eth",
   origin: [1, "0x6b175474e89094c44da98b954eedeac495271d0f"]

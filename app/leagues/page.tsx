@@ -147,6 +147,24 @@ PopupTokenCard.displayName = 'PopupTokenCard';
 export default function LeaguesPage() {
   const [mounted, setMounted] = useState(false);
   const [excludeOA, setExcludeOA] = useState(true);
+
+  // Preload league images on component mount
+  useEffect(() => {
+    // Preload league images
+    const leagueImages = [
+      '/poseidon.png', '/whale.png', '/shark.png', '/dolphin.png',
+      '/squid.png', '/turtle.png', '/crab.png', '/shrimp.png', '/shell.png'
+    ]
+    leagueImages.forEach((src, index) => {
+      const link = document.createElement('link')
+      link.rel = 'preload'
+      link.href = src
+      link.as = 'image'
+      link.type = 'image/png'
+      if (index < 3) link.fetchPriority = 'high' // High priority for top 3 ranks
+      document.head.appendChild(link)
+    })
+  }, [])
   
   // Batch fetch prices and supplies for main tokens only
   const { prices, isLoading: pricesLoading } = useTokenPrices(MAIN_TOKENS, { disableRefresh: true });

@@ -339,6 +339,21 @@ export default function ValidatorsTracker() {
     }
   };
 
+  // Preload validator-specific images on component mount
+  useEffect(() => {
+    // Preload ranking badge images
+    const rankingBadges = ['/1.png', '/2.png', '/3.png']
+    rankingBadges.forEach(src => {
+      const link = document.createElement('link')
+      link.rel = 'preload'
+      link.href = src
+      link.as = 'image'
+      link.type = 'image/png'
+      link.fetchPriority = 'high' // High priority since these are always visible
+      document.head.appendChild(link)
+    })
+  }, [])
+
   useEffect(() => {
     fetchValidatorsData();
     fetchHistoryData();
