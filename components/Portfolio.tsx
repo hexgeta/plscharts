@@ -2194,7 +2194,7 @@ export default function Portfolio() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-black border-2 border-white/20 rounded-2xl w-full max-w-[85vw] sm:max-w-2xl max-h-[75vh] overflow-hidden flex flex-col"
+              className="bg-black border-2 border-white/20 rounded-2xl w-full max-w-[85vw] sm:max-w-2xl max-h-[65vh] sm:max-h-[75vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Fixed Header */}
@@ -2202,13 +2202,14 @@ export default function Portfolio() {
                 <div className="flex bg-white/5 border border-white/10 rounded-full p-1">
                   <button
                     onClick={() => setActiveTab('addresses')}
-                    className={`px-6 py-1.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
+                    className={`px-6 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
                       activeTab === 'addresses' 
                         ? 'bg-white text-black shadow-lg' 
                         : 'text-gray-300 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    {addresses.length} Address{addresses.length !== 1 ? 'es' : ''}
+                    <span className="sm:hidden">Addresses</span>
+                    <span className="hidden sm:inline">{addresses.length} Address{addresses.length !== 1 ? 'es' : ''}</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('settings')}
