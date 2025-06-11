@@ -5,6 +5,7 @@ import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
 import { usePortfolioBalance } from '@/hooks/crypto/usePortfolioBalance'
+import { useMaxiTokenData } from '@/hooks/crypto/useMaxiTokenData'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { X, Edit, Trash2, TrendingUp, Copy } from 'lucide-react'
@@ -467,6 +468,9 @@ export default function Portfolio() {
   // Fetch prices for all tokens with balances plus CST
   const { prices: rawPrices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
 
+  // Fetch MAXI token backing data
+  const { data: maxiData, isLoading: maxiLoading, error: maxiError, getBackingPerToken } = useMaxiTokenData()
+
   // Stabilize prices reference to prevent unnecessary re-renders
   const prices = useMemo(() => {
     // Add some debugging to see if prices are updating
@@ -571,21 +575,36 @@ export default function Portfolio() {
     
     // Check if this token should use backing price
     if (useBackingPrice && shouldUseBackingPrice(symbol)) {
-      // For e/we tokens, use eHEX price
-      if (symbol.startsWith('e') || symbol.startsWith('we')) {
-        const eHexPrice = prices['eHEX']?.price || 0
-        return eHexPrice * 2 // Backing price is 2.0 * eHEX price
-      }
-      // For regular MAXI tokens, use HEX price  
-      else {
-        const hexPrice = prices['HEX']?.price || 0
-        return hexPrice * 2 // Backing price is 2.0 * HEX price
+      // Get the actual backing per token from the MAXI API
+      const backingPerToken = getBackingPerToken(symbol)
+      
+      if (backingPerToken !== null) {
+        // For e/we tokens, use eHEX price with backing multiplier
+        if (symbol.startsWith('e') || symbol.startsWith('we')) {
+          const eHexPrice = prices['eHEX']?.price || 0
+          return eHexPrice * backingPerToken
+        }
+        // For regular MAXI tokens (p-versions), use HEX price with backing multiplier
+        else {
+          const hexPrice = prices['HEX']?.price || 0
+          return hexPrice * backingPerToken
+        }
+      } else {
+        // Fallback to old calculation if API data not available
+        console.warn(`[Portfolio] No backing data found for ${symbol}, using fallback calculation`)
+        if (symbol.startsWith('e') || symbol.startsWith('we')) {
+          const eHexPrice = prices['eHEX']?.price || 0
+          return eHexPrice * 2 // Fallback: 2.0 * eHEX price
+        } else {
+          const hexPrice = prices['HEX']?.price || 0
+          return hexPrice * 2 // Fallback: 2.0 * HEX price
+        }
       }
     }
     
     // Use market price
     return prices[symbol]?.price || 0
-  }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices])
+  }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken])
 
   // Memoized sorted tokens to prevent re-sorting on every render
   const sortedTokens = useMemo(() => {
@@ -1053,8 +1072,12 @@ export default function Portfolio() {
         // Get current and previous prices
         tokenCurrentPrice = getTokenPrice(token.symbol)
         
-        // For backing price tokens, calculate 24h change based on HEX or eHEX
+        // For backing price tokens, calculate 24h change based on HEX or eHEX with actual backing multiplier
         if (useBackingPrice && shouldUseBackingPrice(token.symbol)) {
+          // Get the actual backing per token from the MAXI API
+          const backingPerToken = getBackingPerToken(token.symbol)
+          const backingMultiplier = backingPerToken !== null ? backingPerToken : 2 // fallback to 2
+          
           // Use eHEX for e/we tokens, HEX for regular tokens
           const hexSymbol = (token.symbol.startsWith('e') || token.symbol.startsWith('we')) ? 'eHEX' : 'HEX'
           const hexPriceData = prices[hexSymbol]
@@ -1062,7 +1085,7 @@ export default function Portfolio() {
           const hexPrevPrice = hex24hChange !== 0 
             ? (hexPriceData?.price || 0) / (1 + (hex24hChange / 100))
             : (hexPriceData?.price || 0)
-          tokenPrevPrice = hexPrevPrice * 2
+          tokenPrevPrice = hexPrevPrice * backingMultiplier
         } else if (isStablecoin(token.symbol)) {
           // Stablecoins don't change
           tokenPrevPrice = 1
@@ -1096,8 +1119,9 @@ export default function Portfolio() {
                           Object.keys(prices).length > 0
     
     // Only consider loading states on initial load
+    // Include MAXI loading for backing price functionality
     if (isInitialLoad) {
-      return hasInitialData && !balancesLoading && !pricesLoading
+      return hasInitialData && !balancesLoading && !pricesLoading && !maxiLoading
     }
     
     // After initial load, stay ready as long as we have data
@@ -1106,6 +1130,7 @@ export default function Portfolio() {
     addresses.length,
     balancesLoading,
     pricesLoading,
+    maxiLoading,
     balancesError,
     balances?.length,
     Object.keys(prices).length,
@@ -1117,9 +1142,12 @@ export default function Portfolio() {
     addresses: addresses.length,
     balancesLoading,
     pricesLoading,
+    maxiLoading,
     balancesError,
+    maxiError,
     balances: balances ? balances.length : 'null',
     prices: prices ? Object.keys(prices).length : 'null',
+    maxiData: maxiData ? Object.keys(maxiData).length : 'null',
     allTokenTickers,
     filteredBalances: filteredBalances.length,
     sortedTokens: sortedTokens.length
@@ -1131,9 +1159,12 @@ export default function Portfolio() {
     hasAddresses: addresses.length > 0,
     balancesLoading,
     pricesLoading,
+    maxiLoading,
     hasBalancesError: !!balancesError,
+    hasMaxiError: !!maxiError,
     hasBalances: balances && balances.length > 0,
     hasPrices: prices && Object.keys(prices).length > 0,
+    hasMaxiData: maxiData && Object.keys(maxiData).length > 0,
     isEverythingReady
   })
 
@@ -1184,8 +1215,8 @@ export default function Portfolio() {
   const Container = showMotion ? motion.div : 'div';
   const Section = showMotion ? motion.div : 'div';
 
-  // Show loading state only on initial load
-  if (isInitialLoad && !isEverythingReady) {
+  // Show loading state only on initial load when there are addresses
+  if (addresses.length > 0 && isInitialLoad && !isEverythingReady) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <div className="max-w-6xl mx-auto">

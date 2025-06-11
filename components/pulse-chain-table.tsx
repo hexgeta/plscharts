@@ -290,7 +290,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               {/* Add eCOM coupon rate for eHEX */}
               {ticker === "eHEX" && ecomCouponRate !== null && (
                 <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
-                  eCOM Coupon Rate: {formatNumber(ecomCouponRate, { decimals: 2 })}%
+                  COM Coupon Rate: {formatNumber(ecomCouponRate, { decimals: 2 })}%
                 </div>
               )}
               
