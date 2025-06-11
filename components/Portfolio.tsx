@@ -1530,9 +1530,9 @@ export default function Portfolio() {
     );
   }
 
-  return (
-    <div className="w-full">
-    <Container 
+    return (
+    <div className="w-full pb-20 md:pb-0">
+      <Container 
       {...(showMotion ? {
         initial: { opacity: 0, y: 20 },
         animate: { opacity: 1, y: 0 },

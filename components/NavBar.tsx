@@ -86,7 +86,7 @@ const NavBar = () => {
           PlsCharts
         </Link>
         
-        <div className="hidden md:flex items-center justify-left flex-grow ml-10 relative z-[100]">
+        <div className="hidden sm:flex items-center justify-left flex-grow ml-10 relative z-[100]">
           <div className="flex space-x-6">
             {NAV_LINKS.map((link) => (
               <Link 
@@ -102,7 +102,7 @@ const NavBar = () => {
 
         {/* MOBILE VIEW */}
         <button
-          className="md:hidden flex flex-col justify-center items-center w-16 h-12 relative z-[100] bg-transparent border-0 p-0 touch-manipulation"
+          className="sm:hidden flex flex-col justify-center items-center w-16 h-12 relative z-[100] bg-transparent border-0 p-0 touch-manipulation"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Toggle menu"
           aria-expanded={isMenuOpen}

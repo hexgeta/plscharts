@@ -601,6 +601,30 @@ export const TOKEN_CONSTANTS = [{
 }, 
 {
   chain: 369,
+  a: "0x7FB5120D2DB148e91f572d2f69bC04FE454Dbd9b",
+  dexs: "0x0b353e0328C519F35B30BD0B4ceaF753b2bBbAAB",
+  ticker: "uPLS",
+  decimals: 18,
+  name: "uPLS"
+},
+{
+  chain: 369,
+  a: "0x79BB3A0Ee435f957ce4f54eE8c3CFADc7278da0C",
+  dexs: "0x46814b3f18D90625B6E166bC2917Bb64a635d797",
+  ticker: "vPLS",
+  decimals: 18,
+  name: "vPLS"
+},
+{
+  chain: 369,
+  a: "0x21dCB2c16C3773A565AcB45f6c34348EC78a8385",
+  dexs: "0x9CB24fBC2f1454aF20e3c14b0d1f50c9376CfA82",
+  ticker: "stPLS",
+  decimals: 18,
+  name: "stPLS"
+},
+{
+  chain: 369,
   a: "0xbbcf895bfcb57d0f457d050bb806d1499436c0ce",
   dexs: "0x6312a9477e3BC81D5e3a44d77F0A43630904fF69",
   ticker: "IM",

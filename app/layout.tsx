@@ -2,6 +2,7 @@ import '@/styles/global.css'
 import { FontLoader } from '@/components/ui/FontLoader'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
+import MobileNavigation from '@/components/ui/MobileNavigation'
 import { Providers } from '@/components/Providers'
 import type { Metadata } from 'next'
 
@@ -110,6 +111,14 @@ function FontLoadingOptimizer() {
           .font-loaded {
             font-family: 'Departure Mono', 'ui-monospace', 'SFMono-Regular', 'SF Mono', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
           }
+          /* Hide scrollbars globally */
+          html, body {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          html::-webkit-scrollbar, body::-webkit-scrollbar {
+            display: none;
+          }
         `
       }} />
     </>
@@ -122,7 +131,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="font-sans">
+    <html lang="en" className="font-sans scrollbar-hide">
       <head>
         <script defer data-domain="plscharts.com" src="https://plausible.io/js/script.js"></script>
         <FontLoadingOptimizer />
@@ -148,12 +157,13 @@ export default function RootLayout({
           />
         ))}
       </head>
-      <body className="no-select min-h-screen bg-black text-white">
+      <body className="no-select min-h-screen bg-black text-white overflow-y-auto">
         <Providers>
           <div className="flex flex-col min-h-screen">
             <NavBar />
             <main className="flex-grow">{children}</main>
             <Footer />
+            <MobileNavigation />
           </div>
         </Providers>
       </body>
