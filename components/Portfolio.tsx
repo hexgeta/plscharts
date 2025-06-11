@@ -104,6 +104,46 @@ export default function Portfolio() {
     }
     return false
   })
+
+  // HEX stakes sorting state
+  const [hexStakesSortField, setHexStakesSortField] = useState<'amount' | 'startDate' | 'endDate' | 'progress'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioHexStakesSortField')
+      if (saved && ['amount', 'startDate', 'endDate', 'progress'].includes(saved)) {
+        return saved as 'amount' | 'startDate' | 'endDate' | 'progress'
+      }
+    }
+    return 'endDate'
+  })
+  const [hexStakesSortDirection, setHexStakesSortDirection] = useState<'asc' | 'desc'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioHexStakesSortDirection')
+      if (saved && ['asc', 'desc'].includes(saved)) {
+        return saved as 'asc' | 'desc'
+      }
+    }
+    return 'asc'
+  })
+  
+  // Token balances sorting state
+  const [tokenSortField, setTokenSortField] = useState<'amount' | 'change'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioTokenSortField')
+      if (saved && ['amount', 'change'].includes(saved)) {
+        return saved as 'amount' | 'change'
+      }
+    }
+    return 'amount'
+  })
+  const [tokenSortDirection, setTokenSortDirection] = useState<'asc' | 'desc'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioTokenSortDirection')
+      if (saved && ['asc', 'desc'].includes(saved)) {
+        return saved as 'asc' | 'desc'
+      }
+    }
+    return 'desc'
+  })
   const [showLiquidBalances, setShowLiquidBalances] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('portfolioShowLiquidBalances')
@@ -124,6 +164,15 @@ export default function Portfolio() {
       return saved !== null ? saved === 'true' : true // Default to true
     }
     return true
+  })
+  
+  // Dust filter state
+  const [dustFilter, setDustFilter] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioDustFilter')
+      return saved ? parseFloat(saved) || 0 : 0
+    }
+    return 0
   })
   
   // Validator settings state
@@ -251,6 +300,29 @@ export default function Portfolio() {
   useEffect(() => {
     localStorage.setItem('portfolioShowAdvancedFilters', showAdvancedFilters.toString())
   }, [showAdvancedFilters])
+
+  // Save HEX stakes sorting preferences to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('portfolioHexStakesSortField', hexStakesSortField)
+  }, [hexStakesSortField])
+
+  useEffect(() => {
+    localStorage.setItem('portfolioHexStakesSortDirection', hexStakesSortDirection)
+  }, [hexStakesSortDirection])
+
+  // Save dust filter to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('portfolioDustFilter', dustFilter.toString())
+  }, [dustFilter])
+
+  // Save token sorting preferences to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('portfolioTokenSortField', tokenSortField)
+  }, [tokenSortField])
+
+  useEffect(() => {
+    localStorage.setItem('portfolioTokenSortDirection', tokenSortDirection)
+  }, [tokenSortDirection])
 
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
@@ -499,9 +571,6 @@ export default function Portfolio() {
   // Stabilize balances reference to prevent unnecessary re-renders
   const balances = useMemo(() => rawBalances || [], [rawBalances])
 
-  // Fetch CST supply using existing hook (CST is on PulseChain, chain 369)
-  const { totalSupply: cstSupplyPulseChain, loading: cstSupplyLoading, error: cstSupplyError } = useTokenSupply('CST')
-
   // For now, use only the primary address balances
   const allBalances = balances || []
   const anyBalancesLoading = balancesLoading
@@ -536,7 +605,7 @@ export default function Portfolio() {
   // Minimal debug logging (only when needed)
   // console.log('[Portfolio] Component render - balances:', balances?.length, 'tickers:', allTokenTickers.length, 'chainFilter:', chainFilter, 'selectedIds:', selectedAddressIds.length)
 
-  // Fetch prices for all tokens with balances plus CST
+  // Fetch prices for all tokens with balances
   const { prices: rawPrices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
 
   // Fetch MAXI token backing data
@@ -651,13 +720,13 @@ export default function Portfolio() {
       
       if (backingPerToken !== null) {
         // For e/we tokens, use eHEX price with backing multiplier
-        if (symbol.startsWith('e') || symbol.startsWith('we')) {
-          const eHexPrice = prices['eHEX']?.price || 0
+      if (symbol.startsWith('e') || symbol.startsWith('we')) {
+        const eHexPrice = prices['eHEX']?.price || 0
           return eHexPrice * backingPerToken
-        }
+      }
         // For regular MAXI tokens (p-versions), use HEX price with backing multiplier
-        else {
-          const hexPrice = prices['HEX']?.price || 0
+      else {
+        const hexPrice = prices['HEX']?.price || 0
           return hexPrice * backingPerToken
         }
       } else {
@@ -694,47 +763,105 @@ export default function Portfolio() {
         return addressMatch && chainMatch && stake.status === 'active'
       })
       .sort((a, b) => {
-        // Primary sort: by ending soonest (lowest daysLeft first)
-        if (a.daysLeft !== b.daysLeft) {
-          return a.daysLeft - b.daysLeft
+        let comparison = 0
+
+        // Helper function to calculate stake value
+        const getStakeValue = (stake: any) => {
+          const stakeHex = stake.principleHex + stake.yieldHex
+          const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+          return stakeHex * hexPrice
         }
-        
-        // Secondary sort: by amount in $ (highest value first)
-        const aHex = a.principleHex + a.yieldHex
-        const bHex = b.principleHex + b.yieldHex
-        const aPrice = a.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-        const bPrice = b.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-        const aValue = aHex * aPrice
-        const bValue = bHex * bPrice
-        
-        return bValue - aValue // Highest value first
+
+        if (hexStakesSortField === 'amount') {
+          // Primary sort: by amount in $ (highest value first)
+          const aValue = getStakeValue(a)
+          const bValue = getStakeValue(b)
+          comparison = bValue - aValue
+        } else if (hexStakesSortField === 'startDate') {
+          const aDate = new Date(a.startDate).getTime()
+          const bDate = new Date(b.startDate).getTime()
+          comparison = aDate - bDate
+          
+          // Secondary sort: by amount in $ (highest value first)
+          if (comparison === 0) {
+            const aValue = getStakeValue(a)
+            const bValue = getStakeValue(b)
+            comparison = bValue - aValue
+          }
+        } else if (hexStakesSortField === 'endDate') {
+          const aDate = new Date(a.endDate).getTime()
+          const bDate = new Date(b.endDate).getTime()
+          comparison = aDate - bDate
+          
+          // Secondary sort: by amount in $ (highest value first)
+          if (comparison === 0) {
+            const aValue = getStakeValue(a)
+            const bValue = getStakeValue(b)
+            comparison = bValue - aValue
+          }
+        } else if (hexStakesSortField === 'progress') {
+          comparison = b.progress - a.progress // Higher progress first for ascending
+          
+          // Secondary sort: by amount in $ (highest value first)
+          if (comparison === 0) {
+            const aValue = getStakeValue(a)
+            const bValue = getStakeValue(b)
+            comparison = bValue - aValue
+          }
+        }
+
+        return hexStakesSortDirection === 'asc' ? comparison : -comparison
       })
-  }, [hexStakes, selectedAddressIds, addresses, chainFilter, getTokenPrice])
+  }, [hexStakes, selectedAddressIds, addresses, chainFilter, getTokenPrice, hexStakesSortField, hexStakesSortDirection])
 
   // Memoized sorted tokens to prevent re-sorting on every render
   const sortedTokens = useMemo(() => {
     if (!mainTokensWithBalances.length || !prices) return []
     
-    return [...mainTokensWithBalances].sort((a, b) => {
+    // First filter by dust threshold, then sort
+    const filteredTokens = mainTokensWithBalances.filter(token => {
+      if (dustFilter <= 0) return true
+      
+      const tokenPrice = getTokenPrice(token.symbol)
+      const usdValue = token.balanceFormatted * tokenPrice
+      
+      return usdValue >= dustFilter
+    })
+    
+    return [...filteredTokens].sort((a, b) => {
       const aPrice = getTokenPrice(a.symbol)
       const bPrice = getTokenPrice(b.symbol)
       const aValue = a.balanceFormatted * aPrice
       const bValue = b.balanceFormatted * bPrice
       
-      // Primary sort by USD value descending with larger threshold to reduce flicker
-      const valueDiff = bValue - aValue
-      if (Math.abs(valueDiff) > 1) { // Increase threshold to $1 to reduce frequent reordering
-        return valueDiff
+      let comparison = 0
+      
+      if (tokenSortField === 'amount') {
+        // Sort by USD value
+        comparison = bValue - aValue // Higher value first for desc
+      } else if (tokenSortField === 'change') {
+        // Sort by 24h price change
+        const aPriceData = prices[a.symbol]
+        const bPriceData = prices[b.symbol]
+        const aChange = aPriceData?.priceChange?.h24 || 0
+        const bChange = bPriceData?.priceChange?.h24 || 0
+        comparison = bChange - aChange // Higher change first for desc
+        
+        // Secondary sort by USD value if changes are equal
+        if (Math.abs(comparison) < 0.01) {
+          comparison = bValue - aValue
+        }
       }
       
-      // Secondary sort by token amount descending
-      const balanceDiff = b.balanceFormatted - a.balanceFormatted
-      if (Math.abs(balanceDiff) > 0.1) { // Increase threshold to reduce frequent reordering
-        return balanceDiff
-      }
+      // Apply sort direction
+      const result = tokenSortDirection === 'desc' ? comparison : -comparison
       
-      // Tertiary sort by symbol for stability
+      // Tertiary sort by symbol for stability if values are very close
+      if (Math.abs(result) < 0.01) {
       return a.symbol.localeCompare(b.symbol)
+      }
+      
+      return result
     })
   }, [
     // Only depend on the actual balance values and symbol list, not the full objects
@@ -746,7 +873,12 @@ export default function Portfolio() {
     // Include backing price setting
     useBackingPrice,
     // Include maxiData but only when it changes substantially
-    maxiData && Object.keys(maxiData).length
+    maxiData && Object.keys(maxiData).length,
+    // Include dust filter
+    dustFilter,
+    // Include token sorting
+    tokenSortField,
+    tokenSortDirection
   ])
 
   // Format balance for display
@@ -1039,7 +1171,7 @@ export default function Portfolio() {
                 )}
               </button>
             </DialogTrigger>
-            <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-scroll scrollbar-hide animate-none">
+            <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg animate-none">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -1154,28 +1286,28 @@ export default function Portfolio() {
 
     // Calculate value for each address (only if liquid balances are included)
     if (showLiquidBalances) {
-      filteredBalances.forEach(addressData => {
-        let addressValue = 0
-        
-        // Add native PLS value
-        const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
-        addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
-        
-        // Add token values
-        addressData.tokenBalances?.forEach(token => {
-          const tokenPrice = getTokenPrice(token.symbol)
-          addressValue += token.balanceFormatted * tokenPrice
-        })
-
-        totalValue += addressValue
-
-        // Add to address values array
-        addressVals.push({
-          address: addressData.address,
-          label: addresses.find(a => a.address === addressData.address)?.label || '',
-          value: addressValue
-        })
+    filteredBalances.forEach(addressData => {
+      let addressValue = 0
+      
+      // Add native PLS value
+      const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
+      addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+      
+      // Add token values
+      addressData.tokenBalances?.forEach(token => {
+        const tokenPrice = getTokenPrice(token.symbol)
+        addressValue += token.balanceFormatted * tokenPrice
       })
+
+      totalValue += addressValue
+
+      // Add to address values array
+      addressVals.push({
+        address: addressData.address,
+        label: addresses.find(a => a.address === addressData.address)?.label || '',
+        value: addressValue
+      })
+    })
     }
 
     // Add validator value if enabled
@@ -1211,7 +1343,7 @@ export default function Portfolio() {
 
     // Calculate both current and 24h ago values for each token (only if liquid balances are included)
     if (showLiquidBalances) {
-      filteredBalances.forEach(addressData => {
+    filteredBalances.forEach(addressData => {
       // Native token (PLS/ETH)
       const nativeSymbol = addressData.nativeBalance.symbol
       const nativeBalance = addressData.nativeBalance.balanceFormatted
@@ -1358,6 +1490,10 @@ export default function Portfolio() {
     }
   }, [isEverythingReady, isInitialLoad])
 
+
+
+
+
   // Add toggle UI component (3-way toggle) - memoized to prevent unnecessary re-renders
   const ChainToggle = useCallback(() => (
     <div className="flex bg-black border border-white/20 rounded-lg p-1">
@@ -1395,19 +1531,19 @@ export default function Portfolio() {
   }
 
   return (
-    <div className="w-full overflow-x-hidden">
-      <Container 
-        {...(showMotion ? {
-          initial: { opacity: 0, y: 20 },
-          animate: { opacity: 1, y: 0 },
-          transition: { 
-            duration: 0.6,
-            ease: [0.23, 1, 0.32, 1]
-          },
-          onAnimationComplete: handleAnimationComplete
-        } : {})}
+    <div className="w-full">
+    <Container 
+      {...(showMotion ? {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0 },
+        transition: { 
+          duration: 0.6,
+          ease: [0.23, 1, 0.32, 1]
+        },
+        onAnimationComplete: handleAnimationComplete
+      } : {})}
         className="space-y-6 flex flex-col items-center w-full"
-      >
+    >
       {/* Address Input Section */}
       <Section 
         {...(showMotion ? {
@@ -1426,7 +1562,7 @@ export default function Portfolio() {
         <form onSubmit={handleAddressSubmit} className="space-y-4">
           <div>
             <label htmlFor="address" className="block text-sm font-medium text-gray-300 mb-2 text-center">
-              Enter PulseChain address(es)
+              Enter PulseChain address
             </label>
             <textarea
               id="address"
@@ -1624,7 +1760,7 @@ export default function Portfolio() {
                 {addr.label || formatAddress(addr.address)}
               </button>
             ))}
-          </div>
+                  </div>
           
           {/* Advanced Filters Button */}
           <div className="mt-4 flex justify-center">
@@ -1642,7 +1778,7 @@ export default function Portfolio() {
           
           {/* Advanced Filters Toggle Section */}
           {showAdvancedFilters && (
-            <div className="mt-0 p-2">
+            <div className="mt-0 p-2 space-y-4">
               <div className="flex flex-wrap gap-6 justify-center">
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -1652,7 +1788,7 @@ export default function Portfolio() {
                   />
                   <label 
                     htmlFor="liquid-balances" 
-                    className="text-sm text-white cursor-pointer"
+                    className={`text-sm cursor-pointer ${showLiquidBalances ? 'text-white' : 'text-gray-400'}`}
                   >
                     Include liquid balances
                   </label>
@@ -1666,7 +1802,7 @@ export default function Portfolio() {
                   />
                   <label 
                     htmlFor="hex-stakes" 
-                    className="text-sm text-white cursor-pointer"
+                    className={`text-sm cursor-pointer ${showHexStakes ? 'text-white' : 'text-gray-400'}`}
                   >
                     Include HEX stakes
                   </label>
@@ -1680,12 +1816,14 @@ export default function Portfolio() {
                   />
                   <label 
                     htmlFor="validators" 
-                    className="text-sm text-white cursor-pointer"
+                    className={`text-sm cursor-pointer ${showValidators ? 'text-white' : 'text-gray-400'}`}
                   >
-                    Include Validators
+                    Include validators
                   </label>
                 </div>
               </div>
+              
+
             </div>
           )}
         </Section>
@@ -1705,9 +1843,41 @@ export default function Portfolio() {
               ease: [0.23, 1, 0.32, 1]
             }
           } : {})}
-          className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6 max-w-[860px] w-full overflow-hidden"
+          className="max-w-[860px] w-full"
         >
-                      <div className="space-y-3 overflow-hidden">
+          {/* Sort buttons */}
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+            <h3 className="text-xl font-semibold text-white">Token Balances</h3>
+            
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { field: 'amount' as const, label: 'Amount' },
+                { field: 'change' as const, label: '24h Change' }
+              ].map(({ field, label }) => (
+                <button
+                  key={field}
+                  onClick={() => {
+                    if (tokenSortField === field) {
+                      setTokenSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                    } else {
+                      setTokenSortField(field)
+                      setTokenSortDirection('desc')
+                    }
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                    tokenSortField === field 
+                      ? 'bg-white text-black border-white' 
+                      : 'bg-transparent text-gray-400 border-gray-400 hover:text-white hover:border-white'
+                  }`}
+                >
+                  {label} {tokenSortField === field ? (tokenSortDirection === 'asc' ? '↑' : '↓') : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6">
+          <div className="space-y-3">
             {sortedTokens.map((token, tokenIndex) => {
               const tokenPrice = getTokenPrice(token.symbol)
               // Use a stable key that includes the token address to prevent unnecessary remounting
@@ -1716,6 +1886,7 @@ export default function Portfolio() {
                 <TokenRow key={stableKey} token={token} tokenPrice={tokenPrice} tokenIndex={tokenIndex} allTokens={sortedTokens} />
               )
             })}
+            </div>
                 </div>
         </Section>
       )}
@@ -1801,8 +1972,37 @@ export default function Portfolio() {
           } : {})}
           className="max-w-[860px] w-full"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
             <h3 className="text-xl font-semibold text-white">HEX Stakes</h3>
+            
+            {/* Sort buttons */}
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { field: 'amount' as const, label: 'Amount' },
+                { field: 'progress' as const, label: 'Progress' },
+                { field: 'startDate' as const, label: 'Start Date' },
+                { field: 'endDate' as const, label: 'End Date' }
+              ].map(({ field, label }) => (
+                <button
+                  key={field}
+                  onClick={() => {
+                    if (hexStakesSortField === field) {
+                      setHexStakesSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                    } else {
+                      setHexStakesSortField(field)
+                      setHexStakesSortDirection('asc')
+                    }
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                    hexStakesSortField === field 
+                      ? 'bg-white text-black border-white' 
+                      : 'bg-transparent text-gray-400 border-gray-400 hover:text-white hover:border-white'
+                  }`}
+                >
+                  {label} {hexStakesSortField === field ? (hexStakesSortDirection === 'asc' ? '↑' : '↓') : ''}
+                </button>
+              ))}
+            </div>
           </div>
           
                     {/* Total HEX Stakes Value */}
@@ -1853,18 +2053,40 @@ export default function Portfolio() {
             {filteredHexStakes.map((stake) => (
               <Card key={stake.id} className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 px-3 py-1 border border-cyan-400 rounded-lg bg-cyan-400/10">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 px-3 py-1 border border-cyan-400 rounded-full bg-cyan-400/10">
                       <span className="text-xs font-medium text-cyan-400">Stake ID:</span>
                       <span className="text-xs font-bold text-cyan-400">{stake.stakeId}</span>
                     </div>
-                    <div className={`px-3 py-1 rounded-lg text-xs font-medium border bg-green-400/10 ${
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium border bg-green-400/10 ${
                       stake.status === 'active' 
                         ? 'border-green-400 text-green-400' 
                         : 'border-gray-400 text-gray-400'
                     }`}>
                       {stake.status.charAt(0).toUpperCase() + stake.status.slice(1)}
                     </div>
+                    {/* Wallet Label */}
+                    <button 
+                      onClick={() => {
+                        const address = addresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
+                        if (address) {
+                          handleAddressFilter(address.id)
+                        }
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
+                        (() => {
+                          const address = addresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
+                          return address && selectedAddressIds.includes(address.id)
+                            ? 'bg-white text-black border-white'
+                            : 'bg-white/5 border-white/20 text-white hover:bg-white/10'
+                        })()
+                      }`}
+                    >
+                      {(() => {
+                        const address = addresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
+                        return address?.label || `0x...${stake.address.slice(-4)}`
+                      })()}
+                    </button>
                   </div>
                   
                   {/* Chain Icon */}
@@ -1925,10 +2147,15 @@ export default function Portfolio() {
                     />
                   </div>
                   <div className="text-xs text-zinc-500 text-right">
-                    {stake.daysLeft} days left
+                    {(() => {
+                      const startDate = new Date(stake.startDate)
+                      const endDate = new Date(stake.endDate)
+                      const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                      return `${stake.daysLeft} days left of ${totalDays} days`
+                    })()}
                   </div>
                   
-                  <div className="space-y-1 text-sm text-zinc-500">
+                  <div className="flex justify-between text-sm text-zinc-500 mt-4">
                     <div>Start: {(() => {
                       const date = new Date(stake.startDate)
                       return date.toLocaleDateString('en-US', { 
@@ -1949,25 +2176,25 @@ export default function Portfolio() {
                 </div>
               </Card>
             ))}
-          </div>
+              </div>
         </Section>
       )}
 
       {/* Edit Addresses Modal */}
       <AnimatePresence>
         {showEditModal && (
-                      <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-16 sm:pt-16"
-              onClick={() => setShowEditModal(false)}
-            >
+            onClick={() => setShowEditModal(false)}
+          >
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-black border-2 border-white/20 rounded-2xl w-full max-w-[85vw] sm:max-w-2xl max-h-[500px] overflow-hidden flex flex-col"
+              className="bg-black border-2 border-white/20 rounded-2xl w-full max-w-[85vw] sm:max-w-2xl max-h-[75vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Fixed Header */}
@@ -2002,8 +2229,8 @@ export default function Portfolio() {
                 </button>
                                 </div>
 
-              {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 sm:p-6">
+              {/* Content */}
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto scrollbar-hide">
                 {activeTab === 'addresses' && (
                   <>
               {/* Address List */}
@@ -2087,7 +2314,7 @@ export default function Portfolio() {
 
               {/* Settings Tab */}
               {activeTab === 'settings' && (
-                <div className="space-y-6 max-h-[50vh]">
+                <div className="space-y-6">
                   
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
@@ -2126,6 +2353,27 @@ export default function Portfolio() {
                         placeholder="0"
                         className="w-full px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
+                    </div>
+
+                    <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex-1 mb-3">
+                        <div className="font-medium text-white mb-1">Hide Dust</div>
+                        <div className="text-sm text-gray-400">
+                          Hide balances below this amount
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={dustFilter === 0 ? '' : dustFilter}
+                          onChange={(e) => setDustFilter(Math.max(0, parseFloat(e.target.value) || 0))}
+                          placeholder="0"
+                          className="w-full pl-8 pr-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
                     </div>
   
                   </div>
