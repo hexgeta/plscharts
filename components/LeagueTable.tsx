@@ -172,6 +172,21 @@ function formatLeagueMarketCap(num: number | null | undefined): string {
   return '$' + rounded.toPrecision(3)
 }
 
+// Format percentage with at least 2 significant figures
+function formatPercentage(percentage: number): string {
+  if (percentage === 0) return '0%'
+  if (percentage >= 10) return percentage.toFixed(0) + '%'
+  if (percentage >= 1) return percentage.toFixed(1) + '%'
+  if (percentage >= 0.1) return percentage.toFixed(2) + '%'
+  if (percentage >= 0.01) return percentage.toFixed(3) + '%'
+  if (percentage >= 0.001) return percentage.toFixed(4) + '%'
+  if (percentage >= 0.0001) return percentage.toFixed(5) + '%'
+  if (percentage >= 0.00001) return percentage.toFixed(6) + '%'
+  
+  // For very small percentages, use scientific notation to ensure 2 significant figures
+  return percentage.toPrecision(2) + '%'
+}
+
 export default React.memo(function LeagueTable({ 
   tokenTicker, 
   containerStyle = true, 
@@ -347,7 +362,7 @@ export default React.memo(function LeagueTable({
                       className="object-contain"
                     />
                   )}
-                  {userPercentage.toFixed(4)}%
+                  {formatPercentage(userPercentage)}
                 </span>
               );
             })()}

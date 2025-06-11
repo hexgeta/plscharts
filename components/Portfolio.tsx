@@ -6,10 +6,14 @@ import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
 import { usePortfolioBalance } from '@/hooks/crypto/usePortfolioBalance'
 import { useMaxiTokenData } from '@/hooks/crypto/useMaxiTokenData'
+import { useHexStakes } from '@/hooks/crypto/useHexStakes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
-import { X, Edit, Trash2, TrendingUp, Copy } from 'lucide-react'
+import { X, Edit, Trash2, TrendingUp, Copy, ChevronDown } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { Toggle } from '@/components/ui/toggle'
+import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import LeagueTable from '@/components/LeagueTable'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import Image from 'next/image'
@@ -91,6 +95,48 @@ export default function Portfolio() {
     }
     return 'both'
   })
+  
+  // Advanced filters state
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioShowAdvancedFilters')
+      return saved !== null ? saved === 'true' : false // Default to false
+    }
+    return false
+  })
+  const [showLiquidBalances, setShowLiquidBalances] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioShowLiquidBalances')
+      return saved !== null ? saved === 'true' : true // Default to true
+    }
+    return true
+  })
+  const [showHexStakes, setShowHexStakes] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioShowHexStakes')
+      return saved !== null ? saved === 'true' : false // Default to false
+    }
+    return false
+  })
+  const [showValidators, setShowValidators] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioShowValidators')
+      return saved !== null ? saved === 'true' : true // Default to true
+    }
+    return true
+  })
+  
+  // Validator settings state
+  const [validatorCount, setValidatorCount] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioValidatorCount')
+      return saved ? parseInt(saved, 10) || 0 : 0
+    }
+    return 0
+  })
+
+  // Dialog state for league tables (moved up to prevent closing on price refresh)
+  const [openDialogToken, setOpenDialogToken] = useState<string | null>(null)
 
   // Preload portfolio-specific images on component mount
   useEffect(() => {
@@ -183,6 +229,28 @@ export default function Portfolio() {
   useEffect(() => {
     localStorage.setItem('portfolioUseBackingPrice', useBackingPrice.toString())
   }, [useBackingPrice])
+
+  // Save validator count to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('portfolioValidatorCount', validatorCount.toString())
+  }, [validatorCount])
+
+  // Save advanced filter states to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('portfolioShowLiquidBalances', showLiquidBalances.toString())
+  }, [showLiquidBalances])
+
+  useEffect(() => {
+    localStorage.setItem('portfolioShowHexStakes', showHexStakes.toString())
+  }, [showHexStakes])
+
+  useEffect(() => {
+    localStorage.setItem('portfolioShowValidators', showValidators.toString())
+  }, [showValidators])
+
+  useEffect(() => {
+    localStorage.setItem('portfolioShowAdvancedFilters', showAdvancedFilters.toString())
+  }, [showAdvancedFilters])
 
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
@@ -418,6 +486,26 @@ export default function Portfolio() {
     console.log('Portfolio Debug - Creating new address strings array:', strings)
     return strings
   }, [addresses])
+
+  // Fetch real HEX stakes data for user's addresses
+  const { stakes: hexStakes, isLoading: hexStakesLoading, error: hexStakesError } = useHexStakes(allAddressStrings)
+
+  // Filter HEX stakes by selected addresses and chain
+  const filteredHexStakes = useMemo(() => {
+    return hexStakes.filter(stake => {
+      // Filter by selected addresses
+      const addressMatch = selectedAddressIds.length > 0 
+        ? selectedAddressIds.some(id => addresses.find(addr => addr.id === id && addr.address.toLowerCase() === stake.address.toLowerCase()))
+        : true
+      
+      // Filter by chain
+      const chainMatch = chainFilter === 'both' || 
+        (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+        (chainFilter === 'pulsechain' && stake.chain === 'PLS')
+      
+      return addressMatch && chainMatch && stake.status === 'active'
+    })
+  }, [hexStakes, selectedAddressIds, addresses, chainFilter])
   
   console.log('Portfolio Debug - Using address strings:', allAddressStrings)
 
@@ -616,22 +704,33 @@ export default function Portfolio() {
       const aValue = a.balanceFormatted * aPrice
       const bValue = b.balanceFormatted * bPrice
       
-      // Primary sort by USD value descending
+      // Primary sort by USD value descending with larger threshold to reduce flicker
       const valueDiff = bValue - aValue
-      if (Math.abs(valueDiff) > 0.01) { // If USD values differ by more than 1 cent
+      if (Math.abs(valueDiff) > 1) { // Increase threshold to $1 to reduce frequent reordering
         return valueDiff
       }
       
       // Secondary sort by token amount descending
       const balanceDiff = b.balanceFormatted - a.balanceFormatted
-      if (Math.abs(balanceDiff) > 0.001) {
+      if (Math.abs(balanceDiff) > 0.1) { // Increase threshold to reduce frequent reordering
         return balanceDiff
       }
       
       // Tertiary sort by symbol for stability
       return a.symbol.localeCompare(b.symbol)
     })
-  }, [mainTokensWithBalances, prices, getTokenPrice])
+  }, [
+    // Only depend on the actual balance values and symbol list, not the full objects
+    mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted.toFixed(6)}-${t.chain}`).join('|'),
+    // Only recalculate when prices change significantly (rounded to avoid micro-changes)
+    prices && Object.keys(prices).map(key => 
+      `${key}-${prices[key]?.price ? Math.round(prices[key].price * 1000000) / 1000000 : 0}`
+    ).join('|'),
+    // Include backing price setting
+    useBackingPrice,
+    // Include maxiData but only when it changes substantially
+    maxiData && Object.keys(maxiData).length
+  ])
 
   // Format balance for display
   const formatBalance = (balance: number): string => {
@@ -667,13 +766,42 @@ export default function Portfolio() {
     return tokenConfig?.supply || null
   }
 
-  // Helper function to format percentage
+  // Helper function to format percentage with at least 2 significant figures
   const formatPercentage = (percentage: number): string => {
+    if (percentage === 0) return '0%'
     if (percentage >= 10) return percentage.toFixed(0) + '%'
     if (percentage >= 1) return percentage.toFixed(1) + '%'
     if (percentage >= 0.1) return percentage.toFixed(2) + '%'
     if (percentage >= 0.01) return percentage.toFixed(3) + '%'
-    return percentage.toFixed(4) + '%'
+    if (percentage >= 0.001) return percentage.toFixed(4) + '%'
+    if (percentage >= 0.0001) return percentage.toFixed(5) + '%'
+    if (percentage >= 0.00001) return percentage.toFixed(6) + '%'
+    
+    // For very small percentages, use scientific notation to ensure 2 significant figures
+    return percentage.toPrecision(2) + '%'
+  }
+
+  // Helper function to format price to 3 significant figures
+  const formatPrice = (price: number): string => {
+    if (price === 0) return '$0.00'
+    
+    // Convert to string to count significant figures
+    const str = price.toString()
+    const exp = Math.floor(Math.log10(Math.abs(price)))
+    const mantissa = price / Math.pow(10, exp)
+    
+    // Round to 3 significant figures
+    const rounded = Math.round(mantissa * 100) / 100
+    const result = rounded * Math.pow(10, exp)
+    
+    // Format based on the magnitude
+    if (result >= 1) {
+      return `$${result.toPrecision(3)}`
+    } else {
+      // For numbers less than 1, we need to handle decimal places carefully
+      const decimals = Math.max(0, 2 - exp)
+      return `$${result.toPrecision(3)}`
+    }
   }
 
   // Copy contract address to clipboard
@@ -682,9 +810,13 @@ export default function Portfolio() {
       await navigator.clipboard.writeText(address)
       const popup = document.createElement('div')
       popup.textContent = '✓ Copied!'
-      popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[1000]'
+      popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[1000] pointer-events-none'
       document.body.appendChild(popup)
-      setTimeout(() => popup.remove(), 2000)
+      setTimeout(() => {
+        if (popup.parentNode) {
+          popup.remove()
+        }
+      }, 2000)
     } catch (err) {
       console.error('Failed to copy address:', err)
     }
@@ -697,7 +829,10 @@ export default function Portfolio() {
     tokenIndex: number; 
     allTokens: any[];
   }) => {
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
+    // Use parent's dialog state to prevent closing on price refresh
+    const stableKey = `${token.chain}-${token.symbol}-${token.address || 'native'}`
+    const isDialogOpen = openDialogToken === stableKey
+    const setIsDialogOpen = (open: boolean) => setOpenDialogToken(open ? stableKey : null)
     const usdValue = token.balanceFormatted * tokenPrice
     const displayAmount = formatBalance(token.balanceFormatted)
     
@@ -810,9 +945,9 @@ export default function Portfolio() {
     }, [token.symbol, token.chain])
 
   return (
-      <div className="grid grid-cols-[auto_2fr_1fr_2fr_auto] sm:grid-cols-[auto_2fr_1fr_1fr_1fr_2fr_auto] items-center gap-4 border-b border-white/10 mx-4 md:mx-4 py-4 last:border-b-0">
+      <div className="grid grid-cols-[minmax(20px,auto)_1fr_1fr_1fr_minmax(20px,auto)] sm:grid-cols-[minmax(20px,auto)_2fr_1fr_1fr_minmax(60px,auto)_2fr_minmax(40px,auto)] items-center gap-2 sm:gap-4 border-b border-white/10 mx-2 sm:mx-4 py-4 last:border-b-0 overflow-hidden">
         {/* Chain Icon - Furthest Left Column */}
-        <div className="flex items-center justify-center min-w-[18px]">
+        <div className="flex space-x-2 items-center justify-center min-w-[18px]">
           <Image
             src={Number(token.chain) === 1 ? "/coin-logos/ETH-white.svg" : "/coin-logos/PLS-white.svg"}
             alt={Number(token.chain) === 1 ? "Ethereum" : "PulseChain"}
@@ -823,7 +958,7 @@ export default function Portfolio() {
         </div>
         
         {/* Token Info - Left Column */}
-        <div className="flex items-center space-x-3 min-w-[100px] md:min-w-[140px]">
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-[70px] md:min-w-[140px] overflow-hidden">
           <div className="flex-shrink-0">
             <CoinLogo
               symbol={token.symbol}
@@ -833,10 +968,10 @@ export default function Portfolio() {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-white font-medium text-sm md:text-md">
+            <div className="text-white font-medium text-sm md:text-md break-words">
               {getDisplayTicker(token.symbol)}
             </div>
-            <div className="text-gray-400 text-[10px]">
+            <div className="text-gray-400 text-[10px] break-words leading-tight">
               <span className="sm:hidden">{displayAmount}</span>
               <span className="hidden sm:block">{(() => {
                 const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
@@ -849,13 +984,13 @@ export default function Portfolio() {
         {/* Price Column - Hidden on Mobile */}
         <div className="hidden sm:block text-center">
           <div className="text-gray-400 text-xs font-medium">
-            {tokenPrice > 0 ? `$${tokenPrice.toFixed(tokenPrice < 0.01 ? 6 : tokenPrice < 1 ? 4 : 2)}` : '$0.00'}
+            {formatPrice(tokenPrice)}
           </div>
         </div>
 
         {/* 24h Price Change Column */}
-        <div className="text-center ml-4 sm:ml-0">
-          <div className={`text-[10px] sm:text-xs font-bold ${
+        <div className="text-center">
+          <div className={`text-[10px] md:text-xs font-bold ${
             priceChange24h !== undefined
               ? priceChange24h >= 0 
                 ? 'text-[#00ff55]' 
@@ -870,7 +1005,7 @@ export default function Portfolio() {
         </div>
 
         {/* League Column - Hidden on Mobile */}
-        <div className="hidden sm:flex flex-col items-center justify-center min-w-[40px]">
+        <div className="hidden sm:flex flex-col items-center justify-center min-w-[60px]">
           {shouldShowLeague ? (
             <>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -887,7 +1022,7 @@ export default function Portfolio() {
                 )}
               </button>
             </DialogTrigger>
-            <DialogContent className="w-full max-w-[360px] md:max-w-[560px] max-h-[70vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
+            <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-scroll scrollbar-hide animate-none">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -922,7 +1057,7 @@ export default function Portfolio() {
               </div>
               
                 {/* Value - Right Column */}
-        <div className="text-right">
+        <div className="text-right overflow-hidden">
           <div className="text-white font-medium text-sm md:text-lg transition-all duration-200">
             ${formatBalance(usdValue)}
           </div>
@@ -989,16 +1124,6 @@ export default function Portfolio() {
             </div>
         </div>
     )
-  }, (prevProps, nextProps) => {
-    // Custom comparison function to prevent unnecessary re-renders
-    return (
-      prevProps.token.symbol === nextProps.token.symbol &&
-      prevProps.token.chain === nextProps.token.chain &&
-      prevProps.token.balanceFormatted === nextProps.token.balanceFormatted &&
-      prevProps.tokenPrice === nextProps.tokenPrice &&
-      prevProps.tokenIndex === nextProps.tokenIndex &&
-      prevProps.allTokens.length === nextProps.allTokens.length
-    )
   })
 
   // Calculate total USD value from ALL addresses combined (or filtered by selected address)
@@ -1010,32 +1135,42 @@ export default function Portfolio() {
     let totalValue = 0
     const addressVals: Array<{ address: string; label: string; value: number }> = []
 
-    // Calculate value for each address
-    filteredBalances.forEach(addressData => {
-      let addressValue = 0
-      
-      // Add native PLS value
-      const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
-      addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
-      
-      // Add token values
-      addressData.tokenBalances?.forEach(token => {
-        const tokenPrice = getTokenPrice(token.symbol)
-        addressValue += token.balanceFormatted * tokenPrice
-      })
+    // Calculate value for each address (only if liquid balances are included)
+    if (showLiquidBalances) {
+      filteredBalances.forEach(addressData => {
+        let addressValue = 0
+        
+        // Add native PLS value
+        const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
+        addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+        
+        // Add token values
+        addressData.tokenBalances?.forEach(token => {
+          const tokenPrice = getTokenPrice(token.symbol)
+          addressValue += token.balanceFormatted * tokenPrice
+        })
 
-      totalValue += addressValue
+        totalValue += addressValue
 
-      // Add to address values array
-      addressVals.push({
-        address: addressData.address,
-        label: addresses.find(a => a.address === addressData.address)?.label || '',
-        value: addressValue
+        // Add to address values array
+        addressVals.push({
+          address: addressData.address,
+          label: addresses.find(a => a.address === addressData.address)?.label || '',
+          value: addressValue
+        })
       })
-    })
+    }
+
+    // Add validator value if enabled
+    if (showValidators && validatorCount > 0) {
+      const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
+      const plsPrice = getTokenPrice('PLS')
+      const validatorValue = validatorPLS * plsPrice
+      totalValue += validatorValue
+    }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice])
+  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances])
 
   // Calculate 24h portfolio change percentage
   const portfolio24hChange = useMemo(() => {
@@ -1046,8 +1181,9 @@ export default function Portfolio() {
     let currentTotalValue = 0
     let previousTotalValue = 0
 
-    // Calculate both current and 24h ago values for each token
-    filteredBalances.forEach(addressData => {
+    // Calculate both current and 24h ago values for each token (only if liquid balances are included)
+    if (showLiquidBalances) {
+      filteredBalances.forEach(addressData => {
       // Native token (PLS/ETH)
       const nativeSymbol = addressData.nativeBalance.symbol
       const nativeBalance = addressData.nativeBalance.balanceFormatted
@@ -1102,11 +1238,12 @@ export default function Portfolio() {
         previousTotalValue += tokenBalance * tokenPrevPrice
       })
     })
+    }
 
     // Calculate percentage change
     if (previousTotalValue === 0) return 0
     return ((currentTotalValue - previousTotalValue) / previousTotalValue) * 100
-  }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin])
+  }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances])
 
   // Comprehensive loading state - wait for relevant data to be ready
   // Once ready, stay ready (don't hide UI during price updates)
@@ -1229,18 +1366,19 @@ export default function Portfolio() {
   }
 
   return (
-    <Container 
-      {...(showMotion ? {
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0 },
-        transition: { 
-          duration: 0.6,
-          ease: [0.23, 1, 0.32, 1]
-        },
-        onAnimationComplete: handleAnimationComplete
-      } : {})}
-      className="space-y-6 flex flex-col items-center"
-    >
+    <div className="w-full overflow-x-hidden">
+      <Container 
+        {...(showMotion ? {
+          initial: { opacity: 0, y: 20 },
+          animate: { opacity: 1, y: 0 },
+          transition: { 
+            duration: 0.6,
+            ease: [0.23, 1, 0.32, 1]
+          },
+          onAnimationComplete: handleAnimationComplete
+        } : {})}
+        className="space-y-6 flex flex-col items-center w-full"
+      >
       {/* Address Input Section */}
       <Section 
         {...(showMotion ? {
@@ -1457,14 +1595,77 @@ export default function Portfolio() {
                 {addr.label || formatAddress(addr.address)}
               </button>
             ))}
-                  </div>
+          </div>
+          
+          {/* Advanced Filters Button */}
+          <div className="mt-4 flex justify-center">
+            <button 
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm"
+            >
+              <span>Advanced filters</span>
+              <ChevronDown
+                size={16} 
+                className={`transition-transform duration-200 ${showAdvancedFilters ? '' : 'rotate-180'}`}
+              />
+            </button>
+          </div>
+          
+          {/* Advanced Filters Toggle Section */}
+          {showAdvancedFilters && (
+            <div className="mt-0 p-2">
+              <div className="flex flex-wrap gap-6 justify-center">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="liquid-balances"
+                    checked={showLiquidBalances}
+                    onCheckedChange={(checked) => setShowLiquidBalances(checked === true)}
+                  />
+                  <label 
+                    htmlFor="liquid-balances" 
+                    className="text-sm text-white cursor-pointer"
+                  >
+                    Include liquid balances
+                  </label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="hex-stakes"
+                    checked={showHexStakes}
+                    onCheckedChange={(checked) => setShowHexStakes(checked === true)}
+                  />
+                  <label 
+                    htmlFor="hex-stakes" 
+                    className="text-sm text-white cursor-pointer"
+                  >
+                    Include HEX stakes
+                  </label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="validators"
+                    checked={showValidators}
+                    onCheckedChange={(checked) => setShowValidators(checked === true)}
+                  />
+                  <label 
+                    htmlFor="validators" 
+                    className="text-sm text-white cursor-pointer"
+                  >
+                    Include Validators
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
         </Section>
       )}
 
 
 
       {/* Tokens Table */}
-      {isEverythingReady && sortedTokens.length > 0 && (
+      {isEverythingReady && sortedTokens.length > 0 && showLiquidBalances && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -1475,9 +1676,9 @@ export default function Portfolio() {
               ease: [0.23, 1, 0.32, 1]
             }
           } : {})}
-          className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6 max-w-[860px] w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6 max-w-[860px] w-full overflow-hidden"
         >
-          <div className="space-y-3">
+                      <div className="space-y-3 overflow-hidden">
             {sortedTokens.map((token, tokenIndex) => {
               const tokenPrice = getTokenPrice(token.symbol)
               // Use a stable key that includes the token address to prevent unnecessary remounting
@@ -1491,7 +1692,7 @@ export default function Portfolio() {
       )}
 
       {/* No tokens found message */}
-      {addresses.length > 0 && isEverythingReady && sortedTokens.length === 0 && (
+      {addresses.length > 0 && isEverythingReady && sortedTokens.length === 0 && showLiquidBalances && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -1510,21 +1711,219 @@ export default function Portfolio() {
         </Section>
       )}
 
+      {/* Validators Section */}
+      {addresses.length > 0 && isEverythingReady && showValidators && validatorCount > 0 && (
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.5,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
+          className="max-w-[860px] w-full"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-white">Validators</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <Card className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <CoinLogo symbol="PLS" size="md" className="rounded-none" variant="default" />
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold">PLS Validators</div>
+                    <div className="text-sm text-zinc-500">
+                      {validatorCount.toLocaleString()} validator{validatorCount !== 1 ? 's' : ''} × 32M PLS each
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-right">
+                  <div className="text-xl font-bold">
+                    ${formatBalance((validatorCount * 32_000_000) * getTokenPrice('PLS'))}
+                  </div>
+                  <div className="text-sm text-zinc-500">
+                    {formatBalance(validatorCount * 32_000_000)} PLS
+                  </div>
+                </div>
+                             </div>
+            </Card>
+          </div>
+        </Section>
+      )}
+
+      {/* HEX Stakes Section */}
+      {addresses.length > 0 && isEverythingReady && showHexStakes && (
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.5,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
+          className="max-w-[860px] w-full"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white">HEX Stakes</h3>
+          </div>
+          
+                    {/* Total HEX Stakes Value */}
+          <div className="bg-black border-2 border-white/10 rounded-2xl py-6 text-center mb-6">
+                      {(() => {
+            const totalHexValue = filteredHexStakes.reduce((total, stake) => {
+              const stakeHex = stake.principleHex + stake.yieldHex
+              const hexPrice = getTokenPrice('HEX')
+              return total + (stakeHex * hexPrice)
+            }, 0)
+              
+              const hexPriceData = prices['HEX']
+              const priceChange24h = hexPriceData?.priceChange?.h24 || 0
+              
+              return (
+                <>
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="text-4xl font-bold text-white">
+                      ${Math.round(totalHexValue).toLocaleString()}
+                    </div>
+                    <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
+                      {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-400 mt-2">
+                    {filteredHexStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0).toLocaleString()} HEX across {filteredHexStakes.length} stake{filteredHexStakes.length !== 1 ? 's' : ''}
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+          
+          <div className="space-y-4">
+            {filteredHexStakes.map((stake) => (
+              <Card key={stake.id} className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-1 border border-cyan-400 rounded-lg bg-cyan-400/10">
+                      <span className="text-xs font-medium text-cyan-400">Stake ID:</span>
+                      <span className="text-xs font-bold text-cyan-400">{stake.stakeId}</span>
+                    </div>
+                    <div className={`px-3 py-1 rounded-lg text-xs font-medium border bg-green-400/10 ${
+                      stake.status === 'active' 
+                        ? 'border-green-400 text-green-400' 
+                        : 'border-gray-400 text-gray-400'
+                    }`}>
+                      {stake.status.charAt(0).toUpperCase() + stake.status.slice(1)}
+                    </div>
+                  </div>
+                  
+                  {/* Chain Icon */}
+                  <div className="flex-shrink-0">
+                    <Image
+                      src={stake.chain === 'ETH' ? "/coin-logos/ETH-white.svg" : "/coin-logos/PLS-white.svg"}
+                      alt={stake.chain === 'ETH' ? "Ethereum" : "PulseChain"}
+                      width={16}
+                      height={16}
+                      className="w-4 h-4 brightness-50 contrast-75"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const totalHex = stake.principleHex + stake.yieldHex
+                        const hexPrice = getTokenPrice('HEX')
+                        const totalValue = totalHex * hexPrice
+                        const hexPriceData = prices['HEX']
+                        const priceChange24h = hexPriceData?.priceChange?.h24 || 0
+                        
+                        return (
+                          <>
+                            <div className="text-3xl font-bold">${Math.round(totalValue).toLocaleString()}</div>
+                            <div className={`text-xs font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
+                              {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
+                            </div>
+                          </>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                  <div className="text-sm text-zinc-500">
+                    {(stake.principleHex + stake.yieldHex).toLocaleString()} HEX (Principle: {stake.principleHex.toLocaleString()} HEX, Yield: {stake.yieldHex.toLocaleString()} HEX)
+                  </div>
+                  <div className="text-sm text-zinc-500">
+                    {stake.tShares.toLocaleString()} T-Shares
+                  </div>
+                  
+                  {/* Progress Bar with percentage above and days left below */}
+                  <div className="text-xs mb-2 mt-2 mr-8">
+                    <div 
+                      className="text-[#70D668] font-bold"
+                      style={{ marginLeft: `${Math.min(stake.progress, 90)}%` }}
+                    >
+                      {stake.progress}%
+                    </div>
+                  </div>
+                  <div className="relative h-[4px] mb-2">
+                    <div className="absolute inset-0 bg-[#23411F] rounded-full" />
+                    <div 
+                      className="absolute inset-y-0 left-0 bg-[#70D668] rounded-full" 
+                      style={{ width: `${stake.progress}%` }} 
+                    />
+                  </div>
+                  <div className="text-xs text-zinc-500 text-right">
+                    {stake.daysLeft} days left
+                  </div>
+                  
+                  <div className="space-y-1 text-sm text-zinc-500">
+                    <div>Start: {(() => {
+                      const date = new Date(stake.startDate)
+                      return date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: '2-digit', 
+                        year: 'numeric' 
+                      })
+                    })()}</div>
+                    <div>End: {(() => {
+                      const date = new Date(stake.endDate)
+                      return date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: '2-digit', 
+                        year: 'numeric' 
+                      })
+                    })()}</div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {/* Edit Addresses Modal */}
       <AnimatePresence>
         {showEditModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-8 sm:pt-4"
-            onClick={() => setShowEditModal(false)}
-          >
+                      <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-16 sm:pt-16"
+              onClick={() => setShowEditModal(false)}
+            >
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-black border-2 border-white/20 rounded-2xl w-full max-w-[85vw] sm:max-w-2xl max-h-[80vh] sm:max-h-[65vh] overflow-hidden flex flex-col"
+              className="bg-black border-2 border-white/20 rounded-2xl w-full max-w-[85vw] sm:max-w-2xl max-h-[500px] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Fixed Header */}
@@ -1532,7 +1931,7 @@ export default function Portfolio() {
                 <div className="flex bg-white/5 border border-white/10 rounded-full p-1">
                   <button
                     onClick={() => setActiveTab('addresses')}
-                    className={`px-6 py-2.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
+                    className={`px-6 py-1.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
                       activeTab === 'addresses' 
                         ? 'bg-white text-black shadow-lg' 
                         : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -1542,7 +1941,7 @@ export default function Portfolio() {
                   </button>
                   <button
                     onClick={() => setActiveTab('settings')}
-                    className={`px-6 py-2.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
+                    className={`px-6 py-1.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
                       activeTab === 'settings' 
                         ? 'bg-white text-black shadow-lg' 
                         : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -1582,9 +1981,9 @@ export default function Portfolio() {
                   return (
                     <div key={addr.id} className="flex items-center gap-2 sm:gap-4 py-3 border-b border-white/10 last:border-b-0">
                       {/* Address */}
-                      <div className="flex-1 font-mono text-sm text-white">
-                        <span className="sm:hidden">0x...{addr.address.slice(-4)}</span>
-                        <span className="hidden sm:block">{addr.address}</span>
+                      <div className="flex-1 font-mono text-sm text-white select-text">
+                        <span className="sm:hidden select-text">0x...{addr.address.slice(-4)}</span>
+                        <span className="hidden sm:block select-text">{addr.address}</span>
                               </div>
                       
                       {/* Name/Label Field */}
@@ -1609,7 +2008,7 @@ export default function Portfolio() {
                               handleCancel()
                             }
                           }}
-                          className="w-full px-3 py-2 bg-black border border-white/20 rounded-lg text-sm text-white placeholder-gray-500 focus:border-white/40 focus:outline-none"
+                          className="w-full px-3 py-2 bg-black border border-white/20 rounded-lg text-sm text-white placeholder-gray-500 focus:border-white/40 focus:outline-none text-[11px] sm:text-sm"
                         />
                               </div>
                       
@@ -1644,8 +2043,7 @@ export default function Portfolio() {
 
               {/* Settings Tab */}
               {activeTab === 'settings' && (
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">Price Settings</h3>
+                <div className="space-y-6 max-h-[50vh]">
                   
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
@@ -1667,6 +2065,23 @@ export default function Portfolio() {
                           }`}
                         />
                       </button>
+                    </div>
+
+                    <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex-1 mb-3">
+                        <div className="font-medium text-white mb-1">Validators</div>
+                        <div className="text-sm text-gray-400">
+                          Number of validators you own (32M PLS each)
+                        </div>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={validatorCount === 0 ? '' : validatorCount}
+                        onChange={(e) => setValidatorCount(Math.max(0, parseInt(e.target.value) || 0))}
+                        placeholder="0"
+                        className="w-full px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
                     </div>
   
                   </div>
@@ -1742,5 +2157,6 @@ export default function Portfolio() {
         )}
       </AnimatePresence>
     </Container>
+    </div>
   )
 } 

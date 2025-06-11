@@ -61,7 +61,23 @@ export function useMaxiTokenData() {
         }
         
         const apiData: MaxiApiResponse = await response.json()
-        setData(apiData.tokens)
+        
+        // Only update if the data has actually changed to prevent unnecessary re-renders
+        setData(prevData => {
+          if (!prevData) return apiData.tokens
+          
+          // Check if backing values have changed significantly (more than 0.1%)
+          const hasSignificantChange = Object.keys(apiData.tokens).some(key => {
+            const newValue = apiData.tokens[key].token.backingPerToken
+            const oldValue = prevData[key]?.token.backingPerToken
+            if (!oldValue) return true
+            
+            const change = Math.abs((newValue - oldValue) / oldValue)
+            return change > 0.001 // Only update if backing changed by more than 0.1%
+          })
+          
+          return hasSignificantChange ? apiData.tokens : prevData
+        })
         
         console.log('[useMaxiTokenData] Fetched MAXI token data:', Object.keys(apiData.tokens))
       } catch (err) {
