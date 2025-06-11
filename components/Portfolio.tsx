@@ -489,23 +489,6 @@ export default function Portfolio() {
 
   // Fetch real HEX stakes data for user's addresses
   const { stakes: hexStakes, isLoading: hexStakesLoading, error: hexStakesError } = useHexStakes(allAddressStrings)
-
-  // Filter HEX stakes by selected addresses and chain
-  const filteredHexStakes = useMemo(() => {
-    return hexStakes.filter(stake => {
-      // Filter by selected addresses
-      const addressMatch = selectedAddressIds.length > 0 
-        ? selectedAddressIds.some(id => addresses.find(addr => addr.id === id && addr.address.toLowerCase() === stake.address.toLowerCase()))
-        : true
-      
-      // Filter by chain
-      const chainMatch = chainFilter === 'both' || 
-        (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
-        (chainFilter === 'pulsechain' && stake.chain === 'PLS')
-      
-      return addressMatch && chainMatch && stake.status === 'active'
-    })
-  }, [hexStakes, selectedAddressIds, addresses, chainFilter])
   
   console.log('Portfolio Debug - Using address strings:', allAddressStrings)
 
@@ -693,6 +676,40 @@ export default function Portfolio() {
     // Use market price
     return prices[symbol]?.price || 0
   }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken])
+
+  // Filter and sort HEX stakes by selected addresses and chain
+  const filteredHexStakes = useMemo(() => {
+    return hexStakes
+      .filter(stake => {
+        // Filter by selected addresses
+        const addressMatch = selectedAddressIds.length > 0 
+          ? selectedAddressIds.some(id => addresses.find(addr => addr.id === id && addr.address.toLowerCase() === stake.address.toLowerCase()))
+          : true
+        
+        // Filter by chain
+        const chainMatch = chainFilter === 'both' || 
+          (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+          (chainFilter === 'pulsechain' && stake.chain === 'PLS')
+        
+        return addressMatch && chainMatch && stake.status === 'active'
+      })
+      .sort((a, b) => {
+        // Primary sort: by ending soonest (lowest daysLeft first)
+        if (a.daysLeft !== b.daysLeft) {
+          return a.daysLeft - b.daysLeft
+        }
+        
+        // Secondary sort: by amount in $ (highest value first)
+        const aHex = a.principleHex + a.yieldHex
+        const bHex = b.principleHex + b.yieldHex
+        const aPrice = a.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+        const bPrice = b.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+        const aValue = aHex * aPrice
+        const bValue = bHex * bPrice
+        
+        return bValue - aValue // Highest value first
+      })
+  }, [hexStakes, selectedAddressIds, addresses, chainFilter, getTokenPrice])
 
   // Memoized sorted tokens to prevent re-sorting on every render
   const sortedTokens = useMemo(() => {
@@ -1173,7 +1190,8 @@ export default function Portfolio() {
     if (showHexStakes) {
       const hexStakesValue = filteredHexStakes.reduce((total, stake) => {
         const stakeHex = stake.principleHex + stake.yieldHex
-        const hexPrice = getTokenPrice('HEX')
+        // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
+        const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
         return total + (stakeHex * hexPrice)
       }, 0)
       totalValue += hexStakesValue
@@ -1266,9 +1284,9 @@ export default function Portfolio() {
                           Object.keys(prices).length > 0
     
     // Only consider loading states on initial load
-    // Include MAXI loading for backing price functionality
+    // Include MAXI loading for backing price functionality and HEX stakes loading
     if (isInitialLoad) {
-      return hasInitialData && !balancesLoading && !pricesLoading && !maxiLoading
+      return hasInitialData && !balancesLoading && !pricesLoading && !maxiLoading && !hexStakesLoading
     }
     
     // After initial load, stay ready as long as we have data
@@ -1278,6 +1296,7 @@ export default function Portfolio() {
     balancesLoading,
     pricesLoading,
     maxiLoading,
+    hexStakesLoading,
     balancesError,
     balances?.length,
     Object.keys(prices).length,
@@ -1791,12 +1810,26 @@ export default function Portfolio() {
                       {(() => {
             const totalHexValue = filteredHexStakes.reduce((total, stake) => {
               const stakeHex = stake.principleHex + stake.yieldHex
-              const hexPrice = getTokenPrice('HEX')
+              // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
+              const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
               return total + (stakeHex * hexPrice)
             }, 0)
               
-              const hexPriceData = prices['HEX']
-              const priceChange24h = hexPriceData?.priceChange?.h24 || 0
+              // Use weighted average price change based on stake values
+              const { totalValue, weightedPriceChange } = filteredHexStakes.reduce((acc, stake) => {
+                const stakeHex = stake.principleHex + stake.yieldHex
+                const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+                const stakeValue = stakeHex * hexPrice
+                const priceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
+                const change = priceData?.priceChange?.h24 || 0
+                
+                return {
+                  totalValue: acc.totalValue + stakeValue,
+                  weightedPriceChange: acc.weightedPriceChange + (change * stakeValue)
+                }
+              }, { totalValue: 0, weightedPriceChange: 0 })
+              
+              const priceChange24h = totalValue > 0 ? weightedPriceChange / totalValue : 0
               
               return (
                 <>
@@ -1851,9 +1884,10 @@ export default function Portfolio() {
                     <div className="flex items-center gap-2">
                       {(() => {
                         const totalHex = stake.principleHex + stake.yieldHex
-                        const hexPrice = getTokenPrice('HEX')
+                        // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
+                        const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
                         const totalValue = totalHex * hexPrice
-                        const hexPriceData = prices['HEX']
+                        const hexPriceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
                         const priceChange24h = hexPriceData?.priceChange?.h24 || 0
                         
                         return (
@@ -1871,7 +1905,7 @@ export default function Portfolio() {
                     {(stake.principleHex + stake.yieldHex).toLocaleString()} HEX (Principle: {stake.principleHex.toLocaleString()} HEX, Yield: {stake.yieldHex.toLocaleString()} HEX)
                   </div>
                   <div className="text-sm text-zinc-500">
-                    {stake.tShares.toLocaleString()} T-Shares
+                    {stake.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} T-Shares
                   </div>
                   
                   {/* Progress Bar with percentage above and days left below */}
