@@ -72,7 +72,7 @@ const NavBar = () => {
   }, []);
 
   return (
-    <nav className={`w-full bg-black px-4 pt-2 pb-2 border-b-1 border-b border-[rgba(255,255,255,0.2)] relative z-[100] ${isBannerVisible ? 'md:mt-[52px]' : ''}`}>
+    <nav className={`w-full bg-black px-4 pt-0 pb-0 border-b-1 border-b border-[rgba(255,255,255,0.2)] relative z-[100] ${isBannerVisible ? 'md:mt-[52px]' : ''}`}>
       <div className="max-w-[1200px] mx-auto flex items-center justify-between relative">
         <Link 
           href="/" 
