@@ -114,9 +114,9 @@ export default function Portfolio() {
   const [showHexStakes, setShowHexStakes] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('portfolioShowHexStakes')
-      return saved !== null ? saved === 'true' : false // Default to false
+      return saved !== null ? saved === 'true' : true // Default to true
     }
-    return false
+    return true
   })
   const [showValidators, setShowValidators] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -1169,8 +1169,18 @@ export default function Portfolio() {
       totalValue += validatorValue
     }
 
+    // Add HEX stakes value if enabled
+    if (showHexStakes) {
+      const hexStakesValue = filteredHexStakes.reduce((total, stake) => {
+        const stakeHex = stake.principleHex + stake.yieldHex
+        const hexPrice = getTokenPrice('HEX')
+        return total + (stakeHex * hexPrice)
+      }, 0)
+      totalValue += hexStakesValue
+    }
+
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances])
+  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, filteredHexStakes])
 
   // Calculate 24h portfolio change percentage
   const portfolio24hChange = useMemo(() => {
