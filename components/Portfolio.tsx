@@ -1094,7 +1094,7 @@ export default function Portfolio() {
     }, [token.symbol, token.chain])
 
   return (
-      <div className="grid grid-cols-[minmax(20px,auto)_1fr_1fr_1fr_minmax(20px,auto)] sm:grid-cols-[minmax(20px,auto)_2fr_1fr_1fr_minmax(60px,auto)_2fr_minmax(40px,auto)] items-center gap-2 sm:gap-4 border-b border-white/10 mx-2 sm:mx-4 py-4 last:border-b-0 overflow-hidden">
+      <div className="grid grid-cols-[minmax(20px,auto)_2fr_1fr_2fr_minmax(20px,auto)] xs:grid-cols-[minmax(20px,auto)_1fr_1fr_1fr_minmax(20px,auto)] sm:grid-cols-[minmax(20px,auto)_2fr_1fr_1fr_minmax(60px,auto)_2fr_minmax(40px,auto)] items-center gap-2 sm:gap-4 border-b border-white/10 mx-2 sm:mx-4 py-4 last:border-b-0 overflow-hidden">
         {/* Chain Icon - Furthest Left Column */}
         <div className="flex space-x-2 items-center justify-center min-w-[18px]">
           <Image
