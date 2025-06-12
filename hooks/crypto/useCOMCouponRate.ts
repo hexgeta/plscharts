@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useTokenPrices } from './useTokenPrices'
+import { useHexDailyDataCache } from './useHexDailyData'
 
 export interface COMCouponRateData {
   couponRate: number | null
@@ -7,7 +8,7 @@ export interface COMCouponRateData {
   error: string | null
   hexPrice: number
   comPrice: number
-  tShares: number
+  tShares: number | null
   stakedDays: number
   comStartBonus: number | null
 }
@@ -15,20 +16,53 @@ export interface COMCouponRateData {
 export function useCOMCouponRate(
   stakedDays: number = 5555,
   hexPrincipal: number = 100000,
-  shareRate: number = 41442.8 //change to dynamic soon!!
+  chain: 'ETH' | 'PLS' = 'PLS' // Default to PLS chain
 ): COMCouponRateData {
   // Fetch prices for HEX and COM tokens
   const { prices, isLoading, error } = useTokenPrices(['HEX', 'COM'])
   
-  // Calculate T-Shares based on hex principal and share rate
+  // Get latest share rate from cache
+  const { getLatestShareRate, isReady: cacheReady } = useHexDailyDataCache()
+  
+  // Get dynamic share rate from cached data
+  const shareRate = useMemo(() => {
+    if (!cacheReady) return null
+    
+    const latestShareRate = getLatestShareRate(chain)
+    if (latestShareRate?.shareRate) {
+      return parseFloat(latestShareRate.shareRate)
+    }
+    
+    return null
+  }, [cacheReady, getLatestShareRate, chain])
+  
+  // Calculate T-Shares based on hex principal, stake length, and share rate
   const tShares = useMemo(() => {
-    // For now, using the provided value of 9.808192
-    return 9.776644 //change to dynamic soon!!
-  }, [hexPrincipal, shareRate])
+    if (!shareRate) return null
+    
+    // Big Pay Bonus (BPB)
+    // =IF(E5<150000000,((E5/(150*10^7))*E5),E5*0.1)
+    let bpb: number
+    if (hexPrincipal < 150000000) {
+      bpb = ((hexPrincipal / (150 * Math.pow(10, 7))) * hexPrincipal)
+    } else {
+      bpb = hexPrincipal * 0.1
+    }
+    
+    // Long Pay Bonus (LPB)
+    // =(E7-1)/1820*E5
+    const lpb = ((stakedDays - 1) / 1820) * hexPrincipal
+    
+    // Total HEX for T-Share calculation: principle + BPB + LPB
+    const totalHexForTShares = hexPrincipal + bpb + lpb
+    
+    // Convert to T-Shares using share rate (multiply by 10 for correct T-Share amount)
+    return (totalHexForTShares / shareRate) * 10
+  }, [hexPrincipal, stakedDays, shareRate])
 
   // Calculate COM start bonus using the Excel formula
   const comStartBonus = useMemo(() => {
-    if (!prices?.HEX?.price || !prices?.COM?.price) return null
+    if (!prices?.HEX?.price || !prices?.COM?.price || !tShares) return null
     
     // Check if staked days > 364 (equivalent to E7>364 in Excel)
     if (stakedDays <= 364) {

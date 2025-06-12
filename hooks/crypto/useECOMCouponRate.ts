@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useTokenPrices } from './useTokenPrices'
+import { useHexDailyDataCache } from './useHexDailyData'
 
 export interface ECOMCouponRateData {
   couponRate: number | null
@@ -7,28 +8,60 @@ export interface ECOMCouponRateData {
   error: string | null
   eHexPrice: number
   eComPrice: number
-  tShares: number
+  tShares: number | null
   stakedDays: number
   eComStartBonus: number | null
 }
 
 export function useECOMCouponRate(
   stakedDays: number = 5555,
-  eHexPrincipal: number = 100000,
-  shareRate: number = 	41770.5 //change to dynamic soon!!
+  eHexPrincipal: number = 100000
 ): ECOMCouponRateData {
   // Fetch prices for eHEX and eCOM tokens
   const { prices, isLoading, error } = useTokenPrices(['eHEX', 'eCOM'])
   
-  // Calculate T-Shares based on eHEX principal and share rate
+  // Get latest share rate from cache (using ETH chain for eHEX)
+  const { getLatestShareRate, isReady: cacheReady } = useHexDailyDataCache()
+  
+  // Get dynamic share rate from cached data
+  const shareRate = useMemo(() => {
+    if (!cacheReady) return null
+    
+    const latestShareRate = getLatestShareRate('ETH')
+    if (latestShareRate?.shareRate) {
+      return parseFloat(latestShareRate.shareRate)
+    }
+    
+    return null
+  }, [cacheReady, getLatestShareRate])
+  
+  // Calculate T-Shares based on eHEX principal, stake length, and share rate
   const tShares = useMemo(() => {
-    // Using the provided value from CSV for Ethereum: 9.735370
-    return 9.699944 //change to dynamic soon!!
-  }, [eHexPrincipal, shareRate])
+    if (!shareRate) return null
+    
+    // Big Pay Bonus (BPB)
+    // =IF(E5<150000000,((E5/(150*10^7))*E5),E5*0.1)
+    let bpb: number
+    if (eHexPrincipal < 150000000) {
+      bpb = ((eHexPrincipal / (150 * Math.pow(10, 7))) * eHexPrincipal)
+    } else {
+      bpb = eHexPrincipal * 0.1
+    }
+    
+    // Long Pay Bonus (LPB)
+    // =(E7-1)/1820*E5
+    const lpb = ((stakedDays - 1) / 1820) * eHexPrincipal
+    
+    // Total eHEX for T-Share calculation: principle + BPB + LPB
+    const totalHexForTShares = eHexPrincipal + bpb + lpb
+    
+    // Convert to T-Shares using share rate (multiply by 10 for correct T-Share amount)
+    return (totalHexForTShares / shareRate) * 10
+  }, [eHexPrincipal, stakedDays, shareRate])
 
   // Calculate eCOM start bonus using the Excel formula
   const eComStartBonus = useMemo(() => {
-    if (!prices?.eHEX?.price || !prices?.eCOM?.price) return null
+    if (!prices?.eHEX?.price || !prices?.eCOM?.price || !tShares) return null
     
     // Check if staked days > 364 (equivalent to E7>364 in Excel)
     if (stakedDays <= 364) {
