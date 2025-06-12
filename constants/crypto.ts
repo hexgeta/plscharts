@@ -58,7 +58,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x02dcdd04e3f455d838cd1249292c58f3b79e3c3c",
   dexs: ["0x0"],
-  ticker: "WETH",
+  ticker: "weWETH",
   decimals: 18,
   name: "Wrapped WETH from Eth",
   origin: [1, "0x0"]

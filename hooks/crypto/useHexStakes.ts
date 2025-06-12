@@ -97,6 +97,7 @@ export const useHexStakes = (addresses: string[]) => {
                 orderDirection: desc
               ) {
                 id
+                stakeId
                 stakerAddr
                 stakedHearts
                 stakedDays
@@ -148,7 +149,7 @@ export const useHexStakes = (addresses: string[]) => {
             
             return {
               id: `${chain}-${stake.id}`,
-              stakeId: stake.id,
+              stakeId: stake.stakeId || stake.id,
               status: isActive ? 'active' : 'inactive',
               principleHex: Math.round(principleHex),
               yieldHex: Math.round(yieldHex), 

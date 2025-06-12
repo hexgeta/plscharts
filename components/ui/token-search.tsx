@@ -17,6 +17,8 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
   const [search, setSearch] = useState('')
   const router = useRouter()
 
+  console.log('TokenSearch render - open:', open);
+
   // Priority tokens to show at the top when no search query
   const PRIORITY_TOKENS = ['PLS', 'PLSX', 'HEX', 'INC', 'eHEX', 'weHEX', 'HDRN', 'eHDRN', 'ICSA', 'eICSA']
   
@@ -124,7 +126,7 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
 
   const handleTokenSelect = (token: typeof TOKEN_CONSTANTS[0]) => {
     // Close the dialog
-    onOpenChange(false)
+    handleOpenChange(false)
     setSearch('')
     
     // Navigate to a token page or handle selection
@@ -144,8 +146,14 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
     }
   }, [open])
 
+  // Wrap onOpenChange to add debugging
+  const handleOpenChange = (newOpen: boolean) => {
+    console.log('TokenSearch onOpenChange called with:', newOpen);
+    onOpenChange(newOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="overflow-hidden p-0 max-w-[360px] sm:max-w-[480px] rounded-xl">
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           <CommandInput 

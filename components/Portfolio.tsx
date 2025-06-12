@@ -174,6 +174,15 @@ export default function Portfolio() {
     }
     return 0
   })
+
+  // Hide tokens with no price data state
+  const [hideTokensWithoutPrice, setHideTokensWithoutPrice] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioHideTokensWithoutPrice')
+      return saved !== null ? saved === 'true' : true // Default to true (show tokens with no price)
+    }
+    return true
+  })
   
   // Validator settings state
   const [validatorCount, setValidatorCount] = useState<number>(() => {
@@ -314,6 +323,11 @@ export default function Portfolio() {
   useEffect(() => {
     localStorage.setItem('portfolioDustFilter', dustFilter.toString())
   }, [dustFilter])
+
+  // Save hide tokens without price setting to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('portfolioHideTokensWithoutPrice', hideTokensWithoutPrice.toString())
+  }, [hideTokensWithoutPrice])
 
   // Save token sorting preferences to localStorage whenever they change
   useEffect(() => {
@@ -818,11 +832,18 @@ export default function Portfolio() {
   const sortedTokens = useMemo(() => {
     if (!mainTokensWithBalances.length || !prices) return []
     
-    // First filter by dust threshold, then sort
+    // First filter by dust threshold and price data availability, then sort
     const filteredTokens = mainTokensWithBalances.filter(token => {
+      const tokenPrice = getTokenPrice(token.symbol)
+      
+      // Filter by price data availability
+      if (!hideTokensWithoutPrice && tokenPrice === 0) {
+        return false // Hide tokens with no price when toggle is OFF
+      }
+      
+      // Filter by dust threshold
       if (dustFilter <= 0) return true
       
-      const tokenPrice = getTokenPrice(token.symbol)
       const usdValue = token.balanceFormatted * tokenPrice
       
       return usdValue >= dustFilter
@@ -876,6 +897,8 @@ export default function Portfolio() {
     maxiData && Object.keys(maxiData).length,
     // Include dust filter
     dustFilter,
+    // Include hide tokens without price setting
+    hideTokensWithoutPrice,
     // Include token sorting
     tokenSortField,
     tokenSortDirection
@@ -900,7 +923,14 @@ export default function Portfolio() {
     if (balance >= 1e9) return (balance / 1e9).toFixed(1) + 'B'   // Billion
     if (balance >= 1e6) return (balance / 1e6).toFixed(1) + 'M'   // Million
     if (balance >= 1e3) return (balance / 1e3).toFixed(1) + 'K'   // Thousand
+    
+    // For small amounts, ensure at least 2 significant figures
+    if (balance < 1) {
+      // For values less than 1, use toPrecision to get 2 significant figures
+      return parseFloat(balance.toPrecision(2)).toString()
+    }
     if (balance < 10) return balance.toFixed(2)
+    if (balance < 100) return balance.toFixed(1)
     return Math.floor(balance).toString()
   }
 
@@ -1133,7 +1163,7 @@ export default function Portfolio() {
         {/* Price Column - Hidden on Mobile */}
         <div className="hidden sm:block text-center">
           <div className="text-gray-400 text-xs font-medium">
-            {formatPrice(tokenPrice)}
+            {tokenPrice === 0 ? '--' : formatPrice(tokenPrice)}
           </div>
         </div>
 
@@ -1334,7 +1364,7 @@ export default function Portfolio() {
 
   // Calculate 24h portfolio change percentage
   const portfolio24hChange = useMemo(() => {
-    if (!filteredBalances || !Array.isArray(filteredBalances) || !prices) {
+    if (!prices) {
       return 0
     }
 
@@ -1342,7 +1372,7 @@ export default function Portfolio() {
     let previousTotalValue = 0
 
     // Calculate both current and 24h ago values for each token (only if liquid balances are included)
-    if (showLiquidBalances) {
+    if (showLiquidBalances && filteredBalances && Array.isArray(filteredBalances)) {
     filteredBalances.forEach(addressData => {
       // Native token (PLS/ETH)
       const nativeSymbol = addressData.nativeBalance.symbol
@@ -1400,10 +1430,50 @@ export default function Portfolio() {
     })
     }
 
+    // Add validator value if enabled
+    if (showValidators && validatorCount > 0) {
+      const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
+      const plsPriceData = prices['PLS']
+      const plsCurrentPrice = plsPriceData?.price || 0
+      const pls24hChange = plsPriceData?.priceChange?.h24 || 0
+      
+      const plsPrevPrice = pls24hChange !== 0 
+        ? plsCurrentPrice / (1 + (pls24hChange / 100))
+        : plsCurrentPrice
+
+      const validatorCurrentValue = validatorPLS * plsCurrentPrice
+      const validatorPrevValue = validatorPLS * plsPrevPrice
+      
+      currentTotalValue += validatorCurrentValue
+      previousTotalValue += validatorPrevValue
+    }
+
+    // Add HEX stakes value if enabled
+    if (showHexStakes && filteredHexStakes) {
+      filteredHexStakes.forEach(stake => {
+        const stakeHex = stake.principleHex + stake.yieldHex
+        // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
+        const hexSymbol = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
+        const hexPriceData = prices[hexSymbol]
+        const hexCurrentPrice = hexPriceData?.price || 0
+        const hex24hChange = hexPriceData?.priceChange?.h24 || 0
+        
+        const hexPrevPrice = hex24hChange !== 0 
+          ? hexCurrentPrice / (1 + (hex24hChange / 100))
+          : hexCurrentPrice
+
+        const stakeCurrentValue = stakeHex * hexCurrentPrice
+        const stakePrevValue = stakeHex * hexPrevPrice
+        
+        currentTotalValue += stakeCurrentValue
+        previousTotalValue += stakePrevValue
+      })
+    }
+
     // Calculate percentage change
     if (previousTotalValue === 0) return 0
     return ((currentTotalValue - previousTotalValue) / previousTotalValue) * 100
-  }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances])
+  }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, filteredHexStakes])
 
   // Comprehensive loading state - wait for relevant data to be ready
   // Once ready, stay ready (don't hide UI during price updates)
@@ -1490,9 +1560,20 @@ export default function Portfolio() {
     }
   }, [isEverythingReady, isInitialLoad])
 
-
-
-
+  // Update Chrome tab title with portfolio value
+  useEffect(() => {
+    // Only show value when everything is ready and we have a meaningful total
+    if (isEverythingReady && addresses.length > 0 && totalUsdValue > 0) {
+      document.title = `$${formatBalanceMobile(totalUsdValue)} | PlsCharts.com`
+    } else {
+      document.title = 'Portfolio | PlsCharts.com'
+    }
+    
+    // Cleanup function to restore original title when component unmounts
+    return () => {
+      document.title = 'PlsCharts.com'
+    }
+  }, [totalUsdValue, addresses.length, isEverythingReady, chainFilter, showLiquidBalances, showValidators, showHexStakes])
 
   // Add toggle UI component (3-way toggle) - memoized to prevent unnecessary re-renders
   const ChainToggle = useCallback(() => (
@@ -1970,7 +2051,7 @@ export default function Portfolio() {
               ease: [0.23, 1, 0.32, 1]
             }
           } : {})}
-          className="max-w-[860px] w-full"
+          className="max-w-[860px] w-full my-6"
         >
           <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
             <h3 className="text-xl font-semibold text-white">HEX Stakes</h3>
@@ -2018,8 +2099,10 @@ export default function Portfolio() {
               // Use weighted average price change based on stake values
               const { totalValue, weightedPriceChange } = filteredHexStakes.reduce((acc, stake) => {
                 const stakeHex = stake.principleHex + stake.yieldHex
+                // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
                 const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
                 const stakeValue = stakeHex * hexPrice
+                // Use eHEX price change for Ethereum stakes, HEX price change for PulseChain stakes
                 const priceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
                 const change = priceData?.priceChange?.h24 || 0
                 
@@ -2035,7 +2118,7 @@ export default function Portfolio() {
                 <>
                   <div className="flex items-center justify-center gap-2">
                     <div className="text-4xl font-bold text-white">
-                      ${Math.round(totalHexValue).toLocaleString()}
+                      ${formatBalanceMobile(totalHexValue)}
                     </div>
                     <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
                       {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
@@ -2054,10 +2137,21 @@ export default function Portfolio() {
               <Card key={stake.id} className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-2 px-3 py-1 border border-cyan-400 rounded-full bg-cyan-400/10">
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(stake.stakeId);
+                        const popup = document.createElement('div');
+                        popup.textContent = '✓ Copied!';
+                        popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[1000] pointer-events-none';
+                        document.body.appendChild(popup);
+                        setTimeout(() => popup.remove(), 2000);
+                      }}
+                      className="flex items-center gap-2 px-3 py-1 border border-cyan-400 rounded-full bg-cyan-400/10 hover:bg-cyan-400/20 transition-colors cursor-pointer"
+                      title="Click to copy Stake ID"
+                    >
                       <span className="text-xs font-medium text-cyan-400">Stake ID:</span>
                       <span className="text-xs font-bold text-cyan-400">{stake.stakeId}</span>
-                    </div>
+                    </button>
                     <div className={`px-3 py-1 rounded-full text-xs font-medium border bg-green-400/10 ${
                       stake.status === 'active' 
                         ? 'border-green-400 text-green-400' 
@@ -2065,12 +2159,42 @@ export default function Portfolio() {
                     }`}>
                       {stake.status.charAt(0).toUpperCase() + stake.status.slice(1)}
                     </div>
+                    {/* BPD Stake Badge */}
+                    {(() => {
+                      const startDate = new Date(stake.startDate)
+                      const endDate = new Date(stake.endDate)
+                      const bpdDate = new Date('2020-11-19T00:00:00.000Z') // November 19, 2020 UTC
+                      const now = new Date()
+                      
+                      // Check if stake was created before BPD and ended after BPD (or is still active)
+                      const isBpdStake = startDate < bpdDate && (endDate > bpdDate || stake.status === 'active')
+                      
+                      if (isBpdStake) {
+                        return (
+                          <div className="px-3 py-1 rounded-full text-xs font-medium border border-yellow-400 text-yellow-400 bg-yellow-400/10">
+                            BPD Stake
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                     {/* Wallet Label */}
                     <button 
-                      onClick={() => {
-                        const address = addresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
-                        if (address) {
-                          handleAddressFilter(address.id)
+                      onClick={(e) => {
+                        // If shift key is held, copy the address
+                        if (e.shiftKey) {
+                          navigator.clipboard.writeText(stake.address);
+                          const popup = document.createElement('div');
+                          popup.textContent = '✓ Address Copied!';
+                          popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[1000] pointer-events-none';
+                          document.body.appendChild(popup);
+                          setTimeout(() => popup.remove(), 2000);
+                        } else {
+                          // Otherwise, filter by address
+                          const address = addresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
+                          if (address) {
+                            handleAddressFilter(address.id)
+                          }
                         }
                       }}
                       className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
@@ -2081,6 +2205,7 @@ export default function Portfolio() {
                             : 'bg-white/5 border-white/20 text-white hover:bg-white/10'
                         })()
                       }`}
+                      title="Click to filter, Shift+Click to copy address"
                     >
                       {(() => {
                         const address = addresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
@@ -2109,12 +2234,13 @@ export default function Portfolio() {
                         // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
                         const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
                         const totalValue = totalHex * hexPrice
+                        // Use eHEX price data for Ethereum stakes, HEX price data for PulseChain stakes
                         const hexPriceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
                         const priceChange24h = hexPriceData?.priceChange?.h24 || 0
                         
                         return (
                           <>
-                            <div className="text-3xl font-bold">${Math.round(totalValue).toLocaleString()}</div>
+                            <div className="text-3xl font-bold">${formatBalanceMobile(totalValue)}</div>
                             <div className={`text-xs font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
                               {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
                             </div>
@@ -2124,7 +2250,7 @@ export default function Portfolio() {
                     </div>
                   </div>
                   <div className="text-sm text-zinc-500">
-                    {(stake.principleHex + stake.yieldHex).toLocaleString()} HEX (Principle: {stake.principleHex.toLocaleString()} HEX, Yield: {stake.yieldHex.toLocaleString()} HEX)
+                    {(stake.principleHex + stake.yieldHex).toLocaleString()} HEX | {stake.principleHex.toLocaleString()} HEX principle | {stake.yieldHex.toLocaleString()} HEX yield so far
                   </div>
                   <div className="text-sm text-zinc-500">
                     {stake.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} T-Shares
@@ -2151,6 +2277,27 @@ export default function Portfolio() {
                       const startDate = new Date(stake.startDate)
                       const endDate = new Date(stake.endDate)
                       const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                      
+                      // Special numbers that get gradient styling
+                      const specialNumbers = [5555, 555, 369]
+                      const isSpecialTotal = specialNumbers.includes(totalDays)
+                      const isSpecialDaysLeft = specialNumbers.includes(stake.daysLeft)
+                      
+                      if (isSpecialTotal || isSpecialDaysLeft) {
+                        return (
+                          <span>
+                            <span className={isSpecialDaysLeft ? 'bg-gradient-to-r from-[#ffff00] via-[#ff6600] to-[#ff0099] bg-clip-text text-transparent font-bold' : ''}>
+                              {stake.daysLeft}
+                            </span>
+                            {' days left of '}
+                            <span className={isSpecialTotal ? 'bg-gradient-to-r from-[#ffff00] via-[#ff6600] to-[#ff0099]  bg-clip-text text-transparent font-bold' : ''}>
+                              {totalDays}
+                            </span>
+                            {' days'}
+                          </span>
+                        )
+                      }
+                      
                       return `${stake.daysLeft} days left of ${totalDays} days`
                     })()}
                   </div>
@@ -2158,11 +2305,22 @@ export default function Portfolio() {
                   <div className="flex justify-between text-sm text-zinc-500 mt-4">
                     <div>Start: {(() => {
                       const date = new Date(stake.startDate)
-                      return date.toLocaleDateString('en-US', { 
+                      const isDecember3 = date.getMonth() === 11 && date.getDate() === 3 // December is month 11 (0-indexed)
+                      const formattedDate = date.toLocaleDateString('en-US', { 
                         month: 'short', 
                         day: '2-digit', 
                         year: 'numeric' 
                       })
+                      
+                      if (isDecember3) {
+                        return (
+                          <span className="bg-gradient-to-r from-[#ffff00] via-[#ff6600] to-[#ff0099] bg-clip-text text-transparent font-bold">
+                            {formattedDate}
+                          </span>
+                        )
+                      }
+                      
+                      return formattedDate
                     })()}</div>
                     <div>End: {(() => {
                       const date = new Date(stake.endDate)
@@ -2253,10 +2411,21 @@ export default function Portfolio() {
                   return (
                     <div key={addr.id} className="flex items-center gap-2 sm:gap-4 py-3 border-b border-white/10 last:border-b-0">
                       {/* Address */}
-                      <div className="flex-1 font-mono text-sm text-white select-text">
-                        <span className="sm:hidden select-text">0x...{addr.address.slice(-4)}</span>
-                        <span className="hidden sm:block select-text">{addr.address}</span>
-                              </div>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(addr.address);
+                          const popup = document.createElement('div');
+                          popup.textContent = '✓ Address Copied!';
+                          popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[1000] pointer-events-none';
+                          document.body.appendChild(popup);
+                          setTimeout(() => popup.remove(), 2000);
+                        }}
+                        className="flex-1 font-mono text-sm text-white hover:text-gray-300 transition-colors cursor-pointer text-left"
+                        title="Click to copy address"
+                      >
+                        <span className="sm:hidden">0x...{addr.address.slice(-4)}</span>
+                        <span className="hidden sm:block">{addr.address}</span>
+                      </button>
                       
                       {/* Name/Label Field */}
                       <div className="w-32 sm:w-64">
@@ -2363,7 +2532,7 @@ export default function Portfolio() {
                           Hide balances below this amount
                         </div>
                       </div>
-                      <div className="relative">
+                      <div className="relative mb-4">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">$</span>
                         <input
                           type="number"
@@ -2374,6 +2543,27 @@ export default function Portfolio() {
                           placeholder="0"
                           className="w-full pl-8 pr-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-white mb-1">Show tokens with no price data</div>
+                          <div className="text-sm text-gray-400">
+                            Display tokens that have no price from DexScreener (shown as --)
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setHideTokensWithoutPrice(!hideTokensWithoutPrice)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            hideTokensWithoutPrice ? 'bg-white' : 'bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                              hideTokensWithoutPrice ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
                       </div>
                     </div>
   

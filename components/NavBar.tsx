@@ -90,7 +90,7 @@ const NavBar = () => {
         </Link>
         
         <div className="hidden sm:flex items-center justify-left flex-grow ml-10 relative z-[100]">
-          <div className="flex space-x-6">
+          <div className="flex items-center space-x-6">
             {NAV_LINKS.map((link) => (
               <Link 
                 key={link.href}
@@ -100,17 +100,21 @@ const NavBar = () => {
                 {link.label}
               </Link>
             ))}
+            
+            {/* Search Icon */}
+            <button
+              onClick={() => {
+                console.log('Search icon clicked, current state:', isSearchOpen);
+                setIsSearchOpen(!isSearchOpen);
+                console.log('Setting search state to:', !isSearchOpen);
+              }}
+              className="flex items-center justify-center px-4 py-4 rounded-md text-[rgb(153,153,153)] hover:text-gray-300 transition-colors relative z-[10000]"
+              aria-label="Search tokens"
+            >
+              <MagnifyingGlassIcon className="h-5 w-5" />
+            </button>
           </div>
         </div>
-
-        {/* Search Icon */}
-        <button
-          onClick={() => setIsSearchOpen(!isSearchOpen)}
-          className="hidden sm:flex items-center justify-center w-10 h-10 rounded-md text-[rgb(153,153,153)] hover:text-gray-300 hover:bg-white/5 transition-colors relative z-[100]"
-          aria-label="Search tokens"
-        >
-          <MagnifyingGlassIcon className="h-5 w-5" />
-        </button>
 
         {/* MOBILE VIEW */}
         <button
