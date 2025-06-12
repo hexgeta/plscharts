@@ -841,7 +841,12 @@ export default function Portfolio() {
         return false // Hide tokens with no price when toggle is OFF
       }
       
-      // Filter by dust threshold
+      // If token has no price but toggle is ON, always show it (override dust filter)
+      if (hideTokensWithoutPrice && tokenPrice === 0) {
+        return true
+      }
+      
+      // Filter by dust threshold for tokens with price data
       if (dustFilter <= 0) return true
       
       const usdValue = token.balanceFormatted * tokenPrice
@@ -2547,9 +2552,8 @@ export default function Portfolio() {
                       
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="font-medium text-white mb-1">Show tokens with no price data</div>
                           <div className="text-sm text-gray-400">
-                            Display tokens that have no price from DexScreener (shown as --)
+                            (But display tokens that have no price data available?)
                           </div>
                         </div>
                         <button
