@@ -920,22 +920,35 @@ export default function Portfolio() {
     return Math.floor(balance).toLocaleString('en-US')
   }
 
-  // Format large numbers for mobile with K, M, B, T, Q suffixes and 1 decimal place
+  // Format large numbers for mobile with K, M, B, T, Q suffixes, hide .0 decimals
   const formatBalanceMobile = (balance: number): string => {
-    if (balance === 0) return '0'
-    if (balance >= 1e15) return (balance / 1e15).toFixed(1) + 'Q' // Quadrillion
-    if (balance >= 1e12) return (balance / 1e12).toFixed(1) + 'T' // Trillion
-    if (balance >= 1e9) return (balance / 1e9).toFixed(1) + 'B'   // Billion
-    if (balance >= 1e6) return (balance / 1e6).toFixed(1) + 'M'   // Million
-    if (balance >= 1e3) return (balance / 1e3).toFixed(1) + 'K'   // Thousand
+    if (balance === 0) return '0.00'
     
-    // For small amounts, ensure at least 2 significant figures
-    if (balance < 1) {
-      // For values less than 1, use toPrecision to get 2 significant figures
-      return parseFloat(balance.toPrecision(2)).toString()
+    const formatWithSuffix = (value: number, suffix: string): string => {
+      const fixed = value.toFixed(1)
+      // Remove .0 if it's exactly .0, otherwise keep the decimal
+      return (fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed) + suffix
     }
-    if (balance < 10) return balance.toFixed(2)
-    if (balance < 100) return balance.toFixed(1)
+    
+    if (balance >= 1e15) return formatWithSuffix(balance / 1e15, 'Q') // Quadrillion
+    if (balance >= 1e12) return formatWithSuffix(balance / 1e12, 'T') // Trillion
+    if (balance >= 1e9) return formatWithSuffix(balance / 1e9, 'B')   // Billion
+    if (balance >= 1e6) return formatWithSuffix(balance / 1e6, 'M')   // Million
+    if (balance >= 1e3) return formatWithSuffix(balance / 1e3, 'K')   // Thousand
+    
+    // For small amounts, show appropriate precision for 3 significant figures
+    if (balance < 100) {
+      if (balance >= 10) {
+        // For values 10-99.99, show 1 decimal place (e.g., 81.4, not 81.44)
+        return balance.toFixed(1)
+      } else if (balance >= 1) {
+        // For values 1-9.99, show 2 decimal places (e.g., 1.23, not 1.234)
+        return balance.toFixed(2)
+      } else {
+        // For values under 1, use 3 significant figures
+        return parseFloat(balance.toPrecision(3)).toString()
+      }
+    }
     return Math.floor(balance).toString()
   }
 
@@ -2119,11 +2132,32 @@ export default function Portfolio() {
               
               const priceChange24h = totalValue > 0 ? weightedPriceChange / totalValue : 0
               
+              // Calculate totals and weighted averages
+              const totalTShares = filteredHexStakes.reduce((total, stake) => total + stake.tShares, 0)
+              
+              // Calculate weighted average stake length (by T-Shares)
+              const weightedStakeLength = filteredHexStakes.reduce((sum, stake) => {
+                const startDate = new Date(stake.startDate)
+                const endDate = new Date(stake.endDate)
+                const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                return sum + (totalDays * stake.tShares)
+              }, 0) / totalTShares
+              
+              // Calculate weighted average APY (by T-Shares)
+              const weightedAPY = filteredHexStakes.reduce((sum, stake) => {
+                const startDate = new Date(stake.startDate)
+                const now = new Date()
+                const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+                const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                return sum + (apy * stake.tShares)
+              }, 0) / totalTShares
+              
               return (
                 <>
                   <div className="flex items-center justify-center gap-2">
                     <div className="text-4xl font-bold text-white">
-                      ${formatBalanceMobile(totalHexValue)}
+                      <span className="sm:hidden">${formatBalanceMobile(totalHexValue)}</span>
+                      <span className="hidden sm:inline">${formatBalance(totalHexValue)}</span>
                     </div>
                     <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
                       {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
@@ -2132,6 +2166,12 @@ export default function Portfolio() {
                   <div className="text-sm text-gray-400 mt-2">
                     {filteredHexStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0).toLocaleString()} HEX across {filteredHexStakes.length} stake{filteredHexStakes.length !== 1 ? 's' : ''}
                   </div>
+                  <div className="text-sm text-gray-400 mt-1">
+                    {totalTShares >= 100 
+                      ? totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                      : totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    } T-Shares • {(weightedStakeLength / 365).toFixed(1)} year avg length • {weightedAPY.toFixed(1)}% avg APY
+                  </div>
                 </>
               )
             })()}
@@ -2139,8 +2179,19 @@ export default function Portfolio() {
           
           <div className="space-y-4">
             {filteredHexStakes.map((stake) => (
-              <Card key={stake.id} className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10">
-                <div className="flex items-center justify-between mb-4">
+              <Card key={stake.id} className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10 relative">
+                {/* Chain Icon - Absolutely positioned */}
+                <div className="absolute top-6 right-6 z-10">
+                  <Image
+                    src={stake.chain === 'ETH' ? "/coin-logos/ETH-white.svg" : "/coin-logos/PLS-white.svg"}
+                    alt={stake.chain === 'ETH' ? "Ethereum" : "PulseChain"}
+                    width={16}
+                    height={16}
+                    className="w-4 h-4 brightness-50 contrast-75"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-3 mb-4 pr-8">
                   <div className="flex items-center gap-3 flex-wrap">
                     <button 
                       onClick={() => {
@@ -2218,17 +2269,6 @@ export default function Portfolio() {
                       })()}
                     </button>
                   </div>
-                  
-                  {/* Chain Icon */}
-                  <div className="flex-shrink-0">
-                    <Image
-                      src={stake.chain === 'ETH' ? "/coin-logos/ETH-white.svg" : "/coin-logos/PLS-white.svg"}
-                      alt={stake.chain === 'ETH' ? "Ethereum" : "PulseChain"}
-                      width={16}
-                      height={16}
-                      className="w-4 h-4 brightness-50 contrast-75"
-                    />
-                  </div>
                 </div>
 
                 <div>
@@ -2245,7 +2285,10 @@ export default function Portfolio() {
                         
                         return (
                           <>
-                            <div className="text-3xl font-bold">${formatBalanceMobile(totalValue)}</div>
+                            <div className="text-3xl font-bold">
+                              <span className="sm:hidden">${formatBalanceMobile(totalValue)}</span>
+                              <span className="hidden sm:inline">${formatBalance(totalValue)}</span>
+                            </div>
                             <div className={`text-xs font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
                               {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
                             </div>
@@ -2255,8 +2298,8 @@ export default function Portfolio() {
                     </div>
                   </div>
                   <div className="text-zinc-500">
-                    <span className="text-md">{(stake.principleHex + stake.yieldHex).toLocaleString()} HEX = </span>
-                    <span className="text-sm">{stake.principleHex.toLocaleString()} HEX principle + {stake.yieldHex.toLocaleString()} HEX yield</span>
+                    <span className="text-md">{(stake.principleHex + stake.yieldHex).toLocaleString()} HEX</span>
+                    <span className="text-xs"> = ({stake.principleHex.toLocaleString()}HEX principle + {stake.yieldHex.toLocaleString()} HEX yield)</span>
                   </div>
                   <div className="text-sm text-zinc-500">
                     {stake.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} T-Shares
