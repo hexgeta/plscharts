@@ -2254,11 +2254,25 @@ export default function Portfolio() {
                       })()}
                     </div>
                   </div>
-                  <div className="text-sm text-zinc-500">
-                    {(stake.principleHex + stake.yieldHex).toLocaleString()} HEX | {stake.principleHex.toLocaleString()} HEX principle | {stake.yieldHex.toLocaleString()} HEX yield so far
+                  <div className="text-zinc-500">
+                    <span className="text-md">{(stake.principleHex + stake.yieldHex).toLocaleString()} HEX = </span>
+                    <span className="text-sm">{stake.principleHex.toLocaleString()} HEX principle + {stake.yieldHex.toLocaleString()} HEX yield</span>
                   </div>
                   <div className="text-sm text-zinc-500">
                     {stake.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} T-Shares
+                  </div>
+                  <div className="text-sm text-zinc-500">
+                    {(() => {
+                      // Calculate APY: ((hex yield/hex principle)/days so far)*365
+                      const startDate = new Date(stake.startDate)
+                      const now = new Date()
+                      const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+                      
+                      // Your formula: ((hex yield/hex principle)/days so far)*365
+                      const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                      
+                      return `${apy.toFixed(1)}% APY`
+                    })()}
                   </div>
                   
                   {/* Progress Bar with percentage above and days left below */}
@@ -2550,12 +2564,14 @@ export default function Portfolio() {
                         />
                       </div>
                       
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="text-sm text-gray-400">
-                            (But display tokens that have no price data available?)
+                                              <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium text-white mb-1">Show tokens with no price data</div>
+                            <div className="text-sm text-gray-400">
+                              Display tokens that have no price from DexScreener<br />
+                              (shown as --)
+                            </div>
                           </div>
-                        </div>
                         <button
                           onClick={() => setHideTokensWithoutPrice(!hideTokensWithoutPrice)}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
