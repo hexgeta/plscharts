@@ -1,4 +1,6 @@
 import { cn } from '@/lib/utils'
+import { CircleDollarSign } from 'lucide-react'
+import { useState } from 'react'
 
 const LOGO_SIZES = {
   sm: 'w-4 h-4',   // 16px
@@ -24,6 +26,7 @@ export function CoinLogo({
   inverted = false,
   variant = 'default'
 }: CoinLogoProps) {
+  const [hasError, setHasError] = useState(false)
   // Handle different token prefixes:
   // - Remove 'e' prefix for Ethereum tokens (eDECI -> DECI, eHEX -> HEX)
   // - Remove 'w' prefix for wrapped tokens (wBTC -> BTC, wETH -> ETH) but NOT 'we' tokens
@@ -51,6 +54,19 @@ export function CoinLogo({
     logoPath = '/coin-logos/HDRN-white.svg'
   }
   
+  // If image failed to load, show the white circle-dollar-sign icon
+  if (hasError) {
+    return (
+      <CircleDollarSign 
+        className={cn(
+          LOGO_SIZES[size],
+          'text-white',
+          className
+        )}
+      />
+    )
+  }
+
   return (
     <img
       src={logoPath}
@@ -64,9 +80,8 @@ export function CoinLogo({
         className
       )}
       loading={priority ? 'eager' : 'lazy'}
-      onError={(e) => {
-        // Fallback to default logo if the image fails to load
-        e.currentTarget.src = '/coin-logos/default.svg'
+      onError={() => {
+        setHasError(true)
       }}
     />
   )

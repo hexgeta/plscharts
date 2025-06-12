@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { TokenSearch } from '@/components/ui/token-search';
+import { MagnifyingGlassIcon } from '@radix-ui/react-icons';
 
 // Static component with revalidation
 export const revalidate = 2592000; // 30 days in seconds
@@ -21,6 +23,7 @@ const NAV_LINKS = [
 const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isBannerVisible, setIsBannerVisible] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
@@ -100,6 +103,15 @@ const NavBar = () => {
           </div>
         </div>
 
+        {/* Search Icon */}
+        <button
+          onClick={() => setIsSearchOpen(!isSearchOpen)}
+          className="hidden sm:flex items-center justify-center w-10 h-10 rounded-md text-[rgb(153,153,153)] hover:text-gray-300 hover:bg-white/5 transition-colors relative z-[100]"
+          aria-label="Search tokens"
+        >
+          <MagnifyingGlassIcon className="h-5 w-5" />
+        </button>
+
         {/* MOBILE VIEW */}
         <button
           className="sm:hidden flex flex-col justify-center items-center w-16 h-12 relative z-[100] bg-transparent border-0 p-0 touch-manipulation"
@@ -142,10 +154,23 @@ const NavBar = () => {
                   {link.mobileLabel}
                 </Link>
               ))}
+              <button
+                onClick={() => {
+                  setIsSearchOpen(!isSearchOpen);
+                  setIsMenuOpen(false);
+                }}
+                className="flex items-center gap-2 w-full text-left py-2 text-white/80 hover:text-white transition-colors"
+              >
+                <MagnifyingGlassIcon className="h-4 w-4" />
+                Search
+              </button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Token Search Dialog */}
+      <TokenSearch open={isSearchOpen} onOpenChange={setIsSearchOpen} />
     </nav>
   );
 };

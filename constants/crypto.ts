@@ -12,490 +12,6 @@ export interface TokenConfig {
 }
 
 export const TOKEN_CONSTANTS = [{
-  chain: 1,
-  a: "0x0",
-  dexs: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
-  ticker: "ETH",
-  decimals: 18,
-  name: "Ethereum"
-}, {
-  chain: 1,
-  a: "0x3819f64f282bf135d62168c1e513280daf905e06",
-  dexs: "0x035a397725d3c9fc5ddd3e56066b7b64c749014e",
-  ticker: "eHDRN",
-  decimals: 9,
-  name: "Hedron on Ethereum"
-}, {
-  chain: 1,
-  a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
-  dexs: "0xbaaf3b7a0b9de67de3097420d31800a885db6b41",
-  ticker: "eICSA",
-  decimals: 9,
-  name: "ICSA on Ethereum"
-}, {
-  chain: 1,
-  a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
-  dexs: "0xe181f3d1cf81c94d770768d48d42d07a9e9819c7",
-  ticker: "eBASE",
-  decimals: 8,
-  name: "BASE on Ethereum",
-  supply: 70668766.59912861
-}, {
-  chain: 1,
-  a: "0xf55cd1e399e1cc3d95303048897a680be3313308",
-  dexs: ["0x0f3c6134f4022d85127476bc4d3787860e5c5569"],
-  ticker: "eTRIO",
-  decimals: 8,
-  name: "TRIO on Ethereum",
-  supply: 69617911.47775
-}, {
-  chain: 1,
-  a: "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140",
-  dexs: "0x7327325e5f41d4c1922a9dfc87d8a3b3f1ae5c1f",
-  ticker: "eLUCKY",
-  decimals: 8,
-  name: "LUCKY on Ethereum",
-  supply: 74985501.67671512
-}, {
-  chain: 1,
-  a: "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6",
-  dexs: "0xf6ed2390be39c783ae78893c91669eeb635d0429",
-  ticker: "eDECI",
-  decimals: 8,
-  name: "DECI on Ethereum",
-  supply: 565991987.7294711
-}, {
-  chain: 1,
-  a: "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b",
-  dexs: "0x2ae4517b2806b84a576c10f698d6567ce80a6490",
-  ticker: "eMAXI",
-  decimals: 8,
-  name: "MAXI on Ethereum",
-  supply: 274546065
-}, {
-  chain: 1,
-  a: "0x4581af35199bbde87a89941220e04e27ce4b0099",
-  dexs: "0x7a1f65ff0deb5912792979c596c8f9688b652598",
-  ticker: "ePARTY",
-  decimals: 18,
-  name: "Pool Party on Ethereum"
-}, {
-  chain: 1,
-  a: "0xa882606494d86804b5514e07e6bd2d6a6ee6d68a",
-  dexs: ["0x0"],
-  ticker: "WPLS",
-  decimals: 18,
-  name: "Wrapped PLS from PulseChain",
-  origin: [369, "0x0"]
-},  {
-  chain: 1,
-  a: "0x5a9780bfe63f3ec57f01b087cd65bd656c9034a8",
-  dexs: "0x8ffdc8c69e1c1afdbd4d37e9df98eba3e3aca92d",
-  ticker: "eCOM",
-  decimals: 12,
-  name: "Communis on Eth"
-}, {
-  chain: 1,
-  a: "0x0a58153a0cd1cfaea94ce1f7fdc5d7e679eca936",
-  dexs: "0xa6237656d15a7f15348c7fd9a0e11551c516e378",
-  ticker: "eIM",
-  decimals: 18,
-  name: "IM on Ethereum"
-}, {
-  chain: 1,
-  a: "0x06450dee7fd2fb8e39061434babcfc05599a6fb8",
-  dexs: "0xc0d776e2223c9a2ad13433dab7ec08cb9c5e76ae",
-  ticker: "eXEN",
-  decimals: 18,
-  name: "XEN Crypto"
-}, {
-  chain: 1,
-  a: "0x80f0c1c49891dcfdd40b6e0f960f84e6042bcb6f",
-  dexs: "0x7f808fd904ffa3eb6a6f259e6965fb1466a05372",
-  ticker: "DXN",
-  decimals: 18,
-  name: "DBXen"
-}, {
-  chain: 1,
-  a: "0x5ee84583f67d5ecea5420dbb42b462896e7f8d06",
-  dexs: "0xa5ef2a6bbe8852bd6fd2ef6ab9bb45081a6f531c",
-  ticker: "PLSB",
-  decimals: 12,
-  name: "PLSB on Ethereum"
-}, {
-  chain: 1,
-  a: "0xfd8b9ba4845fb38c779317ec134b298c064937a2",
-  dexs: "0xe0533126c4013e2f5bcf44a2c84a396219be2d9d",
-  ticker: "9INCH",
-  decimals: 18,
-  name: "9inch on Ethereum"
-}, {
-  chain: 1,
-  a: "0x015628ce9150db1bce2fbb717a09e846f8a32436",
-  dexs: "0xcb1a01c4b3217472ba74ca3e8f217ee0d0531ed6",
-  ticker: "eBBC",
-  decimals: 18,
-  name: "BBC on Ethereum"
-}, {
-  chain: 1,
-  a: "0xb55ee890426341fe45ee6dc788d2d93d25b59063",
-  dexs: "0x7bfa17e9d4296bf9697769a55b6654222e36097e",
-  ticker: "LOVE",
-  decimals: 18,
-  name: "Love.io"
-}, {
-  chain: 1,
-  a: "0x54f667db585b7b10347429c72c36c8b59ab441cb",
-  dexs: "0xf3f3dccc31235b22d0e5624283e36922c754dc7b",
-  ticker: "eGOFURS",
-  decimals: 18,
-  name: "GOFURS on Eth"
-}, {
-  chain: 1,
-  a: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-  dexs: null,
-  ticker: "USDC",
-  decimals: 6,
-  name: "USDC on Ethereum"
-}, {
-  chain: 1,
-  a: "0xdac17f958d2ee523a2206206994597c13d831ec7",
-  dexs: null,
-  ticker: "USDT",
-  decimals: 6,
-  name: "Tether on Ethereum"
-}, {
-  chain: 1,
-  a: "0x6b175474e89094c44da98b954eedeac495271d0f",
-  dexs: null,
-  ticker: "DAI",
-  decimals: 18,
-  name: "DAI on Ethereum"
-}, {
-  chain: 1,
-  a: "0x4fabb145d64652a948d72533023f6e7a623c7c53",
-  dexs: null,
-  ticker: "BUSD",
-  decimals: 18,
-  name: "Binance USD"
-}, {
-  chain: 1,
-  a: "0x0000000000085d4780b73119b644ae5ecd22b376",
-  dexs: null,
-  ticker: "TUSD",
-  decimals: 18,
-  name: "TrueUSD"
-}, {
-  chain: 1,
-  a: "0x8e870d67f660d95d5be530380d0ec0bd388289e1",
-  dexs: null,
-  ticker: "USDP",
-  decimals: 18,
-  name: "Paxos USD"
-}, {
-  chain: 1,
-  a: "0x5f98805a4e8be255a32880fdec7f6728c6568ba0",
-  dexs: null,
-  ticker: "LUSD",
-  decimals: 18,
-  name: "Liquity USD"
-}, {
-  chain: 1,
-  a: "0x056fd409e1d7a124bd7017459dfea2f387b6d5cd",
-  dexs: null,
-  ticker: "GUSD",
-  decimals: 2,
-  name: "Gemini Dollar"
-}, {
-  chain: 1,
-  a: "0x1abaea1f7c830bd89acc67ec4af516284b1bc33c",
-  dexs: "0x95dbb3c7546f22bce375900abfdd64a4e5bd73d6",
-  ticker: "EURS",
-  decimals: 6,
-  name: "EURO Coin"
-}, {
-  chain: 1,
-  a: "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce",
-  dexs: "0x2f62f2b4c5fcd7570a709dec05d68ea19c82a9ec",
-  ticker: "eSHIB",
-  decimals: 18,
-  name: "Shiba Inu on Ethereum"
-}, {
-  chain: 1,
-  a: "0x4d224452801aced8b2f0aebe155379bb5d594381",
-  dexs: "0xac4b3dacb91461209ae9d41ec517c2b9cb1b7daf",
-  ticker: "APE",
-  decimals: 18,
-  name: "ApeCoin"
-}, {
-  chain: 1,
-  a: "0x6982508145454ce325ddbe47a25d4ec3d2311933",
-  dexs: "0x11950d141ecb863f01007add7d1a342041227b58",
-  ticker: "ePEPE",
-  decimals: 18,
-  name: "Pepe on Ethereum"
-}, {
-  chain: 1,
-  a: "0xf0f9d895aca5c8678f706fb8216fa22957685a13",
-  dexs: "0x5281e311734869c64ca60ef047fd87759397efe6",
-  ticker: "CULT",
-  decimals: 18,
-  name: "Cult DAO"
-}, {
-  chain: 1,
-  a: "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
-  dexs: "0x1d42064fc4beb5f8aaf85f4617ae8b3b5b8bd801",
-  ticker: "eUNI",
-  decimals: 18,
-  name: "Uniswap on Ethereum"
-}, {
-  chain: 1,
-  a: "0x111111111117dc0aa78b770fa6a738034120c302",
-  dexs: "0x9febc984504356225405e26833608b17719c82ae",
-  ticker: "1INCH",
-  decimals: 18,
-  name: "1inch"
-}, {
-  chain: 1,
-  a: "0x6b3595068778dd592e39a122f4f5a5cf09c90fe2",
-  dexs: "0x795065dcc9f64b5614c407a6efdc400da6221fb0",
-  ticker: "eSUSHI",
-  decimals: 18,
-  name: "Sushiswap"
-}, {
-  chain: 1,
-  a: "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
-  dexs: "0x5ab53ee1d50eef2c1dd3d5402789cd27bb52c1bb",
-  ticker: "AAVE",
-  decimals: 18,
-  name: "Aave"
-}, {
-  chain: 1,
-  a: "0xc00e94cb662c3520282e6f5717214004a7f26888",
-  dexs: "0x31503dcb60119a812fee820bb7042752019f2355",
-  ticker: "eCOMP",
-  decimals: 18,
-  name: "Compound"
-}, {
-  chain: 1,
-  a: "0xd533a949740bb3306d119cc777fa900ba034cd52",
-  dexs: "0x919fa96e88d67499339577fa202345436bcdaf79",
-  ticker: "eCRV",
-  decimals: 18,
-  name: "Curve"
-}, {
-  chain: 1,
-  a: "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2",
-  dexs: "0xe8c6c9227491c0a8156a0106a0204d881bb7e531",
-  ticker: "eMKR",
-  decimals: 18,
-  name: "Maker"
-}, {
-  chain: 1,
-  a: "0x5a98fcbea516cf06857215779fd812ca3bef1b32",
-  dexs: "0xa3f558aebaecaf0e11ca4b2199cc5ed341edfd74",
-  ticker: "eLDO",
-  decimals: 18,
-  name: "Lido DAO"
-}, {
-  chain: 1,
-  a: "0xae78736cd615f374d3085123a210448e74fc6393",
-  dexs: "0xa4e0faa58465a2d369aa21b3e42d43374c6f9613",
-  ticker: "rETH",
-  decimals: 18,
-  name: "Rocket Pool ETH"
-}, {
-  chain: 1,
-  a: "0x83f20f44975d03b1b09e64809b757c47f942beea",
-  dexs: "0x422a29a465e4f8acc85cee8e0c7058dff28e7196",
-  ticker: "sDAI",
-  decimals: 18,
-  name: "Savings DAI"
-}, {
-  chain: 1,
-  a: "0x2ba592f78db6436527729929aaf6c908497cb200",
-  dexs: "0xf169cea51eb51774cf107c88309717dda20be167",
-  ticker: "CREAM",
-  decimals: 18,
-  name: "Cream"
-}, {
-  chain: 1,
-  a: "0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0",
-  dexs: "0x290a6a7460b308ee3f19023d2d00de604bcf5b42",
-  ticker: "MATIC",
-  decimals: 18,
-  name: "Polygon on Ethereum"
-}, {
-  chain: 1,
-  a: "0xb50721bcf8d664c30412cfbc6cf7a15145234ad1",
-  dexs: "0x755e5a186f0469583bd2e80d1216e02ab88ec6ca",
-  ticker: "ARB",
-  decimals: 18,
-  name: "Arbitrum on Ethereum"
-}, {
-  chain: 1,
-  a: "0x45804880de22913dafe09f4980848ece6ecbaf78",
-  dexs: "0x9c4fe5ffd9a9fc5678cfbd93aa2d4fd684b67c4c",
-  ticker: "PAXG",
-  decimals: 18,
-  name: "Paxos Gold"
-}, {
-  chain: 1,
-  a: "0x68749665ff8d2d112fa859aa293f07a622782f38",
-  dexs: "0x6546055f46e866a4b9a4a13e81273e3152bae5da",
-  ticker: "XAUt",
-  decimals: 6,
-  name: "Tether Gold",
-  origin: [1, "0x45804880de22913dafe09f4980848ece6ecbaf78"]
-}, {
-  chain: 1,
-  a: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-  dexs: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
-  ticker: "WETH",
-  decimals: 18,
-  name: "Wrapped Ether on Eth",
-  origin: [1, "0x0"]
-}, {
-  chain: 1,
-  a: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
-  dexs: "0x4585fe77225b41b697c938b018e2ac67ac5a20c0",
-  ticker: "WBTC",
-  decimals: 8,
-  name: "Wrapped BTC"
-}, {
-  chain: 1,
-  a: "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",
-  dexs: "0x4028daac072e492d34a3afdbef0ba7e35d8b55c4",
-  ticker: "stETH",
-  decimals: 18,
-  name: "Staked ETH"
-}, {
-  chain: 1,
-  a: "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0",
-  dexs: "0x109830a1aaad605bbf02a9dfa7b0b92ec2fb7daa",
-  ticker: "wstETH",
-  decimals: 18,
-  name: "Wrapped stETH 2.0"
-}, {
-  chain: 1,
-  a: "0x0f5d2fb29fb7d3cfee444a200298f468908cc942",
-  dexs: "0x8661ae7918c0115af9e3691662f605e9c550ddc9",
-  ticker: "MANA",
-  decimals: 18,
-  name: "Decentraland"
-}, {
-  chain: 1,
-  a: "0x3845badade8e6dff049820680d1f14bd3903a5d0",
-  dexs: "0x3dd49f67e9d5bc4c5e6634b3f70bfd9dc1b6bd74",
-  ticker: "SAND",
-  decimals: 18,
-  name: "Sandbox"
-}, {
-  chain: 1,
-  a: "0x514910771af9ca656af840dff83e8264ecf986ca",
-  dexs: "0xa6cc3c2531fdaa6ae1a3ca84c2855806728693e8",
-  ticker: "eLINK",
-  decimals: 18,
-  name: "ChainLink"
-}, {
-  chain: 1,
-  a: "0x0d8775f648430679a709e98d2b0cb6250d2887ef",
-  dexs: "0xae614a7a56cb79c04df2aeba6f5dab80a39ca78e",
-  ticker: "BAT",
-  decimals: 18,
-  name: "Basic Attention Token"
-}, {
-  chain: 1,
-  a: "0xc944e90c64b2c07662a292be6244bdf05cda44a7",
-  dexs: "0x0e2c4be9f3408e5b1ff631576d946eb8c224b5ed",
-  ticker: "eGRT",
-  decimals: 18,
-  name: "Graph Token"
-}, {
-  chain: 1,
-  a: "0x582d872a1b094fc48f5de31d3b73f2d9be47def1",
-  dexs: "0x4b62fa30fea125e43780dc425c2be5acb4ba743b",
-  ticker: "TON",
-  decimals: 9,
-  name: "Toncoin"
-}, {
-  chain: 1,
-  a: "0xc18360217d8f7ab5e7c516566761ea12ce7f9d72",
-  dexs: "0x92560c178ce069cc014138ed3c2f5221ba71f58a",
-  ticker: "ENS",
-  decimals: 18,
-  name: "Ethereum Name Service"
-}, {
-  chain: 1,
-  a: "0xc669928185dbce49d2230cc9b0979be6dc797957",
-  dexs: "0x2d0ba902badaa82592f0e1c04c71d66cea21d921",
-  ticker: "BTT",
-  decimals: 18,
-  name: "BitTorrent"
-}, {
-  chain: 1,
-  a: "0x5afe3855358e112b5647b952709e6165e1c1eeee",
-  dexs: "0xbb0eccb680ff8b2cbbb239b200cc6f9927b4aacb",
-  ticker: "SAFE",
-  decimals: 18,
-  name: "Safe Token"
-}, {
-  chain: 1,
-  a: "0xec213f83defb583af3a000b1c0ada660b1902a0f",
-  dexs: "0x19a573b228468f3bf917389f4e2d4f2997610f71",
-  ticker: "PRE",
-  decimals: 18,
-  name: "Presearch"
-}, {
-  chain: 1,
-  a: "0xa87135285ae208e22068acdbff64b11ec73eaa5a",
-  dexs: "0x48b9edf67d2e9f092bcc1cb43e9f6581baf9f815",
-  ticker: "LUNR",
-  decimals: 4,
-  name: "LunarCrush"
-}, {
-  chain: 1,
-  a: "0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24",
-  dexs: "0xe936f0073549ad8b1fa53583600d629ba9375161",
-  ticker: "RNDR",
-  decimals: 18,
-  name: "Render Token"
-}, {
-  chain: 1,
-  a: "0x444444444444c1a66f394025ac839a535246fcc8",
-  dexs: "0xf60afed42d276507b6bcae93157c66bee2cf332b",
-  ticker: "GENI",
-  decimals: 9,
-  name: "Genius"
-}, {
-  chain: 1,
-  a: "0x66a0f676479cee1d7373f3dc2e2952778bff5bd6",
-  dexs: "0x21b8065d10f73ee2e260e5b47d3344d3ced7596e",
-  ticker: "WISE",
-  decimals: 18,
-  name: "Wise Token"
-}, {
-  chain: 1,
-  a: "0x5283d291dbcf85356a21ba090e6db59121208b44",
-  dexs: "0x824a30f2984f9013f2c8d0a29c0a3cc5fd5c0673",
-  ticker: "BLUR",
-  decimals: 18,
-  name: "Blur"
-}, {
-  chain: 1,
-  a: "0xaea46a60368a7bd060eec7df8cba43b7ef41ad85",
-  dexs: "0x948b54a93f5ad1df6b8bff6dc249d99ca2eca052",
-  ticker: "eFET",
-  decimals: 18,
-  name: "Fetch"
-}, {
-  chain: 1,
-  a: "0xf57e7e7c23978c3caec3c3548e3d615c346e79ff",
-  dexs: "0x81fbbc40cf075fd7de6afce1bc72eda1bb0e13aa",
-  ticker: "IMX",
-  decimals: 18,
-  name: "Immutable X"
-}, {
   chain: 369,
   a: "0x0",
   dexs: "0xe56043671df55de5cdf8459710433c10324de0ae",
@@ -523,113 +39,13 @@ export const TOKEN_CONSTANTS = [{
   ticker: "INC",
   decimals: 18,
   name: "Incentive"
-}, {
+},  {
   chain: 369,
-  a: "0x3819f64f282bf135d62168c1e513280daf905e06",
-  dexs: "0x5f4cb14a7858bdb9066f9e4b561cdc1623807da0",
-  ticker: "HDRN",
-  decimals: 9,
-  name: "Hedron on PulseChain"
-}, {
-  chain: 369,
-  a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
-  dexs: "0xe5bb65e7a384d2671c96cfe1ee9663f7b03a573e",
-  ticker: "ICSA",
-  decimals: 9,
-  name: "ICSA on PulseChain"
-}, {
-  chain: 369,
-  a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
-  dexs: "0xb39490b46d02146f59e80c6061bb3e56b824d672",
-  ticker: "BASE",
+  a: "0x57fde0a71132198BBeC939B98976993d8D89D225",
+  dexs: "0x922723FC4de3122F7DC837E2CD2b82Dce9dA81d2",
+  ticker: "weHEX",
   decimals: 8,
-  name: "BASE on PulseChain",
-  supply: 54165743.289
-}, {
-  chain: 369,
-  a: "0xf55cd1e399e1cc3d95303048897a680be3313308",
-  dexs: "0x0b0f8f6c86c506b70e2a488a451e5ea7995d05c9",
-  ticker: "TRIO",
-  decimals: 8,
-  name: "TRIO on PulseChain",
-  supply: 69617911.47775
-}, {
-  chain: 369,
-  a: "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140",
-  dexs: "0x52d4b3f479537a15d0b37b6cdbdb2634cc78525e",
-  ticker: "LUCKY",
-  decimals: 8,
-  name: "LUCKY on PulseChain",
-  supply: 74985501.67671512
-}, {
-  chain: 369,
-  a: "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6",
-  dexs: "0x969af590981bb9d19ff38638fa3bd88aed13603a",
-  ticker: "DECI",
-  decimals: 8,
-  name: "DECI on PulseChain",
-  supply: 565991987.7294711
-}, {
-  chain: 369,
-  a: "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b",
-  dexs: "0xbfb22cc394c53c14dc8a5840a246dfdd2f7b2507",
-  ticker: "MAXI",
-  decimals: 8,
-  name: "Maxi on PulseChain",
-  supply: 274546065
-}, {
-  chain: 369,
-  a: "0xb7c9e99da8a857ce576a830a9c19312114d9de02",
-  dexs: "0x55b4387ff2cf168801ec64ca8221e035fd07b81d",
-  ticker: "TEAM",
-  decimals: 8,
-  name: "Team on PulseChain"
-}, {
-  chain: 369,
-  a: "0x9d93692e826a4bd9e903e2a27d7fbd1e116efdad",
-  dexs: "0x63d8d45240efcb3b2ac7acf9e8708a4712b072e1",
-  ticker: "POLY",
-  decimals: 9,
-  name: "Poly Maximus"
-}, {
-  chain: 369,
-  a: "0x4581af35199bbde87a89941220e04e27ce4b0099",
-  dexs: "0x70966CcB20C10Ae326D6368A107C80fb825F3028",
-  ticker: "PARTY",
-  decimals: 18,
-  name: "Pool Party on PulseChain"
-}, 
-{
-  chain: 369,
-  a: "0x7FB5120D2DB148e91f572d2f69bC04FE454Dbd9b",
-  dexs: "0x0b353e0328C519F35B30BD0B4ceaF753b2bBbAAB",
-  ticker: "uPLS",
-  decimals: 18,
-  name: "uPLS"
-},
-{
-  chain: 369,
-  a: "0x79BB3A0Ee435f957ce4f54eE8c3CFADc7278da0C",
-  dexs: "0x46814b3f18D90625B6E166bC2917Bb64a635d797",
-  ticker: "vPLS",
-  decimals: 18,
-  name: "vPLS"
-},
-{
-  chain: 369,
-  a: "0x21dCB2c16C3773A565AcB45f6c34348EC78a8385",
-  dexs: "0x9CB24fBC2f1454aF20e3c14b0d1f50c9376CfA82",
-  ticker: "stPLS",
-  decimals: 18,
-  name: "stPLS"
-},
-{
-  chain: 369,
-  a: "0xbbcf895bfcb57d0f457d050bb806d1499436c0ce",
-  dexs: "0x6312a9477e3BC81D5e3a44d77F0A43630904fF69",
-  ticker: "IM",
-  decimals: 18,
-  name: "Internet Money on PulseChain"
+  name: "Wrapped HEX from Eth"
 }, {
   chain: 369,
   a: "0xa1077a294dde1b09bb078844df40758a5d0f9a27",
@@ -672,6 +88,60 @@ export const TOKEN_CONSTANTS = [{
   origin: [1, "0xdac17f958d2ee523a2206206994597c13d831ec7"]
 }, {
   chain: 369,
+  a: "0x3819f64f282bf135d62168c1e513280daf905e06",
+  dexs: "0x5f4cb14a7858bdb9066f9e4b561cdc1623807da0",
+  ticker: "HDRN",
+  decimals: 9,
+  name: "Hedron on PulseChain"
+}, {
+  chain: 369,
+  a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
+  dexs: "0xe5bb65e7a384d2671c96cfe1ee9663f7b03a573e",
+  ticker: "ICSA",
+  decimals: 9,
+  name: "ICSA on PulseChain"
+}, 
+{
+  chain: 369,
+  a: "0x5a9780bfe63f3ec57f01b087cd65bd656c9034a8",
+  dexs: "0x5137a308dbf822aae9fb34467633baaa516ed099",
+  ticker: "COM",
+  decimals: 12,
+  name: "Communis on Pls"
+},  
+{
+  chain: 369,
+  a: "0x7FB5120D2DB148e91f572d2f69bC04FE454Dbd9b",
+  dexs: "0x0b353e0328C519F35B30BD0B4ceaF753b2bBbAAB",
+  ticker: "uPLS",
+  decimals: 18,
+  name: "PlusX's Liquid Staked PLS"
+},
+{
+  chain: 369,
+  a: "0x79BB3A0Ee435f957ce4f54eE8c3CFADc7278da0C",
+  dexs: "0x46814b3f18D90625B6E166bC2917Bb64a635d797",
+  ticker: "vPLS",
+  decimals: 18,
+  name: "Vouch Staked PLS"
+},
+{
+  chain: 369,
+  a: "0x21dCB2c16C3773A565AcB45f6c34348EC78a8385",
+  dexs: "0x9CB24fBC2f1454aF20e3c14b0d1f50c9376CfA82",
+  ticker: "stPLS",
+  decimals: 18,
+  name: "Project Pi Liquid Staking Token"
+},
+{
+  chain: 369,
+  a: "0xbbcf895bfcb57d0f457d050bb806d1499436c0ce",
+  dexs: "0x6312a9477e3BC81D5e3a44d77F0A43630904fF69",
+  ticker: "IM",
+  decimals: 18,
+  name: "Internet Money on PulseChain"
+}, {
+  chain: 369,
   a: "0xabf663531fa10ab8116cbf7d5c6229b018a26ff9",
   dexs: ["0x3819f64f282bf135d62168c1e513280daf905e06"],
   ticker: "weHDRN",
@@ -686,47 +156,7 @@ export const TOKEN_CONSTANTS = [{
   decimals: 9,
   name: "Wrapped ICSA from Eth",
   origin: [1, "0xfc4913214444af5c715cc9f7b52655e788a569ed"]
-}, {
-  chain: 369,
-  a: "0x3ab667c153b8dd2248bb96e7a2e1575197667784",
-  dexs: ["0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce"],
-  ticker: "weSHIB",
-  decimals: 18,
-  name: "Wrapped SHIB from Eth",
-  origin: [1, "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce"]
-}, {
-  chain: 369,
-  a: "0xb17d901469b9208b17d916112988a3fed19b5ca1",
-  dexs: ["0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"],
-  ticker: "weWBTC",
-  decimals: 8,
-  name: "Wrapped BTC from Eth",
-  origin: [1, "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"]
-}, {
-  chain: 369,
-  a: "0xee2d275dbb79c7871f8c6eb2a4d0687dd85409d1",
-  dexs: ["0x514910771af9ca656af840dff83e8264ecf986ca"],
-  ticker: "weLINK",
-  decimals: 18,
-  name: "Wrapped LINK from Eth",
-  origin: [1, "0x514910771af9ca656af840dff83e8264ecf986ca"]
-}, {
-  chain: 369,
-  a: "0x3f105121a10247de9a92e818554dd5fcd2063ae7",
-  dexs: ["0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"],
-  ticker: "weUNI",
-  decimals: 18,
-  name: "Wrapped UNI from Eth",
-  origin: [1, "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"]
-}, {
-  chain: 369,
-  a: "0x4d3aea379b7689e0cb722826c909fab39e54123d",
-  dexs: ["0x6982508145454ce325ddbe47a25d4ec3d2311933"],
-  ticker: "wePEPE",
-  decimals: 18,
-  name: "Wrapped PEPE from Eth",
-  origin: [1, "0x6982508145454ce325ddbe47a25d4ec3d2311933"]
-}, {
+},{
   chain: 369,
   a: "0xda073388422065fe8d3b5921ec2ae475bae57bed",
   dexs: ["0xe9f84d418b008888a992ff8c6d22389c2c3504e0"],
@@ -808,20 +238,6 @@ export const TOKEN_CONSTANTS = [{
   name: "Powercity FLEX"
 }, {
   chain: 369,
-  a: "0x1fe0319440a672526916c232eaee4808254bdb00",
-  dexs: "0x9756f095dfa27d4c2eae0937a7b8a6603d99affb",
-  ticker: "HEXDC",
-  decimals: 8,
-  name: "HEXDC Stablecoin"
-}, {
-  chain: 369,
-  a: "0x3693693695e7a8ac0ee0ff2f2c4e7b85eab6c555",
-  dexs: "0xbe065ff9fa2e86f201db2b85e52d10f94505e3c1",
-  ticker: "PHL",
-  decimals: 8,
-  name: "PulseHotList"
-}, {
-  chain: 369,
   a: "0xb55ee890426341fe45ee6dc788d2d93d25b59063",
   dexs: "0xeffb56e3402f1993a34887eecaaa3d63da8e3f85",
   ticker: "LOVE",
@@ -857,25 +273,65 @@ export const TOKEN_CONSTANTS = [{
   name: "Ophir"
 }, {
   chain: 369,
-  a: "0x8bdb63033b02c15f113de51ea1c3a96af9e8ecb5",
-  dexs: "0xdaa4b508e1a958038f0f0b1f2eac796a2fc17bb8",
-  ticker: "AXIS",
-  decimals: 18,
-  name: "AxisAlive"
+  a: "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b",
+  dexs: "0xbfb22cc394c53c14dc8a5840a246dfdd2f7b2507",
+  ticker: "MAXI",
+  decimals: 8,
+  name: "Maxi on PulseChain",
+  supply: 274546065
 }, {
   chain: 369,
-  a: "0x8da17db850315a34532108f0f5458fc0401525f6",
-  dexs: "0xa1186671046c7e19f1083b93b8e72c297e5ba7f7",
-  ticker: "SOLIDX",
-  decimals: 18,
-  name: "Solid X"
+  a: "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6",
+  dexs: "0x969af590981bb9d19ff38638fa3bd88aed13603a",
+  ticker: "DECI",
+  decimals: 8,
+  name: "DECI on PulseChain",
+  supply: 565991987.7294711
 }, {
   chain: 369,
-  a: "0xf330cb1d41052dbc74d3325376cb82e99454e501",
-  dexs: "0xa68a7c219bc12cb31ff4747c7efb75a5c37e2fe4",
-  ticker: "FIRE",
+  a: "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140",
+  dexs: "0x52d4b3f479537a15d0b37b6cdbdb2634cc78525e",
+  ticker: "LUCKY",
+  decimals: 8,
+  name: "LUCKY on PulseChain",
+  supply: 74985501.67671512
+}, {
+  chain: 369,
+  a: "0xf55cd1e399e1cc3d95303048897a680be3313308",
+  dexs: "0x0b0f8f6c86c506b70e2a488a451e5ea7995d05c9",
+  ticker: "TRIO",
+  decimals: 8,
+  name: "TRIO on PulseChain",
+  supply: 69617911.47775
+}, {
+  chain: 369,
+  a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
+  dexs: "0xb39490b46d02146f59e80c6061bb3e56b824d672",
+  ticker: "BASE",
+  decimals: 8,
+  name: "BASE on PulseChain",
+  supply: 54165743.289
+}, {
+  chain: 369,
+  a: "0xb7c9e99da8a857ce576a830a9c19312114d9de02",
+  dexs: "0x55b4387ff2cf168801ec64ca8221e035fd07b81d",
+  ticker: "TEAM",
+  decimals: 8,
+  name: "Team on PulseChain"
+}, {
+  chain: 369,
+  a: "0x9d93692e826a4bd9e903e2a27d7fbd1e116efdad",
+  dexs: "0x63d8d45240efcb3b2ac7acf9e8708a4712b072e1",
+  ticker: "POLY",
+  decimals: 9,
+  name: "Poly Maximus"
+}, {
+  chain: 369,
+  a: "0x4581af35199bbde87a89941220e04e27ce4b0099",
+  dexs: "0x70966CcB20C10Ae326D6368A107C80fb825F3028",
+  ticker: "PARTY",
   decimals: 18,
-  name: "HEXFIRE"
+  name: "Pool Party on PulseChain"
 }, {
   chain: 369,
   a: "0x207e6b4529840a4fd518f73c68bc9c19b2a15944",
@@ -883,6 +339,13 @@ export const TOKEN_CONSTANTS = [{
   ticker: "MINT",
   decimals: 18,
   name: "Mintra"
+}, {
+  chain: 369,
+  a: "0x9159f1d2a9f51998fc9ab03fbd8f265ab14a1b3b",
+  dexs: "0x6d69654390c70d9e8814b04c69a542632dc93161",
+  ticker: "LOAN",
+  decimals: 18,
+  name: "LOAN"
 }, {
   chain: 369,
   a: "0xc52f739f544d20725ba7ad47bb42299034f06f4f",
@@ -925,6 +388,27 @@ export const TOKEN_CONSTANTS = [{
   ticker: "ATROPA",
   decimals: 18,
   name: "Atropa"
+},  {
+  chain: 369,
+  a: "0x8bdb63033b02c15f113de51ea1c3a96af9e8ecb5",
+  dexs: "0xdaa4b508e1a958038f0f0b1f2eac796a2fc17bb8",
+  ticker: "AXIS",
+  decimals: 18,
+  name: "AxisAlive"
+}, {
+  chain: 369,
+  a: "0x8da17db850315a34532108f0f5458fc0401525f6",
+  dexs: "0xa1186671046c7e19f1083b93b8e72c297e5ba7f7",
+  ticker: "SOLIDX",
+  decimals: 18,
+  name: "Solid X"
+}, {
+  chain: 369,
+  a: "0xf330cb1d41052dbc74d3325376cb82e99454e501",
+  dexs: "0xa68a7c219bc12cb31ff4747c7efb75a5c37e2fe4",
+  ticker: "FIRE",
+  decimals: 18,
+  name: "HEXFIRE"
 }, {
   chain: 369,
   a: "0xd6c31ba0754c4383a41c0e9df042c62b5e918f6d",
@@ -1116,13 +600,6 @@ export const TOKEN_CONSTANTS = [{
   name: "Vortex"
 }, {
   chain: 369,
-  a: "0x9159f1d2a9f51998fc9ab03fbd8f265ab14a1b3b",
-  dexs: "0x6d69654390c70d9e8814b04c69a542632dc93161",
-  ticker: "LOAN",
-  decimals: 18,
-  name: "LOAN"
-}, {
-  chain: 369,
   a: "0x319e55be473c77c35316651995c048a415219604",
   dexs: "0x2e109c85ca018d14f86e81e28063446cc1500203",
   ticker: "ZKZX",
@@ -1149,13 +626,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "iBURN",
   decimals: 9,
   name: "Icosa Burn"
-}, {
-  chain: 369,
-  a: "0x79bb3a0ee435f957ce4f54ee8c3cfadc7278da0c",
-  dexs: "0x46814b3f18d90625b6e166bc2917bb64a635d797",
-  ticker: "vPLS",
-  decimals: 18,
-  name: "Vouch Staked PLS"
 }, {
   chain: 369,
   a: "0x54f667db585b7b10347429c72c36c8b59ab441cb",
@@ -1288,7 +758,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x163088ca79b196bac86295041e69536e9a3d9da4",
   ticker: "BFF",
   decimals: 18,
-  name: "\uD804\uDC2D\uD804\uDC2D\uD804\uDC2D\uD804\uDC2D\uD804\uDC2D"
+  name: "BFF"
 }, {
   chain: 369,
   a: "0x6a44be19d96f087494bafa66ee5df1bf7aaf220f",
@@ -1471,13 +941,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "TIME",
   decimals: 18,
   name: "TIME on PulseChain"
-}, {
-  chain: 369,
-  a: "0x5a9780bfe63f3ec57f01b087cd65bd656c9034a8",
-  dexs: "0x5137a308dbf822aae9fb34467633baaa516ed099",
-  ticker: "COM",
-  decimals: 12,
-  name: "Communis on Pls"
 }, {
   chain: 369,
   a: "0xcfcffe432a48db53f59c301422d2edd77b2a88d7",
@@ -1751,14 +1214,544 @@ export const TOKEN_CONSTANTS = [{
   ticker: "eHEX",
   decimals: 8,
   name: "HEX on Ethereum"
-},
-{
+}, {
   chain: 369,
-  a: "0x57fde0a71132198BBeC939B98976993d8D89D225",
-  dexs: "0x922723FC4de3122F7DC837E2CD2b82Dce9dA81d2",
-  ticker: "weHEX",
+  a: "0x3ab667c153b8dd2248bb96e7a2e1575197667784",
+  dexs: ["0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce"],
+  ticker: "weSHIB",
+  decimals: 18,
+  name: "Wrapped SHIB from Eth",
+  origin: [1, "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce"]
+}, {
+  chain: 369,
+  a: "0xb17d901469b9208b17d916112988a3fed19b5ca1",
+  dexs: ["0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"],
+  ticker: "weWBTC",
   decimals: 8,
-  name: "Wrapped HEX from Eth"
+  name: "Wrapped BTC from Eth",
+  origin: [1, "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"]
+}, {
+  chain: 369,
+  a: "0xee2d275dbb79c7871f8c6eb2a4d0687dd85409d1",
+  dexs: ["0x514910771af9ca656af840dff83e8264ecf986ca"],
+  ticker: "weLINK",
+  decimals: 18,
+  name: "Wrapped LINK from Eth",
+  origin: [1, "0x514910771af9ca656af840dff83e8264ecf986ca"]
+}, {
+  chain: 369,
+  a: "0x3f105121a10247de9a92e818554dd5fcd2063ae7",
+  dexs: ["0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"],
+  ticker: "weUNI",
+  decimals: 18,
+  name: "Wrapped UNI from Eth",
+  origin: [1, "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"]
+}, {
+  chain: 369,
+  a: "0x4d3aea379b7689e0cb722826c909fab39e54123d",
+  dexs: ["0x6982508145454ce325ddbe47a25d4ec3d2311933"],
+  ticker: "wePEPE",
+  decimals: 18,
+  name: "Wrapped PEPE from Eth",
+  origin: [1, "0x6982508145454ce325ddbe47a25d4ec3d2311933"]
+},  {
+  chain: 369,
+  a: "0x1fe0319440a672526916c232eaee4808254bdb00",
+  dexs: "0x9756f095dfa27d4c2eae0937a7b8a6603d99affb",
+  ticker: "HEXDC",
+  decimals: 8,
+  name: "HEXDC Stablecoin"
+}, {
+  chain: 369,
+  a: "0x3693693695e7a8ac0ee0ff2f2c4e7b85eab6c555",
+  dexs: "0xbe065ff9fa2e86f201db2b85e52d10f94505e3c1",
+  ticker: "PHL",
+  decimals: 8,
+  name: "PulseHotList"
+}, {
+chain: 1,
+a: "0x0",
+dexs: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
+ticker: "ETH",
+decimals: 18,
+name: "Ethereum"
+}, {
+chain: 1,
+a: "0x3819f64f282bf135d62168c1e513280daf905e06",
+dexs: "0x035a397725d3c9fc5ddd3e56066b7b64c749014e",
+ticker: "eHDRN",
+decimals: 9,
+name: "Hedron on Ethereum"
+}, {
+chain: 1,
+a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
+dexs: "0xbaaf3b7a0b9de67de3097420d31800a885db6b41",
+ticker: "eICSA",
+decimals: 9,
+name: "ICSA on Ethereum"
+}, {
+chain: 1,
+a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
+dexs: "0xe181f3d1cf81c94d770768d48d42d07a9e9819c7",
+ticker: "eBASE",
+decimals: 8,
+name: "BASE on Ethereum",
+supply: 70668766.59912861
+}, {
+chain: 1,
+a: "0xf55cd1e399e1cc3d95303048897a680be3313308",
+dexs: ["0x0f3c6134f4022d85127476bc4d3787860e5c5569"],
+ticker: "eTRIO",
+decimals: 8,
+name: "TRIO on Ethereum",
+supply: 69617911.47775
+}, {
+chain: 1,
+a: "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140",
+dexs: "0x7327325e5f41d4c1922a9dfc87d8a3b3f1ae5c1f",
+ticker: "eLUCKY",
+decimals: 8,
+name: "LUCKY on Ethereum",
+supply: 74985501.67671512
+}, {
+chain: 1,
+a: "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6",
+dexs: "0xf6ed2390be39c783ae78893c91669eeb635d0429",
+ticker: "eDECI",
+decimals: 8,
+name: "DECI on Ethereum",
+supply: 565991987.7294711
+}, {
+chain: 1,
+a: "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b",
+dexs: "0x2ae4517b2806b84a576c10f698d6567ce80a6490",
+ticker: "eMAXI",
+decimals: 8,
+name: "MAXI on Ethereum",
+supply: 274546065
+}, {
+chain: 1,
+a: "0x4581af35199bbde87a89941220e04e27ce4b0099",
+dexs: "0x7a1f65ff0deb5912792979c596c8f9688b652598",
+ticker: "ePARTY",
+decimals: 18,
+name: "Pool Party on Ethereum"
+}, {
+chain: 1,
+a: "0xa882606494d86804b5514e07e6bd2d6a6ee6d68a",
+dexs: ["0x0"],
+ticker: "pWPLS",
+decimals: 18,
+name: "Wrapped PLS from PulseChain",
+origin: [369, "0x0"]
+},  {
+chain: 1,
+a: "0x5a9780bfe63f3ec57f01b087cd65bd656c9034a8",
+dexs: "0x8ffdc8c69e1c1afdbd4d37e9df98eba3e3aca92d",
+ticker: "eCOM",
+decimals: 12,
+name: "Communis on Eth"
+}, {
+chain: 1,
+a: "0x0a58153a0cd1cfaea94ce1f7fdc5d7e679eca936",
+dexs: "0xa6237656d15a7f15348c7fd9a0e11551c516e378",
+ticker: "eIM",
+decimals: 18,
+name: "IM on Ethereum"
+}, {
+chain: 1,
+a: "0x06450dee7fd2fb8e39061434babcfc05599a6fb8",
+dexs: "0xc0d776e2223c9a2ad13433dab7ec08cb9c5e76ae",
+ticker: "eXEN",
+decimals: 18,
+name: "XEN Crypto"
+}, {
+chain: 1,
+a: "0x80f0c1c49891dcfdd40b6e0f960f84e6042bcb6f",
+dexs: "0x7f808fd904ffa3eb6a6f259e6965fb1466a05372",
+ticker: "DXN",
+decimals: 18,
+name: "DBXen"
+}, {
+chain: 1,
+a: "0x5ee84583f67d5ecea5420dbb42b462896e7f8d06",
+dexs: "0xa5ef2a6bbe8852bd6fd2ef6ab9bb45081a6f531c",
+ticker: "PLSB",
+decimals: 12,
+name: "PLSB on Ethereum"
+}, {
+chain: 1,
+a: "0xfd8b9ba4845fb38c779317ec134b298c064937a2",
+dexs: "0xe0533126c4013e2f5bcf44a2c84a396219be2d9d",
+ticker: "9INCH",
+decimals: 18,
+name: "9inch on Ethereum"
+}, {
+chain: 1,
+a: "0x015628ce9150db1bce2fbb717a09e846f8a32436",
+dexs: "0xcb1a01c4b3217472ba74ca3e8f217ee0d0531ed6",
+ticker: "eBBC",
+decimals: 18,
+name: "BBC on Ethereum"
+}, {
+chain: 1,
+a: "0xb55ee890426341fe45ee6dc788d2d93d25b59063",
+dexs: "0x7bfa17e9d4296bf9697769a55b6654222e36097e",
+ticker: "LOVE",
+decimals: 18,
+name: "Love.io"
+}, {
+chain: 1,
+a: "0x54f667db585b7b10347429c72c36c8b59ab441cb",
+dexs: "0xf3f3dccc31235b22d0e5624283e36922c754dc7b",
+ticker: "eGOFURS",
+decimals: 18,
+name: "GOFURS on Eth"
+}, {
+chain: 1,
+a: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+dexs: null,
+ticker: "USDC",
+decimals: 6,
+name: "USDC on Ethereum"
+}, {
+chain: 1,
+a: "0xdac17f958d2ee523a2206206994597c13d831ec7",
+dexs: null,
+ticker: "USDT",
+decimals: 6,
+name: "Tether on Ethereum"
+}, {
+chain: 1,
+a: "0x6b175474e89094c44da98b954eedeac495271d0f",
+dexs: null,
+ticker: "DAI",
+decimals: 18,
+name: "DAI on Ethereum"
+}, {
+chain: 1,
+a: "0x4fabb145d64652a948d72533023f6e7a623c7c53",
+dexs: null,
+ticker: "BUSD",
+decimals: 18,
+name: "Binance USD"
+}, {
+chain: 1,
+a: "0x0000000000085d4780b73119b644ae5ecd22b376",
+dexs: null,
+ticker: "TUSD",
+decimals: 18,
+name: "TrueUSD"
+}, {
+chain: 1,
+a: "0x8e870d67f660d95d5be530380d0ec0bd388289e1",
+dexs: null,
+ticker: "USDP",
+decimals: 18,
+name: "Paxos USD"
+}, {
+chain: 1,
+a: "0x5f98805a4e8be255a32880fdec7f6728c6568ba0",
+dexs: null,
+ticker: "LUSD",
+decimals: 18,
+name: "Liquity USD"
+}, {
+chain: 1,
+a: "0x056fd409e1d7a124bd7017459dfea2f387b6d5cd",
+dexs: null,
+ticker: "GUSD",
+decimals: 2,
+name: "Gemini Dollar"
+}, {
+chain: 1,
+a: "0x1abaea1f7c830bd89acc67ec4af516284b1bc33c",
+dexs: "0x95dbb3c7546f22bce375900abfdd64a4e5bd73d6",
+ticker: "EURS",
+decimals: 6,
+name: "EURO Coin"
+}, {
+chain: 1,
+a: "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce",
+dexs: "0x2f62f2b4c5fcd7570a709dec05d68ea19c82a9ec",
+ticker: "eSHIB",
+decimals: 18,
+name: "Shiba Inu on Ethereum"
+}, {
+chain: 1,
+a: "0x4d224452801aced8b2f0aebe155379bb5d594381",
+dexs: "0xac4b3dacb91461209ae9d41ec517c2b9cb1b7daf",
+ticker: "APE",
+decimals: 18,
+name: "ApeCoin"
+}, {
+chain: 1,
+a: "0x6982508145454ce325ddbe47a25d4ec3d2311933",
+dexs: "0x11950d141ecb863f01007add7d1a342041227b58",
+ticker: "ePEPE",
+decimals: 18,
+name: "Pepe on Ethereum"
+}, {
+chain: 1,
+a: "0xf0f9d895aca5c8678f706fb8216fa22957685a13",
+dexs: "0x5281e311734869c64ca60ef047fd87759397efe6",
+ticker: "CULT",
+decimals: 18,
+name: "Cult DAO"
+}, {
+chain: 1,
+a: "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+dexs: "0x1d42064fc4beb5f8aaf85f4617ae8b3b5b8bd801",
+ticker: "eUNI",
+decimals: 18,
+name: "Uniswap on Ethereum"
+}, {
+chain: 1,
+a: "0x111111111117dc0aa78b770fa6a738034120c302",
+dexs: "0x9febc984504356225405e26833608b17719c82ae",
+ticker: "1INCH",
+decimals: 18,
+name: "1inch"
+}, {
+chain: 1,
+a: "0x6b3595068778dd592e39a122f4f5a5cf09c90fe2",
+dexs: "0x795065dcc9f64b5614c407a6efdc400da6221fb0",
+ticker: "eSUSHI",
+decimals: 18,
+name: "Sushiswap"
+}, {
+chain: 1,
+a: "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+dexs: "0x5ab53ee1d50eef2c1dd3d5402789cd27bb52c1bb",
+ticker: "AAVE",
+decimals: 18,
+name: "Aave"
+}, {
+chain: 1,
+a: "0xc00e94cb662c3520282e6f5717214004a7f26888",
+dexs: "0x31503dcb60119a812fee820bb7042752019f2355",
+ticker: "eCOMP",
+decimals: 18,
+name: "Compound"
+}, {
+chain: 1,
+a: "0xd533a949740bb3306d119cc777fa900ba034cd52",
+dexs: "0x919fa96e88d67499339577fa202345436bcdaf79",
+ticker: "eCRV",
+decimals: 18,
+name: "Curve"
+}, {
+chain: 1,
+a: "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2",
+dexs: "0xe8c6c9227491c0a8156a0106a0204d881bb7e531",
+ticker: "eMKR",
+decimals: 18,
+name: "Maker"
+}, {
+chain: 1,
+a: "0x5a98fcbea516cf06857215779fd812ca3bef1b32",
+dexs: "0xa3f558aebaecaf0e11ca4b2199cc5ed341edfd74",
+ticker: "eLDO",
+decimals: 18,
+name: "Lido DAO"
+}, {
+chain: 1,
+a: "0xae78736cd615f374d3085123a210448e74fc6393",
+dexs: "0xa4e0faa58465a2d369aa21b3e42d43374c6f9613",
+ticker: "rETH",
+decimals: 18,
+name: "Rocket Pool ETH"
+}, {
+chain: 1,
+a: "0x83f20f44975d03b1b09e64809b757c47f942beea",
+dexs: "0x422a29a465e4f8acc85cee8e0c7058dff28e7196",
+ticker: "sDAI",
+decimals: 18,
+name: "Savings DAI"
+}, {
+chain: 1,
+a: "0x2ba592f78db6436527729929aaf6c908497cb200",
+dexs: "0xf169cea51eb51774cf107c88309717dda20be167",
+ticker: "CREAM",
+decimals: 18,
+name: "Cream"
+}, {
+chain: 1,
+a: "0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0",
+dexs: "0x290a6a7460b308ee3f19023d2d00de604bcf5b42",
+ticker: "MATIC",
+decimals: 18,
+name: "Polygon on Ethereum"
+}, {
+chain: 1,
+a: "0xb50721bcf8d664c30412cfbc6cf7a15145234ad1",
+dexs: "0x755e5a186f0469583bd2e80d1216e02ab88ec6ca",
+ticker: "ARB",
+decimals: 18,
+name: "Arbitrum on Ethereum"
+}, {
+chain: 1,
+a: "0x45804880de22913dafe09f4980848ece6ecbaf78",
+dexs: "0x9c4fe5ffd9a9fc5678cfbd93aa2d4fd684b67c4c",
+ticker: "PAXG",
+decimals: 18,
+name: "Paxos Gold"
+}, {
+chain: 1,
+a: "0x68749665ff8d2d112fa859aa293f07a622782f38",
+dexs: "0x6546055f46e866a4b9a4a13e81273e3152bae5da",
+ticker: "XAUt",
+decimals: 6,
+name: "Tether Gold",
+origin: [1, "0x45804880de22913dafe09f4980848ece6ecbaf78"]
+}, {
+chain: 1,
+a: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+dexs: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
+ticker: "WETH",
+decimals: 18,
+name: "Wrapped Ether on Eth",
+origin: [1, "0x0"]
+}, {
+chain: 1,
+a: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+dexs: "0x4585fe77225b41b697c938b018e2ac67ac5a20c0",
+ticker: "WBTC",
+decimals: 8,
+name: "Wrapped BTC"
+}, {
+chain: 1,
+a: "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",
+dexs: "0x4028daac072e492d34a3afdbef0ba7e35d8b55c4",
+ticker: "stETH",
+decimals: 18,
+name: "Staked ETH"
+}, {
+chain: 1,
+a: "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0",
+dexs: "0x109830a1aaad605bbf02a9dfa7b0b92ec2fb7daa",
+ticker: "wstETH",
+decimals: 18,
+name: "Wrapped stETH 2.0"
+}, {
+chain: 1,
+a: "0x0f5d2fb29fb7d3cfee444a200298f468908cc942",
+dexs: "0x8661ae7918c0115af9e3691662f605e9c550ddc9",
+ticker: "MANA",
+decimals: 18,
+name: "Decentraland"
+}, {
+chain: 1,
+a: "0x3845badade8e6dff049820680d1f14bd3903a5d0",
+dexs: "0x3dd49f67e9d5bc4c5e6634b3f70bfd9dc1b6bd74",
+ticker: "SAND",
+decimals: 18,
+name: "Sandbox"
+}, {
+chain: 1,
+a: "0x514910771af9ca656af840dff83e8264ecf986ca",
+dexs: "0xa6cc3c2531fdaa6ae1a3ca84c2855806728693e8",
+ticker: "eLINK",
+decimals: 18,
+name: "ChainLink"
+}, {
+chain: 1,
+a: "0x0d8775f648430679a709e98d2b0cb6250d2887ef",
+dexs: "0xae614a7a56cb79c04df2aeba6f5dab80a39ca78e",
+ticker: "BAT",
+decimals: 18,
+name: "Basic Attention Token"
+}, {
+chain: 1,
+a: "0xc944e90c64b2c07662a292be6244bdf05cda44a7",
+dexs: "0x0e2c4be9f3408e5b1ff631576d946eb8c224b5ed",
+ticker: "eGRT",
+decimals: 18,
+name: "Graph Token"
+}, {
+chain: 1,
+a: "0x582d872a1b094fc48f5de31d3b73f2d9be47def1",
+dexs: "0x4b62fa30fea125e43780dc425c2be5acb4ba743b",
+ticker: "TON",
+decimals: 9,
+name: "Toncoin"
+}, {
+chain: 1,
+a: "0xc18360217d8f7ab5e7c516566761ea12ce7f9d72",
+dexs: "0x92560c178ce069cc014138ed3c2f5221ba71f58a",
+ticker: "ENS",
+decimals: 18,
+name: "Ethereum Name Service"
+}, {
+chain: 1,
+a: "0xc669928185dbce49d2230cc9b0979be6dc797957",
+dexs: "0x2d0ba902badaa82592f0e1c04c71d66cea21d921",
+ticker: "BTT",
+decimals: 18,
+name: "BitTorrent"
+}, {
+chain: 1,
+a: "0x5afe3855358e112b5647b952709e6165e1c1eeee",
+dexs: "0xbb0eccb680ff8b2cbbb239b200cc6f9927b4aacb",
+ticker: "SAFE",
+decimals: 18,
+name: "Safe Token"
+}, {
+chain: 1,
+a: "0xec213f83defb583af3a000b1c0ada660b1902a0f",
+dexs: "0x19a573b228468f3bf917389f4e2d4f2997610f71",
+ticker: "PRE",
+decimals: 18,
+name: "Presearch"
+}, {
+chain: 1,
+a: "0xa87135285ae208e22068acdbff64b11ec73eaa5a",
+dexs: "0x48b9edf67d2e9f092bcc1cb43e9f6581baf9f815",
+ticker: "LUNR",
+decimals: 4,
+name: "LunarCrush"
+}, {
+chain: 1,
+a: "0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24",
+dexs: "0xe936f0073549ad8b1fa53583600d629ba9375161",
+ticker: "RNDR",
+decimals: 18,
+name: "Render Token"
+}, {
+chain: 1,
+a: "0x444444444444c1a66f394025ac839a535246fcc8",
+dexs: "0xf60afed42d276507b6bcae93157c66bee2cf332b",
+ticker: "GENI",
+decimals: 9,
+name: "Genius"
+}, {
+chain: 1,
+a: "0x66a0f676479cee1d7373f3dc2e2952778bff5bd6",
+dexs: "0x21b8065d10f73ee2e260e5b47d3344d3ced7596e",
+ticker: "WISE",
+decimals: 18,
+name: "Wise Token"
+}, {
+chain: 1,
+a: "0x5283d291dbcf85356a21ba090e6db59121208b44",
+dexs: "0x824a30f2984f9013f2c8d0a29c0a3cc5fd5c0673",
+ticker: "BLUR",
+decimals: 18,
+name: "Blur"
+}, {
+chain: 1,
+a: "0xaea46a60368a7bd060eec7df8cba43b7ef41ad85",
+dexs: "0x948b54a93f5ad1df6b8bff6dc249d99ca2eca052",
+ticker: "eFET",
+decimals: 18,
+name: "Fetch"
+}, {
+chain: 1,
+a: "0xf57e7e7c23978c3caec3c3548e3d615c346e79ff",
+dexs: "0x81fbbc40cf075fd7de6afce1bc72eda1bb0e13aa",
+ticker: "IMX",
+decimals: 18,
+name: "Immutable X"
 }];
 
 export const API_ENDPOINTS = {
