@@ -9,7 +9,7 @@ import { useMaxiTokenData } from '@/hooks/crypto/useMaxiTokenData'
 import { useHexStakes } from '@/hooks/crypto/useHexStakes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
-import { X, Edit, Trash2, TrendingUp, Copy, ChevronDown } from 'lucide-react'
+import { X, Edit, Trash2, TrendingUp, Copy, ChevronDown, Save } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Toggle } from '@/components/ui/toggle'
 import { Card } from '@/components/ui/card'
@@ -40,6 +40,9 @@ export default function Portfolio() {
   // State for address management
   const [addresses, setAddresses] = useState<StoredAddress[]>([])
   const [addressInput, setAddressInput] = useState('')
+  const [addressLabelInput, setAddressLabelInput] = useState('')
+  const [multipleAddresses, setMultipleAddresses] = useState<Array<{address: string, label: string, id: string, isEditing?: boolean, originalLabel?: string}>>([])
+  const [showMultipleAddressList, setShowMultipleAddressList] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [showMotion, setShowMotion] = useState(true)
@@ -175,6 +178,9 @@ export default function Portfolio() {
     return 0
   })
 
+  // Dust filter input display state (separate from the actual filter value)
+  const [dustFilterInput, setDustFilterInput] = useState<string>('')
+
   // Hide tokens with no price data state
   const [hideTokensWithoutPrice, setHideTokensWithoutPrice] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -239,6 +245,8 @@ export default function Portfolio() {
       }
     }
   }, [showEditModal])
+
+
 
   // Load addresses and preferences from localStorage on mount
   useEffect(() => {
@@ -382,38 +390,49 @@ export default function Portfolio() {
     return { valid, invalid, duplicates }
   }
 
-  // Handle adding address from main input (now supports bulk pasting)
+  // Handle paste events for auto-detection
+  const handleAddressPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = e.clipboardData.getData('text')
+    const results = parseBulkAddresses(pastedText)
+    
+    if (results.valid.length === 1 && results.invalid.length === 0) {
+      // Single valid address - auto-submit after a brief delay
+      setTimeout(() => {
+        if (isValidAddress(addressInput) || isValidAddress(pastedText)) {
+          const addressToSubmit = addressInput || pastedText
+          if (!isDuplicateAddress(addressToSubmit)) {
+            const newAddress: StoredAddress = {
+              address: addressToSubmit,
+              label: '',
+              id: Date.now().toString()
+            }
+            setAddresses(prev => [...prev, newAddress])
+            setAddressInput('')
+          }
+        }
+      }, 100)
+    } else if (results.valid.length > 1) {
+      // Multiple addresses - prevent default paste and show list interface
+      e.preventDefault()
+      const multipleAddressList = results.valid.map(address => ({
+        address,
+        label: '',
+        id: Date.now().toString() + Math.random().toString(),
+        isEditing: false,
+        originalLabel: ''
+      }))
+      setMultipleAddresses(multipleAddressList)
+      setShowMultipleAddressList(true)
+      setAddressInput('')
+    }
+  }
+
+  // Handle adding address from main input (simplified for single address)
   const handleAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Check if multiple addresses were pasted
-    const results = parseBulkAddresses(addressInput)
-    
-    if (results.valid.length > 1 || results.invalid.length > 0 || results.duplicates.length > 0) {
-      // Multiple addresses detected - handle as bulk
-      setBulkParseResults(results)
-      
-      // Add all valid addresses
-      if (results.valid.length > 0) {
-        const newAddresses = results.valid.map(address => ({
-          address,
-          label: '',
-          id: Date.now().toString() + Math.random().toString()
-        }))
-        
-        setAddresses(prev => [...prev, ...newAddresses])
-        
-        // Clear input if all were processed successfully
-        if (results.invalid.length === 0 && results.duplicates.length === 0) {
-          setAddressInput('')
-          setBulkParseResults(null)
-        }
-      }
-      
-      // Clear results after 10 seconds
-      setTimeout(() => setBulkParseResults(null), 10000)
-    } else if (isValidAddress(addressInput)) {
-      // Single address handling (original logic)
+    if (isValidAddress(addressInput)) {
+      // Single address handling
       if (isDuplicateAddress(addressInput)) {
         setDuplicateError('You already added this address')
         setTimeout(() => setDuplicateError(null), 3000)
@@ -429,6 +448,133 @@ export default function Portfolio() {
       setAddressInput('')
       setDuplicateError(null)
     }
+  }
+
+  // Handle adding all addresses from multiple address list
+  const handleAddMultipleAddresses = () => {
+    const validAddresses = multipleAddresses.filter(addr => 
+      isValidAddress(addr.address) && !isDuplicateAddress(addr.address)
+    )
+    
+    if (validAddresses.length > 0) {
+      // Close modal first to show loading state
+      setShowMultipleAddressList(false)
+      setMultipleAddresses([])
+      setAddressInput('')
+      setAddressLabelInput('')
+      
+      // Add addresses after modal is closed (slight delay to ensure UI updates)
+      setTimeout(() => {
+        setAddresses(prev => [...prev, ...validAddresses])
+      }, 50)
+    }
+  }
+
+  // Update label for address in multiple addresses list
+  const updateMultipleAddressLabel = (id: string, label: string, isEditing?: boolean, originalLabel?: string) => {
+    setMultipleAddresses(prev => 
+      prev.map(addr => addr.id === id ? { 
+        ...addr, 
+        label,
+        isEditing: isEditing !== undefined ? isEditing : addr.isEditing,
+        originalLabel: originalLabel !== undefined ? originalLabel : (addr.originalLabel || addr.label)
+      } : addr)
+    )
+  }
+
+  // Remove address from multiple addresses list
+  const removeFromMultipleAddresses = (id: string) => {
+    setMultipleAddresses(prev => prev.filter(addr => addr.id !== id))
+    if (multipleAddresses.length <= 1) {
+      setShowMultipleAddressList(false)
+      setMultipleAddresses([])
+    }
+  }
+
+  // Handle paste events for inline address input with bulk detection
+  const handleInlineAddressPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = e.clipboardData.getData('text')
+    const results = parseBulkAddresses(pastedText)
+    
+    // If multiple addresses detected, handle as bulk
+    if (results.valid.length > 1 || results.invalid.length > 0 || results.duplicates.length > 0) {
+      e.preventDefault() // Prevent default paste
+      
+      // Set bulk parse results for display
+      setBulkParseResults(results)
+      
+      // Add all valid addresses to the multiple addresses list
+      if (results.valid.length > 0) {
+        const newAddresses = results.valid.map(address => ({
+          address,
+          label: addressLabelInput || '', // Use the label for all addresses if provided
+          id: Date.now().toString() + Math.random().toString(),
+          isEditing: false,
+          originalLabel: addressLabelInput || ''
+        }))
+        
+        // Filter out any that are already in the list or existing addresses
+        const filteredAddresses = newAddresses.filter(newAddr => {
+          const isDuplicateInExisting = isDuplicateAddress(newAddr.address)
+          const isDuplicateInList = multipleAddresses.some(addr => 
+            addr.address.toLowerCase() === newAddr.address.toLowerCase()
+          )
+          return !isDuplicateInExisting && !isDuplicateInList
+        })
+        
+        setMultipleAddresses(prev => [...prev, ...filteredAddresses])
+          setAddressInput('')
+        setAddressLabelInput('')
+      }
+      
+      // Clear results after 10 seconds
+      setTimeout(() => setBulkParseResults(null), 10000)
+    }
+    // For single address, let the default paste behavior happen
+  }
+
+  // Add new address to multiple addresses list
+  const addToMultipleAddresses = () => {
+    if (!addressInput.trim()) {
+      return
+    }
+
+    if (!isValidAddress(addressInput)) {
+      setDuplicateError('Invalid address format')
+      setTimeout(() => setDuplicateError(null), 3000)
+      return
+    }
+
+    // Check for duplicates in existing addresses
+      if (isDuplicateAddress(addressInput)) {
+        setDuplicateError('You already added this address')
+        setTimeout(() => setDuplicateError(null), 3000)
+        return
+      }
+      
+    // Check for duplicates in current multiple addresses list
+    const isDuplicateInList = multipleAddresses.some(addr => 
+      addr.address.toLowerCase() === addressInput.toLowerCase()
+    )
+    
+    if (isDuplicateInList) {
+      setDuplicateError('Address already in the list')
+      setTimeout(() => setDuplicateError(null), 3000)
+      return
+    }
+
+    // If we get here, the address is valid and not a duplicate
+    const newAddress = {
+        address: addressInput,
+      label: addressLabelInput || '',
+      id: Date.now().toString() + Math.random().toString(),
+      isEditing: false,
+      originalLabel: addressLabelInput || ''
+    }
+    setMultipleAddresses(prev => [...prev, newAddress])
+      setAddressInput('')
+    setAddressLabelInput('')
+    setDuplicateError(null) // Clear any existing errors
   }
 
   // Optimized address filter handler
@@ -555,6 +701,11 @@ export default function Portfolio() {
       delete newStates[id]
       return newStates
     })
+    
+    // If all addresses are deleted, close the edit modal
+    if (updatedAddresses.length === 0) {
+      setShowEditModal(false)
+    }
   }
 
   // Update address label
@@ -1019,12 +1170,21 @@ export default function Portfolio() {
     }
   }, [])
 
+  // Memoized token symbols map to prevent re-renders
+  const tokenSymbolsMap = useMemo(() => {
+    const map = new Set()
+    mainTokensWithBalances.forEach(token => {
+      map.add(token.symbol)
+    })
+    return map
+  }, [mainTokensWithBalances.map(t => t.symbol).join('|')])
+
   // Memoized token row component to prevent unnecessary re-renders
-  const TokenRow = memo(({ token, tokenPrice, tokenIndex, allTokens }: { 
+  const TokenRow = memo(({ token, tokenPrice, tokenIndex, tokenSymbolsMap }: { 
     token: any; 
     tokenPrice: number; 
     tokenIndex: number; 
-    allTokens: any[];
+    tokenSymbolsMap: Set<string>;
   }) => {
     // Use parent's dialog state to prevent closing on price refresh
     const stableKey = `${token.chain}-${token.symbol}-${token.address || 'native'}`
@@ -1040,35 +1200,33 @@ export default function Portfolio() {
       return symbol
     }
     
-    // Find corresponding e/we version of this token
+    // Check if paired token exists using the symbols map
     const findPairedToken = (currentSymbol: string) => {
       const baseToken = getBaseTokenName(currentSymbol)
       
       if (currentSymbol.startsWith('e')) {
         // This is an 'e' token, look for 'we' version
-        return allTokens.find(t => t.symbol === `we${baseToken}`)
+        return tokenSymbolsMap.has(`we${baseToken}`)
       } else if (currentSymbol.startsWith('we')) {
         // This is a 'we' token, look for 'e' version
-        return allTokens.find(t => t.symbol === `e${baseToken}`)
+        return tokenSymbolsMap.has(`e${baseToken}`)
       }
-      return null
+      return false
     }
     
-    const pairedToken = findPairedToken(token.symbol)
+    const hasPairedToken = findPairedToken(token.symbol)
     const isEVersion = token.symbol.startsWith('e')
     const isWeVersion = token.symbol.startsWith('we')
-    const hasPairedToken = pairedToken !== null
     
-    // Calculate combined balance for league calculation (if there's a paired token)
-    const combinedBalance = hasPairedToken && pairedToken?.balanceFormatted !== undefined
-      ? token.balanceFormatted + pairedToken.balanceFormatted 
-      : token.balanceFormatted
+    // Calculate combined balance for league calculation (simplified since we just need to know if paired exists)
+    // For now, just use the current token balance since we can't easily get the paired balance without the full array
+    const combinedBalance = token.balanceFormatted
     
     // Only show league on 'e' version when there's a paired 'we' version
     // For all other tokens (not starting with e or we), always show league
     const shouldShowLeague = !isEVersion && !isWeVersion 
       ? true  // Always show for regular tokens (PLS, PLSX, HEX, etc.)
-      : !isWeVersion || !(hasPairedToken && pairedToken?.balanceFormatted !== undefined)
+      : !isWeVersion || !hasPairedToken
     
     // Get supply from constants (existing logic)
     const supply = useMemo(() => {
@@ -1188,13 +1346,17 @@ export default function Portfolio() {
         {/* 24h Price Change Column */}
         <div className="text-center">
           <div className={`text-[10px] md:text-xs font-bold ${
-            priceChange24h !== undefined
+            tokenPrice === 0
+              ? 'text-gray-400'
+              : priceChange24h !== undefined
               ? priceChange24h >= 0 
                 ? 'text-[#00ff55]' 
                 : 'text-red-500'
               : 'text-gray-400'
           }`}>
-            {priceChange24h !== undefined
+            {tokenPrice === 0
+              ? '--'
+              : priceChange24h !== undefined
               ? `${priceChange24h >= 0 ? '+' : ''}${priceChange24h.toFixed(1)}%`
               : '0%'
             }
@@ -1503,14 +1665,18 @@ export default function Portfolio() {
                           prices &&
                           Object.keys(prices).length > 0
     
+    // Also ensure derived calculations are complete
+    const hasCalculatedData = filteredBalances.length >= 0 && // Can be 0 if no balances match filters
+                             typeof totalUsdValue === 'number' // Ensure totalUsdValue has been calculated
+    
     // Only consider loading states on initial load
     // Include MAXI loading for backing price functionality and HEX stakes loading
     if (isInitialLoad) {
-      return hasInitialData && !balancesLoading && !pricesLoading && !maxiLoading && !hexStakesLoading
+      return hasInitialData && hasCalculatedData && !balancesLoading && !pricesLoading && !maxiLoading && !hexStakesLoading
     }
     
-    // After initial load, stay ready as long as we have data
-    return hasInitialData
+    // After initial load, stay ready as long as we have data and calculations
+    return hasInitialData && hasCalculatedData
   }, [
     addresses.length,
     balancesLoading,
@@ -1520,6 +1686,8 @@ export default function Portfolio() {
     balancesError,
     balances?.length,
     Object.keys(prices).length,
+    filteredBalances.length,
+    totalUsdValue,
     isInitialLoad
   ])
 
@@ -1616,13 +1784,13 @@ export default function Portfolio() {
   const Container = showMotion ? motion.div : 'div';
   const Section = showMotion ? motion.div : 'div';
 
-  // Show loading state only on initial load when there are addresses
-  if (addresses.length > 0 && isInitialLoad && !isEverythingReady) {
+  // Show loading state when there are addresses but data isn't ready
+  if (addresses.length > 0 && !isEverythingReady) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <div className="max-w-6xl mx-auto">
           <div className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full mx-auto">
-            <div className="text-gray-400">Loading portfolio data...</div>
+            <div className="text-gray-400">Loading Portfolio data...</div>
           </div>
         </div>
       </div>
@@ -1641,7 +1809,7 @@ export default function Portfolio() {
         },
         onAnimationComplete: handleAnimationComplete
       } : {})}
-        className="space-y-6 flex flex-col items-center w-full"
+        className="space-y-6 flex flex-col items-center w-full max-w-[860px] mx-auto"
     >
       {/* Address Input Section */}
       <Section 
@@ -1654,58 +1822,219 @@ export default function Portfolio() {
             ease: [0.23, 1, 0.32, 1]
           }
         } : {})}
-        className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[860px] w-full"
-        style={{ display: addresses.length > 0 ? 'none' : 'block' }}
+        className="bg-black border-2 border-white/10 rounded-xl my-4 p-6 max-w-[560px] w-full"
+        style={{ display: addresses.length > 0 || showMultipleAddressList ? 'none' : 'block' }}
       >
         {/* Unified Address Input */}
         <form onSubmit={handleAddressSubmit} className="space-y-4">
           <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-300 mb-2 text-center">
-              Enter PulseChain address
+            <label htmlFor="address" className="block text-sm font-medium text-gray-300 mb-4 text-center">
+              Enter PulseChain or Ethereum address
             </label>
-            <textarea
+            <input
               id="address"
+              type="text"
               value={addressInput}
               onChange={(e) => setAddressInput(e.target.value)}
-              placeholder="0x..)"
-              rows={4}
-              className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none transition-colors resize-vertical"
+              onPaste={handleAddressPaste}
+              placeholder="0xaf10cc6c50defff901b535691550d7af208939c5"
+              className="w-full px-4 py-3 bg-black border border-white/10 rounded-lg text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none transition-colors"
             />
         </div>
 
-          {/* Parse Results */}
+          {/* Show duplicate error */}
+          {duplicateError && (
+            <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
+              ❌ {duplicateError}
+            </div>
+          )}
+        </form>
+
+      </Section>
+
+      {/*Add Addresses Welcome inline */}
+      {showMultipleAddressList && (
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, scale: 0.95 },
+            animate: { opacity: 1, scale: 1 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.1,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
+          className="bg-black border border-white/20 rounded-xl w-full max-w-[800px] mx-auto overflow-hidden"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-white/20">
+            <div className="flex items-center gap-4">
+              <div className="flex bg-black rounded-full">
+                <div className="px-6 py-2 bg-white text-black rounded-full text-sm font-medium">
+                  {multipleAddresses.length} Addresses
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowMultipleAddressList(false)
+                setMultipleAddresses([])
+                setAddressInput('')
+                setAddressLabelInput('')
+              }}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* Address List */}
+          <div className="p-6 space-y-4 overflow-x-auto scrollbar-hide">
+                                      {multipleAddresses.map((addr) => {
+              // Track editing state for this address
+              const isEditing = addr.isEditing || false
+              const originalLabel = addr.originalLabel || ''
+              const hasChanges = addr.label !== originalLabel
+              
+              const handleSave = () => {
+                updateMultipleAddressLabel(addr.id, addr.label, false, addr.label)
+              }
+              
+              return (
+                <div key={addr.id} className="flex items-center gap-4 py-3 border-b border-white/10 min-w-fit">
+                  <div className="flex-1 text-sm text-white font-mono whitespace-nowrap">
+                    <span className="sm:hidden">{formatAddress(addr.address)}</span>
+                    <span className="hidden sm:block">{addr.address}</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={addr.label}
+                    onChange={(e) => {
+                      updateMultipleAddressLabel(addr.id, e.target.value, true, originalLabel)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && hasChanges) {
+                        handleSave()
+                      } else if (e.key === 'Escape') {
+                        updateMultipleAddressLabel(addr.id, originalLabel, false, originalLabel)
+                      }
+                    }}
+                    placeholder="Name (optional)"
+                    className="w-40 md:w-72 px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 text-sm focus:border-white/40 focus:outline-none"
+                  />
+                  
+                  {/* Save/Delete Button */}
+                  <div className="flex-shrink-0">
+                    {isEditing && hasChanges ? (
+                      <button
+                        onClick={handleSave}
+                        className="p-2 hover:bg-white/20 rounded transition-colors text-white hover:text-gray-300"
+                        title="Save changes"
+                      >
+                        <Save size={16} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => removeFromMultipleAddresses(addr.id)}
+                        className="p-2 text-red-400 hover:text-red-300 hover:bg-red-600/20 rounded transition-colors"
+                        title="Delete address"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Add New Address Section */}
+            <div className="pt-6">
+              <h3 className="text-white font-medium mb-4">Add New Address</h3>
+              
+              {/* Error Messages */}
+              {duplicateError && (
+                <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm flex items-center gap-2 mb-4">
+                  <span>⚠️</span>
+                  <span>{duplicateError}</span>
+                </div>
+              )}
+
           {bulkParseResults && (
-            <div className="space-y-2">
+                <div className="space-y-2 mb-4">
               {bulkParseResults.valid.length > 0 && (
                 <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm">
-                  ✅ {bulkParseResults.valid.length} valid address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
+                      ✅ {bulkParseResults.valid.length} address{bulkParseResults.valid.length !== 1 ? 'es' : ''} added
           </div>
         )}
               {bulkParseResults.invalid.length > 0 && (
                 <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
-                  ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 3).join(', ')}{bulkParseResults.invalid.length > 3 ? '...' : ''}
+                      ❌ {bulkParseResults.invalid.length} invalid address{bulkParseResults.invalid.length !== 1 ? 'es' : ''}: {bulkParseResults.invalid.slice(0, 2).join(', ')}{bulkParseResults.invalid.length > 2 ? '...' : ''}
       </div>
               )}
               {bulkParseResults.duplicates.length > 0 && (
                 <div className="p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 text-sm">
-                  ⚠️ {bulkParseResults.duplicates.length} duplicate address{bulkParseResults.duplicates.length !== 1 ? 'es' : ''} skipped
+                      ⚠️ {bulkParseResults.duplicates.length} duplicate{bulkParseResults.duplicates.length !== 1 ? 's' : ''} skipped
                 </div>
               )}
               </div>
           )}
           
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                <input
+                  type="text"
+                  value={addressInput}
+                  onChange={(e) => setAddressInput(e.target.value)}
+                  onPaste={handleInlineAddressPaste}
+                  placeholder="0x..."
+                  className="flex-1 px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 text-sm focus:border-white/40 focus:outline-none"
+                />
+                <div className="flex gap-3">
+                                      <input
+                      type="text"
+                      value={addressLabelInput}
+                      onChange={(e) => setAddressLabelInput(e.target.value)}
+                      placeholder="Name (optional)"
+                      className="flex-1 w-20 xs:w-24 sm:w-32 md:w-40 lg:w-48 px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 text-sm focus:border-white/40 focus:outline-none"
+                    />
           <button
-            type="submit"
-            disabled={!addressInput.trim()}
-            className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-          >
-            Add Address{(() => {
-              const results = parseBulkAddresses(addressInput)
-              return results.valid.length > 1 ? 'es' : ''
-            })()}
+                    onClick={addToMultipleAddresses}
+                    disabled={!addressInput.trim() || !isValidAddress(addressInput)}
+                    className="px-4 py-2 bg-white text-black rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                  >
+                    +
           </button>
-        </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-6 border-t border-white/20 flex gap-3">
+            <button
+              onClick={handleAddMultipleAddresses}
+              disabled={multipleAddresses.length === 0}
+              className="flex-1 px-4 py-2 bg-white text-black font-medium rounded disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+            >
+              Add All Addresses ({multipleAddresses.length})
+            </button>
+            <button
+              onClick={() => {
+                setShowMultipleAddressList(false)
+                setMultipleAddresses([])
+                setAddressInput('')
+                setAddressLabelInput('')
+              }}
+              className="px-6 py-2 bg-transparent border border-white/20 text-white rounded hover:bg-white/10 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
       </Section>
+      )}
 
       {/* Show loading state when fetching data (only on initial load) */}
       {addresses.length > 0 && balancesLoading && isInitialLoad && (
@@ -1982,7 +2311,7 @@ export default function Portfolio() {
               // Use a stable key that includes the token address to prevent unnecessary remounting
               const stableKey = `${token.chain}-${token.symbol}-${token.address || 'native'}`
               return (
-                <TokenRow key={stableKey} token={token} tokenPrice={tokenPrice} tokenIndex={tokenIndex} allTokens={sortedTokens} />
+                <TokenRow key={stableKey} token={token} tokenPrice={tokenPrice} tokenIndex={tokenIndex} tokenSymbolsMap={tokenSymbolsMap} />
               )
             })}
             </div>
@@ -2105,7 +2434,7 @@ export default function Portfolio() {
           </div>
           
                     {/* Total HEX Stakes Value */}
-          <div className="bg-black border-2 border-white/10 rounded-2xl py-6 text-center mb-6">
+          <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center mb-6">
                       {(() => {
             const totalHexValue = filteredHexStakes.reduce((total, stake) => {
               const stakeHex = stake.principleHex + stake.yieldHex
@@ -2299,7 +2628,7 @@ export default function Portfolio() {
                   </div>
                   <div className="text-zinc-500">
                     <span className="text-md">{(stake.principleHex + stake.yieldHex).toLocaleString()} HEX</span>
-                    <span className="text-xs"> = ({stake.principleHex.toLocaleString()}HEX principle + {stake.yieldHex.toLocaleString()} HEX yield)</span>
+                    <span className="text-xs"> = ({stake.principleHex.toLocaleString()} HEX principal + {stake.yieldHex.toLocaleString()} HEX yield)</span>
                   </div>
                   <div className="text-sm text-zinc-500">
                     {stake.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} T-Shares
@@ -2384,7 +2713,7 @@ export default function Portfolio() {
                       
                       return formattedDate
                     })()}</div>
-                    <div>End: {(() => {
+                    <div className="text-right">End: {(() => {
                       const date = new Date(stake.endDate)
                       return date.toLocaleDateString('en-US', { 
                         month: 'short', 
@@ -2400,7 +2729,7 @@ export default function Portfolio() {
         </Section>
       )}
 
-      {/* Edit Addresses Modal */}
+      {/* Edit Addresses Popup modal*/}
       <AnimatePresence>
         {showEditModal && (
           <motion.div 
@@ -2490,7 +2819,7 @@ export default function Portfolio() {
                       </button>
                       
                       {/* Name/Label Field */}
-                      <div className="w-32 sm:w-64">
+                      <div className="w-40 sm:w-72">
                         <input
                           type="text"
                           placeholder="Name (optional)"
@@ -2511,7 +2840,7 @@ export default function Portfolio() {
                               handleCancel()
                             }
                           }}
-                          className="w-full px-3 py-2 bg-black border border-white/20 rounded-lg text-sm text-white placeholder-gray-500 focus:border-white/40 focus:outline-none text-[11px] sm:text-sm"
+                          className="w-full px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none text-sm"
                         />
                               </div>
                       
@@ -2520,18 +2849,16 @@ export default function Portfolio() {
                         {isEditing && tempLabel !== (addr.label || '') ? (
                           <button
                             onClick={handleSave}
-                            className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white hover:text-white"
+                            className="p-2 hover:bg-white/20 rounded transition-colors text-white hover:text-gray-300"
+                            title="Save changes"
                           >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-                              <polyline points="17,21 17,13 7,13 7,21"/>
-                              <polyline points="7,3 7,8 15,8"/>
-                            </svg>
+                            <Save size={16} />
                           </button>
                         ) : (
                           <button
                             onClick={() => removeAddress(addr.id)}
-                            className="p-2 hover:bg-red-600/20 rounded-lg transition-colors text-red-400 hover:text-red-300"
+                            className="p-2 hover:bg-red-600/20 rounded transition-colors text-red-400 hover:text-red-300"
+                            title="Delete address"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -2583,7 +2910,7 @@ export default function Portfolio() {
                         value={validatorCount === 0 ? '' : validatorCount}
                         onChange={(e) => setValidatorCount(Math.max(0, parseInt(e.target.value) || 0))}
                         placeholder="0"
-                        className="w-full px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-full px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
 
@@ -2597,22 +2924,47 @@ export default function Portfolio() {
                       <div className="relative mb-4">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">$</span>
                         <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={dustFilter === 0 ? '' : dustFilter}
-                          onChange={(e) => setDustFilter(Math.max(0, parseFloat(e.target.value) || 0))}
+                          type="text"
+                          value={dustFilterInput}
+                          onFocus={() => {
+                            // When focusing, show the current value or empty if 0
+                            setDustFilterInput(dustFilter === 0 ? '' : dustFilter.toString())
+                          }}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setDustFilterInput(value)
+                            
+                            // Allow empty, numbers, and decimal patterns like "0", "0.", "0.0", "0.00", etc.
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              const parsed = parseFloat(value)
+                              if (value === '' || isNaN(parsed)) {
+                                setDustFilter(0)
+                              } else {
+                                setDustFilter(parsed)
+                              }
+                            }
+                          }}
+                          onBlur={(e) => {
+                            // Clean up the display when field loses focus
+                            const value = e.target.value
+                            const parsed = parseFloat(value)
+                            if (isNaN(parsed) || parsed === 0) {
+                              setDustFilter(0)
+                              setDustFilterInput('')
+                            } else {
+                              setDustFilter(parsed)
+                              setDustFilterInput(parsed.toString())
+                            }
+                          }}
                           placeholder="0"
-                          className="w-full pl-8 pr-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-full pl-8 pr-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none"
                         />
                       </div>
                       
                                               <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <div className="font-medium text-white mb-1">Show tokens with no price data</div>
                             <div className="text-sm text-gray-400">
-                              Display tokens that have no price from DexScreener<br />
-                              (shown as --)
+                              Display tokens that have no price available?<br />
                             </div>
                           </div>
                         <button
@@ -2676,7 +3028,7 @@ export default function Portfolio() {
                     placeholder="0x..."
                     value={newAddressInput}
                     onChange={(e) => setNewAddressInput(e.target.value)}
-                        className="w-full sm:w-1/2 px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none text-sm"
+                        className="w-full sm:w-1/2 px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none text-sm"
                   />
                       <div className="flex gap-3 w-full sm:w-1/2">
                   <input
@@ -2684,12 +3036,12 @@ export default function Portfolio() {
                     placeholder="Name (optional)"
                     value={newLabelInput}
                     onChange={(e) => setNewLabelInput(e.target.value)}
-                          className="flex-1 px-3 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-white/40 focus:outline-none text-sm"
+                          className="flex-1 min-w-[200px] px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none text-sm"
                   />
                   <button
                     onClick={handleAddAddressInModal}
                     disabled={!newAddressInput.trim()}
-                          className="px-6 py-2 bg-white text-black font-medium rounded-lg disabled:bg-white disabled:text-black disabled:cursor-not-allowed hover:bg-gray-100 transition-colors whitespace-nowrap"
+                          className="px-6 py-2 bg-white text-black font-medium rounded disabled:white disabled:text-black hover:bg-gray-100 transition-colors whitespace-nowrap"
                   >
                     +
                   </button>

@@ -17,7 +17,7 @@ const NAV_LINKS = [
   { href: '/bridge', label: 'Bridge', mobileLabel: 'Bridge' },
   { href: '/gas', label: 'Gas', mobileLabel: 'Gas' },
   { href: '/validators', label: 'Validators', mobileLabel: 'Validators' },
-  // { href: '/portfolio', label: 'Portfolio', mobileLabel: 'Portfolio' },
+  { href: '/portfolio', label: 'Portfolio', mobileLabel: 'Portfolio' },
 ];
 
 const NavBar = () => {
@@ -58,6 +58,14 @@ const NavBar = () => {
       setIsBannerVisible(event.detail.isVisible);
     };
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check for Cmd+S (Mac) or Ctrl+S (Windows/Linux)
+      if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+        event.preventDefault(); // Prevent default save dialog
+        setIsSearchOpen(true);
+      }
+    };
+
     // Check initial banner visibility from CSS variable
     const bannerVisible = getComputedStyle(document.documentElement)
       .getPropertyValue('--banner-visible')
@@ -67,20 +75,22 @@ const NavBar = () => {
     // Listen for banner visibility changes
     window.addEventListener('bannerVisibilityChange', handleBannerVisibility as EventListener);
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     
     return () => {
       window.removeEventListener('bannerVisibilityChange', handleBannerVisibility as EventListener);
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
   return (
-    <nav className={`w-full bg-black px-4 pt-0 pb-0 border-b-1 border-b border-[rgba(255,255,255,0.2)] relative z-[100] ${isBannerVisible ? 'md:mt-[52px]' : ''}`}>
+    <nav className={`w-full bg-black px-0 pt-0 pb-0 border-b-1 border-b border-[rgba(255,255,255,0.2)] relative z-[100] ${isBannerVisible ? 'md:mt-[52px]' : ''}`}>
       <div className="max-w-[1200px] mx-auto flex items-center justify-between relative">
         <Link 
           href="/" 
           className={cn(
-            "font-bold text-xl relative z-[100] transition-colors px-4 py-4 rounded-md",
+            "font-bold text-xl relative z-[100] transition-colors px-1 py-4 rounded-md",
             isActive('/') 
               ? 'text-white cursor-default' 
               : 'text-[rgb(153,153,153)] hover:text-gray-300'
@@ -89,8 +99,8 @@ const NavBar = () => {
           PlsCharts
         </Link>
         
-        <div className="hidden sm:flex items-center justify-left flex-grow ml-10 relative z-[100]">
-          <div className="flex items-center space-x-6">
+        <div className="hidden sm:flex items-center justify-left flex-grow ml-6 relative z-[100]">
+          <div className="flex items-bottom space-x-6 py-0">
             {NAV_LINKS.map((link) => (
               <Link 
                 key={link.href}
@@ -108,7 +118,7 @@ const NavBar = () => {
                 setIsSearchOpen(!isSearchOpen);
                 console.log('Setting search state to:', !isSearchOpen);
               }}
-              className="flex items-center justify-center px-4 py-4 rounded-md text-[rgb(153,153,153)] hover:text-gray-300 transition-colors relative z-[10000]"
+              className="flex items-center justify-center px-0 py-0 rounded-md text-[rgb(153,153,153)] hover:text-gray-300 transition-colors relative z-[10000]"
               aria-label="Search tokens"
             >
               <MagnifyingGlassIcon className="h-5 w-5" />

@@ -271,25 +271,25 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               )}
               {/* Add PLS price equivalent and ratio for HEX */}
               {ticker === "HEX" && prices?.PLS?.price && prices?.eHEX?.price && (
-                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
-                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} eHEX | incl. eHEX: {formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}
+                <div className="text-[11px] text-[#777] text-bold whitespace-nowrap">
+                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} | incl. eHEX: {formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}
                 </div>
               )}
               {/* Add COM coupon rate for HEX */}
               {ticker === "HEX" && comCouponRate !== null && (
-                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[11px] text-[#777] text-bold whitespace-nowrap">
                   COM Coupon Rate: {formatNumber(comCouponRate, { decimals: 2 })}%
                 </div>
               )}
               {/* Add PLS price equivalent and HEX ratio for eHEX */}
               {ticker === "eHEX" && prices?.PLS?.price && prices?.HEX?.price && (
-                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[11px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price / prices.HEX.price, { decimals: 2 })} HEX
                 </div>
               )}
               {/* Add eCOM coupon rate for eHEX */}
               {ticker === "eHEX" && ecomCouponRate !== null && (
-                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[11px] text-[#777] text-bold whitespace-nowrap">
                   COM Coupon Rate: {formatNumber(ecomCouponRate, { decimals: 2 })}%
                 </div>
               )}
