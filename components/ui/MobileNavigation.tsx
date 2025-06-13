@@ -35,7 +35,7 @@ export default function MobileNavigation() {
   const handlePress = (href: string | null) => {
     const identifier = href || 'search'
     
-    // Immediately set this button as active (white)
+    // Immediately clear any previous active button and set new one
     setActiveButton(identifier)
     
     if (href === null) {
@@ -82,13 +82,13 @@ export default function MobileNavigation() {
                   : 'text-gray-400'
               }`}
               animate={{
-                scale: isPressed ? 0.95 : 1,
+                scale: isPressed ? 0.85 : 1,
               }}
               transition={{
                 type: "spring",
-                stiffness: 500,
-                damping: 30,
-                duration: 0.1
+                stiffness: 400,
+                damping: 25,
+                duration: 0.15
               }}
             >
               <Icon size={22} />
