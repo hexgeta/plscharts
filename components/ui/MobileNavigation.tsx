@@ -2,7 +2,8 @@
 
 import { Home, PieChart, Search } from 'lucide-react'
 import { useRouter, usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { TokenSearch } from '@/components/ui/token-search'
 
 // Static nav configuration - could be moved to constants
@@ -27,20 +28,33 @@ const NAV_ITEMS = [
 export default function MobileNavigation() {
   const router = useRouter()
   const pathname = usePathname()
+  const [activeButton, setActiveButton] = useState<string | null>(null)
   const [pressedButton, setPressedButton] = useState<string | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   const handlePress = (href: string | null) => {
+    const identifier = href || 'search'
+    
+    // Immediately set this button as active (white)
+    setActiveButton(identifier)
+    
     if (href === null) {
       // Handle search - toggle the search state
       setIsSearchOpen(!isSearchOpen)
-      setPressedButton('search')
-      setTimeout(() => setPressedButton(null), 150)
+      // Reset search button after a moment since it doesn't navigate
+      setTimeout(() => setActiveButton(null), 300)
     } else {
-      setPressedButton(href)
       router.push(href)
-      setTimeout(() => setPressedButton(null), 150)
+      // Keep it white - don't reset until user clicks another button
     }
+  }
+
+  const handleTouchStart = (identifier: string) => {
+    setPressedButton(identifier)
+  }
+
+  const handleTouchEnd = () => {
+    setPressedButton(null)
   }
 
   return (
@@ -48,23 +62,37 @@ export default function MobileNavigation() {
       <div className="flex items-center justify-around py-3 px-4 w-full h-full">
         {NAV_ITEMS.map((item, index) => {
           const Icon = item.icon
-          const isActive = item.href ? pathname === item.href : false
-          const isPressed = item.href ? pressedButton === item.href : pressedButton === 'search'
+          const identifier = item.href || 'search'
+          const isCurrentlyActive = activeButton === identifier
+          const isPageActive = item.href ? pathname === item.href : false
+          const isPressed = pressedButton === identifier
           
           return (
-            <button
+            <motion.button
               key={item.href || `search-${index}`}
               onClick={() => handlePress(item.href)}
-              onTouchStart={() => setPressedButton(item.href || 'search')}
-              onTouchEnd={() => setTimeout(() => setPressedButton(null), 100)}
-              className={`flex flex-col items-center justify-center p-4 rounded-lg transition-colors duration-75 min-w-[60px] ${
-                isActive || isPressed
+              onTouchStart={() => handleTouchStart(identifier)}
+              onTouchEnd={handleTouchEnd}
+              onMouseDown={() => handleTouchStart(identifier)}
+              onMouseUp={handleTouchEnd}
+              onMouseLeave={handleTouchEnd}
+              className={`flex flex-col items-center justify-center p-4 rounded-lg min-w-[60px] ${
+                isCurrentlyActive || isPageActive
                   ? 'text-white' 
-                  : 'text-gray-400 hover:text-white'
+                  : 'text-gray-400'
               }`}
+              animate={{
+                scale: isPressed ? 0.95 : 1,
+              }}
+              transition={{
+                type: "spring",
+                stiffness: 500,
+                damping: 30,
+                duration: 0.1
+              }}
             >
               <Icon size={22} />
-            </button>
+            </motion.button>
           )
         })}
       </div>

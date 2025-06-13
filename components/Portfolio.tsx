@@ -9,7 +9,7 @@ import { useMaxiTokenData } from '@/hooks/crypto/useMaxiTokenData'
 import { useHexStakes } from '@/hooks/crypto/useHexStakes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
-import { X, Edit, Trash2, TrendingUp, Copy, ChevronDown, Save } from 'lucide-react'
+import { Icons } from '@/components/ui/icons'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Toggle } from '@/components/ui/toggle'
 import { Card } from '@/components/ui/card'
@@ -1172,7 +1172,7 @@ export default function Portfolio() {
 
   // Memoized token symbols map to prevent re-renders
   const tokenSymbolsMap = useMemo(() => {
-    const map = new Set()
+    const map = new Set<string>()
     mainTokensWithBalances.forEach(token => {
       map.add(token.symbol)
     })
@@ -1464,7 +1464,7 @@ export default function Portfolio() {
                   className="p-1 mt-0 text-gray-400 hover:text-white transition-colors"
                   title="View chart on DexScreener"
                 >
-                  <TrendingUp size={16} />
+                  <Icons.trending size={16} />
                 </a>
 
                 {/* Copy Icon - Copy Contract Address (only for non-native tokens, hidden on mobile) */}
@@ -1474,7 +1474,7 @@ export default function Portfolio() {
                     className="hidden sm:block p-1 -mt-0 transition-colors text-gray-400 hover:text-white"
                     title="Copy contract address"
                 >
-                    <Copy size={16} />
+                    <Icons.copy size={16} />
                 </button>
               )}
               </>
@@ -1933,7 +1933,7 @@ export default function Portfolio() {
                         className="p-2 hover:bg-white/20 rounded transition-colors text-white hover:text-gray-300"
                         title="Save changes"
                       >
-                        <Save size={16} />
+                        <Icons.save size={16} />
                       </button>
                     ) : (
                       <button
@@ -2149,7 +2149,7 @@ export default function Portfolio() {
                 onClick={() => setShowEditModal(true)}
                 className="p-2 mr-2 rounded-lg text-gray-400 hover:text-white transition-colors"
               >
-                <Edit size={16} />
+                <Icons.edit size={16} />
               </button>
             </div>
           )}
@@ -2197,7 +2197,7 @@ export default function Portfolio() {
               className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm"
             >
               <span>Advanced filters</span>
-              <ChevronDown
+              <Icons.chevronDown
                 size={16} 
                 className={`transition-transform duration-200 ${showAdvancedFilters ? '' : 'rotate-180'}`}
               />
@@ -2775,7 +2775,7 @@ export default function Portfolio() {
                   onClick={() => setShowEditModal(false)}
                   className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
                 >
-                  <X size={20} />
+                  <Icons.close size={20} />
                 </button>
                                 </div>
 
@@ -2852,7 +2852,7 @@ export default function Portfolio() {
                             className="p-2 hover:bg-white/20 rounded transition-colors text-white hover:text-gray-300"
                             title="Save changes"
                           >
-                            <Save size={16} />
+                            <Icons.save size={16} />
                           </button>
                         ) : (
                           <button
@@ -2860,7 +2860,7 @@ export default function Portfolio() {
                             className="p-2 hover:bg-red-600/20 rounded transition-colors text-red-400 hover:text-red-300"
                             title="Delete address"
                           >
-                            <Trash2 size={16} />
+                            <Icons.trash size={16} />
                           </button>
                         )}
                               </div>

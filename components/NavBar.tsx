@@ -90,7 +90,7 @@ const NavBar = () => {
         <Link 
           href="/" 
           className={cn(
-            "font-bold text-xl relative z-[100] transition-colors px-1 py-4 rounded-md",
+            "font-bold text-xl relative z-[100] transition-colors px-4 py-4 rounded-md",
             isActive('/') 
               ? 'text-white cursor-default' 
               : 'text-[rgb(153,153,153)] hover:text-gray-300'
