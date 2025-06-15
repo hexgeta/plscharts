@@ -310,11 +310,19 @@ export const calculateYieldForStake = (
   for (const dayData of dailyPayouts) {
     const payoutDay = dayData.endDay;
     
-    // Only count payouts for days the stake was active
-    if (payoutDay >= startDay && payoutDay <= endDay) {
-      const payoutPerTShare = Number(dayData.payoutPerTShare);
-      totalYield += payoutPerTShare * tShares;
-    }
+          // Only count payouts for days the stake was active
+      if (payoutDay >= startDay && payoutDay <= endDay) {
+        let payoutPerTShare = Number(dayData.payoutPerTShare);
+        
+        // Add extra payout per T-Share for HEX day 353 (3,641.658319477 HEX per T-Share)
+        // This applies to both ETH and PulseChain
+        if (payoutDay === 353) {
+          const extraPayoutPerTShare = 3641.658319477;
+          payoutPerTShare += extraPayoutPerTShare;
+        }
+        
+        totalYield += payoutPerTShare * tShares;
+      }
   }
   
   return totalYield;
