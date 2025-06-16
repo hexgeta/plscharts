@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
+import { useHexDailyDataCache } from '@/hooks/crypto/useHexDailyData'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import React from 'react'
@@ -226,6 +227,34 @@ export default React.memo(function LeagueTable({
     hasPreloadedSupply ? null : supplyTokenTicker
   )
   
+  // Get HEX daily data for T-shares calculations
+  const { data: hexDailyData } = useHexDailyDataCache()
+  
+  // Memoize T-shares calculations to prevent flickering
+  const tSharesData = useMemo(() => {
+    if (!userTShares || userTShares <= 0 || !hexDailyData) return null
+    
+    const isEthereumToken = tokenTicker.startsWith('e') || tokenTicker.startsWith('we')
+    const OA_TSHARES_PLS = 35482068;
+    const OA_TSHARES_ETH = 35155727;
+    
+    const ethLatestDay = hexDailyData?.dailyPayouts?.ETH?.[hexDailyData.dailyPayouts.ETH.length - 1]
+    const plsLatestDay = hexDailyData?.dailyPayouts?.PLS?.[hexDailyData.dailyPayouts.PLS.length - 1]
+    const totalTShares = isEthereumToken 
+      ? (ethLatestDay ? (parseFloat(ethLatestDay.shares) / 1000000000000) - OA_TSHARES_ETH : 0)
+      : (plsLatestDay ? (parseFloat(plsLatestDay.shares) / 1000000000000) - OA_TSHARES_PLS : 0)
+    const tSharesPercentage = (userTShares / totalTShares) * 100
+    const tSharesLeague = LEAGUE_RANKS.find(rank => tSharesPercentage >= rank.percentage)
+    const rawShares = isEthereumToken ? ethLatestDay?.shares : plsLatestDay?.shares
+    
+    return {
+      totalTShares,
+      tSharesPercentage,
+      tSharesLeague,
+      rawShares
+    }
+  }, [userTShares, hexDailyData, tokenTicker])
+  
   // Use preloaded data if available, otherwise use fetched data
   const prices = preloadedPrices || fetchedPrices
   const rawTotalSupply = hasPreloadedSupply ? preloadedSupply : fetchedSupply
@@ -348,7 +377,7 @@ export default React.memo(function LeagueTable({
           <div className="text-white text-2xl font-bold">
             {hasValidPriceData && `$${Math.round(userBalance * tokenPrice.price).toLocaleString('en-US')}`}
           </div>
-          <div className="text-gray-400 text-sm flex items-center justify-center gap-1 py-1">
+          <div className="text-gray-400 text-xs sm:text-sm flex items-center justify-center gap-1 py-1">
             {formatCompactNumber(userBalance)} {displayTicker} (
             {(() => {
               const userPercentage = (userBalance / totalSupply) * 100;
@@ -370,31 +399,25 @@ export default React.memo(function LeagueTable({
             })()}
             )
             {/* T-shares display for MAXI DAO tokens - inline after supply */}
-            {userTShares && userTShares > 0 && (
-              <span className="text-gray-400 font-medium text-sm">
+            {tSharesData && userTShares && (
+              <span className="text-gray-400 font-medium text-xs sm:text-sm">
                 • {userTShares >= 1
                   ? `${formatCompactNumber(userTShares)} T-Shares`
                   : `${userTShares.toFixed(3)} T-Shares`
-                } {(() => {
-                  // Determine chain based on token ticker and calculate T-shares percentage
-                  const isEthereumToken = tokenTicker.startsWith('e') || tokenTicker.startsWith('we')
-                  const totalTShares = isEthereumToken ? 7893701 : 8503220 // ETH: 7,893,701, PLS: 8,503,220
-                  const tSharesPercentage = (userTShares / totalTShares) * 100
-                  const tSharesLeague = LEAGUE_RANKS.find(rank => tSharesPercentage >= rank.percentage)
-                  
-                  return tSharesLeague ? (
+                } {
+                  tSharesData.tSharesLeague ? (
                     <>
                       (<Image
-                        src={tSharesLeague.icon}
-                        alt={tSharesLeague.name}
+                        src={tSharesData.tSharesLeague.icon}
+                        alt={tSharesData.tSharesLeague.name}
                         width={12}
                         height={12}
                         className="object-contain inline-block align-middle mx-1"
                       />
-                      {formatPercentage(tSharesPercentage)})
+                      {formatPercentage(tSharesData.tSharesPercentage)})
                     </>
-                  ) : `(${formatPercentage(tSharesPercentage)})`
-                })()}
+                  ) : `(${formatPercentage(tSharesData.tSharesPercentage)})`
+                }
               </span>
             )}
           </div>

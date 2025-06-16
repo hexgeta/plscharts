@@ -135,7 +135,7 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
     if (token.dexs && token.dexs !== "0x0" && token.dexs !== null) {
       const chainName = token.chain === 1 ? 'ethereum' : 'pulsechain'
       const dexAddress = Array.isArray(token.dexs) ? token.dexs[0] : token.dexs
-      window.open(`https://dexscreener.com/${chainName}/${dexAddress}`, '_blank')
+      window.location.href = `https://dexscreener.com/${chainName}/${dexAddress}`
     }
   }
 

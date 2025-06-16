@@ -295,10 +295,6 @@ export const TOKEN_CONSTANTS = [{
   stakeStartDate: new Date('2022-05-01'),
   stakeEndDate: new Date('2037-07-16'),
   totalStakedDays: 5555,
-  pair: {
-    pairAddress: '0xd63204ffcefd8f8cbf7390bbcd78536468c085a2',
-    chain: 'pulsechain'
-  }
 }, {
   chain: 369,
   a: "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6",
