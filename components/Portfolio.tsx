@@ -7,6 +7,7 @@ import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
 import { usePortfolioBalance } from '@/hooks/crypto/usePortfolioBalance'
 import { useMaxiTokenData } from '@/hooks/crypto/useMaxiTokenData'
 import { useHexStakes } from '@/hooks/crypto/useHexStakes'
+import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { Icons } from '@/components/ui/icons'
@@ -129,11 +130,11 @@ export default function Portfolio() {
   })
   
   // Token balances sorting state
-  const [tokenSortField, setTokenSortField] = useState<'amount' | 'change'>(() => {
+  const [tokenSortField, setTokenSortField] = useState<'amount' | 'change' | 'league'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('portfolioTokenSortField')
-      if (saved && ['amount', 'change'].includes(saved)) {
-        return saved as 'amount' | 'change'
+      if (saved && ['amount', 'change', 'league'].includes(saved)) {
+        return saved as 'amount' | 'change' | 'league'
       }
     }
     return 'amount'
@@ -202,34 +203,7 @@ export default function Portfolio() {
   // Dialog state for league tables (moved up to prevent closing on price refresh)
   const [openDialogToken, setOpenDialogToken] = useState<string | null>(null)
 
-  // Preload portfolio-specific images on component mount
-  useEffect(() => {
-    // Preload chain icons
-    const chainIcons = ['/coin-logos/ETH-white.svg', '/coin-logos/PLS-white.svg']
-    chainIcons.forEach(src => {
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.href = src
-      link.as = 'image'
-      link.type = 'image/svg+xml'
-      document.head.appendChild(link)
-    })
-
-    // Preload league images
-    const leagueImages = [
-      '/poseidon.png', '/whale.png', '/shark.png', '/dolphin.png',
-      '/squid.png', '/turtle.png', '/crab.png', '/shrimp.png', '/shell.png'
-    ]
-    leagueImages.forEach((src, index) => {
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.href = src
-      link.as = 'image'
-      link.type = 'image/png'
-      if (index < 3) link.fetchPriority = 'high' // High priority for top 3 ranks
-      document.head.appendChild(link)
-    })
-  }, [])
+  // Portfolio-specific images are now preloaded by the background preloader
 
   // Prevent body scroll when edit modal is open
   useEffect(() => {
@@ -570,7 +544,7 @@ export default function Portfolio() {
       id: Date.now().toString() + Math.random().toString(),
       isEditing: false,
       originalLabel: addressLabelInput || ''
-    }
+      }
     setMultipleAddresses(prev => [...prev, newAddress])
       setAddressInput('')
     setAddressLabelInput('')
@@ -775,6 +749,10 @@ export default function Portfolio() {
 
   // Fetch MAXI token backing data
   const { data: maxiData, isLoading: maxiLoading, error: maxiError, getBackingPerToken } = useMaxiTokenData()
+
+  // Start background preloading of token supplies and images
+  const { supplies: preloadedSupplies, totalSupplies, lastUpdated } = useBackgroundPreloader()
+  console.log(`[Portfolio] Background preloader - ${totalSupplies} supplies loaded, last updated:`, lastUpdated)
 
   // Stabilize prices reference to prevent unnecessary re-renders
   const prices = useMemo(() => {
@@ -981,6 +959,7 @@ export default function Portfolio() {
 
   // Memoized sorted tokens to prevent re-sorting on every render
   const sortedTokens = useMemo(() => {
+    console.log(`[SORT MEMO] Running sortedTokens memo - sortField: ${tokenSortField}, direction: ${tokenSortDirection}`)
     if (!mainTokensWithBalances.length || !prices) return []
     
     // First filter by dust threshold and price data availability, then sort
@@ -1240,6 +1219,19 @@ export default function Portfolio() {
       const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === symbolToSearch)
       return tokenConfig?.supply || null
     }, [token.symbol])
+
+    // Get league supply - always use the original token supply for league calculations
+    const leagueSupply = useMemo(() => {
+      let symbolToSearch = token.symbol
+      
+      // For wrapped tokens (we versions), use the original "e" version supply for league calculations
+      if (token.symbol.startsWith('we')) {
+        symbolToSearch = token.symbol.replace('we', 'e')
+      }
+      
+      const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === symbolToSearch)
+      return tokenConfig?.supply || null
+    }, [token.symbol])
     
     // Check if this token should use hardcoded supply instead of API
     const shouldUseHardcodedSupply = ['eDECI', 'weDECI', 'eMAXI', 'weMAXI', 'TRIO', 'LUCKY', 'BASE', 'DECI', 'MAXI'].includes(token.symbol)
@@ -1265,28 +1257,45 @@ export default function Portfolio() {
       return formatPercentage(percentage)
     }, [finalSupply, combinedBalance])
 
-    // Calculate league position based on percentage
+    // Calculate league position based on percentage and T-shares for MAXI DAO tokens
     const leagueInfo = useMemo(() => {
-      if (!finalSupply || combinedBalance === 0) return { league: '', icon: '' }
+      // Use leagueSupply for league calculations (hardcoded from constants) or fallback to finalSupply
+      const supplyForLeague = leagueSupply || finalSupply
+      if (!supplyForLeague || combinedBalance === 0) return { league: '', icon: '', userTShares: 0 }
       
       // Subtract OA supply if available for this token
       const oaSupply = OA_SUPPLIES[token.symbol] || 0
-      const adjustedSupply = finalSupply - oaSupply
+      const adjustedSupply = supplyForLeague - oaSupply
       
       // Use adjusted supply for percentage calculation with combined balance
       const percentage = (combinedBalance / adjustedSupply) * 100
       
+      // Calculate T-shares for MAXI DAO tokens - use the original token's T-shares
+      let userTShares = 0
+      let symbolForTShares = token.symbol
+      
+      // For wrapped tokens, get T-shares from the original "e" version
+      if (token.symbol.startsWith('we')) {
+        symbolForTShares = token.symbol.replace('we', 'e')
+      }
+      
+      const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === symbolForTShares)
+      if (tokenConfig?.tshares) {
+        // User's T-shares = (User's balance / Total supply) * Total T-shares
+        userTShares = (combinedBalance / adjustedSupply) * tokenConfig.tshares
+      }
+      
       // Use the exact same league system as LeagueTable.tsx
-      if (percentage >= 10) return { league: 'Poseidon', icon: '/poseidon.png' }
-      if (percentage >= 1) return { league: 'Whale', icon: '/whale.png' }
-      if (percentage >= 0.1) return { league: 'Shark', icon: '/shark.png' }
-      if (percentage >= 0.01) return { league: 'Dolphin', icon: '/dolphin.png' }
-      if (percentage >= 0.001) return { league: 'Squid', icon: '/squid.png' }
-      if (percentage >= 0.0001) return { league: 'Turtle', icon: '/turtle.png' }
-      if (percentage >= 0.00001) return { league: 'Crab', icon: '/crab.png' }
-      if (percentage >= 0.000001) return { league: 'Shrimp', icon: '/shrimp.png' }
-      return { league: 'Shell', icon: '/shell.png' }
-    }, [finalSupply, combinedBalance])
+      if (percentage >= 10) return { league: 'Poseidon', icon: '/other-images/poseidon.png', userTShares }
+      if (percentage >= 1) return { league: 'Whale', icon: '/other-images/whale.png', userTShares }
+      if (percentage >= 0.1) return { league: 'Shark', icon: '/other-images/shark.png', userTShares }
+      if (percentage >= 0.01) return { league: 'Dolphin', icon: '/other-images/dolphin.png', userTShares }
+      if (percentage >= 0.001) return { league: 'Squid', icon: '/other-images/squid.png', userTShares }
+      if (percentage >= 0.0001) return { league: 'Turtle', icon: '/other-images/turtle.png', userTShares }
+      if (percentage >= 0.00001) return { league: 'Crab', icon: '/other-images/crab.png', userTShares }
+      if (percentage >= 0.000001) return { league: 'Shrimp', icon: '/other-images/shrimp.png', userTShares }
+      return { league: 'Shell', icon: '/other-images/shell.png', userTShares }
+    }, [leagueSupply, finalSupply, combinedBalance, token.symbol])
 
     // Get 24h price change data from prices hook
     const priceData = prices[token.symbol]
@@ -1303,13 +1312,11 @@ export default function Portfolio() {
       <div className="grid grid-cols-[minmax(20px,auto)_2fr_1fr_2fr_minmax(20px,auto)] xs:grid-cols-[minmax(20px,auto)_1fr_1fr_1fr_minmax(20px,auto)] sm:grid-cols-[minmax(20px,auto)_2fr_1fr_1fr_minmax(60px,auto)_2fr_minmax(40px,auto)] items-center gap-2 sm:gap-4 border-b border-white/10 mx-2 sm:mx-4 py-4 last:border-b-0 overflow-hidden">
         {/* Chain Icon - Furthest Left Column */}
         <div className="flex space-x-2 items-center justify-center min-w-[18px]">
-          <Image
-            src={Number(token.chain) === 1 ? "/coin-logos/ETH-white.svg" : "/coin-logos/PLS-white.svg"}
-            alt={Number(token.chain) === 1 ? "Ethereum" : "PulseChain"}
-            width={14}
-            height={14}
-            className="w-4 h-4 brightness-50 contrast-75"
-          />
+                      <CoinLogo
+              symbol={Number(token.chain) === 1 ? "ETH-white" : "PLS-white"}
+              size="sm"
+              className="grayscale opacity-50"
+            />
         </div>
         
         {/* Token Info - Left Column */}
@@ -1396,10 +1403,11 @@ export default function Portfolio() {
                   tokenTicker={token.symbol} 
                   containerStyle={false}
                   showLeagueNames={true}
-                  preloadedSupply={finalSupply || undefined}
+                  preloadedSupply={(leagueSupply || finalSupply) || undefined}
                   preloadedPrices={prices}
                   supplyDeduction={leagueSupplyDeduction}
                   userBalance={combinedBalance}
+                  userTShares={leagueInfo.userTShares > 0 ? leagueInfo.userTShares : undefined}
                 />
               </motion.div>
             </DialogContent>
@@ -2003,8 +2011,8 @@ export default function Portfolio() {
           <button
                     onClick={addToMultipleAddresses}
                     disabled={!addressInput.trim() || !isValidAddress(addressInput)}
-                    className="px-4 py-2 bg-white text-black rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-                  >
+                    className="px-4 py-2 bg-white text-black rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors whitespace-nowrap"
+          >
                     +
           </button>
                 </div>
@@ -2104,42 +2112,34 @@ export default function Portfolio() {
                 title={`Current: ${chainFilter === 'ethereum' ? 'Ethereum' : chainFilter === 'pulsechain' ? 'PulseChain' : 'Both Chains'}`}
               >
                 <div className="flex items-center gap-1">
-                                      {chainFilter === 'ethereum' && (
-                      <Image 
-                        src="/coin-logos/ETH-white.svg" 
-                        alt="Ethereum" 
-                        width={16} 
-                        height={16}
-                        className="w-4 h-4 brightness-75 contrast-75 group-hover:brightness-100 group-hover:contrast-100"
-                      />
-                    )}
-                                      {chainFilter === 'pulsechain' && (
-                      <Image 
-                        src="/coin-logos/PLS-white.svg" 
-                        alt="PulseChain" 
-                        width={16} 
-                        height={16}
-                        className="w-4 h-4 brightness-75 contrast-75 group-hover:brightness-100 group-hover:contrast-100"
-                      />
-                    )}
+                  {chainFilter === 'ethereum' && (
+                    <CoinLogo 
+                      symbol="ETH-white" 
+                      size="sm"
+                      className="grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100"
+                    />
+                  )}
+                  {chainFilter === 'pulsechain' && (
+                    <CoinLogo 
+                      symbol="PLS-white" 
+                      size="sm"
+                      className="grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100"
+                    />
+                  )}
                   {chainFilter === 'both' && (
-                    <>
-                                              <Image 
-                          src="/coin-logos/ETH-white.svg" 
-                          alt="Ethereum" 
-                          width={16} 
-                          height={16}
-                          className="w-4 h-4 brightness-75 contrast-75 group-hover:brightness-100 group-hover:contrast-100 ml-1"
+                                          <>
+                        <CoinLogo 
+                          symbol="ETH-white" 
+                          size="sm"
+                          className="ml-1 grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100"
                         />
                         <span className="text-xs text-gray-400 group-hover:text-white">+</span>
-                        <Image 
-                          src="/coin-logos/PLS-white.svg" 
-                          alt="PulseChain" 
-                          width={16} 
-                          height={16}
-                          className="w-4 h-4 brightness-75 contrast-75 group-hover:brightness-100 group-hover:contrast-100"
+                        <CoinLogo 
+                          symbol="PLS-white" 
+                          size="sm"
+                          className="grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100"
                         />
-                    </>
+                      </>
                   )}
                 </div>
               </button>
@@ -2147,7 +2147,7 @@ export default function Portfolio() {
               {/* Edit button */}
               <button
                 onClick={() => setShowEditModal(true)}
-                className="p-2 mr-2 rounded-lg text-gray-400 hover:text-white transition-colors"
+                className="p-2 mr-2 rounded-lg text-gray-400 hover:text-white"
               >
                 <Icons.edit size={16} />
               </button>
@@ -2511,12 +2511,10 @@ export default function Portfolio() {
               <Card key={stake.id} className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10 relative">
                 {/* Chain Icon - Absolutely positioned */}
                 <div className="absolute top-6 right-6 z-10">
-                  <Image
-                    src={stake.chain === 'ETH' ? "/coin-logos/ETH-white.svg" : "/coin-logos/PLS-white.svg"}
-                    alt={stake.chain === 'ETH' ? "Ethereum" : "PulseChain"}
-                    width={16}
-                    height={16}
-                    className="w-4 h-4 brightness-50 contrast-75"
+                  <CoinLogo
+                    symbol={stake.chain === 'ETH' ? "ETH-white" : "PLS-white"}
+                    size="sm"
+                    className="grayscale opacity-50"
                   />
                 </div>
 

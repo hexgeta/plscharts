@@ -334,16 +334,33 @@ const hasCachedBalanceData = (walletAddress: string): boolean => {
     
     // Check if we have at least some cached token balances for this address
     const keys = Object.keys(localStorage)
-    const hasData = keys.some(key => 
-      key.startsWith(CACHE_KEYS.TOKEN_BALANCES) && 
-      key.includes(walletAddress)
-    )
+    let validTokenCount = 0
     
-    if (hasData) {
-      console.log('[useBridgeBalanceCheck] Found cached balance data, skipping fetch')
+    keys.forEach(key => {
+      if (key.startsWith(CACHE_KEYS.TOKEN_BALANCES) && key.includes(walletAddress)) {
+        try {
+          const cached = localStorage.getItem(key)
+          if (cached) {
+            const tokenBalance = JSON.parse(cached)
+            if (tokenBalance.balanceFormatted > 0) {
+              validTokenCount++
+            }
+          }
+        } catch (error) {
+          console.error('[Cache] Error validating cached token:', error)
+        }
+      }
+    })
+    
+    const hasValidData = validTokenCount >= 5 // Require at least 5 tokens to consider cache valid
+    
+    if (hasValidData) {
+      console.log(`[useBridgeBalanceCheck] Found cached balance data with ${validTokenCount} tokens, skipping fetch`)
+    } else {
+      console.log(`[useBridgeBalanceCheck] Insufficient cached data (${validTokenCount} tokens), will fetch fresh`)
     }
     
-    return hasData
+    return hasValidData
   } catch (error) {
     console.error('[Cache] Error checking cached balance data:', error)
     return false
@@ -365,7 +382,14 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
     shouldFetch ? cacheKey : null, // Don't fetch if we have cached data
     async () => {
       console.log(`[useBridgeBalanceCheck] Cache miss - fetching fresh data for ${walletAddress}`)
-      return getAddressBalances(walletAddress, 'ethereum')
+      const result = await getAddressBalances(walletAddress, 'ethereum')
+      
+      // Validate that we got meaningful data
+      if (!result.tokenBalances || result.tokenBalances.length < 5) {
+        console.warn(`[useBridgeBalanceCheck] Fetched data seems incomplete: ${result.tokenBalances?.length || 0} tokens`)
+      }
+      
+      return result
     },
     {
       revalidateOnFocus: false,
@@ -374,7 +398,7 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
       dedupingInterval: 24 * 60 * 60 * 1000, // 24 hours - prevent any duplicate requests for the entire day
       fallbackData: undefined, // Don't use fallback to ensure we see cache hits/misses clearly
       onSuccess: (data) => {
-        console.log(`[useBridgeBalanceCheck] SWR fetch completed for ${walletAddress}`)
+        console.log(`[useBridgeBalanceCheck] SWR fetch completed for ${walletAddress} - got ${data?.tokenBalances?.length || 0} tokens`)
       },
       onError: (error) => {
         console.error(`[useBridgeBalanceCheck] SWR error for ${walletAddress}:`, error)
@@ -383,6 +407,13 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
   )
   
   useEffect(() => {
+    console.log('[useBridgeBalanceCheck] useEffect triggered:', {
+      hasData: !!data,
+      swrLoading,
+      hasCached: hasCachedBalanceData(walletAddress),
+      swrDataTokens: data?.tokenBalances?.length || 0
+    })
+
     // If we have cached data and no SWR data, reconstruct from cache
     if (!data && hasCachedBalanceData(walletAddress)) {
       console.log('[useBridgeBalanceCheck] Loading data from localStorage cache')
@@ -392,12 +423,15 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
         const keys = Object.keys(localStorage)
         const tokenBalances: TokenBalance[] = []
         
+        console.log('[useBridgeBalanceCheck] Available localStorage keys:', keys.filter(k => k.includes('token_balances')))
+        
         keys.forEach(key => {
           if (key.startsWith(CACHE_KEYS.TOKEN_BALANCES) && key.includes(walletAddress)) {
             try {
               const cached = localStorage.getItem(key)
               if (cached) {
                 const tokenBalance = JSON.parse(cached)
+                console.log(`[useBridgeBalanceCheck] Found cached token: ${tokenBalance.symbol} - Balance: ${tokenBalance.balanceFormatted}`)
                 if (tokenBalance.balanceFormatted > 0) {
                   tokenBalances.push(tokenBalance)
                 }
@@ -407,6 +441,14 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
             }
           }
         })
+        
+        // Only use cache if we actually found tokens, otherwise force fresh fetch
+        if (tokenBalances.length === 0) {
+          console.log('[useBridgeBalanceCheck] Cache reconstruction found 0 tokens - forcing fresh fetch')
+          // Clear the problematic cache and force fresh fetch
+          clearOldCache()
+          return
+        }
         
         // Create balance data structure
         const cachedBalanceData: BalanceData = {
@@ -429,10 +471,13 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
         setIsLoading(false)
         setError(null)
         
-        console.log(`[useBridgeBalanceCheck] Loaded ${tokenBalances.length} tokens from cache`)
+        console.log(`[useBridgeBalanceCheck] CACHE LOAD: Set ${tokenBalances.length} tokens from cache`)
+        console.log(`[useBridgeBalanceCheck] CACHE TOKENS:`, tokenBalances.map(t => t.symbol))
         return
       } catch (error) {
         console.error('[useBridgeBalanceCheck] Error loading cached data:', error)
+        // Clear problematic cache and let SWR fetch fresh data
+        clearOldCache()
       }
     }
     
@@ -443,7 +488,10 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
     setError(swrError)
     
     if (data) {
-      console.log(`[useBridgeBalanceCheck] Using fresh SWR data with ${data.tokenBalances?.length || 0} tokens`)
+      console.log(`[useBridgeBalanceCheck] SWR LOAD: Set ${data.tokenBalances?.length || 0} tokens from SWR`)
+      console.log(`[useBridgeBalanceCheck] SWR TOKENS:`, data.tokenBalances?.map(t => t.symbol) || [])
+    } else if (!swrLoading) {
+      console.log('[useBridgeBalanceCheck] SWR LOAD: Set empty array - no data and not loading')
     }
   }, [data, swrLoading, swrError, walletAddress])
   

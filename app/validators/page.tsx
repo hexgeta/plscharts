@@ -218,7 +218,7 @@ const ValidatorRow = memo(({
       <td className="px-6 py-4 text-center font-mono">
         {index < 3 ? (
           <img 
-            src={`/${index + 1}.png`} 
+            src={`/other-images/${index + 1}.png`} 
             alt={`Position ${index + 1}`}
             className="w-5 h-5 mx-auto"
           />
@@ -339,20 +339,7 @@ export default function ValidatorsTracker() {
     }
   };
 
-  // Preload validator-specific images on component mount
-  useEffect(() => {
-    // Preload ranking badge images
-    const rankingBadges = ['/1.png', '/2.png', '/3.png']
-    rankingBadges.forEach(src => {
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.href = src
-      link.as = 'image'
-      link.type = 'image/png'
-      link.fetchPriority = 'high' // High priority since these are always visible
-      document.head.appendChild(link)
-    })
-  }, [])
+  // Ranking badge images are now preloaded by the background preloader
 
   useEffect(() => {
     fetchValidatorsData();

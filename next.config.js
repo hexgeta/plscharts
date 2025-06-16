@@ -30,8 +30,7 @@ const nextConfig = {
         source: '/livestream',
         destination: 'https://x.com/i/broadcasts/1YqxookRyOvxv',
         permanent: false,
-      },
-      
+      }
     ]
   },
   async headers() {
@@ -43,20 +42,6 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             // Similar to gopulse.com: public, 30 days, immutable
-            value: 'public, max-age=2592000, immutable',
-          },
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: '*',
-          },
-        ],
-      },
-      {
-        // Match sea creature images for league tables
-        source: '/(poseidon|whale|shark|dolphin|squid|turtle|crab|shrimp|shell).png',
-        headers: [
-          {
-            key: 'Cache-Control',
             value: 'public, max-age=2592000, immutable',
           },
           {

@@ -2,11 +2,12 @@
 
 import LeagueTable from '../../components/LeagueTable'
 import PopupLeagueTable from '../../components/PopupLeagueTable'
-import TokenCard from '../../components/TokenCard'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
-import { useTokenSupplies } from '@/hooks/crypto/useTokenSupplies'
+import { getCachedSupplies } from '@/hooks/crypto/useBackgroundPreloader'
+import { CoinLogo } from '@/components/ui/CoinLogo'
+import { getDisplayTicker } from '@/utils/ticker-display'
 import React from 'react'
 
 const fadeInUp = {
@@ -131,7 +132,24 @@ const PopupTokenCard = React.memo(({ token }: {
 }) => {
   return (
     <PopupLeagueTable token={token}>
-      {(onClick) => <TokenCard token={token} onClick={onClick} />}
+      {(onClick) => (
+        <div
+          onClick={onClick}
+          className="bg-black border border-2 border-white/10 rounded-2xl p-4 cursor-pointer hover:bg-gray-800/50 transition-all duration-200 flex flex-col items-center gap-3 w-full"
+        >
+          <div className="w-12 h-12 relative">
+            <CoinLogo
+              symbol={token.ticker}
+              size="xl"
+              className="rounded-full"
+            />
+          </div>
+          <div className="text-center">
+            <div className="font-semibold text-sm">{getDisplayTicker(token.ticker)}</div>
+            <div className="text-xs text-gray-400 truncate">{token.name}</div>
+          </div>
+        </div>
+      )}
     </PopupLeagueTable>
   );
 }, (prevProps, nextProps) => {
@@ -148,27 +166,26 @@ export default function LeaguesPage() {
   const [mounted, setMounted] = useState(false);
   const [excludeOA, setExcludeOA] = useState(true);
 
-  // Preload league images on component mount
-  useEffect(() => {
-    // Preload league images
-    const leagueImages = [
-      '/poseidon.png', '/whale.png', '/shark.png', '/dolphin.png',
-      '/squid.png', '/turtle.png', '/crab.png', '/shrimp.png', '/shell.png'
-    ]
-    leagueImages.forEach((src, index) => {
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.href = src
-      link.as = 'image'
-      link.type = 'image/png'
-      if (index < 3) link.fetchPriority = 'high' // High priority for top 3 ranks
-      document.head.appendChild(link)
-    })
-  }, [])
+  // League images are now preloaded by the background preloader
   
   // Batch fetch prices and supplies for main tokens only
   const { prices, isLoading: pricesLoading } = useTokenPrices(MAIN_TOKENS, { disableRefresh: true });
-  const { supplies, isLoading: suppliesLoading } = useTokenSupplies(MAIN_TOKENS);
+  
+  // Get supplies from cache (background preloader should have loaded these)
+  const cachedSupplies = getCachedSupplies();
+  const supplies = useMemo(() => {
+    if (!cachedSupplies) return null;
+    // Filter to only include MAIN_TOKENS
+    const filteredSupplies: Record<string, number> = {};
+    MAIN_TOKENS.forEach(token => {
+      if (cachedSupplies.supplies[token]) {
+        filteredSupplies[token] = cachedSupplies.supplies[token];
+      }
+    });
+    return filteredSupplies;
+  }, [cachedSupplies]);
+  
+  const suppliesLoading = !cachedSupplies; // Loading if no cached data available
 
   // Memoize the price data with a more stable comparison
   const memoizedPrices = useMemo(() => {

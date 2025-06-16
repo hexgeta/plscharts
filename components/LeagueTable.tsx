@@ -26,61 +26,62 @@ interface LeagueTableProps {
   supplyDeduction?: number // Amount to subtract from total supply (e.g., burned tokens)
   userBalance?: number // User's token balance to highlight current league
   showLeagueNames?: boolean // Whether to show league names next to icons (only on main leagues page)
+  userTShares?: number // User's calculated T-shares for MAXI DAO tokens
 }
 
 // Sea creature ranks from highest to lowest
 const LEAGUE_RANKS: Omit<LeagueRank, 'minTokens' | 'marketCap'>[] = [
   {
     name: 'Poseidon',
-    icon: '/poseidon.png',
+    icon: '/other-images/poseidon.png',
     percentage: 10,
     color: 'text-yellow-400'
   },
   {
     name: 'Whale',
-    icon: '/whale.png',
+    icon: '/other-images/whale.png',
     percentage: 1,
     color: 'text-blue-400'
   },
   {
     name: 'Shark',
-    icon: '/shark.png',
+    icon: '/other-images/shark.png',
     percentage: 0.1,
     color: 'text-gray-300'
   },
   {
     name: 'Dolphin',
-    icon: '/dolphin.png',
+    icon: '/other-images/dolphin.png',
     percentage: 0.01,
     color: 'text-cyan-400'
   },
   {
     name: 'Squid',
-    icon: '/squid.png',
+    icon: '/other-images/squid.png',
     percentage: 0.001,
     color: 'text-orange-400'
   },
   {
     name: 'Turtle',
-    icon: '/turtle.png',
+    icon: '/other-images/turtle.png',
     percentage: 0.0001,
     color: 'text-green-400'
   },
   {
     name: 'Crab',
-    icon: '/crab.png',
+    icon: '/other-images/crab.png',
     percentage: 0.00001,
     color: 'text-orange-500'
   },
   {
     name: 'Shrimp',
-    icon: '/shrimp.png',
+    icon: '/other-images/shrimp.png',
     percentage: 0.000001,
     color: 'text-orange-600'
   },
   {
     name: 'Shell',
-    icon: '/shell.png',
+    icon: '/other-images/shell.png',
     percentage: 0.0000001,
     color: 'text-gray-400'
   }
@@ -194,7 +195,8 @@ export default React.memo(function LeagueTable({
   preloadedSupply,
   supplyDeduction,
   userBalance,
-  showLeagueNames = false
+  showLeagueNames = false,
+  userTShares
 }: LeagueTableProps) {
   
   const displayTicker = getDisplayTicker(tokenTicker);
@@ -346,7 +348,7 @@ export default React.memo(function LeagueTable({
           <div className="text-white text-2xl font-bold">
             {hasValidPriceData && `$${Math.round(userBalance * tokenPrice.price).toLocaleString('en-US')}`}
           </div>
-          <div className="text-gray-400 text-sm flex items-center justify-center gap-1">
+          <div className="text-gray-400 text-sm flex items-center justify-center gap-1 py-1">
             {formatCompactNumber(userBalance)} {displayTicker} (
             {(() => {
               const userPercentage = (userBalance / totalSupply) * 100;
@@ -367,6 +369,34 @@ export default React.memo(function LeagueTable({
               );
             })()}
             )
+            {/* T-shares display for MAXI DAO tokens - inline after supply */}
+            {userTShares && userTShares > 0 && (
+              <span className="text-gray-400 font-medium text-sm">
+                • {userTShares >= 1
+                  ? `${formatCompactNumber(userTShares)} T-Shares`
+                  : `${userTShares.toFixed(3)} T-Shares`
+                } {(() => {
+                  // Determine chain based on token ticker and calculate T-shares percentage
+                  const isEthereumToken = tokenTicker.startsWith('e') || tokenTicker.startsWith('we')
+                  const totalTShares = isEthereumToken ? 7893701 : 8503220 // ETH: 7,893,701, PLS: 8,503,220
+                  const tSharesPercentage = (userTShares / totalTShares) * 100
+                  const tSharesLeague = LEAGUE_RANKS.find(rank => tSharesPercentage >= rank.percentage)
+                  
+                  return tSharesLeague ? (
+                    <>
+                      (<Image
+                        src={tSharesLeague.icon}
+                        alt={tSharesLeague.name}
+                        width={12}
+                        height={12}
+                        className="object-contain inline-block align-middle mx-1"
+                      />
+                      {formatPercentage(tSharesPercentage)})
+                    </>
+                  ) : `(${formatPercentage(tSharesPercentage)})`
+                })()}
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -444,24 +474,14 @@ export default React.memo(function LeagueTable({
             {/* Supply Required - Right Aligned */}
             <div className="text-gray-400 text-right flex items-center justify-end text-sm transition-all duration-300">
               {formatCompactNumber(rank.minTokens)}
-              {(tokenTicker === 'HDRN' || tokenTicker === 'eHDRN' || tokenTicker === 'ICSA' || tokenTicker === 'eICSA') ? (
-                <div className="w-4 h-4 rounded-full flex items-center justify-center ml-1">
-                <img
-                  src="/coin-logos/HDRN-white.svg"
-                  alt={`${tokenTicker} logo`}
-                    className="w-3 h-3 rounded-none"
-                />
-                </div>
-              ) : (
-                <div className="w-4 h-4 rounded-full flex items-center justify-center ml-1">
+              <div className="w-4 h-4 rounded-full flex items-center justify-center ml-1">
                 <CoinLogo
                   symbol={tokenTicker}
                   size="sm"
-                    className="brightness-0 invert rounded-none w-3 h-3"
+                  className="brightness-0 invert rounded-none w-3 h-3"
                   variant="no-bg"
                 />
-                </div>
-              )}
+              </div>
             </div>
           </div>
         ))}
@@ -474,7 +494,7 @@ export default React.memo(function LeagueTable({
   }
 
   return (
-    <div className="bg-black border-2 border-white/10 rounded-2xl p-6 min-w-[340px]">
+    <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full">
       {content}
     </div>
   )

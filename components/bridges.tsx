@@ -3,7 +3,7 @@
 import { useMemo, useEffect, useState } from 'react'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
-import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
+import { getCachedSupplies } from '@/hooks/crypto/useBackgroundPreloader'
 import { useBridgeBalanceCheck } from '@/hooks/crypto/useBridgeBalanceCheck'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
@@ -23,13 +23,32 @@ export default function Bridge() {
 
   // Fetch balances using custom hook
   const { balances, isLoading: balancesLoading, error: balancesError } = useBridgeBalanceCheck(HARDCODED_ADDRESS)
+  
+  console.log('[Bridge Debug] Balance state:', {
+    balancesLoading,
+    balancesError: !!balancesError,
+    balancesLength: balances ? balances.length : 0,
+    balancesContent: balances ? balances.map(b => ({
+      chain: b.chain,
+      tokenCount: b.tokenBalances?.length || 0,
+      tokens: b.tokenBalances?.map(t => t.symbol) || []
+    })) : []
+  })
 
-  // Fetch CST supply using existing hook (CST is on PulseChain, chain 369)
-  const { totalSupply: cstSupplyPulseChain, loading: cstSupplyLoading, error: cstSupplyError } = useTokenSupply('CST')
+  // Get CST supply from cached supplies instead of individual API call
+  const cachedSupplies = getCachedSupplies()
+  const cstSupplyPulseChain = cachedSupplies?.supplies?.['CST'] || 0
+  const cstSupplyLoading = !cachedSupplies
+  const cstSupplyError = null // No error since we're using cache
+
+  console.log('[Bridge] CST supply from cache:', cstSupplyPulseChain)
 
   // Get all unique token tickers from balances for price fetching
   const allTokenTickers = useMemo(() => {
-    if (!balances || !Array.isArray(balances)) return ['CST']
+    if (!balances || !Array.isArray(balances)) {
+      console.log('[Bridge Debug] No balances available for ticker calculation')
+      return ['CST']
+    }
     
     const balanceTokens = balances.flatMap(addressData => 
       addressData.tokenBalances?.map(token => {
@@ -42,11 +61,20 @@ export default function Bridge() {
     ).filter((ticker, index, array) => array.indexOf(ticker) === index) // Remove duplicates
 
     // Add CST to price fetching if not already included
-    return [...new Set([...balanceTokens, 'CST'])]
+    const result = [...new Set([...balanceTokens, 'CST'])]
+    console.log(`[Bridge Debug] Found ${balanceTokens.length} balance tokens, requesting prices for ${result.length} tickers:`, result)
+    return result
   }, [balances])
 
   // Fetch prices for all tokens with balances plus CST
   const { prices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
+  
+  console.log('[Bridge Debug] Price fetching state:', {
+    allTokenTickers,
+    pricesLoading,
+    pricesLoaded: prices ? Object.keys(prices).length : 0,
+    prices: prices ? Object.keys(prices) : []
+  })
 
   // Calculate total USD value from ALL tokens with balances (not just displayed ones) + CST supply value
   const { allTokensValue, cstValue, totalUsdValue } = useMemo(() => {
@@ -94,6 +122,18 @@ export default function Bridge() {
                            cstSupplyPulseChain !== undefined &&
                            prices &&
                            Object.keys(prices).length > 0
+
+  console.log('[Bridge Debug] isEverythingReady calculation:', {
+    balancesLoading,
+    cstSupplyLoading,
+    pricesLoading,
+    balancesError: !!balancesError,
+    cstSupplyError: !!cstSupplyError,
+    balancesLength: balances ? balances.length : 0,
+    cstSupplyPulseChain,
+    pricesAvailable: prices ? Object.keys(prices).length : 0,
+    isEverythingReady
+  })
 
   // Get main tokens with balances from Ethereum chain
   const mainTokensWithBalances = useMemo(() => {

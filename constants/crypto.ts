@@ -164,7 +164,15 @@ export const TOKEN_CONSTANTS = [{
   decimals: 8,
   name: "Wrapped BASE from Eth",
   origin: [1, "0xe9f84d418b008888a992ff8c6d22389c2c3504e0"],
-  supply: 70668766.59912861
+  supply: 70668766.59912861,
+  stakeType: 'rolling',
+  launchDate: new Date('2024-10-26'),
+  stakePrinciple: 88475347.99948653,
+  tokenSupply: 70668766.59912861,
+  tshares: 2939.965758095464,
+  stakeStartDate: new Date('2024-10-26'),
+  stakeEndDate: new Date('2025-10-30'),
+  totalStakedDays: 369
 }, {
   chain: 369,
   a: "0x0f3c6134f4022d85127476bc4d3787860e5c5569",
@@ -278,7 +286,19 @@ export const TOKEN_CONSTANTS = [{
   ticker: "MAXI",
   decimals: 8,
   name: "Maxi on PulseChain",
-  supply: 274546065
+  supply: 274546065,
+  stakeType: 'fixed',
+  launchDate: new Date('2022-05-01'),
+  tshares: 42104.43801001704,
+  stakePrinciple: 294323603.76679647,
+  tokenSupply: 274546065,
+  stakeStartDate: new Date('2022-05-01'),
+  stakeEndDate: new Date('2037-07-16'),
+  totalStakedDays: 5555,
+  pair: {
+    pairAddress: '0xd63204ffcefd8f8cbf7390bbcd78536468c085a2',
+    chain: 'pulsechain'
+  }
 }, {
   chain: 369,
   a: "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6",
@@ -286,7 +306,19 @@ export const TOKEN_CONSTANTS = [{
   ticker: "DECI",
   decimals: 8,
   name: "DECI on PulseChain",
-  supply: 565991987.7294711
+  supply: 565991987.7294711,
+  stakeType: 'rolling',
+  launchDate: new Date('2022-09-27'),
+  stakePrinciple: 565991987.7294711,
+  tokenSupply: 565991987.7294711,
+  tshares: 71337.83,
+  stakeStartDate: new Date('2022-09-27'),
+  stakeEndDate: new Date('2032-11-09'),
+  totalStakedDays: 3696,
+  pair: {
+    pairAddress: '0x969af590981bb9d19ff38638fa3bd88aed13603a',
+    chain: 'pulsechain'
+  }
 }, {
   chain: 369,
   a: "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140",
@@ -294,7 +326,19 @@ export const TOKEN_CONSTANTS = [{
   ticker: "LUCKY",
   decimals: 8,
   name: "LUCKY on PulseChain",
-  supply: 74985501.67671512
+  supply: 74985501.67671512,
+  stakeType: 'rolling',
+  launchDate: new Date('2022-09-27'),
+  stakePrinciple: 74985501.67671512,
+  tokenSupply: 74985501.67671512,
+  tshares: 7524.68,
+  stakeStartDate: new Date('2022-09-27'),
+  stakeEndDate: new Date('2029-09-25'),
+  totalStakedDays: 2555,
+  pair: {
+    pairAddress: '0x52d4b3f479537a15d0b37b6cdbdb2634cc78525e',
+    chain: 'pulsechain'
+  }
 }, {
   chain: 369,
   a: "0xf55cd1e399e1cc3d95303048897a680be3313308",
@@ -302,7 +346,15 @@ export const TOKEN_CONSTANTS = [{
   ticker: "TRIO",
   decimals: 8,
   name: "TRIO on PulseChain",
-  supply: 69617911.47775
+  supply: 69617911.47775,
+  stakeType: 'rolling',
+  launchDate: new Date('2022-09-27'),
+  stakePrinciple: 69617911.47775,
+  tokenSupply: 69617911.47775,
+  tshares: 4698.32,
+  stakeStartDate: new Date('2022-09-27'),
+  stakeEndDate: new Date('2025-10-12'),
+  totalStakedDays: 1111,
 }, {
   chain: 369,
   a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",
@@ -310,7 +362,14 @@ export const TOKEN_CONSTANTS = [{
   ticker: "BASE",
   decimals: 8,
   name: "BASE on PulseChain",
-  supply: 54165743.289
+  supply: 54165743.289,
+  launchDate: new Date('2024-09-23'),
+  stakePrinciple: 67444991.8094404,
+  tokenSupply: 54165743.289,
+  tshares: 2232.801612927137,
+  stakeStartDate: new Date('2024-09-23'),
+  stakeEndDate: new Date('2025-10-27'),
+  totalStakedDays: 369
 }, {
   chain: 369,
   a: "0xb7c9e99da8a857ce576a830a9c19312114d9de02",
@@ -1296,15 +1355,33 @@ dexs: "0xe181f3d1cf81c94d770768d48d42d07a9e9819c7",
 ticker: "eBASE",
 decimals: 8,
 name: "BASE on Ethereum",
-supply: 70668766.59912861
+supply: 70668766.59912861,
+stakeType: 'rolling',
+launchDate: new Date('2024-10-26'),
+stakePrinciple: 88475347.99948653,
+tokenSupply: 70668766.59912861,
+tshares: 2939.965758095464,
+stakeStartDate: new Date('2024-10-26'),
+stakeEndDate: new Date('2025-10-30'),
+totalStakedDays: 369
 }, {
 chain: 1,
 a: "0xf55cd1e399e1cc3d95303048897a680be3313308",
-dexs: ["0x0f3c6134f4022d85127476bc4d3787860e5c5569"],
+dexs: "0x0f3c6134f4022d85127476bc4d3787860e5c5569",
 ticker: "eTRIO",
 decimals: 8,
 name: "TRIO on Ethereum",
-supply: 69617911.47775
+supply: 69617911.47775,
+stakeType: 'rolling',
+relatedStakes: ['eTRIO'],
+currentActiveStake: 'eTRIO',
+launchDate: new Date('2022-09-27'),
+stakePrinciple: 69617911.47775,
+tokenSupply: 69617911.47775,
+tshares: 4698.32,
+stakeStartDate: new Date('2022-09-27'),
+stakeEndDate: new Date('2025-10-12'),
+totalStakedDays: 1111,
 }, {
 chain: 1,
 a: "0x6b0956258ff7bd7645aa35369b55b61b8e6d6140",
@@ -1312,7 +1389,15 @@ dexs: "0x7327325e5f41d4c1922a9dfc87d8a3b3f1ae5c1f",
 ticker: "eLUCKY",
 decimals: 8,
 name: "LUCKY on Ethereum",
-supply: 74985501.67671512
+supply: 74985501.67671512,
+stakeType: 'rolling',
+launchDate: new Date('2022-09-27'),
+stakePrinciple: 74985501.67671512,
+tokenSupply: 74985501.67671512,
+tshares: 7524.68,
+stakeStartDate: new Date('2022-09-27'),
+stakeEndDate: new Date('2029-09-25'),
+totalStakedDays: 2555,
 }, {
 chain: 1,
 a: "0x6b32022693210cd2cfc466b9ac0085de8fc34ea6",
@@ -1320,7 +1405,15 @@ dexs: "0xf6ed2390be39c783ae78893c91669eeb635d0429",
 ticker: "eDECI",
 decimals: 8,
 name: "DECI on Ethereum",
-supply: 565991987.7294711
+supply: 565991987.7294711,
+stakeType: 'rolling',
+launchDate: new Date('2022-09-27'),
+stakePrinciple: 565991987.7294711,
+tokenSupply: 565991987.7294711,
+tshares: 71337.83,
+stakeStartDate: new Date('2022-09-27'),
+stakeEndDate: new Date('2032-11-09'),
+totalStakedDays: 3696,
 }, {
 chain: 1,
 a: "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b",
@@ -1328,7 +1421,15 @@ dexs: "0x2ae4517b2806b84a576c10f698d6567ce80a6490",
 ticker: "eMAXI",
 decimals: 8,
 name: "MAXI on Ethereum",
-supply: 274546065
+supply: 274546065,
+stakeType: 'fixed',
+launchDate: new Date('2022-05-01'),
+tshares: 42104.43801001704,
+stakePrinciple: 294323603.76679647,
+tokenSupply: 274546065,
+stakeStartDate: new Date('2022-05-01'),
+stakeEndDate: new Date('2037-07-16'),
+totalStakedDays: 5555,
 }, {
 chain: 1,
 a: "0x4581af35199bbde87a89941220e04e27ce4b0099",

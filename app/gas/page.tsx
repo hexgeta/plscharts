@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices';
+import { CoinLogo } from '@/components/ui/CoinLogo';
 
 interface GasData {
   network: string;
@@ -224,10 +225,9 @@ export default function GasTracker() {
           <div className="bg-black rounded-xl p-6 border-2 border-white/10">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 flex items-center justify-center">
-                <img 
-                  src="/coin-logos/ETH.svg" 
-                  alt="Ethereum" 
-                  className="w-8 h-8"
+                <CoinLogo 
+                  symbol="ETH" 
+                  size="lg"
                 />
               </div>
               <h2 className="text-xl font-semibold hidden md:block">Ethereum</h2>
@@ -249,10 +249,9 @@ export default function GasTracker() {
           <div className="bg-black rounded-xl p-6 border-2 border-white/10">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 flex items-center justify-center">
-                <img 
-                  src="/coin-logos/PLS.svg" 
-                  alt="PulseChain" 
-                  className="w-8 h-8"
+                <CoinLogo 
+                  symbol="PLS" 
+                  size="lg"
                 />
               </div>
               <h2 className="text-xl font-semibold hidden md:block">PulseChain</h2>
@@ -287,11 +286,11 @@ export default function GasTracker() {
             <div className="grid grid-cols-3 gap-4 p-6 border-b border-white/10">
               <div className="text-gray-400 font-medium text-center">Current Fees</div>
               <div className="flex items-center justify-center space-x-2">
-                <img src="/coin-logos/ETH.svg" alt="Ethereum" className="w-5 h-5" />
+                <CoinLogo symbol="ETH" size="sm" />
                 <span className="font-medium hidden md:block">Ethereum</span>
               </div>
               <div className="flex items-center justify-center space-x-2">
-                <img src="/coin-logos/PLS.svg" alt="PulseChain" className="w-5 h-5" />
+                <CoinLogo symbol="PLS" size="sm" />
                 <span className="font-medium hidden md:block">PulseChain</span>
               </div>
             </div>

@@ -73,6 +73,56 @@ const getNext1amUTC = (): number => {
   return next1am.getTime();
 };
 
+// Check if cached data is still valid (before next 1am UTC)
+const isCacheValid = (lastUpdated: string): boolean => {
+  const cacheTime = new Date(lastUpdated).getTime();
+  const next1am = getNext1amUTC();
+  const now = Date.now();
+  
+  // Cache is valid if:
+  // 1. It was created before next 1am UTC, AND
+  // 2. Current time is before next 1am UTC
+  return cacheTime < next1am && now < next1am;
+};
+
+// Get cached data from localStorage
+const getCachedHexData = (): HexDailyDataCache | null => {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const cached = localStorage.getItem('hex-daily-data-persistent-cache');
+    if (!cached) return null;
+    
+    const data: HexDailyDataCache = JSON.parse(cached);
+    
+    // Check if cache is still valid
+    if (isCacheValid(data.lastUpdated)) {
+      console.log('[HEX Cache] Using valid persistent cache from localStorage');
+      return data;
+    } else {
+      console.log('[HEX Cache] Persistent cache expired, removing');
+      localStorage.removeItem('hex-daily-data-persistent-cache');
+      return null;
+    }
+  } catch (error) {
+    console.error('[HEX Cache] Error reading persistent cache:', error);
+    localStorage.removeItem('hex-daily-data-persistent-cache');
+    return null;
+  }
+};
+
+// Save data to localStorage
+const saveCachedHexData = (data: HexDailyDataCache): void => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem('hex-daily-data-persistent-cache', JSON.stringify(data));
+    console.log('[HEX Cache] Saved data to persistent cache');
+  } catch (error) {
+    console.error('[HEX Cache] Error saving to persistent cache:', error);
+  }
+};
+
 // Calculate current HEX day
 const calculateCurrentHexDay = (): number => {
   const HEX_LAUNCH_DATE = new Date('2019-12-03T00:00:00Z').getTime();
@@ -198,6 +248,12 @@ const fetchShareRatesFromChain = async (url: string, chain: 'ETH' | 'PLS'): Prom
 
 // Main fetcher function for SWR
 const fetchHexDailyData = async (): Promise<HexDailyDataCache> => {
+  // First check if we have valid cached data
+  const cachedData = getCachedHexData();
+  if (cachedData) {
+    return cachedData; // Return cached data immediately
+  }
+  
   console.log('[HEX Daily Cache] Starting background fetch of all daily data...');
   const startTime = Date.now();
   
@@ -220,7 +276,7 @@ const fetchHexDailyData = async (): Promise<HexDailyDataCache> => {
   console.log(`[HEX Daily Cache] Completed in ${duration.toFixed(2)}s: ETH(${ethPayouts.length} payouts, ${ethShareRates.length} rates), PLS(${plsPayouts.length} payouts, ${plsShareRates.length} rates)`);
   console.log(`[HEX Daily Cache] Data range: Day ${minDay} to ${maxDay}`);
 
-  return {
+  const result: HexDailyDataCache = {
     dailyPayouts: {
       ETH: ethPayouts,
       PLS: plsPayouts,
@@ -235,6 +291,11 @@ const fetchHexDailyData = async (): Promise<HexDailyDataCache> => {
       maxDay,
     },
   };
+
+  // Save to persistent cache
+  saveCachedHexData(result);
+
+  return result;
 };
 
 // Custom SWR hook with 1am UTC cache invalidation
