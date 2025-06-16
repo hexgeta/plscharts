@@ -8,6 +8,7 @@ import { usePortfolioBalance } from '@/hooks/crypto/usePortfolioBalance'
 import { useMaxiTokenData } from '@/hooks/crypto/useMaxiTokenData'
 import { useHexStakes } from '@/hooks/crypto/useHexStakes'
 import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
+import { useHexDailyDataCache } from '@/hooks/crypto/useHexDailyData'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { Icons } from '@/components/ui/icons'
@@ -821,6 +822,9 @@ export default function Portfolio() {
 
   // Fetch MAXI token backing data
   const { data: maxiData, isLoading: maxiLoading, error: maxiError, getBackingPerToken } = useMaxiTokenData()
+
+  // Get HEX daily data for T-shares calculations
+  const { data: hexDailyData } = useHexDailyDataCache()
 
   // Start background preloading of token supplies and images
   const { supplies: preloadedSupplies, totalSupplies, lastUpdated } = useBackgroundPreloader()
@@ -2698,9 +2702,89 @@ export default function Portfolio() {
                   
                   const priceChange24h = totalValue > 0 ? weightedPriceChange / totalValue : 0
                   
+                  // Calculate league for combined T-shares
+                  const getHexStakesLeague = (tShares: number) => {
+                    // Total T-shares in HEX ecosystem (approximate - this could be made dynamic)
+                    const totalHexTShares = 37_000_000 // This is an approximation, could be fetched from API
+                    const percentage = (tShares / totalHexTShares) * 100
+                    
+                    if (percentage >= 10) return { league: 'Poseidon', icon: '/other-images/poseidon.png' }
+                    if (percentage >= 1) return { league: 'Whale', icon: '/other-images/whale.png' }
+                    if (percentage >= 0.1) return { league: 'Shark', icon: '/other-images/shark.png' }
+                    if (percentage >= 0.01) return { league: 'Dolphin', icon: '/other-images/dolphin.png' }
+                    if (percentage >= 0.001) return { league: 'Squid', icon: '/other-images/squid.png' }
+                    if (percentage >= 0.0001) return { league: 'Turtle', icon: '/other-images/turtle.png' }
+                    if (percentage >= 0.00001) return { league: 'Crab', icon: '/other-images/crab.png' }
+                    if (percentage >= 0.000001) return { league: 'Shrimp', icon: '/other-images/shrimp.png' }
+                    return { league: 'Shell', icon: '/other-images/shell.png' }
+                  }
+                  
+                  const hexLeague = getHexStakesLeague(combinedTShares)
+                  const totalHexTShares = 37_000_000 // Total T-shares approximation
+                  const tSharePercentage = (combinedTShares / totalHexTShares) * 100
+                  
                   return (
                     <>
-                                              <div className="text-lg font-semibold text-white mb-2">All Stakes</div>
+                      <div className="flex items-center justify-center gap-3 mb-2">
+                        <div className="text-lg font-semibold text-white">All Stakes</div>
+                        {combinedTShares > 0 && chainFilter !== 'both' && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <button className="w-6 h-6 flex items-center justify-center hover:bg-white/10 transition-transform cursor-pointer rounded-lg">
+                                <Image
+                                  src={hexLeague.icon}
+                                  alt={hexLeague.league}
+                                  width={24}
+                                  height={24}
+                                  className="object-contain"
+                                />
+                              </button>
+                            </DialogTrigger>
+                            <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg animate-none">
+                              <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ 
+                                  duration: 0.4,
+                                  ease: [0.23, 1, 0.32, 1]
+                                }}
+                                className="p-4"
+                              >
+                                <LeagueTable 
+                                  tokenTicker="T-Shares"
+                                  containerStyle={false}
+                                  showLeagueNames={true}
+                                  preloadedSupply={(() => {
+                                    // Use dynamic T-shares supply from hex daily data API
+                                    const OA_TSHARES_PLS = 35482068;
+                                    const OA_TSHARES_ETH = 35155727;
+                                    
+                                    if (!hexDailyData) {
+                                      // Fallback to approximate values if data not loaded yet
+                                      return chainFilter === 'ethereum' ? (37_000_000 - OA_TSHARES_ETH) : (37_000_000 - OA_TSHARES_PLS);
+                                    }
+                                    
+                                    if (chainFilter === 'ethereum') {
+                                      // For Ethereum, get latest T-shares from API
+                                      const ethLatestDay = hexDailyData.dailyPayouts?.ETH?.[hexDailyData.dailyPayouts.ETH.length - 1];
+                                      const totalTShares = ethLatestDay ? (parseFloat(ethLatestDay.shares) / 1000000000000) : 37_000_000;
+                                      return totalTShares - OA_TSHARES_ETH;
+                                    } else {
+                                      // For PulseChain, get latest T-shares from API
+                                      const plsLatestDay = hexDailyData.dailyPayouts?.PLS?.[hexDailyData.dailyPayouts.PLS.length - 1];
+                                      const totalTShares = plsLatestDay ? (parseFloat(plsLatestDay.shares) / 1000000000000) : 37_000_000;
+                                      return totalTShares - OA_TSHARES_PLS;
+                                    }
+                                  })()}
+                                  preloadedPrices={{}}
+                                  userBalance={combinedTShares > 0 ? combinedTShares : undefined}
+                                />
+                              </motion.div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </div>
                         <div className="flex items-center justify-center gap-2">
                           <div className="text-4xl font-bold text-white">
                             <span className="sm:hidden">${formatBalanceMobile(combinedValue)}</span>
@@ -2714,7 +2798,9 @@ export default function Portfolio() {
                           {combinedHexAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} HEX • {combinedTShares >= 100 
                             ? combinedTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                             : combinedTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          } T-Shares{combinedTShares > 0 && combinedAvgLength > 0 && (
+                          } T-Shares{combinedTShares > 0 && chainFilter !== 'both' && (
+                            <> ({formatPercentage(tSharePercentage)})</>
+                          )}{combinedTShares > 0 && combinedAvgLength > 0 && (
                             <>
                               {' • '}
                               {(combinedAvgLength / 365).toFixed(1)} year avg
@@ -3108,7 +3194,7 @@ export default function Portfolio() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-black border-2 border-white/20 rounded-2xl w-full max-w-[85vw] sm:max-w-2xl max-h-[65vh] sm:max-h-[75vh] overflow-hidden flex flex-col"
+              className="bg-black border-2 border-white/20 rounded-2xl w-full max-w-[85vw] sm:max-w-2xl max-h-[55vh] sm:max-h-[75vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Fixed Header */}
@@ -3269,7 +3355,7 @@ export default function Portfolio() {
                       <div className="flex-1">
                         <div className="font-medium text-white mb-1">Pooled Stakes</div>
                         <div className="text-sm text-gray-400">
-                          Include HEX stake stats on pooled stake tokens (MAXI, DECI, etc.)?
+                          Include advanced HEX stake stats on pooled stake tokens
                         </div>
                       </div>
                       <button
