@@ -26,7 +26,12 @@ interface StoredAddress {
   id: string
 }
 
-export default function Portfolio() {
+interface PortfolioProps {
+  detectiveMode?: boolean
+  detectiveAddress?: string
+}
+
+export default function Portfolio({ detectiveMode = false, detectiveAddress }: PortfolioProps) {
   // Priority tokens to display - PulseChain tokens
   const MAIN_TOKENS = ['PLS', 'PLSX', 'HEX', 'eHEX', 'INC', 'WPLS', 'CST', 'USDC', 'DAI', 'MAXI', 'DECI', 'LUCKY', 'TRIO', 'BASE']
 
@@ -216,6 +221,11 @@ export default function Portfolio() {
   // Dialog state for league tables (moved up to prevent closing on price refresh)
   const [openDialogToken, setOpenDialogToken] = useState<string | null>(null)
 
+  // Detective mode: use the provided address instead of stored addresses
+  const effectiveAddresses = detectiveMode && detectiveAddress 
+    ? [{ address: detectiveAddress, label: 'Detective Target', id: 'detective-target' }]
+    : addresses
+
   // Portfolio-specific images are now preloaded by the background preloader
 
   // Prevent body scroll when edit modal is open
@@ -260,8 +270,10 @@ export default function Portfolio() {
 
 
 
-  // Load addresses and preferences from localStorage on mount
+  // Load addresses and preferences from localStorage on mount (skip in detective mode)
   useEffect(() => {
+    if (detectiveMode) return // Skip localStorage operations in detective mode
+    
     const saved = localStorage.getItem('portfolioAddresses')
     if (saved) {
       try {
@@ -282,14 +294,15 @@ export default function Portfolio() {
     }
 
     // Note: Chain filter and selected addresses are now initialized from localStorage in useState
-  }, [])
+  }, [detectiveMode])
 
-  // Save addresses to localStorage whenever addresses change
+  // Save addresses to localStorage whenever addresses change (skip in detective mode)
   useEffect(() => {
+    if (detectiveMode) return // Skip localStorage operations in detective mode
     if (addresses.length > 0) {
       localStorage.setItem('portfolioAddresses', JSON.stringify(addresses))
     }
-  }, [addresses])
+  }, [addresses, detectiveMode])
 
   // Save chain filter to localStorage whenever it changes
   useEffect(() => {
@@ -335,6 +348,20 @@ export default function Portfolio() {
     localStorage.setItem('portfolioShowAdvancedFilters', showAdvancedFilters.toString())
   }, [showAdvancedFilters])
 
+  // Advanced stats state
+  const [showAdvancedStats, setShowAdvancedStats] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioShowAdvancedStats')
+      return saved !== null ? saved === 'true' : false // Default to false
+    }
+    return false
+  })
+
+  // Save advanced stats state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('portfolioShowAdvancedStats', showAdvancedStats.toString())
+  }, [showAdvancedStats])
+
   // Save HEX stakes sorting preferences to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('portfolioHexStakesSortField', hexStakesSortField)
@@ -362,6 +389,14 @@ export default function Portfolio() {
   useEffect(() => {
     localStorage.setItem('portfolioTokenSortDirection', tokenSortDirection)
   }, [tokenSortDirection])
+
+  // Detective mode overrides - ensure liquid balances and HEX stakes are always shown
+  useEffect(() => {
+    if (detectiveMode) {
+      setShowLiquidBalances(true)
+      setShowHexStakes(true)
+    }
+  }, [detectiveMode])
 
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
@@ -603,13 +638,13 @@ export default function Portfolio() {
         : [...prev, addressId]
       
       // If all addresses would be selected, clear the selection instead
-      if (newSelection.length === addresses.length) {
+      if (newSelection.length === effectiveAddresses.length) {
         return []
       } else {
         return newSelection
       }
     })
-  }, [addresses.length])
+  }, [effectiveAddresses.length])
 
   // Add helper functions for managing editing states
   const setAddressEditing = (addressId: string, isEditing: boolean) => {
@@ -643,17 +678,21 @@ export default function Portfolio() {
     }))
   }
 
-  // Commit pending addresses to main addresses state (triggers data fetch)
+  // Commit pending addresses and removals to main addresses state (triggers data fetch)
   const commitPendingAddresses = () => {
-    if (pendingAddresses.length > 0) {
-      const updatedAddresses = [...addresses, ...pendingAddresses]
-      setAddresses(updatedAddresses)
-      localStorage.setItem('portfolioAddresses', JSON.stringify(updatedAddresses))
+    // Apply removals and additions
+    const addressesAfterRemovals = addresses.filter(addr => !removedAddressIds.has(addr.id))
+    const finalAddresses = [...addressesAfterRemovals, ...pendingAddresses]
+    
+    // Only update if there are actual changes
+    if (removedAddressIds.size > 0 || pendingAddresses.length > 0) {
+      setAddresses(finalAddresses)
+      localStorage.setItem('portfolioAddresses', JSON.stringify(finalAddresses))
       setPendingAddresses([])
     }
   }
 
-  // Handle modal close - commit any pending addresses
+  // Handle modal close - commit any pending addresses and removals
   const handleModalClose = () => {
     commitPendingAddresses()
     setShowEditModal(false)
@@ -738,15 +777,14 @@ export default function Portfolio() {
     // Also remove from pending addresses if it was pending
     setPendingAddresses(prev => prev.filter(addr => addr.id !== id))
     
-    // Update localStorage and actual addresses state (but this won't trigger refetch since we filter the display)
-    const updatedAddresses = addresses.filter(addr => addr.id !== id)
-    setAddresses(updatedAddresses)
-    localStorage.setItem('portfolioAddresses', JSON.stringify(updatedAddresses))
-    
-    // If all addresses are deleted, close the edit modal
-    if (updatedAddresses.length === 0) {
+    // Check if all addresses would be deleted after filtering
+    const remainingAddresses = addresses.filter(addr => addr.id !== id)
+    if (remainingAddresses.length === 0) {
       setShowEditModal(false)
     }
+    
+    // Note: We don't update addresses state here to avoid refetching data
+    // The actual removal will happen in handleModalClose via commitPendingAddresses
   }
 
   // Update address label
@@ -766,10 +804,10 @@ export default function Portfolio() {
 
   // Get all addresses for balance checking - memoize to prevent unnecessary re-fetches
   const allAddressStrings = useMemo(() => {
-    const strings = addresses.map(addr => addr.address)
+    const strings = effectiveAddresses.map(addr => addr.address)
     console.log('Portfolio Debug - Creating new address strings array:', strings)
     return strings
-  }, [addresses])
+  }, [effectiveAddresses])
 
   // Fetch real HEX stakes data for user's addresses
   const { stakes: hexStakes, isLoading: hexStakesLoading, error: hexStakesError } = useHexStakes(allAddressStrings)
@@ -849,21 +887,21 @@ export default function Portfolio() {
     
     // Filter balances by selected chain and address, excluding removed addresses
     const filtered = balances.filter(addressData => {
-      // Filter out removed addresses
-      const addressObj = addresses.find(addr => addr.address === addressData.address)
-      if (addressObj && removedAddressIds.has(addressObj.id)) {
-        return false
-      }
+              // Filter out removed addresses
+        const addressObj = effectiveAddresses.find(addr => addr.address === addressData.address)
+        if (addressObj && removedAddressIds.has(addressObj.id)) {
+          return false
+        }
       
       // Filter by chain - only apply if not 'both'
       const chainMatch = chainFilter === 'both' || 
         (chainFilter === 'pulsechain' && addressData.chain === 369) ||
         (chainFilter === 'ethereum' && addressData.chain === 1)
       
-      // Filter by selected addresses
-      const addressMatch = selectedAddressIds.length > 0 
-        ? selectedAddressIds.some(id => addresses.find(addr => addr.id === id && addr.address === addressData.address))
-        : true
+              // Filter by selected addresses
+        const addressMatch = selectedAddressIds.length > 0 
+          ? selectedAddressIds.some(id => effectiveAddresses.find(addr => addr.id === id && addr.address === addressData.address))
+          : true
       
       return chainMatch && addressMatch
     })
@@ -1095,14 +1133,14 @@ export default function Portfolio() {
     return hexStakes
       .filter(stake => {
         // Filter out removed addresses
-        const addressObj = addresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
+        const addressObj = effectiveAddresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
         if (addressObj && removedAddressIds.has(addressObj.id)) {
           return false
         }
         
         // Filter by selected addresses
         const addressMatch = selectedAddressIds.length > 0 
-          ? selectedAddressIds.some(id => addresses.find(addr => addr.id === id && addr.address.toLowerCase() === stake.address.toLowerCase()))
+          ? selectedAddressIds.some(id => effectiveAddresses.find(addr => addr.id === id && addr.address.toLowerCase() === stake.address.toLowerCase()))
           : true
         
         // Filter by chain
@@ -1610,17 +1648,8 @@ export default function Portfolio() {
                 )}
               </button>
             </DialogTrigger>
-            <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg animate-none">
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ 
-                  duration: 0.4,
-                  ease: [0.23, 1, 0.32, 1]
-                }}
-                className="p-4"
-              >
+            <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg">
+              <div className="p-4">
                 <LeagueTable 
                   tokenTicker={token.symbol} 
                   containerStyle={false}
@@ -1631,7 +1660,7 @@ export default function Portfolio() {
                   userBalance={combinedBalance}
                   userTShares={leagueInfo.userTShares > 0 ? leagueInfo.userTShares : undefined}
                 />
-              </motion.div>
+              </div>
             </DialogContent>
           </Dialog>
           <div className="text-gray-400 text-[9px] text-center leading-tight w-full mt-0.5">
@@ -1715,6 +1744,82 @@ export default function Portfolio() {
     )
   })
 
+  // Create sorted addresses for filter buttons (primary: label name, secondary: value)
+  const sortedAddressesForFilters = useMemo(() => {
+    if (!effectiveAddresses.length) return []
+    
+    // Get address values for secondary sorting
+    const addressValueMap = new Map<string, number>()
+    if (filteredBalances && Array.isArray(filteredBalances)) {
+      filteredBalances.forEach(addressData => {
+        let addressValue = 0
+        
+        // Add native token value
+        const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
+        addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+        
+        // Add token values
+        addressData.tokenBalances?.forEach(token => {
+          const tokenPrice = getTokenPrice(token.symbol)
+          addressValue += token.balanceFormatted * tokenPrice
+        })
+        
+        addressValueMap.set(addressData.address, addressValue)
+      })
+    }
+    
+    return [...effectiveAddresses].sort((a, b) => {
+      const aHasCustomName = !!a.label
+      const bHasCustomName = !!b.label
+      
+      // If both have custom names, sort alphabetically/numerically
+      if (aHasCustomName && bHasCustomName) {
+        const aLabel = a.label!
+        const bLabel = b.label!
+        
+        // Helper function to extract numbers for proper numerical sorting
+        const extractNumber = (label: string): number | null => {
+          const match = label.match(/^(\d+)/)
+          return match ? parseInt(match[1], 10) : null
+        }
+        
+        const aNumber = extractNumber(aLabel)
+        const bNumber = extractNumber(bLabel)
+        
+        // If both start with numbers, sort numerically
+        if (aNumber !== null && bNumber !== null) {
+          if (aNumber !== bNumber) {
+            return aNumber - bNumber // Numerical order: 001, 002, 019
+          }
+          // If numbers are equal, fall through to string comparison
+        }
+        
+        // If one has number and other doesn't, number comes first
+        if (aNumber !== null && bNumber === null) return -1
+        if (aNumber === null && bNumber !== null) return 1
+        
+        // Both are text or numbers are equal - sort alphabetically
+        return aLabel.localeCompare(bLabel, undefined, { 
+          numeric: true, 
+          sensitivity: 'base' 
+        })
+      }
+      
+      // If both have no custom names, sort by portfolio value (highest first)
+      if (!aHasCustomName && !bHasCustomName) {
+        const aValue = addressValueMap.get(a.address) || 0
+        const bValue = addressValueMap.get(b.address) || 0
+        return bValue - aValue
+      }
+      
+      // If one has custom name and other doesn't, custom names come first
+      if (aHasCustomName && !bHasCustomName) return -1
+      if (!aHasCustomName && bHasCustomName) return 1
+      
+      return 0 // Should never reach here
+    })
+  }, [effectiveAddresses, filteredBalances, getTokenPrice, formatAddress])
+
   // Calculate total USD value from ALL addresses combined (or filtered by selected address)
   const { totalUsdValue, addressValues } = useMemo(() => {
     if (!filteredBalances || !Array.isArray(filteredBalances)) {
@@ -1741,12 +1846,12 @@ export default function Portfolio() {
 
       totalValue += addressValue
 
-      // Add to address values array
-      addressVals.push({
-        address: addressData.address,
-        label: addresses.find(a => a.address === addressData.address)?.label || '',
-        value: addressValue
-      })
+              // Add to address values array
+        addressVals.push({
+          address: addressData.address,
+          label: effectiveAddresses.find(a => a.address === addressData.address)?.label || '',
+          value: addressValue
+        })
     })
     }
 
@@ -1888,7 +1993,7 @@ export default function Portfolio() {
   // Comprehensive loading state - wait for relevant data to be ready
   // Once ready, stay ready (don't hide UI during price updates)
   const isEverythingReady = useMemo(() => {
-    const hasInitialData = addresses.length > 0 && 
+    const hasInitialData = effectiveAddresses.length > 0 && 
                           !balancesError &&
                           balances && 
                           balances.length > 0 &&
@@ -1908,7 +2013,7 @@ export default function Portfolio() {
     // After initial load, stay ready as long as we have data and calculations
     return hasInitialData && hasCalculatedData
   }, [
-    addresses.length,
+    effectiveAddresses.length,
     balancesLoading,
     pricesLoading,
     maxiLoading,
@@ -1979,7 +2084,7 @@ export default function Portfolio() {
   // Update Chrome tab title with portfolio value
   useEffect(() => {
     // Only show value when everything is ready and we have a meaningful total
-    if (isEverythingReady && addresses.length > 0 && totalUsdValue > 0) {
+    if (isEverythingReady && effectiveAddresses.length > 0 && totalUsdValue > 0) {
       document.title = `$${formatBalanceMobile(totalUsdValue)} | PlsCharts.com`
     } else {
       document.title = 'Portfolio | PlsCharts.com'
@@ -1989,7 +2094,7 @@ export default function Portfolio() {
     return () => {
       document.title = 'PlsCharts.com'
     }
-  }, [totalUsdValue, addresses.length, isEverythingReady, chainFilter, showLiquidBalances, showValidators, showHexStakes])
+  }, [totalUsdValue, effectiveAddresses.length, isEverythingReady, chainFilter, showLiquidBalances, showValidators, showHexStakes])
 
   // Add toggle UI component (3-way toggle) - memoized to prevent unnecessary re-renders
   const ChainToggle = useCallback(() => (
@@ -2015,12 +2120,12 @@ export default function Portfolio() {
   const Section = showMotion ? motion.div : 'div';
 
   // Show loading state when there are addresses but data isn't ready
-  if (addresses.length > 0 && !isEverythingReady) {
+  if (effectiveAddresses.length > 0 && !isEverythingReady) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <div className="max-w-6xl mx-auto">
           <div className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full mx-auto">
-            <div className="text-gray-400">Loading Portfolio data...</div>
+            <div className="text-gray-400">{detectiveMode ? 'Loading address data...' : 'Loading Portfolio data...'}</div>
           </div>
         </div>
       </div>
@@ -2041,7 +2146,8 @@ export default function Portfolio() {
       } : {})}
         className="space-y-6 flex flex-col items-center w-full max-w-[860px] mx-auto"
     >
-      {/* Address Input Section */}
+      {/* Address Input Section - Hidden in detective mode */}
+      {!detectiveMode && (
       <Section 
         {...(showMotion ? {
           initial: { opacity: 0, scale: 0.95 },
@@ -2081,6 +2187,7 @@ export default function Portfolio() {
         </form>
 
       </Section>
+      )}
 
       {/*Add Addresses Welcome inline */}
       {showMultipleAddressList && (
@@ -2265,9 +2372,10 @@ export default function Portfolio() {
           </div>
       </Section>
       )}
+      {/* End of showMultipleAddressList conditional */}
 
       {/* Show loading state when fetching data (only on initial load) */}
-      {addresses.length > 0 && balancesLoading && isInitialLoad && (
+      {effectiveAddresses.length > 0 && balancesLoading && isInitialLoad && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -2280,7 +2388,7 @@ export default function Portfolio() {
           } : {})}
           className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[860px] w-full"
         >
-          <div className="text-gray-400">Loading portfolio...</div>
+          <div className="text-gray-400">{detectiveMode ? 'Loading address data...' : 'Loading portfolio...'}</div>
         </Section>
       )}
 
@@ -2378,7 +2486,7 @@ export default function Portfolio() {
           
           <div className="flex items-center justify-left sm:justify-center gap-2 ml-6">
             <h2 className="text-xs sm:text-xs font-bold mb-2 text-gray-400">
-            {selectedAddressIds.length > 0 ? `${selectedAddressIds.length}/${addresses.length} Addresses` : 'Total Portfolio Value'}
+            {selectedAddressIds.length > 0 ? `${selectedAddressIds.length}/${effectiveAddresses.length} Addresses` : detectiveMode ? 'Detective Mode' : 'Total Portfolio Value'}
             </h2>
           </div>
                     <div className="flex items-center justify-left sm:justify-center gap-2 ml-6">
@@ -2396,38 +2504,42 @@ export default function Portfolio() {
               {portfolio24hChange >= 0 ? '+' : ''}{portfolio24hChange.toFixed(2)}%
             </div>
           </div>
-          <div className="text-sm text-gray-400 mt-4 flex flex-wrap gap-2 justify-center">
-            {addresses.map((addr, index) => (
+          {!detectiveMode && (
+            <div className="text-sm text-gray-400 mt-4 flex flex-wrap gap-2 justify-center">
+              {sortedAddressesForFilters.map((addr, index) => (
+                <button 
+                  key={addr.id}
+                  onClick={() => handleAddressFilter(addr.id)}
+                  className={`px-3 py-1 border rounded-full text-xs transition-colors cursor-pointer focus:outline-none ${
+                    selectedAddressIds.includes(addr.id) 
+                      ? 'border-white bg-white text-black' 
+                      : 'border-white/20 hover:bg-white/20 text-white'
+                  }`}
+                >
+                  {addr.label || formatAddress(addr.address)}
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {/* Advanced Filters Button - Hidden in detective mode */}
+          {!detectiveMode && (
+            <div className="mt-4 flex justify-center">
               <button 
-                key={addr.id}
-                onClick={() => handleAddressFilter(addr.id)}
-                className={`px-3 py-1 border rounded-full text-xs transition-colors cursor-pointer focus:outline-none ${
-                  selectedAddressIds.includes(addr.id) 
-                    ? 'border-white bg-white text-black' 
-                    : 'border-white/20 hover:bg-white/20 text-white'
-                }`}
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm"
               >
-                {addr.label || formatAddress(addr.address)}
+                <span>Advanced filters</span>
+                <Icons.chevronDown
+                  size={16} 
+                  className={`transition-transform duration-200 ${showAdvancedFilters ? '' : 'rotate-180'}`}
+                />
               </button>
-            ))}
-                  </div>
+            </div>
+          )}
           
-          {/* Advanced Filters Button */}
-          <div className="mt-4 flex justify-center">
-            <button 
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm"
-            >
-              <span>Advanced filters</span>
-              <Icons.chevronDown
-                size={16} 
-                className={`transition-transform duration-200 ${showAdvancedFilters ? '' : 'rotate-180'}`}
-              />
-            </button>
-          </div>
-          
-          {/* Advanced Filters Toggle Section */}
-          {showAdvancedFilters && (
+          {/* Advanced Filters Toggle Section - Hidden in detective mode */}
+          {!detectiveMode && showAdvancedFilters && (
             <div className="mt-0 p-2 space-y-4">
               <div className="flex flex-wrap gap-6 justify-center">
                 <div className="flex items-center space-x-2">
@@ -2472,8 +2584,6 @@ export default function Portfolio() {
                   </label>
                 </div>
               </div>
-              
-
             </div>
           )}
         </Section>
@@ -2542,7 +2652,7 @@ export default function Portfolio() {
       )}
 
       {/* No tokens found message */}
-      {addresses.length > 0 && isEverythingReady && sortedTokens.length === 0 && showLiquidBalances && (
+      {effectiveAddresses.length > 0 && isEverythingReady && sortedTokens.length === 0 && showLiquidBalances && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -2562,7 +2672,7 @@ export default function Portfolio() {
       )}
 
       {/* Validators Section */}
-      {addresses.length > 0 && isEverythingReady && showValidators && validatorCount > 0 && (
+      {effectiveAddresses.length > 0 && isEverythingReady && showValidators && validatorCount > 0 && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -2609,7 +2719,7 @@ export default function Portfolio() {
       )}
 
       {/* HEX Stakes Section */}
-      {addresses.length > 0 && isEverythingReady && showHexStakes && (
+      {effectiveAddresses.length > 0 && isEverythingReady && showHexStakes && filteredHexStakes.length > 0 && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -2625,8 +2735,8 @@ export default function Portfolio() {
           <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
             <h3 className="text-xl font-semibold text-white">HEX Stakes</h3>
             
-            {/* Sort buttons */}
-            <div className="flex gap-2 flex-wrap">
+            {/* Sort buttons and Advanced stats button */}
+            <div className="flex gap-2 flex-wrap items-center">
               {[
                 { field: 'amount' as const, label: 'Amount' },
                 { field: 'progress' as const, label: 'Progress' },
@@ -2652,8 +2762,163 @@ export default function Portfolio() {
                   {label} {hexStakesSortField === field ? (hexStakesSortDirection === 'asc' ? '↑' : '↓') : ''}
                 </button>
               ))}
+              
+              {/* Advanced stats button */}
+              <button 
+                onClick={() => setShowAdvancedStats(!showAdvancedStats)}
+                className="flex items-center gap-1 px-3 py-1 text-gray-400 hover:text-white transition-colors text-xs rounded-full"
+              >
+                <span>More stats</span>
+                <Icons.chevronDown
+                  size={12} 
+                  className={`transition-transform duration-200 ${showAdvancedStats ? '' : 'rotate-180'}`}
+                />
+              </button>
             </div>
           </div>
+          
+          {/* Advanced Stats Section */}
+          {showAdvancedStats && (
+            <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+              {(() => {
+                // Calculate total liquid HEX and eHEX
+                const liquidHexStats = sortedTokens.reduce((acc, token) => {
+                  if (token.symbol === 'HEX') {
+                    acc.hexAmount += token.balanceFormatted
+                    acc.hexValue += token.balanceFormatted * getTokenPrice('HEX')
+                  } else if (token.symbol === 'eHEX') {
+                    acc.eHexAmount += token.balanceFormatted
+                    acc.eHexValue += token.balanceFormatted * getTokenPrice('eHEX')
+                  }
+                  return acc
+                }, { hexAmount: 0, hexValue: 0, eHexAmount: 0, eHexValue: 0 })
+
+                // Calculate total staked HEX
+                const stakedHexStats = filteredHexStakes.reduce((acc, stake) => {
+                  const stakeHex = stake.principleHex + stake.yieldHex
+                  if (stake.chain === 'ETH') {
+                    acc.eHexAmount += stakeHex
+                    acc.eHexValue += stakeHex * getTokenPrice('eHEX')
+                  } else {
+                    acc.hexAmount += stakeHex
+                    acc.hexValue += stakeHex * getTokenPrice('HEX')
+                  }
+                  return acc
+                }, { hexAmount: 0, hexValue: 0, eHexAmount: 0, eHexValue: 0 })
+
+                // Add pooled stakes to staked HEX if enabled
+                if (includePooledStakes) {
+                  stakedHexStats.hexAmount += pooledStakesData.totalHex || 0
+                  stakedHexStats.hexValue += pooledStakesData.totalValue || 0
+                }
+
+                const totalLiquidValue = liquidHexStats.hexValue + liquidHexStats.eHexValue
+                const totalStakedValue = stakedHexStats.hexValue + stakedHexStats.eHexValue
+                const totalCombinedValue = totalLiquidValue + totalStakedValue
+                const totalCombinedHexAmount = liquidHexStats.hexAmount + stakedHexStats.hexAmount
+                const totalCombinedEHexAmount = liquidHexStats.eHexAmount + stakedHexStats.eHexAmount
+                
+                return (
+                  <div className="space-y-4">
+                    {/* Combined Total HEX Value Card */}
+                    <div className="bg-black/20 border border-white/10 rounded-lg p-4 text-center">
+                      <div className="text-sm text-gray-400 mb-2">Total HEX Value</div>
+                      <div className="text-2xl font-bold text-white mb-1">
+                        ${formatBalance(totalCombinedValue)}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {totalCombinedHexAmount > 0 && totalCombinedEHexAmount > 0 
+                          ? `${formatBalance(totalCombinedHexAmount)} HEX + ${formatBalance(totalCombinedEHexAmount)} eHEX`
+                          : totalCombinedHexAmount > 0 
+                            ? `${formatBalance(totalCombinedHexAmount)} HEX`
+                            : totalCombinedEHexAmount > 0 
+                              ? `${formatBalance(totalCombinedEHexAmount)} eHEX`
+                              : 'No HEX found'
+                        }
+                        {includePooledStakes && (pooledStakesData.totalHex || 0) > 0 && (
+                          <span> (including {formatBalance(pooledStakesData.totalHex || 0)} HEX pooled)</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Individual Stats Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
+                    {/* Liquid HEX Stats */}
+                    <div className="bg-black/20 border border-white/10 rounded-lg p-4">
+                      <div className="text-sm text-gray-400 mb-2">
+                        Total Liquid HEX {totalCombinedValue > 0 && (
+                          <span className="text-xs">({formatPercentage((totalLiquidValue / totalCombinedValue) * 100)})</span>
+                        )}
+                      </div>
+                      <div className="text-xl font-bold text-white mb-1">
+                        ${formatBalance(totalLiquidValue)}
+                      </div>
+                      <div className="text-xs text-gray-400 space-y-1">
+                        {liquidHexStats.hexAmount > 0 && (
+                          <div>{formatBalance(liquidHexStats.hexAmount)} HEX (${formatBalance(liquidHexStats.hexValue)})</div>
+                        )}
+                        {liquidHexStats.eHexAmount > 0 && (
+                          <div>{formatBalance(liquidHexStats.eHexAmount)} eHEX (${formatBalance(liquidHexStats.eHexValue)})</div>
+                        )}
+                        {totalLiquidValue === 0 && <div>No liquid HEX found</div>}
+                      </div>
+                    </div>
+
+                    {/* Staked HEX Stats */}
+                    <div className="bg-black/20 border border-white/10 rounded-lg p-4">
+                      <div className="text-sm text-gray-400 mb-2">
+                        Total Staked HEX {totalCombinedValue > 0 && (
+                          <span className="text-xs">({formatPercentage((totalStakedValue / totalCombinedValue) * 100)})</span>
+                        )}
+                      </div>
+                      <div className="text-xl font-bold text-white mb-1">
+                        ${formatBalance(totalStakedValue)}
+                      </div>
+                      <div className="text-xs text-gray-400 space-y-1">
+                        {(() => {
+                          // Calculate solo stakes only for display breakdown
+                          const soloStakedStats = filteredHexStakes.reduce((acc, stake) => {
+                            const stakeHex = stake.principleHex + stake.yieldHex
+                            if (stake.chain === 'ETH') {
+                              acc.eHexAmount += stakeHex
+                              acc.eHexValue += stakeHex * getTokenPrice('eHEX')
+                            } else {
+                              acc.hexAmount += stakeHex
+                              acc.hexValue += stakeHex * getTokenPrice('HEX')
+                            }
+                            return acc
+                          }, { hexAmount: 0, hexValue: 0, eHexAmount: 0, eHexValue: 0 })
+
+                          const soloTotalValue = soloStakedStats.hexValue + soloStakedStats.eHexValue
+                          const pooledValue = pooledStakesData.totalValue || 0
+                          const pooledHex = pooledStakesData.totalHex || 0
+
+                          if (totalStakedValue === 0) {
+                            return <div>No staked HEX found</div>
+                          }
+
+                          return (
+                            <>
+                              {soloStakedStats.hexAmount > 0 && (
+                                <div>{formatBalance(soloStakedStats.hexAmount)} HEX (${formatBalance(soloStakedStats.hexValue)})</div>
+                              )}
+                              {soloStakedStats.eHexAmount > 0 && (
+                                <div>{formatBalance(soloStakedStats.eHexAmount)} eHEX (${formatBalance(soloStakedStats.eHexValue)})</div>
+                              )}
+                              {includePooledStakes && pooledHex > 0 && (
+                                <div>{formatBalance(pooledHex)} HEX pooled (${formatBalance(pooledValue)})</div>
+                              )}
+                            </>
+                          )
+                        })()}
+                      </div>
+                    </div>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
           
           {includePooledStakes ? (
             <>
@@ -2740,17 +3005,8 @@ export default function Portfolio() {
                                 />
                               </button>
                             </DialogTrigger>
-                            <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg animate-none">
-                              <motion.div 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ 
-                                  duration: 0.4,
-                                  ease: [0.23, 1, 0.32, 1]
-                                }}
-                                className="p-4"
-                              >
+                            <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg">
+                              <div className="p-4">
                                 <LeagueTable 
                                   tokenTicker="T-Shares"
                                   containerStyle={false}
@@ -2780,7 +3036,7 @@ export default function Portfolio() {
                                   preloadedPrices={{}}
                                   userBalance={combinedTShares > 0 ? combinedTShares : undefined}
                                 />
-                              </motion.div>
+                              </div>
                             </DialogContent>
                           </Dialog>
                         )}

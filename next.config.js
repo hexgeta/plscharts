@@ -33,6 +33,15 @@ const nextConfig = {
       }
     ]
   },
+  async rewrites() {
+    return [
+      {
+        // Match Ethereum addresses (0x followed by 40 hex characters)
+        source: '/0x:address([a-fA-F0-9]{40})',
+        destination: '/address/0x:address',
+      }
+    ]
+  },
   async headers() {
     return [
       {

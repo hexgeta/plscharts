@@ -23,24 +23,15 @@ const PopupLeagueTable = React.memo(({ token, children }: PopupLeagueTableProps)
     <>
       {children(handleClick)}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-full max-w-[360px] sm:max-w-lg max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto animate-none">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ 
-              duration: 0.4,
-              ease: [0.23, 1, 0.32, 1]
-            }}
-            className="mt-6"
-          >
+        <DialogContent className="w-full max-w-[360px] sm:max-w-lg max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto">
+          <div className="mt-6">
             {/* No preloaded data - will fetch individually when opened */}
             <LeagueTable 
               tokenTicker={token.ticker} 
               containerStyle={false}
               showLeagueNames={true}
             />
-          </motion.div>
+          </div>
         </DialogContent>
       </Dialog>
     </>

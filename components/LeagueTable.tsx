@@ -377,31 +377,34 @@ export default React.memo(function LeagueTable({
           <div className="text-white text-2xl font-bold">
             {hasValidPriceData && `$${Math.round(userBalance * tokenPrice.price).toLocaleString('en-US')}`}
           </div>
-          <div className="text-gray-400 text-xs sm:text-sm flex items-center justify-center gap-1 py-1">
-            {formatCompactNumber(userBalance)} {displayTicker} (
-            {(() => {
-              const userPercentage = (userBalance / totalSupply) * 100;
-              const userLeague = LEAGUE_RANKS.find(rank => userPercentage >= rank.percentage);
-              return (
-                <span className="flex items-center gap-1">
-                  {userLeague && (
-                    <Image
-                      src={userLeague.icon}
-                      alt={userLeague.name}
-                      width={16}
-                      height={16}
-                      className="object-contain"
-                    />
-                  )}
-                  {formatPercentage(userPercentage)}
-                </span>
-              );
-            })()}
-            )
-            {/* T-shares display for MAXI DAO tokens - inline after supply */}
+          <div className="text-gray-400 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-center gap-1 py-1">
+            <div className="flex items-center justify-center gap-1">
+              {formatCompactNumber(userBalance)} {displayTicker} (
+              {(() => {
+                const userPercentage = (userBalance / totalSupply) * 100;
+                const userLeague = LEAGUE_RANKS.find(rank => userPercentage >= rank.percentage);
+                return (
+                  <span className="flex items-center gap-1">
+                    {userLeague && (
+                      <Image
+                        src={userLeague.icon}
+                        alt={userLeague.name}
+                        width={16}
+                        height={16}
+                        className="object-contain"
+                      />
+                    )}
+                    {formatPercentage(userPercentage)}
+                  </span>
+                );
+              })()}
+              )
+            </div>
+            {/* T-shares display for MAXI DAO tokens - separate line on mobile */}
             {tSharesData && userTShares && (
-              <span className="text-gray-400 font-medium text-xs sm:text-sm">
-                • {userTShares >= 1
+              <div className="text-gray-400 font-medium text-xs sm:text-sm flex items-center justify-center gap-1">
+                <span className="hidden sm:inline">•</span>
+                {userTShares >= 1
                   ? `${formatCompactNumber(userTShares)} T-Shares`
                   : `${userTShares.toFixed(3)} T-Shares`
                 } {
@@ -418,7 +421,7 @@ export default React.memo(function LeagueTable({
                     </>
                   ) : `(${formatPercentage(tSharesData.tSharesPercentage)})`
                 }
-              </span>
+              </div>
             )}
           </div>
         </div>

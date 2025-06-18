@@ -272,7 +272,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               {/* Add PLS price equivalent and ratio for HEX */}
               {ticker === "HEX" && prices?.PLS?.price && prices?.eHEX?.price && (
                 <div className="text-[11px] text-[#777] text-bold whitespace-nowrap">
-                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} | incl. eHEX: {formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}
+                  {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} eHEX | +eHEX: {formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}
                 </div>
               )}
               {/* Add COM coupon rate for HEX */}
@@ -352,14 +352,14 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
         >
           <div>
             <h3 className="text-2xl font-bold text-white mb-6">Get Started</h3>
-            <ol className="text-gray-400 text-sm md:text-md list-decimal pl-5 [&>li]:mb-4">
-              <li>Bridge your assets to <a href="https://bridge.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">PulseChain</a></li>
-              <li>Swap tokens <a href="https://pulsex.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">on PulseX</a></li>
-              <li>Create your first <a href="https://hex.pulsechainapp.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">HEX stake</a></li>
+            <ol className="text-gray-400 text-sm md:text-md list-decimal pl-5 [&>li]:mb-1">
+              <li>Buy USDC, DAI or ETH on <a href="https://www.zkp2p.xyz/swap?tab=buy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">ZKP2P</a></li>
+              <li>Bridge from to PulseChain with <a href="https://libertyswap.finance/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">LibertySwap</a></li>
+              <li>Track your <a href="/portfolio" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">Portfolio</a></li>
             </ol>
           </div>
           <a
-            href="https://hexscout.com/buy"
+            href="https://www.zkp2p.xyz/swap?tab=buy"
             target="_blank"
             rel="noopener noreferrer" 
             className="w-full bg-white hover:bg-gray-100 text-black px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors"

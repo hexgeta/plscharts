@@ -7,6 +7,7 @@ import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import { useRouter } from 'next/navigation'
+import { Icons } from '@/components/ui/icons'
 
 interface TokenSearchProps {
   open: boolean
@@ -14,10 +15,23 @@ interface TokenSearchProps {
 }
 
 export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
+  // Universal search component that supports both:
+  // 1. Token search - find and navigate to token charts
+  // 2. Wallet search - enter any Ethereum address to view portfolio in detective mode
   const [search, setSearch] = useState('')
   const router = useRouter()
 
   console.log('TokenSearch render - open:', open);
+
+  // Validate Ethereum address format
+  const isValidAddress = (address: string): boolean => {
+    return /^0x[a-fA-F0-9]{40}$/i.test(address)
+  }
+
+  // Check if search looks like it could be an address (starts with 0x and has some hex chars)
+  const looksLikeAddress = (search: string): boolean => {
+    return /^0x[a-fA-F0-9]{6,}$/i.test(search)
+  }
 
   // Priority tokens to show at the top when no search query
   const PRIORITY_TOKENS = ['PLS', 'PLSX', 'HEX', 'INC', 'eHEX', 'weHEX', 'HDRN', 'eHDRN', 'ICSA', 'eICSA']
@@ -139,6 +153,15 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
     }
   }
 
+  const handleAddressSelect = (address: string) => {
+    // Close the dialog
+    handleOpenChange(false)
+    setSearch('')
+    
+    // Navigate to the clean URL format (Next.js rewrites will handle routing to /address/[address])
+    router.push(`/${address}`)
+  }
+
   // Clear search when dialog closes
   useEffect(() => {
     if (!open) {
@@ -157,36 +180,78 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
       <DialogContent className="overflow-hidden p-0 max-w-[360px] sm:max-w-[480px] rounded-xl">
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           <CommandInput 
-            placeholder="Search tokens..." 
+            placeholder="Search tokens or wallet addresses..." 
             value={search}
             onValueChange={setSearch}
           />
           <CommandList className="scrollbar-hide">
-            <CommandEmpty>No tokens found.</CommandEmpty>
-            <CommandGroup heading="Tokens">
-              {filteredTokens.map((token) => (
+            <CommandEmpty>
+              {looksLikeAddress(search) && !isValidAddress(search) 
+                ? "Invalid address format. Please enter a valid Ethereum address (0x + 40 hex characters)."
+                : "No tokens found."
+              }
+            </CommandEmpty>
+            
+            {/* Address Search Results */}
+            {looksLikeAddress(search) && (
+              <CommandGroup heading="Wallet Address">
                 <CommandItem
-                  key={`${token.chain}-${token.a}-${token.ticker}`}
-                  value={`${token.ticker} ${token.name}`}
-                  onSelect={() => handleTokenSelect(token)}
-                  className="flex items-center gap-3 cursor-pointer"
+                  value={search}
+                  onSelect={() => isValidAddress(search) && handleAddressSelect(search)}
+                  className={`flex items-center gap-3 cursor-pointer ${
+                    !isValidAddress(search) ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={!isValidAddress(search)}
                 >
-                  <CoinLogo 
-                    symbol={token.ticker === 'eHEX' ? 'eHEX' : token.ticker}
-                    size="sm"
-                  />
-                  <div className="flex flex-col">
-                    <span className="font-medium">{getDisplayTicker(token.ticker)}</span>
-                    <span className="text-sm text-muted-foreground">{token.name}</span>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <Icons.users className="w-5 h-5" />
                   </div>
-                  <div className="ml-auto">
-                    <span className="text-xs text-muted-foreground">
-                      {token.chain === 1 ? 'ETH' : 'PLS'}
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className="font-medium">
+                      {isValidAddress(search) ? 'View Wallet Portfolio' : 'Invalid Address'}
+                    </span>
+                    <span className="text-sm text-muted-foreground font-mono">
+                      {isValidAddress(search) ? `0x...${search.slice(-4)}` : search}
                     </span>
                   </div>
+                  {isValidAddress(search) && (
+                    <div className="ml-auto">
+                      <span className="text-xs text-muted-foreground">
+                        Detective Mode
+                      </span>
+                    </div>
+                  )}
                 </CommandItem>
-              ))}
-            </CommandGroup>
+              </CommandGroup>
+            )}
+
+            {/* Token Search Results */}
+            {!looksLikeAddress(search) && (
+              <CommandGroup heading="Tokens">
+                {filteredTokens.map((token) => (
+                  <CommandItem
+                    key={`${token.chain}-${token.a}-${token.ticker}`}
+                    value={`${token.ticker} ${token.name}`}
+                    onSelect={() => handleTokenSelect(token)}
+                    className="flex items-center gap-3 cursor-pointer"
+                  >
+                    <CoinLogo 
+                      symbol={token.ticker === 'eHEX' ? 'eHEX' : token.ticker}
+                      size="sm"
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-medium">{getDisplayTicker(token.ticker)}</span>
+                      <span className="text-sm text-muted-foreground">{token.name}</span>
+                    </div>
+                    <div className="ml-auto">
+                      <span className="text-xs text-muted-foreground">
+                        {token.chain === 1 ? 'ETH' : 'PLS'}
+                      </span>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </DialogContent>
