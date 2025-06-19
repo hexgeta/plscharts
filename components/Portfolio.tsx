@@ -1589,6 +1589,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       return OA_SUPPLIES[chainKey] || OA_SUPPLIES[token.symbol] || 0
     }, [token.symbol, token.chain])
 
+    // Stabilize dialog props to prevent glitching
+    const stableDialogProps = useMemo(() => ({
+      tokenTicker: token.symbol,
+      preloadedSupply: (leagueSupply || finalSupply) || undefined,
+      supplyDeduction: leagueSupplyDeduction,
+      userBalance: combinedBalance,
+      userTShares: leagueInfo.userTShares > 0 ? leagueInfo.userTShares : undefined
+    }), [token.symbol, leagueSupply, finalSupply, leagueSupplyDeduction, combinedBalance, leagueInfo.userTShares])
+
   return (
       <div className="grid grid-cols-[minmax(20px,auto)_2fr_1fr_2fr_minmax(20px,auto)] xs:grid-cols-[minmax(20px,auto)_1fr_1fr_1fr_minmax(20px,auto)] sm:grid-cols-[minmax(20px,auto)_2fr_1fr_1fr_minmax(60px,auto)_2fr_minmax(40px,auto)] items-center gap-2 sm:gap-4 border-b border-white/10 mx-2 sm:mx-4 py-4 last:border-b-0 overflow-hidden">
         {/* Chain Icon - Furthest Left Column */}
@@ -1671,16 +1680,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             </DialogTrigger>
             <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg">
               <div className="p-4">
-                <LeagueTable 
-                  tokenTicker={token.symbol} 
-                  containerStyle={false}
-                  showLeagueNames={true}
-                  preloadedSupply={(leagueSupply || finalSupply) || undefined}
-                  preloadedPrices={prices}
-                  supplyDeduction={leagueSupplyDeduction}
-                  userBalance={combinedBalance}
-                  userTShares={leagueInfo.userTShares > 0 ? leagueInfo.userTShares : undefined}
-                />
+                {isDialogOpen && (
+                  <LeagueTable 
+                    tokenTicker={stableDialogProps.tokenTicker} 
+                    containerStyle={false}
+                    showLeagueNames={true}
+                    preloadedSupply={stableDialogProps.preloadedSupply}
+                    preloadedPrices={prices}
+                    supplyDeduction={stableDialogProps.supplyDeduction}
+                    userBalance={stableDialogProps.userBalance}
+                    userTShares={stableDialogProps.userTShares}
+                  />
+                )}
               </div>
             </DialogContent>
           </Dialog>
@@ -2023,14 +2034,37 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // Also ensure derived calculations are complete
     const hasCalculatedData = filteredBalances.length >= 0 && // Can be 0 if no balances match filters
-                             typeof totalUsdValue === 'number' // Ensure totalUsdValue has been calculated
+                             typeof totalUsdValue === 'number' && // Ensure totalUsdValue has been calculated
+                             typeof portfolio24hChange === 'number' // Ensure portfolio change has been calculated
+    
+    // Check if HEX stakes calculations are complete (if HEX stakes are enabled)
+    const hexStakesCalculationsReady = !showHexStakes || (
+      !hexStakesLoading && 
+      Array.isArray(filteredHexStakes) && 
+      (filteredHexStakes.length === 0 || filteredHexStakes.every(stake => 
+        typeof stake.progress === 'number' && 
+        typeof stake.principleHex === 'number' && 
+        typeof stake.yieldHex === 'number'
+      ))
+    )
+    
+    // Check if pooled stakes calculations are complete (if enabled)
+    const pooledStakesCalculationsReady = !includePooledStakes || (
+      typeof pooledStakesData.totalTShares === 'number' &&
+      typeof pooledStakesData.totalValue === 'number' &&
+      Array.isArray(pooledStakesData.tokens)
+    )
     
     // Only consider loading states on initial load
-    // Include MAXI loading for backing price functionality and HEX stakes loading
+    // Include MAXI loading for backing price functionality and all calculations
     if (isInitialLoad) {
-      // If HEX stakes are enabled, wait for them to finish loading
-      const hexStakesReady = !showHexStakes || !hexStakesLoading
-      return hasInitialData && hasCalculatedData && !balancesLoading && !pricesLoading && !maxiLoading && hexStakesReady
+      return hasInitialData && 
+             hasCalculatedData && 
+             hexStakesCalculationsReady && 
+             pooledStakesCalculationsReady &&
+             !balancesLoading && 
+             !pricesLoading && 
+             !maxiLoading
     }
     
     // After initial load, stay ready as long as we have data and calculations
@@ -2046,8 +2080,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     Object.keys(prices).length,
     filteredBalances.length,
     totalUsdValue,
+    portfolio24hChange,
     isInitialLoad,
-    showHexStakes
+    showHexStakes,
+    filteredHexStakes,
+    includePooledStakes,
+    pooledStakesData.totalTShares,
+    pooledStakesData.totalValue,
+    pooledStakesData.tokens
   ])
 
   // Debug logging

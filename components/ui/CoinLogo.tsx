@@ -1,6 +1,9 @@
 import { cn } from '@/lib/utils'
 import { CircleDollarSign } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+
+// Cache to remember which symbols don't have logos to prevent flashing
+const missingLogosCache = new Set<string>()
 
 const LOGO_SIZES = {
   sm: 'w-4 h-4',   // 16px
@@ -18,6 +21,9 @@ interface CoinLogoProps {
   variant?: 'default' | 'no-bg'
 }
 
+// Create a global cache to remember which logos have failed to load
+const failedLogos = new Set<string>()
+
 export function CoinLogo({ 
   symbol, 
   size = 'md', 
@@ -26,7 +32,6 @@ export function CoinLogo({
   inverted = false,
   variant = 'default'
 }: CoinLogoProps) {
-  const [hasError, setHasError] = useState(false)
   // Handle different token prefixes:
   // - Remove 'e' prefix for Ethereum tokens (eDECI -> DECI, eHEX -> HEX)
   // - Remove 'w' prefix for wrapped tokens (wBTC -> BTC, wETH -> ETH) but NOT 'we' tokens
@@ -53,9 +58,20 @@ export function CoinLogo({
   if (baseSymbol === 'HDRN' && inverted) {
     logoPath = '/coin-logos/HDRN-white.svg'
   }
+
+  const [hasError, setHasError] = useState(() => failedLogos.has(logoPath))
   
-  // If image failed to load, show the white circle-dollar-sign icon
-  if (hasError) {
+  const handleError = useCallback(() => {
+    failedLogos.add(logoPath)
+    missingLogosCache.add(symbol) // Also cache by symbol
+    setHasError(true)
+  }, [logoPath, symbol])
+  
+  // If this symbol is known to not have a logo, don't even try loading
+  const shouldSkipImage = missingLogosCache.has(symbol) || failedLogos.has(logoPath)
+  
+  // If image failed to load or is known missing, show the fallback icon immediately
+  if (shouldSkipImage || hasError) {
     return (
       <CircleDollarSign 
         className={cn(
@@ -80,9 +96,7 @@ export function CoinLogo({
         className
       )}
       loading={priority ? 'eager' : 'lazy'}
-      onError={() => {
-        setHasError(true)
-      }}
+      onError={handleError}
     />
   )
 } 
