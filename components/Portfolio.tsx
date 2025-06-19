@@ -92,6 +92,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const [activeTab, setActiveTab] = useState<'addresses' | 'settings'>('addresses')
   // Add state for backing price toggle
   const [useBackingPrice, setUseBackingPrice] = useState<boolean>(() => {
+    if (detectiveMode) {
+      // Detective mode uses market price by default, no localStorage
+      return false
+    }
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('portfolioUseBackingPrice')
       return saved === 'true'
@@ -111,6 +115,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   })
   // Add state for including pooled stakes
   const [includePooledStakes, setIncludePooledStakes] = useState<boolean>(() => {
+    if (detectiveMode) {
+      // Detective mode includes pooled stakes by default
+      return true
+    }
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('portfolioIncludePooledStakes')
       return saved === 'true'
@@ -316,15 +324,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     localStorage.setItem('portfolioSelectedAddresses', JSON.stringify(selectedAddressIds))
   }, [selectedAddressIds])
 
-  // Save backing price setting to localStorage whenever it changes
+  // Save backing price setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
-    localStorage.setItem('portfolioUseBackingPrice', useBackingPrice.toString())
-  }, [useBackingPrice])
+    if (!detectiveMode) {
+      localStorage.setItem('portfolioUseBackingPrice', useBackingPrice.toString())
+    }
+  }, [useBackingPrice, detectiveMode])
 
-  // Save pooled stakes setting to localStorage whenever it changes
+  // Save pooled stakes setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
-    localStorage.setItem('portfolioIncludePooledStakes', includePooledStakes.toString())
-  }, [includePooledStakes])
+    if (!detectiveMode) {
+      localStorage.setItem('portfolioIncludePooledStakes', includePooledStakes.toString())
+    }
+  }, [includePooledStakes, detectiveMode])
 
   // Save validator count to localStorage whenever it changes
   useEffect(() => {
@@ -3655,6 +3667,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         <div className="font-medium text-white mb-1">MAXI Tokens</div>
                         <div className="text-sm text-gray-400">
                           Use the backing price instead of the current market price
+                          {detectiveMode && <span className="block text-xs text-blue-400 mt-1">Detective mode defaults: OFF</span>}
                         </div>
                       </div>
                       <button
@@ -3676,6 +3689,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         <div className="font-medium text-white mb-1">Pooled Stakes</div>
                         <div className="text-sm text-gray-400">
                           Include advanced HEX stake stats on pooled stake tokens
+                          {detectiveMode && <span className="block text-xs text-blue-400 mt-1">Detective mode defaults: ON</span>}
                         </div>
                       </div>
                       <button
