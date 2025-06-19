@@ -779,7 +779,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // Check if all addresses would be deleted after filtering
     const remainingAddresses = addresses.filter(addr => addr.id !== id)
-    if (remainingAddresses.length === 0) {
+    const remainingPendingAddresses = pendingAddresses.filter(addr => addr.id !== id)
+    
+    if (remainingAddresses.length === 0 && remainingPendingAddresses.length === 0) {
+      // If this is the last address, immediately commit the removal and close modal
+      setAddresses([])
+      localStorage.removeItem('portfolioAddresses')
+      setPendingAddresses([])
+      setRemovedAddressIds(new Set())
       setShowEditModal(false)
     }
     
@@ -838,9 +845,21 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     })
     
     // Always include the base tokens to ensure consistent ticker set
-    const baseTokens = ['PLS', 'PLSX', 'HEX', 'ETH', 'USDC', 'DAI', 'USDT']
+    // Note: Added eHEX to fix missing prices for eHEX stakes
+    const baseTokens = ['PLS', 'PLSX', 'HEX', 'eHEX', 'ETH', 'USDC', 'DAI', 'USDT']
     
-    const allTickers = [...new Set([...tokens, ...baseTokens])]
+    // Add tokens from HEX stakes to ensure we have prices for stake calculations
+    const stakeTokens: string[] = []
+    if (hexStakes && hexStakes.length > 0) {
+      hexStakes.forEach(stake => {
+        const stakeToken = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
+        if (!stakeTokens.includes(stakeToken)) {
+          stakeTokens.push(stakeToken)
+        }
+      })
+    }
+    
+    const allTickers = [...new Set([...tokens, ...baseTokens, ...stakeTokens])]
     
     // Return a stable array - only change if the actual content changes
     return allTickers.sort() // Sort for consistent ordering
@@ -849,7 +868,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     balances && balances.map(b => [
       b.nativeBalance.symbol,
       ...(b.tokenBalances?.map(t => t.symbol) || [])
-    ].join(',')).sort().join('|')
+    ].join(',')).sort().join('|'),
+    // Also depend on HEX stakes to include their tokens in price fetching
+    hexStakes && hexStakes.map(s => s.chain).sort().join('|')
   ])
 
   // Minimal debug logging (only when needed)
@@ -2007,7 +2028,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     // Only consider loading states on initial load
     // Include MAXI loading for backing price functionality and HEX stakes loading
     if (isInitialLoad) {
-      return hasInitialData && hasCalculatedData && !balancesLoading && !pricesLoading && !maxiLoading && !hexStakesLoading
+      // If HEX stakes are enabled, wait for them to finish loading
+      const hexStakesReady = !showHexStakes || !hexStakesLoading
+      return hasInitialData && hasCalculatedData && !balancesLoading && !pricesLoading && !maxiLoading && hexStakesReady
     }
     
     // After initial load, stay ready as long as we have data and calculations
@@ -2023,7 +2046,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     Object.keys(prices).length,
     filteredBalances.length,
     totalUsdValue,
-    isInitialLoad
+    isInitialLoad,
+    showHexStakes
   ])
 
   // Debug logging
