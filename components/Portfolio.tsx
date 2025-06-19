@@ -2209,7 +2209,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   }
 
     return (
-    <div className="w-full pb-20 md:pb-0">
+    <div className="w-full pb--20 md:pb-0">
       <Container 
       {...(showMotion ? {
         initial: { opacity: 0, y: 20 },
@@ -3068,54 +3068,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     <>
                       <div className="flex items-center justify-center gap-3 mb-2">
                         <div className="text-lg font-semibold text-white">All Stakes</div>
-                        {combinedTShares > 0 && chainFilter !== 'both' && (
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <button className="w-6 h-6 flex items-center justify-center hover:bg-white/10 transition-transform cursor-pointer rounded-lg">
-                                <Image
-                                  src={hexLeague.icon}
-                                  alt={hexLeague.league}
-                                  width={24}
-                                  height={24}
-                                  className="object-contain"
-                                />
-                              </button>
-                            </DialogTrigger>
-                            <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg">
-                              <div className="p-4">
-                                <LeagueTable 
-                                  tokenTicker="T-Shares"
-                                  containerStyle={false}
-                                  showLeagueNames={true}
-                                  preloadedSupply={(() => {
-                                    // Use dynamic T-shares supply from hex daily data API
-                                    const OA_TSHARES_PLS = 35482068;
-                                    const OA_TSHARES_ETH = 35155727;
-                                    
-                                    if (!hexDailyData) {
-                                      // Fallback to approximate values if data not loaded yet
-                                      return chainFilter === 'ethereum' ? (37_000_000 - OA_TSHARES_ETH) : (37_000_000 - OA_TSHARES_PLS);
-                                    }
-                                    
-                                    if (chainFilter === 'ethereum') {
-                                      // For Ethereum, get latest T-shares from API
-                                      const ethLatestDay = hexDailyData.dailyPayouts?.ETH?.[hexDailyData.dailyPayouts.ETH.length - 1];
-                                      const totalTShares = ethLatestDay ? (parseFloat(ethLatestDay.shares) / 1000000000000) : 37_000_000;
-                                      return totalTShares - OA_TSHARES_ETH;
-                                    } else {
-                                      // For PulseChain, get latest T-shares from API
-                                      const plsLatestDay = hexDailyData.dailyPayouts?.PLS?.[hexDailyData.dailyPayouts.PLS.length - 1];
-                                      const totalTShares = plsLatestDay ? (parseFloat(plsLatestDay.shares) / 1000000000000) : 37_000_000;
-                                      return totalTShares - OA_TSHARES_PLS;
-                                    }
-                                  })()}
-                                  preloadedPrices={{}}
-                                  userBalance={combinedTShares > 0 ? combinedTShares : undefined}
-                                />
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        )}
                       </div>
                         <div className="flex items-center justify-center gap-2">
                           <div className="text-4xl font-bold text-white">
