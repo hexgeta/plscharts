@@ -1483,9 +1483,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }, [token.symbol, token.balanceFormatted, mainTokensWithBalances])
     
     // Only show league on 'e' version when there's a paired 'we' version
-    // For all other tokens (not starting with e or we), always show league
+    // For all other tokens (not starting with e or we), always show league except for ETH
     const shouldShowLeague = !isEVersion && !isWeVersion 
-      ? true  // Always show for regular tokens (PLS, PLSX, HEX, etc.)
+      ? token.symbol !== 'ETH'  // Show for regular tokens (PLS, PLSX, HEX, etc.) but not ETH
       : !isWeVersion || !hasPairedToken
     
     // Get supply from constants (existing logic)
