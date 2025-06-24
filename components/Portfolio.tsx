@@ -2146,7 +2146,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     // Add validator value if enabled
-    if (showValidators && validatorCount > 0) {
+    if (showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPrice = getTokenPrice('PLS')
       const validatorValue = validatorPLS * plsPrice
@@ -2155,8 +2155,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Add HEX stakes value if enabled (ONLY ACTIVE STAKES)
     if (showHexStakes && hexStakes) {
-      // Always calculate active stakes value regardless of filter
-      const activeStakes = hexStakes.filter(stake => stake.status === 'active')
+      // Filter active stakes by chain
+      const activeStakes = hexStakes.filter(stake => 
+        stake.status === 'active' && 
+        (chainFilter === 'both' || 
+         (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+         (chainFilter === 'pulsechain' && stake.chain !== 'ETH'))
+      )
       const hexStakesValue = activeStakes.reduce((total, stake) => {
         const stakeHex = stake.principleHex + stake.yieldHex
         // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
@@ -2238,7 +2243,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     // Add validator value if enabled
-    if (showValidators && validatorCount > 0) {
+    if (showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPriceData = prices['PLS']
       const plsCurrentPrice = plsPriceData?.price || 0
@@ -2257,8 +2262,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Add HEX stakes value if enabled (ONLY ACTIVE STAKES)
     if (showHexStakes && hexStakes) {
-      // Always calculate active stakes value regardless of filter
-      const activeStakes = hexStakes.filter(stake => stake.status === 'active')
+      // Filter active stakes by chain
+      const activeStakes = hexStakes.filter(stake => 
+        stake.status === 'active' && 
+        (chainFilter === 'both' || 
+         (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+         (chainFilter === 'pulsechain' && stake.chain !== 'ETH'))
+      )
       activeStakes.forEach(stake => {
         const stakeHex = stake.principleHex + stake.yieldHex
         // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
@@ -3011,7 +3021,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       )}
 
       {/* Validators Section */}
-      {effectiveAddresses.length > 0 && isEverythingReady && showValidators && validatorCount > 0 && (
+      {effectiveAddresses.length > 0 && isEverythingReady && showValidators && validatorCount > 0 && (chainFilter === 'pulsechain' || chainFilter === 'both') && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -3318,8 +3328,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     const soloTShares = activeStakes.reduce((total, stake) => total + stake.tShares, 0)
                     const soloHexAmount = activeStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
                     
-                    // Combined totals
-                    const combinedValue = soloHexValue + pooledStakesData.totalValue
+                    // Combined totals - recalculate value based on filtered stakes for chain-specific pricing
+                    const filteredSoloValue = filteredHexStakes.filter(stake => stake.status === 'active').reduce((total, stake) => {
+                      const stakeHex = stake.principleHex + stake.yieldHex
+                      const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+                      return total + (stakeHex * hexPrice)
+                    }, 0)
+                    const combinedValue = filteredSoloValue + pooledStakesData.totalValue
                     const combinedTShares = soloTShares + pooledStakesData.totalTShares
                     const combinedHexAmount = soloHexAmount + (pooledStakesData.totalHex || 0)
                     
