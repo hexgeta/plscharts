@@ -181,30 +181,66 @@ async function getAddressBalances(address: string, chainId: number): Promise<Bal
     console.log(`[usePortfolioBalance] Checking ${relevantTokens.length} ${chainName} tokens for ${address}`)
 
     // Get token balances in batches to avoid overwhelming the RPC
-    const batchSize = 10
+    const batchSize = 10 // Test larger batch size - increase until you see errors
     const tokenBalances: TokenBalance[] = []
+    let totalErrors = 0
+    let totalSuccessful = 0
+    const batchStartTime = Date.now()
 
     for (let i = 0; i < relevantTokens.length; i += batchSize) {
       const batch = relevantTokens.slice(i, i + batchSize)
+      const batchNum = Math.floor(i / batchSize) + 1
+      const totalBatches = Math.ceil(relevantTokens.length / batchSize)
+      
+      const batchTimer = Date.now()
+      console.log(`[usePortfolioBalance] Processing batch ${batchNum}/${totalBatches} (${batch.length} tokens) for ${address} on ${chainName}`)
+      
+      // Add debug log to panel for batch progress
+      if (typeof window !== 'undefined' && (window as any).addDebugLog) {
+        const addDebugLogFn = (window as any).addDebugLog as Function
+        addDebugLogFn('progress', 'Portfolio Balances', `Batch ${batchNum}/${totalBatches} - ${batch.length} tokens (${address.slice(0, 8)}... on ${chainName})`)
+      }
       
       const batchPromises = batch.map(async (token) => {
         return getTokenBalance(address, token.a, token.decimals, token.ticker, token.name, chainId)
       })
 
       const batchResults = await Promise.all(batchPromises)
+      const batchDuration = Date.now() - batchTimer
       
-      // Only add tokens with balance > 0
+      // Track errors and successful fetches
       batchResults.forEach((tokenBalance) => {
-        if (tokenBalance.balanceFormatted > 0) {
-          tokenBalances.push(tokenBalance)
+        if (tokenBalance.error) {
+          totalErrors++
+          if (tokenBalance.error.includes('429') || tokenBalance.error.includes('rate limit')) {
+            console.error(`[usePortfolioBalance] 🚨 RATE LIMIT HIT - Batch size ${batchSize} is too large!`)
+          }
+          console.warn(`[usePortfolioBalance] Error fetching ${tokenBalance.symbol}:`, tokenBalance.error)
+        } else {
+          totalSuccessful++
+          if (tokenBalance.balanceFormatted > 0) {
+            tokenBalances.push(tokenBalance)
+            console.log(`[usePortfolioBalance] Found balance: ${tokenBalance.balanceFormatted} ${tokenBalance.symbol}`)
+          }
         }
       })
 
-      // Small delay between batches
+      console.log(`[usePortfolioBalance] Batch ${batchNum} completed in ${batchDuration}ms (${totalErrors} errors so far)`)
+      
+      // Add batch completion to debug panel
+      if (typeof window !== 'undefined' && (window as any).addDebugLog) {
+        const errorText = totalErrors > 0 ? ` (${totalErrors} errors)` : ''
+        const addDebugLogFn = (window as any).addDebugLog as Function
+        addDebugLogFn('complete', 'Portfolio Balances', `Batch ${batchNum}/${totalBatches} done in ${batchDuration}ms${errorText}`)
+      }
+
+      // Add delay between batches to prevent rate limiting
       if (i + batchSize < relevantTokens.length) {
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise(resolve => setTimeout(resolve, 50)) // 50ms delay between batches
       }
     }
+
+    console.log(`[usePortfolioBalance] Batch processing complete for ${address} on ${chainName}: ${totalSuccessful} successful, ${totalErrors} errors, ${tokenBalances.length} with balances`)
 
     console.log(`[usePortfolioBalance] Found ${tokenBalances.length} tokens with balances for ${address} on ${chainName}`)
 
@@ -265,8 +301,16 @@ async function fetchAllAddressBalances(addresses: string[]): Promise<BalanceData
   
   const allBalanceData = await Promise.all(balancePromises)
   
-  // Filter out any failed requests
+  // Count successful vs failed requests
   const validBalances = allBalanceData.filter(data => !data.error)
+  const failedBalances = allBalanceData.filter(data => data.error)
+  
+  if (failedBalances.length > 0) {
+    console.warn(`[usePortfolioBalance] ${failedBalances.length} address/chain combinations failed:`)
+    failedBalances.forEach(failed => {
+      console.warn(`[usePortfolioBalance] Failed: ${failed.address} on chain ${failed.chain} - ${failed.error}`)
+    })
+  }
   
   console.log(`[usePortfolioBalance] Successfully fetched balances for ${validBalances.length}/${addresses.length * 2} address/chain combinations`)
   

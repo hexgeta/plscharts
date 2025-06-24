@@ -57,7 +57,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0x02dcdd04e3f455d838cd1249292c58f3b79e3c3c",
-  dexs: ["0x0"],
+  dexs: ["0x29d66D5900Eb0d629E1e6946195520065A6c5aeE"],
   ticker: "weWETH",
   decimals: 18,
   name: "Wrapped WETH from Eth",
@@ -921,6 +921,13 @@ export const TOKEN_CONSTANTS = [{
   name: "Hex Orange Address"
 }, {
   chain: 369,
+  a: "0xa73f450e3f17468a64bfdd222b099857db76634d",
+  dexs: "0x6c66a53f9B66736Cf2AFfC4396F7C58a91dF73C6",
+  ticker: "LHEX",
+  decimals: 8,
+  name: "Liquid HEX"
+}, {
+  chain: 369,
   a: "0xa5beb85e5f82419ab6bd0c13f6c3f66bb95c79da",
   dexs: "0x5ac9ce15e67ac2c76c030b149eee4cc73e3238ae",
   ticker: "PEAR",
@@ -1658,13 +1665,6 @@ dexs: "0xa4e0faa58465a2d369aa21b3e42d43374c6f9613",
 ticker: "rETH",
 decimals: 18,
 name: "Rocket Pool ETH"
-}, {
-chain: 1,
-a: "0x83f20f44975d03b1b09e64809b757c47f942beea",
-dexs: "0x422a29a465e4f8acc85cee8e0c7058dff28e7196",
-ticker: "sDAI",
-decimals: 18,
-name: "Savings DAI"
 }, {
 chain: 1,
 a: "0x2ba592f78db6436527729929aaf6c908497cb200",

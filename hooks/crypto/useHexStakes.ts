@@ -7,11 +7,14 @@ interface HexStake {
   id: string;
   stakeId: string;
   status: 'active' | 'inactive';
+  isOverdue?: boolean;
+  isEES?: boolean;
   principleHex: number;
   yieldHex: number;
   tShares: number;
   startDate: string;
-  endDate: string;
+  endDate: string;      // The original promised end date
+  actualEndDate: string; // The actual date the stake ended (for EES stakes)
   progress: number;
   daysLeft: number;
   address: string;
@@ -34,7 +37,7 @@ const calculateDaysUntilMaturity = (endDay: string) => {
   const currentDay = calculateCurrentHexDay();
   const adjustedEndDay = Number(endDay) - 1;
   const daysLeft = adjustedEndDay - currentDay;
-  return daysLeft > 0 ? daysLeft : 0;
+  return daysLeft; // Return actual value (can be negative for overdue)
 };
 
 const formatDateToISO = (hexDay: string) => {
@@ -86,26 +89,14 @@ export const useHexStakes = (addresses: string[]) => {
         const currentDay = calculateCurrentHexDay();
         const addressesParam = addresses.map(addr => addr.toLowerCase()).join('","');
         
-        // Use cached daily payouts instead of fetching
-        const getCachedDailyPayouts = (chain: 'ETH' | 'PLS', startDay: number, endDay: number) => {
-          if (!isCacheReady || !getDailyPayoutsForRange) {
-            console.log(`[${chain}] Cache not ready, skipping yield calculation`);
-            return [];
-          }
-          
-          const cachedPayouts = getDailyPayoutsForRange(chain, startDay, endDay);
-          console.log(`[${chain}] Using cached payouts: ${cachedPayouts.length} records for range ${startDay}-${endDay}`);
-          return cachedPayouts;
-        };
-
-
-
         const fetchAllStakesFromChain = async (url: string, chain: 'ETH' | 'PLS') => {
           let allStakes: any[] = [];
+          let allStakeEnds: any[] = [];
           let hasMore = true;
           let skip = 0;
           const first = 1000;
           
+          // First fetch all stake starts
           while (hasMore) {
             const query = `{
               stakeStarts(
@@ -142,7 +133,7 @@ export const useHexStakes = (addresses: string[]) => {
               if (result.errors) {
                 console.error(`[${chain}] GraphQL errors:`, result.errors);
                 hasMore = false;
-                return { stakes: [], newYields: [] };
+                return { stakes: [], stakeEnds: [] };
               }
 
               const fetchedStakes = result.data?.stakeStarts || [];
@@ -159,119 +150,165 @@ export const useHexStakes = (addresses: string[]) => {
             }
           }
           
-          // Handle case where no stakes were found
-          if (allStakes.length === 0) {
-            console.log(`[${chain}] No stakes found`);
-            return { stakes: [], newYields: [] };
-          }
-          
-          // Get all unique day ranges for batch fetching daily payouts
-          const dayRanges = allStakes.map(stake => ({
-            startDay: Number(stake.startDay),
-            endDay: Math.min(Number(stake.startDay) + Number(stake.stakedDays), currentDay)
-          }));
-          
-          const minStartDay = Math.min(...dayRanges.map(r => r.startDay));
-          const maxEndDay = Math.max(...dayRanges.map(r => r.endDay));
-          
-          // Check if yields are already cached for these stakes
-          const stakeKeys = allStakes.map(stake => ({
-            stakeId: stake.stakeId || stake.id,
-            chain
-          }));
-          
-          let yieldCalculations: any[] = [];
-          let processedStakes: any[] = [];
-          
-          // Get cached daily payouts for yield calculations if needed
-          const dailyPayouts = getCachedDailyPayouts(chain, minStartDay, maxEndDay);
-          
-          processedStakes = allStakes.map((stake: any) => {
-            const stakeStartDay = Number(stake.startDay);
-            const stakeEndDay = Number(stake.startDay) + Number(stake.stakedDays);
-            const isActive = currentDay < stakeEndDay;
-            const principleHex = Number(stake.stakedHearts) / 1e8; // Convert from Hearts to HEX
-            const tShares = Number(stake.stakeTShares);
-            const effectiveEndDay = isActive ? currentDay : stakeEndDay;
-            const stakeId = stake.stakeId || stake.id;
-            
-            // Try to get cached yield first
-            let yieldHex = getCachedYield(stakeId, chain, currentDay);
-            
-            if (yieldHex === null) {
-              // Calculate yield if not cached or outdated
-              yieldHex = calculateYieldForStake(dailyPayouts, tShares, stakeStartDay, effectiveEndDay);
-              
-              // Store calculation for caching
-              yieldCalculations.push({
-                stakeId,
-                chain,
-                stakerAddr: stake.stakerAddr,
-                tShares,
-                startDay: stakeStartDay,
-                endDay: stakeEndDay,
-                yieldHex,
-                calculatedAt: new Date().toISOString(),
-                effectiveEndDay
+          // Now fetch all stake ends
+          hasMore = true;
+          skip = 0;
+          while (hasMore) {
+            const query = `{
+              stakeEnds(
+                first: ${first},
+                skip: ${skip},
+                where: { stakerAddr_in: ["${addressesParam}"] }
+              ) {
+                id
+                stakeId
+                stakerAddr
+                servedDays
+                penalty
+              }
+            }`;
+
+            try {
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query }),
               });
+
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+
+              const result = await response.json();
               
-              console.log(`[${chain}] Calculated yield for stake ${stakeId}: ${tShares} T-Shares, days ${stakeStartDay}-${effectiveEndDay}, yield: ${yieldHex.toFixed(2)} HEX`);
-            } else {
-              console.log(`[${chain}] Using cached yield for stake ${stakeId}: ${yieldHex.toFixed(2)} HEX`);
+              if (result.errors) {
+                console.error(`[${chain}] GraphQL errors:`, result.errors);
+                hasMore = false;
+                break;
+              }
+
+              const fetchedStakeEnds = result.data?.stakeEnds || [];
+              
+              if (fetchedStakeEnds.length > 0) {
+                allStakeEnds = [...allStakeEnds, ...fetchedStakeEnds];
+                skip += first;
+              } else {
+                hasMore = false;
+              }
+            } catch (error) {
+              console.error(`[${chain}] Error fetching stake ends:`, error);
+              hasMore = false;
             }
-            
-            return {
-              id: `${chain}-${stake.id}`,
-              stakeId,
-              status: isActive ? 'active' : 'inactive',
-              principleHex: Math.round(principleHex),
-              yieldHex: Math.round(yieldHex), 
-              tShares: tShares,
-              startDate: formatDateToISO(stake.startDay),
-              endDate: formatDateToISO(stakeEndDay.toString()),
-              progress: calculateProgress(stake.startDay, stakeEndDay.toString()),
-              daysLeft: calculateDaysUntilMaturity(stakeEndDay.toString()),
-              address: stake.stakerAddr,
-              chain
-            };
+          }
+
+          return { stakes: allStakes, stakeEnds: allStakeEnds };
+        };
+        
+        // Create a single map for all stake ends across both chains
+        const allStakeEndsMap = new Map();
+        let allProcessedStakes: any[] = [];
+        
+        // Process each chain
+        const chains: ('ETH' | 'PLS')[] = ['ETH', 'PLS'];
+        for (const chain of chains) {
+          console.log(`Processing ${chain} chain...`);
+          const { stakes: chainStakes, stakeEnds } = await fetchAllStakesFromChain(SUBGRAPH_URLS[chain], chain);
+          
+          // Add stake ends to the global map with chain-specific keys
+          stakeEnds.forEach((stakeEnd: any) => {
+            const key = `${chain}-${stakeEnd.stakeId}`;
+            allStakeEndsMap.set(key, stakeEnd);
+            console.log(`Added stake end to map: ${key}`, stakeEnd);
           });
           
-          // Cache any new yield calculations
-          if (yieldCalculations.length > 0) {
-            console.log(`[${chain}] Caching ${yieldCalculations.length} new yield calculations`);
-            // We'll cache these after processing both chains
-          }
+          // Process stakes using the global stake ends map
+          const processedChainStakes = chainStakes.map((stake: any) => {
+            const stakeId = stake.stakeId;
+            const stakeEndKey = `${chain}-${stakeId}`;
+            const stakeEnd = allStakeEndsMap.get(stakeEndKey);
+            
+            // Debug logging
+            console.log(`Processing stake ${stakeEndKey}:`, {
+              hasStakeEnd: !!stakeEnd,
+              penalty: stakeEnd?.penalty,
+              servedDays: stakeEnd?.servedDays
+            });
+            
+            const stakeStartDay = Number(stake.startDay);
+            const stakeEndDay = Number(stake.startDay) + Number(stake.stakedDays);
+            const isStillActive = currentDay < stakeEndDay;
+            let status: 'active' | 'inactive' = 'active';
+            let isEES = false;
+            let isOverdue = false;
+            
+            // Calculate actual end date and progress based on stake status
+            let actualEndDay = stakeEndDay;
+            let actualProgress = 0;
+            let daysLeft = 0;
+            
+            if (stakeEnd) {
+              status = 'inactive';
+              // Use actual served days for ended stakes
+              const servedDays = Number(stakeEnd.servedDays);
+              actualEndDay = stakeStartDay + servedDays;
+              actualProgress = Math.min(100, Math.round((servedDays / Number(stake.stakedDays)) * 100));
+              daysLeft = 0; // Stake is ended, no days left
+              
+              if (stakeEnd.penalty && stakeEnd.penalty !== '0') {
+                isEES = true;
+                console.log(`[${chain}] Stake ${stakeId}: INACTIVE (EES with penalty: ${stakeEnd.penalty} Hearts, served ${servedDays} days)`);
+              } else {
+                console.log(`[${chain}] Stake ${stakeId}: INACTIVE (ended successfully after ${servedDays} days)`);
+              }
+            } else if (!isStillActive) {
+              status = 'active';
+              isOverdue = true;
+              actualProgress = calculateProgress(stake.startDay, stakeEndDay.toString());
+              daysLeft = calculateDaysUntilMaturity(stakeEndDay.toString());
+              console.log(`[${chain}] Stake ${stakeId}: ACTIVE (overdue)`);
+            } else {
+              status = 'active';
+              actualProgress = calculateProgress(stake.startDay, stakeEndDay.toString());
+              daysLeft = calculateDaysUntilMaturity(stakeEndDay.toString());
+              console.log(`[${chain}] Stake ${stakeId}: ACTIVE`);
+            }
+            
+                          // Calculate the original promised end date
+              const promisedEndDay = stakeStartDay + Number(stake.stakedDays);
+              
+              return {
+                id: `${chain}-${stake.id}`,
+                stakeId,
+                status,
+                isEES,
+                isOverdue,
+                principleHex: Number(stake.stakedHearts) / 1e8,
+                yieldHex: getCachedYield(stakeId, chain, currentDay) || 
+                  calculateYieldForStake(
+                    getDailyPayoutsForRange(chain, stakeStartDay, actualEndDay), 
+                    Number(stake.stakeTShares), 
+                    stakeStartDay, 
+                    actualEndDay
+                  ),
+                tShares: Number(stake.stakeTShares),
+                startDate: formatDateToISO(stake.startDay),
+                endDate: formatDateToISO(promisedEndDay.toString()), // Use the original promised end date
+                actualEndDate: formatDateToISO(actualEndDay.toString()), // Store the actual end date separately
+                progress: actualProgress,
+                daysLeft,
+                address: stake.stakerAddr,
+                chain
+              };
+          });
           
-          return { stakes: processedStakes, newYields: yieldCalculations };
-        };
-
-        // Fetch stakes from both chains and wait for yield calculations to complete
-        console.log('[HEX Stakes] Starting fetch from both chains...');
-        const [ethResult, plsResult] = await Promise.all([
-          fetchAllStakesFromChain(SUBGRAPH_URLS.ETH, 'ETH'),
-          fetchAllStakesFromChain(SUBGRAPH_URLS.PLS, 'PLS')
-        ]);
-
-        console.log(`[HEX Stakes] Completed: ${ethResult.stakes.length} ETH stakes, ${plsResult.stakes.length} PLS stakes`);
-        
-        // Combine all stakes
-        const combinedStakes = [...ethResult.stakes, ...plsResult.stakes]
-          .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime()); // Sort by ending soonest first
-
-        // Combine all new yield calculations and cache them
-        const allNewYields = [...ethResult.newYields, ...plsResult.newYields];
-        if (allNewYields.length > 0) {
-          console.log(`[HEX Stakes] Caching ${allNewYields.length} new yield calculations`);
-          cacheYields(allNewYields);
+          allProcessedStakes = [...allProcessedStakes, ...processedChainStakes];
         }
-
-        // Only set loading to false after all yield calculations are complete
-        console.log(`[HEX Stakes] Setting ${combinedStakes.length} stakes with calculated yields`);
-        setStakes(combinedStakes);
+        
+        setStakes(allProcessedStakes);
         setIsLoading(false);
-      } catch (err) {
-        console.error('Error fetching HEX stakes:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch HEX stakes');
+      } catch (error) {
+        console.error('Error fetching stakes:', error);
+        setError('Failed to fetch stakes');
         setIsLoading(false);
       }
     };

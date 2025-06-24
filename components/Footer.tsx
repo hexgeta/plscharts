@@ -14,7 +14,7 @@ const Footer = () => {
             PlsCharts {CURRENT_YEAR}
           </h3>
           <p className="text-sm text-[rgb(153,153,153)]">
-            Donate: <span 
+            Donate:<span 
               className="break-all cursor-pointer hover:text-gray-300" 
               onClick={() => {
                 navigator.clipboard.writeText('0x1F12DAE5450522b445Fe1882C4F8D2Cf67B38a43');

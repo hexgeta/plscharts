@@ -18,6 +18,7 @@ import {
   MessageCircle,
   Send,
   Users,
+  Check,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -31,6 +32,7 @@ export const Icons = {
   copy: Copy,
   chevronDown: ChevronDown,
   save: Save,
+  check: Check,
   
   // UI icons
   dollarSign: CircleDollarSign,
@@ -92,5 +94,6 @@ export {
   MessageCircle,
   Send,
   Users,
+  Check,
   type LucideIcon,
 } 

@@ -253,19 +253,19 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               </div>
               {/* Add PLS price equivalent for PLSX */}
               {ticker === "PLSX" && prices?.PLS?.price && (
-                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[12px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 2 })} PLS | {formatNumber(price/0.0001, { decimals: 2 })}x Sac
                 </div>
               )}
               {/* Add PLS price equivalent for INC */}
               {ticker === "INC" && prices?.PLS?.price && (
-                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[12px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS
                 </div>
               )}
               {/* Add Sac ratio for PLS */}
               {ticker === "PLS" && (
-                <div className="text-[10px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[12px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price/0.0001, { decimals: 2 })}x Sac
                 </div>
               )}
@@ -348,10 +348,10 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
             animate: { opacity: 1 },
             transition: { duration: 0.3 }
           } : {})}
-          className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col justify-between gap-2 border-2 border-white/10 relative min-h-[300px] min-w-[300px]"
+          className="bg-black/80 backdrop-blur-sm rounded-xl p-6 flex flex-col justify-between gap-2 border-2 border-white/10 relative min-h-[270px] min-w-[300px]"
         >
           <div>
-            <h3 className="text-2xl font-bold text-white mb-6">Get Started</h3>
+            <h3 className="text-2xl font-bold text-white mb-4">Get Started</h3>
             <ol className="text-gray-400 text-sm md:text-md list-decimal pl-5 [&>li]:mb-1">
               <li>Buy USDC, DAI or ETH on <a href="https://www.zkp2p.xyz/swap?tab=buy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">ZKP2P</a></li>
               <li>Bridge from to PulseChain with <a href="https://libertyswap.finance/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">LibertySwap</a></li>
@@ -362,7 +362,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
             href="https://www.zkp2p.xyz/swap?tab=buy"
             target="_blank"
             rel="noopener noreferrer" 
-            className="w-full bg-white hover:bg-gray-100 text-black px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+            className="w-full bg-white hover:bg-gray-100 text-black px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-4 transition-colors"
           >
             Explore More
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">

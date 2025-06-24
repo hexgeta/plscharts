@@ -16,9 +16,20 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Toggle } from '@/components/ui/toggle'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { 
+  DropdownMenu, 
+  DropdownMenuTrigger, 
+  DropdownMenuContent, 
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu'
 import LeagueTable from '@/components/LeagueTable'
+import TSharesLeagueTable from '@/components/ui/TSharesLeagueTable'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import Image from 'next/image'
+import { ChevronDown } from 'lucide-react'
 
 interface StoredAddress {
   address: string
@@ -32,6 +43,13 @@ interface PortfolioProps {
 }
 
 export default function Portfolio({ detectiveMode = false, detectiveAddress }: PortfolioProps) {
+  // Debug toggle - set to true to show network debug panel
+  const SHOW_DEBUG_PANEL = false
+  
+  // Track component renders for debugging
+  const renderCountRef = useRef(0)
+  renderCountRef.current += 1
+  
   // Priority tokens to display - PulseChain tokens
   const MAIN_TOKENS = ['PLS', 'PLSX', 'HEX', 'eHEX', 'INC', 'WPLS', 'CST', 'USDC', 'DAI', 'MAXI', 'DECI', 'LUCKY', 'TRIO', 'BASE']
 
@@ -90,6 +108,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   } | null>(null)
   // Add state for modal tabs
   const [activeTab, setActiveTab] = useState<'addresses' | 'settings'>('addresses')
+  // Add state for HEX stakes display pagination
+  const [displayedStakesCount, setDisplayedStakesCount] = useState(20)
   // Add state for backing price toggle
   const [useBackingPrice, setUseBackingPrice] = useState<boolean>(() => {
     if (detectiveMode) {
@@ -134,6 +154,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
     return false
   })
+
+  // League dialog states
+  const [leagueDialogOpen, setLeagueDialogOpen] = useState(false)
+  const [soloLeagueDialogOpen, setSoloLeagueDialogOpen] = useState(false)
 
   // HEX stakes sorting state
   const [hexStakesSortField, setHexStakesSortField] = useState<'amount' | 'startDate' | 'endDate' | 'progress'>(() => {
@@ -216,6 +240,17 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
     return true
   })
+
+  // HEX stakes status filter state
+  const [stakeStatusFilter, setStakeStatusFilter] = useState<'active' | 'inactive'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioStakeStatusFilter')
+      if (saved && (saved === 'active' || saved === 'inactive')) {
+        return saved as 'active' | 'inactive'
+      }
+    }
+    return 'active' // Default to showing active stakes
+  })
   
   // Validator settings state
   const [validatorCount, setValidatorCount] = useState<number>(() => {
@@ -229,10 +264,35 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Dialog state for league tables (moved up to prevent closing on price refresh)
   const [openDialogToken, setOpenDialogToken] = useState<string | null>(null)
 
+
+
   // Detective mode: use the provided address instead of stored addresses
   const effectiveAddresses = detectiveMode && detectiveAddress 
     ? [{ address: detectiveAddress, label: 'Detective Target', id: 'detective-target' }]
     : addresses
+
+  // Debug logging function that uses the DebugPanel's window.addDebugLog
+  const addDebugLog = useCallback((type: 'start' | 'progress' | 'complete' | 'error', operation: string, details?: string) => {
+    if (typeof window !== 'undefined' && (window as any).addDebugLog) {
+      (window as any).addDebugLog(type, operation, details)
+    } else if (SHOW_DEBUG_PANEL) {
+      // Fallback: log to console if DebugPanel isn't ready yet
+      console.log(`[Debug] ${type.toUpperCase()}: ${operation}`, details || '')
+    }
+  }, [SHOW_DEBUG_PANEL])
+
+  // Initialize debug logging when component mounts
+  useEffect(() => {
+    if (SHOW_DEBUG_PANEL) {
+      // Small delay to ensure DebugPanel is ready
+      const timer = setTimeout(() => {
+        addDebugLog('start', 'Portfolio Component', `Mounted with ${effectiveAddresses.length} address${effectiveAddresses.length !== 1 ? 'es' : ''}`)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [SHOW_DEBUG_PANEL, addDebugLog, effectiveAddresses.length])
+
+
 
   // Portfolio-specific images are now preloaded by the background preloader
 
@@ -324,17 +384,36 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     localStorage.setItem('portfolioSelectedAddresses', JSON.stringify(selectedAddressIds))
   }, [selectedAddressIds])
 
+  // Clean up stale selected address IDs whenever addresses change
+  useEffect(() => {
+    if (selectedAddressIds.length > 0) {
+      const validAddressIds = new Set(effectiveAddresses.map(addr => addr.id))
+      const staleIds = selectedAddressIds.filter(id => !validAddressIds.has(id))
+      
+      if (staleIds.length > 0) {
+        console.log('[Portfolio] Cleaning up stale selected address IDs:', staleIds, 'Valid IDs:', Array.from(validAddressIds))
+        const cleanedIds = selectedAddressIds.filter(id => validAddressIds.has(id))
+        setSelectedAddressIds(cleanedIds)
+      }
+    }
+    // Also clear if no addresses exist but filters are still selected
+    else if (selectedAddressIds.length > 0 && effectiveAddresses.length === 0) {
+      console.log('[Portfolio] No addresses exist, clearing all selected filters')
+      setSelectedAddressIds([])
+    }
+  }, [selectedAddressIds, effectiveAddresses])
+
   // Save backing price setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
     if (!detectiveMode) {
-      localStorage.setItem('portfolioUseBackingPrice', useBackingPrice.toString())
+    localStorage.setItem('portfolioUseBackingPrice', useBackingPrice.toString())
     }
   }, [useBackingPrice, detectiveMode])
 
   // Save pooled stakes setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
     if (!detectiveMode) {
-      localStorage.setItem('portfolioIncludePooledStakes', includePooledStakes.toString())
+    localStorage.setItem('portfolioIncludePooledStakes', includePooledStakes.toString())
     }
   }, [includePooledStakes, detectiveMode])
 
@@ -401,6 +480,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   useEffect(() => {
     localStorage.setItem('portfolioTokenSortDirection', tokenSortDirection)
   }, [tokenSortDirection])
+
+  // Save stake status filter to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('portfolioStakeStatusFilter', stakeStatusFilter)
+  }, [stakeStatusFilter])
 
   // Detective mode overrides - ensure liquid balances and HEX stakes are always shown
   useEffect(() => {
@@ -698,9 +782,28 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // Only update if there are actual changes
     if (removedAddressIds.size > 0 || pendingAddresses.length > 0) {
+      console.log('[Portfolio] Committing address changes:', {
+        removals: removedAddressIds.size,
+        additions: pendingAddresses.length,
+        finalCount: finalAddresses.length,
+        beforeCommit: { 
+          addresses: addresses?.length || 0, 
+          pending: pendingAddresses?.length || 0,
+          pendingAddresses: pendingAddresses?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || []
+        },
+        afterCommit: { 
+          finalAddresses: finalAddresses?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || []
+        }
+      })
       setAddresses(finalAddresses)
       localStorage.setItem('portfolioAddresses', JSON.stringify(finalAddresses))
       setPendingAddresses([])
+      
+      // Reset initial load state when adding new addresses to ensure proper loading flow
+      if (pendingAddresses.length > 0) {
+        console.log('[Portfolio] New addresses added, resetting to initial load state')
+        setIsInitialLoad(true)
+      }
     }
   }
 
@@ -829,13 +932,59 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   }, [effectiveAddresses])
 
   // Fetch real HEX stakes data for user's addresses
-  const { stakes: hexStakes, isLoading: hexStakesLoading, error: hexStakesError } = useHexStakes(allAddressStrings)
+  const { stakes: hexStakes, isLoading: hexStakesLoading, error: hexStakesError, hasStakes } = useHexStakes(allAddressStrings)
   
   console.log('Portfolio Debug - Using address strings:', allAddressStrings)
 
   // Fetch balances for ALL addresses using the updated hook
   const { balances: rawBalances, isLoading: balancesLoading, error: balancesError } = usePortfolioBalance(allAddressStrings)
   console.log('Portfolio Debug - Balance hook result:', { balances: rawBalances, balancesLoading, balancesError })
+  
+  // Debug logging for balance loading - track state changes only
+  const lastBalanceStateRef = useRef<{loading: boolean, hasBalances: boolean, hasError: boolean, addressCount: number}>({
+    loading: false,
+    hasBalances: false,
+    hasError: false,
+    addressCount: 0
+  })
+  
+  useEffect(() => {
+    if (SHOW_DEBUG_PANEL) {
+      const currentState = {
+        loading: balancesLoading,
+        hasBalances: !!(rawBalances && rawBalances.length > 0),
+        hasError: !!balancesError,
+        addressCount: allAddressStrings.length
+      }
+      
+      const lastState = lastBalanceStateRef.current
+      
+      // Only log when there's an actual state change
+      if (currentState.loading !== lastState.loading ||
+          currentState.hasBalances !== lastState.hasBalances ||
+          currentState.hasError !== lastState.hasError ||
+          currentState.addressCount !== lastState.addressCount) {
+        
+                 if (currentState.loading && currentState.addressCount > 0) {
+           // Each address needs to be checked on 2 chains (PulseChain + Ethereum)
+           const totalChecks = currentState.addressCount * 2
+     
+         } else if (!currentState.loading && currentState.hasBalances) {
+           const tokenCount = rawBalances?.reduce((total, addr) => total + (addr.tokenBalances?.length || 0), 0) || 0
+           const nativeCount = rawBalances?.length || 0
+           const errorCount = rawBalances?.filter(addr => addr.error).length || 0
+           const details = errorCount > 0 
+             ? `Found ${tokenCount + nativeCount} total balances (${tokenCount} tokens + ${nativeCount} native) - ${errorCount} addresses failed`
+             : `Found ${tokenCount + nativeCount} total balances (${tokenCount} tokens + ${nativeCount} native)`
+           
+         } else if (currentState.hasError) {
+           
+         }
+        
+        lastBalanceStateRef.current = currentState
+      }
+    }
+  }, [balancesLoading, rawBalances, balancesError, allAddressStrings.length, SHOW_DEBUG_PANEL])
   
   // Stabilize balances reference to prevent unnecessary re-renders
   const balances = useMemo(() => rawBalances || [], [rawBalances])
@@ -896,6 +1045,43 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Get HEX daily data for T-shares calculations
   const { data: hexDailyData } = useHexDailyDataCache()
+
+  // Debug logging for prices
+  useEffect(() => {
+    if (SHOW_DEBUG_PANEL) {
+      if (pricesLoading && allTokenTickers.length > 0) {
+        // Token price logging is disabled by default - controlled by $ button in debug panel
+      } else if (!pricesLoading && rawPrices && Object.keys(rawPrices).length > 0) {
+        // Token price logging is disabled by default - controlled by $ button in debug panel
+      }
+    }
+  }, [pricesLoading, rawPrices, allTokenTickers.length, addDebugLog, SHOW_DEBUG_PANEL])
+
+  // Debug logging for MAXI data
+  useEffect(() => {
+    if (SHOW_DEBUG_PANEL) {
+      if (maxiLoading) {
+        addDebugLog('start', 'MAXI Data', 'Loading backing price data')
+      } else if (!maxiLoading && maxiData && Object.keys(maxiData).length > 0) {
+        addDebugLog('complete', 'MAXI Data', `Loaded ${Object.keys(maxiData).length} MAXI tokens`)
+      } else if (maxiError) {
+        addDebugLog('error', 'MAXI Data', typeof maxiError === 'string' ? maxiError : (maxiError as any)?.message || 'Failed to load')
+      }
+    }
+  }, [maxiLoading, maxiData, maxiError, addDebugLog, SHOW_DEBUG_PANEL])
+
+  // Debug logging for HEX stakes
+  useEffect(() => {
+    if (SHOW_DEBUG_PANEL) {
+      if (hexStakesLoading && allAddressStrings.length > 0) {
+        addDebugLog('start', 'HEX Stakes', `Loading stakes for ${allAddressStrings.length} addresses`)
+      } else if (!hexStakesLoading && hexStakes && hexStakes.length > 0) {
+        addDebugLog('complete', 'HEX Stakes', `Loaded ${hexStakes.length} HEX stakes`)
+      } else if (hexStakesError) {
+        addDebugLog('error', 'HEX Stakes', typeof hexStakesError === 'string' ? hexStakesError : (hexStakesError as any)?.message || 'Failed to load')
+      }
+    }
+  }, [hexStakesLoading, hexStakes, hexStakesError, allAddressStrings.length, addDebugLog, SHOW_DEBUG_PANEL])
 
   // Start background preloading of token supplies and images
   const { supplies: preloadedSupplies, totalSupplies, lastUpdated } = useBackgroundPreloader()
@@ -994,7 +1180,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Helper function to check if a token is a stablecoin (including e-versions)
   const isStablecoin = useCallback((symbol: string): boolean => {
-    const stablecoins = ['weDAI', 'weUSDC', 'weUSDT', 'CST', 'weUSDL']
+    const stablecoins = [
+      // PulseChain wrapped stablecoins (we-prefixed)
+      'weDAI', 'weUSDC', 'weUSDT', 'weUSDL',
+      // Ethereum native/original stablecoins
+      'USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'USDP', 'LUSD', 'GUSD',
+      // Other stablecoins
+      'CST', 'USDL'
+    ]
     return stablecoins.includes(symbol)
   }, [])
 
@@ -1163,7 +1356,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Filter and sort HEX stakes by selected addresses and chain
   const filteredHexStakes = useMemo(() => {
-    return hexStakes
+    // Debug: Log all unique status values found in the stakes data
+    if (hexStakes && hexStakes.length > 0) {
+      const uniqueStatuses = [...new Set(hexStakes.map(stake => stake.status))]
+      console.log('[HEX Stakes Debug] Unique status values found:', uniqueStatuses)
+      console.log('[HEX Stakes Debug] Current filter:', stakeStatusFilter)
+      console.log('[HEX Stakes Debug] Total stakes before filtering:', hexStakes.length)
+    }
+
+    const filtered = hexStakes
       .filter(stake => {
         // Filter out removed addresses
         const addressObj = effectiveAddresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
@@ -1181,59 +1382,77 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
           (chainFilter === 'pulsechain' && stake.chain === 'PLS')
         
-        return addressMatch && chainMatch && stake.status === 'active'
+        // Filter by stake status
+        const statusMatch = stakeStatusFilter === stake.status
+        
+        return addressMatch && chainMatch && statusMatch
       })
-      .sort((a, b) => {
-        let comparison = 0
 
-        // Helper function to calculate stake value
-        const getStakeValue = (stake: any) => {
-          const stakeHex = stake.principleHex + stake.yieldHex
-          const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-          return stakeHex * hexPrice
-        }
+    // Helper function to calculate stake value
+    const getStakeValue = (stake: any) => {
+      const stakeHex = stake.principleHex + stake.yieldHex
+      const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+      return stakeHex * hexPrice
+    }
 
-        if (hexStakesSortField === 'amount') {
-          // Primary sort: by amount in $ (highest value first)
+    // Sort the filtered stakes
+    return filtered.sort((a, b) => {
+      let comparison = 0
+
+      switch (hexStakesSortField) {
+        case 'amount':
           const aValue = getStakeValue(a)
           const bValue = getStakeValue(b)
-          comparison = bValue - aValue
-        } else if (hexStakesSortField === 'startDate') {
-          const aDate = new Date(a.startDate).getTime()
-          const bDate = new Date(b.startDate).getTime()
-          comparison = aDate - bDate
-          
-          // Secondary sort: by amount in $ (highest value first)
-          if (comparison === 0) {
-            const aValue = getStakeValue(a)
-            const bValue = getStakeValue(b)
-            comparison = bValue - aValue
-          }
-        } else if (hexStakesSortField === 'endDate') {
-          const aDate = new Date(a.endDate).getTime()
-          const bDate = new Date(b.endDate).getTime()
-          comparison = aDate - bDate
-          
-          // Secondary sort: by amount in $ (highest value first)
-          if (comparison === 0) {
-            const aValue = getStakeValue(a)
-            const bValue = getStakeValue(b)
-            comparison = bValue - aValue
-          }
-        } else if (hexStakesSortField === 'progress') {
-          comparison = b.progress - a.progress // Higher progress first for ascending
-          
-          // Secondary sort: by amount in $ (highest value first)
-          if (comparison === 0) {
-            const aValue = getStakeValue(a)
-            const bValue = getStakeValue(b)
-            comparison = bValue - aValue
-          }
-        }
+          comparison = bValue - aValue // Higher values first
+          break
+        case 'startDate':
+          const aStartDate = new Date(a.startDate).getTime()
+          const bStartDate = new Date(b.startDate).getTime()
+          comparison = aStartDate - bStartDate
+          break
+        case 'endDate':
+          const aEndDate = new Date(a.endDate).getTime()
+          const bEndDate = new Date(b.endDate).getTime()
+          comparison = aEndDate - bEndDate
+          break
+        case 'progress':
+          comparison = b.progress - a.progress // Higher progress first
+          break
+      }
 
-        return hexStakesSortDirection === 'asc' ? comparison : -comparison
-      })
-  }, [hexStakes, selectedAddressIds, addresses, chainFilter, getTokenPrice, hexStakesSortField, hexStakesSortDirection, removedAddressIds])
+      // Secondary sort by amount if primary sort yields equal values
+      if (comparison === 0 && hexStakesSortField !== 'amount') {
+        const aValue = getStakeValue(a)
+        const bValue = getStakeValue(b)
+        comparison = bValue - aValue
+      }
+
+      return hexStakesSortDirection === 'asc' ? comparison : -comparison
+    })
+  }, [hexStakes, selectedAddressIds, addresses, chainFilter, getTokenPrice, hexStakesSortField, hexStakesSortDirection, removedAddressIds, stakeStatusFilter])
+
+  // Always show all possible status types regardless of data
+  const availableStatuses = useMemo(() => {
+    const allPossibleStatuses = ['active', 'inactive']
+    console.log('[HEX Stakes Debug] Showing all possible statuses:', allPossibleStatuses)
+    return allPossibleStatuses
+  }, [])
+
+  // Debug: Log section visibility conditions
+  useEffect(() => {
+    console.log('[HEX Stakes Debug] Section visibility check:', {
+      hasAddresses: effectiveAddresses.length > 0,
+      showHexStakes: showHexStakes,
+      hasStakes: hasStakes,
+      hexStakesLength: hexStakes?.length || 0,
+      filteredStakesLength: filteredHexStakes.length
+    })
+  }, [effectiveAddresses.length, showHexStakes, hasStakes, hexStakes?.length, filteredHexStakes.length])
+
+  // Reset displayed stakes count when filters change
+  useEffect(() => {
+    setDisplayedStakesCount(20)
+  }, [chainFilter, selectedAddressIds, hexStakesSortField, hexStakesSortDirection])
 
   // Memoized sorted tokens to prevent re-sorting on every render
   const sortedTokens = useMemo(() => {
@@ -1678,14 +1897,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             <>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/10 transition-transform cursor-pointer mb-0 rounded-lg">
+              <button className="w-8 h-8 flex items-center justify-center border-1 border-white/20 hover:bg-white/5 hover:shadow-lg transition-all duration-300 cursor-pointer mb-0 rounded-lg">
                 {leagueInfo.icon && (
                   <Image
                     src={leagueInfo.icon}
                     alt={leagueInfo.league}
                     width={20}
                     height={20}
-                    className="object-contain"
+                    className="object-contain hover:brightness-150 hover:contrast-125 hover:saturate-150 transition-all duration-300 hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]"
                   />
                 )}
               </button>
@@ -1693,16 +1912,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg">
               <div className="p-4">
                 {isDialogOpen && (
-                  <LeagueTable 
+                <LeagueTable 
                     tokenTicker={stableDialogProps.tokenTicker} 
-                    containerStyle={false}
-                    showLeagueNames={true}
+                  containerStyle={false}
+                  showLeagueNames={true}
                     preloadedSupply={stableDialogProps.preloadedSupply}
-                    preloadedPrices={prices}
+                  preloadedPrices={prices}
                     supplyDeduction={stableDialogProps.supplyDeduction}
                     userBalance={stableDialogProps.userBalance}
                     userTShares={stableDialogProps.userTShares}
-                  />
+                />
                 )}
               </div>
             </DialogContent>
@@ -1790,29 +2009,50 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Create sorted addresses for filter buttons (primary: label name, secondary: value)
   const sortedAddressesForFilters = useMemo(() => {
-    if (!effectiveAddresses.length) return []
+    // Use displayAddresses instead of effectiveAddresses to include pending addresses with labels
+    const addressesToSort = detectiveMode ? effectiveAddresses : displayAddresses
+    console.log('[Portfolio] sortedAddressesForFilters - Debug:', {
+      detectiveMode,
+      selectedAddressIds: selectedAddressIds,
+      selectedCount: selectedAddressIds.length,
+      addressesToSort: addressesToSort?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || [],
+      effectiveAddresses: effectiveAddresses?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || [],
+      displayAddresses: displayAddresses?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || [],
+      addresses: addresses?.length || 0,
+      pendingAddresses: pendingAddresses?.length || 0
+    })
+    if (!addressesToSort.length) return []
     
-    // Get address values for secondary sorting
+    // Get address values for secondary sorting - use ALL balances, not filtered ones
+    // This ensures stable sorting regardless of current filter state
     const addressValueMap = new Map<string, number>()
-    if (filteredBalances && Array.isArray(filteredBalances)) {
-      filteredBalances.forEach(addressData => {
+    if (balances && Array.isArray(balances)) {
+      balances.forEach(addressData => {
         let addressValue = 0
         
         // Add native token value
         const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
-        addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+        const nativeValue = addressData.nativeBalance.balanceFormatted * nativePrice
+        addressValue += nativeValue
+        console.log(`[Portfolio] ${addressData.address.slice(0, 8)}... native ${addressData.nativeBalance.symbol}: ${addressData.nativeBalance.balanceFormatted.toFixed(4)} @ $${nativePrice.toFixed(4)} = $${nativeValue.toFixed(2)}`)
         
         // Add token values
         addressData.tokenBalances?.forEach(token => {
           const tokenPrice = getTokenPrice(token.symbol)
-          addressValue += token.balanceFormatted * tokenPrice
+          const tokenValue = token.balanceFormatted * tokenPrice
+          addressValue += tokenValue
+          if (tokenValue > 0.01) { // Only log significant values
+            console.log(`[Portfolio] ${addressData.address.slice(0, 8)}... token ${token.symbol}: ${token.balanceFormatted.toFixed(4)} @ $${tokenPrice.toFixed(4)} = $${tokenValue.toFixed(2)}`)
+          }
         })
         
+        // Debug log address values for sorting
+        console.log(`[Portfolio] Address ${addressData.address.slice(0, 8)}... value: $${addressValue.toFixed(2)}`)
         addressValueMap.set(addressData.address, addressValue)
       })
     }
     
-    return [...effectiveAddresses].sort((a, b) => {
+    return [...addressesToSort].sort((a, b) => {
       const aHasCustomName = !!a.label
       const bHasCustomName = !!b.label
       
@@ -1861,8 +2101,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       if (!aHasCustomName && bHasCustomName) return 1
       
       return 0 // Should never reach here
+    }).map((addr, index) => {
+      // Debug log the final sorted order
+      const hasLabel = !!addr.label
+      const value = addressValueMap.get(addr.address) || 0
+      console.log(`[Portfolio] Sorted address ${index + 1}: ${addr.address.slice(0, 8)}... (${hasLabel ? `"${addr.label}"` : 'no label'}) - $${value.toFixed(2)}`)
+      return addr
     })
-  }, [effectiveAddresses, filteredBalances, getTokenPrice, formatAddress])
+  }, [detectiveMode, effectiveAddresses, displayAddresses, balances, getTokenPrice])
 
   // Calculate total USD value from ALL addresses combined (or filtered by selected address)
   const { totalUsdValue, addressValues } = useMemo(() => {
@@ -1907,9 +2153,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       totalValue += validatorValue
     }
 
-    // Add HEX stakes value if enabled
-    if (showHexStakes) {
-      const hexStakesValue = filteredHexStakes.reduce((total, stake) => {
+    // Add HEX stakes value if enabled (ONLY ACTIVE STAKES)
+    if (showHexStakes && hexStakes) {
+      // Always calculate active stakes value regardless of filter
+      const activeStakes = hexStakes.filter(stake => stake.status === 'active')
+      const hexStakesValue = activeStakes.reduce((total, stake) => {
         const stakeHex = stake.principleHex + stake.yieldHex
         // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
         const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
@@ -1919,7 +2167,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, filteredHexStakes])
+  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes])
 
   // Calculate 24h portfolio change percentage
   const portfolio24hChange = useMemo(() => {
@@ -2007,9 +2255,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       previousTotalValue += validatorPrevValue
     }
 
-    // Add HEX stakes value if enabled
-    if (showHexStakes && filteredHexStakes) {
-      filteredHexStakes.forEach(stake => {
+    // Add HEX stakes value if enabled (ONLY ACTIVE STAKES)
+    if (showHexStakes && hexStakes) {
+      // Always calculate active stakes value regardless of filter
+      const activeStakes = hexStakes.filter(stake => stake.status === 'active')
+      activeStakes.forEach(stake => {
         const stakeHex = stake.principleHex + stake.yieldHex
         // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
         const hexSymbol = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
@@ -2032,7 +2282,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     // Calculate percentage change
     if (previousTotalValue === 0) return 0
     return ((currentTotalValue - previousTotalValue) / previousTotalValue) * 100
-  }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, filteredHexStakes])
+  }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes])
 
   // Comprehensive loading state - wait for relevant data to be ready
   // Once ready, stay ready (don't hide UI during price updates)
@@ -2050,13 +2300,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                              typeof portfolio24hChange === 'number' // Ensure portfolio change has been calculated
     
     // Check if HEX stakes calculations are complete (if HEX stakes are enabled)
+    // More robust check: ensure we're not loading AND have valid stake data structure
     const hexStakesCalculationsReady = !showHexStakes || (
       !hexStakesLoading && 
       Array.isArray(filteredHexStakes) && 
+      // Either no stakes found (valid result) OR all stakes have required properties
       (filteredHexStakes.length === 0 || filteredHexStakes.every(stake => 
+        stake && 
         typeof stake.progress === 'number' && 
         typeof stake.principleHex === 'number' && 
-        typeof stake.yieldHex === 'number'
+        typeof stake.yieldHex === 'number' &&
+        typeof stake.tShares === 'number' &&
+        typeof stake.address === 'string'
       ))
     )
     
@@ -2080,7 +2335,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
     
     // After initial load, stay ready as long as we have data and calculations
-    return hasInitialData && hasCalculatedData
+    // For subsequent loads (like adding new addresses), ensure HEX stakes are also ready
+    return hasInitialData && hasCalculatedData && hexStakesCalculationsReady
   }, [
     effectiveAddresses.length,
     balancesLoading,
@@ -2096,6 +2352,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     isInitialLoad,
     showHexStakes,
     filteredHexStakes,
+    filteredHexStakes?.length, // Add explicit dependency on stakes length
     includePooledStakes,
     pooledStakesData.totalTShares,
     pooledStakesData.totalValue,
@@ -2125,11 +2382,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     balancesLoading,
     pricesLoading,
     maxiLoading,
+    hexStakesLoading,
     hasBalancesError: !!balancesError,
     hasMaxiError: !!maxiError,
     hasBalances: balances && balances.length > 0,
     hasPrices: prices && Object.keys(prices).length > 0,
     hasMaxiData: maxiData && Object.keys(maxiData).length > 0,
+    hexStakesCount: filteredHexStakes?.length || 0,
+    showHexStakes,
+    hexStakesError,
+    allAddressStrings,
     isEverythingReady
   })
 
@@ -2204,6 +2466,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             <div className="text-gray-400">{detectiveMode ? 'Loading address data...' : 'Loading Portfolio data...'}</div>
           </div>
         </div>
+
       </div>
     );
   }
@@ -2795,7 +3058,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       )}
 
       {/* HEX Stakes Section */}
-      {effectiveAddresses.length > 0 && isEverythingReady && showHexStakes && filteredHexStakes.length > 0 && (
+      {effectiveAddresses.length > 0 && isEverythingReady && showHexStakes && hasStakes && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -2808,11 +3071,48 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           } : {})}
           className="max-w-[860px] w-full my-6"
         >
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
-            <h3 className="text-xl font-semibold text-white">HEX Stakes</h3>
+          <div className="flex items-center mb-4 flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <h3 className="text-xl font-semibold text-white">HEX Stakes</h3>
+              {/* Status Filter Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className={`px-3 py-1 rounded-full text-xs font-medium focus:outline-none min-w-[70px] flex items-center justify-center gap-1 ${
+                    stakeStatusFilter === 'inactive' 
+                      ? 'bg-white/10 border border-white/20 hover:border-white/40 text-zinc-400' 
+                      : 'bg-green-400/10 border border-green-400 text-green-400'
+                  }`}>
+                    {stakeStatusFilter === 'inactive' ? 'Ended' : 'Active'}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="min-w-[10px] p-2">
+                  <DropdownMenuRadioGroup 
+                    value={stakeStatusFilter} 
+                    onValueChange={(value) => setStakeStatusFilter(value as 'active' | 'inactive')}
+                  >
+                    {availableStatuses.map((status) => (
+                      <DropdownMenuRadioItem
+                        key={status}
+                        value={status}
+                        className={`text-white hover:bg-white/10 focus:bg-white/10 [&_svg]:hidden p-1 m-0 ${
+                          status === 'active' ? 'text-green-400' 
+                          : status === 'inactive' ? 'text-zinc-400'
+                          : 'text-blue-400'
+                        }`}
+                      >
+                        <div className="w-full px-4 py-1">
+                          {status === 'inactive' ? 'Ended' : status.charAt(0).toUpperCase() + status.slice(1)}
+                        </div>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             
-            {/* Sort buttons and Advanced stats button */}
-            <div className="flex gap-2 flex-wrap items-center">
+            {/* Sort buttons */}
+            <div className="flex items-center gap-2 ml-auto">
               {[
                 { field: 'amount' as const, label: 'Amount' },
                 { field: 'progress' as const, label: 'Progress' },
@@ -2839,22 +3139,24 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 </button>
               ))}
               
-              {/* Advanced stats button */}
-              <button 
-                onClick={() => setShowAdvancedStats(!showAdvancedStats)}
-                className="flex items-center gap-1 px-3 py-1 text-gray-400 hover:text-white transition-colors text-xs rounded-full"
-              >
-                <span>More stats</span>
-                <Icons.chevronDown
-                  size={12} 
-                  className={`transition-transform duration-200 ${showAdvancedStats ? '' : 'rotate-180'}`}
-                />
-              </button>
+              {/* Advanced stats button - Only show for active stakes */}
+              {stakeStatusFilter === 'active' && (
+                <button 
+                  onClick={() => setShowAdvancedStats(!showAdvancedStats)}
+                  className="flex items-center gap-1 px-3 py-1 text-gray-400 hover:text-white transition-colors text-xs rounded-full"
+                >
+                  <span>More stats</span>
+                  <Icons.chevronDown
+                    size={12} 
+                    className={`transition-transform duration-200 ${showAdvancedStats ? '' : 'rotate-180'}`}
+                  />
+                </button>
+              )}
             </div>
           </div>
           
-          {/* Advanced Stats Section */}
-          {showAdvancedStats && (
+          {/* Advanced Stats Section - Only show for active stakes */}
+          {showAdvancedStats && stakeStatusFilter === 'active' && (
             <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-lg">
               {(() => {
                 // Calculate total liquid HEX and eHEX
@@ -2869,8 +3171,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   return acc
                 }, { hexAmount: 0, hexValue: 0, eHexAmount: 0, eHexValue: 0 })
 
-                // Calculate total staked HEX
-                const stakedHexStats = filteredHexStakes.reduce((acc, stake) => {
+                // Calculate total staked HEX (ONLY ACTIVE STAKES)
+                const stakedHexStats = filteredHexStakes
+                  .filter(stake => stake.status === 'active')
+                  .reduce((acc, stake) => {
                   const stakeHex = stake.principleHex + stake.yieldHex
                   if (stake.chain === 'ETH') {
                     acc.eHexAmount += stakeHex
@@ -2952,8 +3256,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </div>
                       <div className="text-xs text-gray-400 space-y-1">
                         {(() => {
-                          // Calculate solo stakes only for display breakdown
-                          const soloStakedStats = filteredHexStakes.reduce((acc, stake) => {
+                          // Calculate solo stakes only for display breakdown (ONLY ACTIVE STAKES)
+                          const activeStakesForStats = filteredHexStakes.filter(stake => stake.status === 'active')
+                          const soloStakedStats = activeStakesForStats.reduce((acc, stake) => {
                             const stakeHex = stake.principleHex + stake.yieldHex
                             if (stake.chain === 'ETH') {
                               acc.eHexAmount += stakeHex
@@ -2999,86 +3304,165 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           {includePooledStakes ? (
             <>
               {/* Combined Total HEX Stakes + Pooled Stakes Value */}
-          <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center mb-6">
-                {(() => {
-                  // Solo stakes calculations
-                  const soloHexValue = filteredHexStakes.reduce((total, stake) => {
-                    const stakeHex = stake.principleHex + stake.yieldHex
-                    const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-                    return total + (stakeHex * hexPrice)
-                  }, 0)
-                  
-                  const soloTShares = filteredHexStakes.reduce((total, stake) => total + stake.tShares, 0)
-                  const soloHexAmount = filteredHexStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
-                  
-                  // Combined totals
-                  const combinedValue = soloHexValue + pooledStakesData.totalValue
-                  const combinedTShares = soloTShares + pooledStakesData.totalTShares
-                  const combinedHexAmount = soloHexAmount + (pooledStakesData.totalHex || 0)
-                  
-                  // Calculate weighted average length for combined stakes
-                  const soloWeightedLength = soloTShares > 0 ? filteredHexStakes.reduce((sum, stake) => {
-                    const startDate = new Date(stake.startDate)
-                    const endDate = new Date(stake.endDate)
-                    const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-                    return sum + (totalDays * stake.tShares)
-                  }, 0) : 0
-                  
-                  const pooledWeightedLength = (pooledStakesData.avgStakeLength || 0) * pooledStakesData.totalTShares
-                  const combinedAvgLength = combinedTShares > 0 ? (soloWeightedLength + pooledWeightedLength) / combinedTShares : 0
-                  
-                  // Calculate weighted price change
-                  const { totalValue, weightedPriceChange } = filteredHexStakes.reduce((acc, stake) => {
-                    const stakeHex = stake.principleHex + stake.yieldHex
-                    const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-                    const stakeValue = stakeHex * hexPrice
-                    const priceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
-                    const change = priceData?.priceChange?.h24 || 0
+              {stakeStatusFilter === 'active' && (
+                <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center mb-6">
+                  {(() => {
+                    // Solo stakes calculations (ONLY ACTIVE STAKES)
+                    const activeStakes = filteredHexStakes.filter(stake => stake.status === 'active')
+                    const soloHexValue = activeStakes.reduce((total, stake) => {
+                      const stakeHex = stake.principleHex + stake.yieldHex
+                      const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+                      return total + (stakeHex * hexPrice)
+                    }, 0)
                     
-                    return {
-                      totalValue: acc.totalValue + stakeValue,
-                      weightedPriceChange: acc.weightedPriceChange + (change * stakeValue)
+                    const soloTShares = activeStakes.reduce((total, stake) => total + stake.tShares, 0)
+                    const soloHexAmount = activeStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
+                    
+                    // Combined totals
+                    const combinedValue = soloHexValue + pooledStakesData.totalValue
+                    const combinedTShares = soloTShares + pooledStakesData.totalTShares
+                    const combinedHexAmount = soloHexAmount + (pooledStakesData.totalHex || 0)
+                    
+                    // Calculate weighted average length for combined stakes (ONLY ACTIVE STAKES)
+                    const soloWeightedLength = soloTShares > 0 ? activeStakes.reduce((sum, stake) => {
+                      const startDate = new Date(stake.startDate)
+                      const endDate = new Date(stake.endDate)
+                      const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                      return sum + (totalDays * stake.tShares)
+                    }, 0) : 0
+                    
+                    const pooledWeightedLength = (pooledStakesData.avgStakeLength || 0) * pooledStakesData.totalTShares
+                    const combinedAvgLength = combinedTShares > 0 ? (soloWeightedLength + pooledWeightedLength) / combinedTShares : 0
+                    
+                    // Calculate weighted price change (ONLY ACTIVE STAKES)
+                    const { totalValue, weightedPriceChange } = activeStakes.reduce((acc, stake) => {
+                      const stakeHex = stake.principleHex + stake.yieldHex
+                      const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+                      const stakeValue = stakeHex * hexPrice
+                      const priceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
+                      const change = priceData?.priceChange?.h24 || 0
+                      
+                      return {
+                        totalValue: acc.totalValue + stakeValue,
+                        weightedPriceChange: acc.weightedPriceChange + (change * stakeValue)
+                      }
+                    }, { totalValue: 0, weightedPriceChange: 0 })
+                    
+                    const priceChange24h = totalValue > 0 ? weightedPriceChange / totalValue : 0
+                    
+                    // Calculate league for combined T-shares using actual chain data
+                    const getHexStakesLeague = (tShares: number, hexDailyData: any) => {
+                      const OA_TSHARES_PLS = 35482068
+                      const OA_TSHARES_ETH = 35155727
+                      
+                      let totalHexTShares = 37_000_000 // fallback
+                      
+                      if (hexDailyData) {
+                        if (chainFilter === 'ethereum') {
+                          const ethLatestDay = hexDailyData.dailyPayouts?.ETH?.[hexDailyData.dailyPayouts.ETH.length - 1]
+                          totalHexTShares = ethLatestDay ? (parseFloat(ethLatestDay.shares) / 1000000000000) - OA_TSHARES_ETH : 37_000_000
+                        } else if (chainFilter === 'pulsechain') {
+                          const plsLatestDay = hexDailyData.dailyPayouts?.PLS?.[hexDailyData.dailyPayouts.PLS.length - 1]
+                          totalHexTShares = plsLatestDay ? (parseFloat(plsLatestDay.shares) / 1000000000000) - OA_TSHARES_PLS : 37_000_000
+                        } else {
+                          // For 'both', use combined total minus both OA amounts
+                          const ethLatestDay = hexDailyData.dailyPayouts?.ETH?.[hexDailyData.dailyPayouts.ETH.length - 1]
+                          const plsLatestDay = hexDailyData.dailyPayouts?.PLS?.[hexDailyData.dailyPayouts.PLS.length - 1]
+                          const ethTShares = ethLatestDay ? (parseFloat(ethLatestDay.shares) / 1000000000000) - OA_TSHARES_ETH : 0
+                          const plsTShares = plsLatestDay ? (parseFloat(plsLatestDay.shares) / 1000000000000) - OA_TSHARES_PLS : 0
+                          totalHexTShares = ethTShares + plsTShares || 37_000_000
+                        }
+                      }
+                      
+                      const percentage = (tShares / totalHexTShares) * 100
+                      
+                      if (percentage >= 10) return { league: 'Poseidon', icon: '/other-images/poseidon.png' }
+                      if (percentage >= 1) return { league: 'Whale', icon: '/other-images/whale.png' }
+                      if (percentage >= 0.1) return { league: 'Shark', icon: '/other-images/shark.png' }
+                      if (percentage >= 0.01) return { league: 'Dolphin', icon: '/other-images/dolphin.png' }
+                      if (percentage >= 0.001) return { league: 'Squid', icon: '/other-images/squid.png' }
+                      if (percentage >= 0.0001) return { league: 'Turtle', icon: '/other-images/turtle.png' }
+                      if (percentage >= 0.00001) return { league: 'Crab', icon: '/other-images/crab.png' }
+                      if (percentage >= 0.000001) return { league: 'Shrimp', icon: '/other-images/shrimp.png' }
+                      return { league: 'Shell', icon: '/other-images/shell.png' }
                     }
-                  }, { totalValue: 0, weightedPriceChange: 0 })
-                  
-                  const priceChange24h = totalValue > 0 ? weightedPriceChange / totalValue : 0
-                  
-                  // Calculate league for combined T-shares
-                  const getHexStakesLeague = (tShares: number) => {
-                    // Total T-shares in HEX ecosystem (approximate - this could be made dynamic)
-                    const totalHexTShares = 37_000_000 // This is an approximation, could be fetched from API
-                    const percentage = (tShares / totalHexTShares) * 100
                     
-                    if (percentage >= 10) return { league: 'Poseidon', icon: '/other-images/poseidon.png' }
-                    if (percentage >= 1) return { league: 'Whale', icon: '/other-images/whale.png' }
-                    if (percentage >= 0.1) return { league: 'Shark', icon: '/other-images/shark.png' }
-                    if (percentage >= 0.01) return { league: 'Dolphin', icon: '/other-images/dolphin.png' }
-                    if (percentage >= 0.001) return { league: 'Squid', icon: '/other-images/squid.png' }
-                    if (percentage >= 0.0001) return { league: 'Turtle', icon: '/other-images/turtle.png' }
-                    if (percentage >= 0.00001) return { league: 'Crab', icon: '/other-images/crab.png' }
-                    if (percentage >= 0.000001) return { league: 'Shrimp', icon: '/other-images/shrimp.png' }
-                    return { league: 'Shell', icon: '/other-images/shell.png' }
-                  }
-                  
-                  const hexLeague = getHexStakesLeague(combinedTShares)
-                  const totalHexTShares = 37_000_000 // Total T-shares approximation
-                  const tSharePercentage = (combinedTShares / totalHexTShares) * 100
-                  
-                  return (
-                    <>
-                      <div className="flex items-center justify-center gap-3 mb-2">
-                        <div className="text-lg font-semibold text-white">All Stakes</div>
-                      </div>
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="text-4xl font-bold text-white">
-                            <span className="sm:hidden">${formatBalanceMobile(combinedValue)}</span>
-                            <span className="hidden sm:inline">${formatBalance(combinedValue)}</span>
-                          </div>
-                          <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
-                            {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
-                          </div>
+                    const hexLeague = getHexStakesLeague(combinedTShares, hexDailyData)
+                    const totalHexTShares = (() => {
+                      const OA_TSHARES_PLS = 35482068
+                      const OA_TSHARES_ETH = 35155727
+                      
+                      if (hexDailyData) {
+                        if (chainFilter === 'ethereum') {
+                          const ethLatestDay = hexDailyData.dailyPayouts?.ETH?.[hexDailyData.dailyPayouts.ETH.length - 1]
+                          return ethLatestDay ? (parseFloat(ethLatestDay.shares) / 1000000000000) - OA_TSHARES_ETH : 37_000_000
+                        } else if (chainFilter === 'pulsechain') {
+                          const plsLatestDay = hexDailyData.dailyPayouts?.PLS?.[hexDailyData.dailyPayouts.PLS.length - 1]
+                          return plsLatestDay ? (parseFloat(plsLatestDay.shares) / 1000000000000) - OA_TSHARES_PLS : 37_000_000
+                        }
+                      }
+                      return 37_000_000
+                    })()
+                    const tSharePercentage = (combinedTShares / totalHexTShares) * 100
+                    
+                    return (
+                      <>
+                        <div className="flex items-center justify-center gap-3 mb-2">
+                          <div className="text-lg font-semibold text-white">Total</div>
                         </div>
-                                              <div className="text-sm text-gray-400 mt-1">
+                          <div className="flex items-center justify-center gap-2">
+                            {/* Show league icon only when specific chain is selected */}
+                            {chainFilter !== 'both' && combinedTShares > 0 && (
+                              <>
+                                <div 
+                                  className="relative z-10 cursor-pointer hover:bg-white/5 hover:shadow-lg transition-all duration-300 mr-2 p-1 rounded-lg"
+                                  onClick={() => setLeagueDialogOpen(true)}
+                                >
+                                  <Image
+                                    src={hexLeague.icon}
+                                    alt={hexLeague.league}
+                                    width={22}
+                                    height={22}
+                                    className="object-contain hover:brightness-150 hover:contrast-125 hover:saturate-150 transition-all duration-300 hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+                                  />
+                                </div>
+                                <Dialog open={leagueDialogOpen} onOpenChange={setLeagueDialogOpen}>
+                                  <DialogContent className="w-full max-w-[360px] sm:max-w-lg max-h-[80vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto scrollbar-hide">
+                                    <div className="p-2">
+                                      <TSharesLeagueTable 
+                                        userTShares={combinedTShares}
+                                        totalTShares={(() => {
+                                          const OA_TSHARES_PLS = 35482068
+                                          const OA_TSHARES_ETH = 35155727
+                                          
+                                          if (hexDailyData) {
+                                            if (chainFilter === 'ethereum') {
+                                              const ethLatestDay = hexDailyData.dailyPayouts?.ETH?.[hexDailyData.dailyPayouts.ETH.length - 1]
+                                              return ethLatestDay ? (parseFloat(ethLatestDay.shares) / 1000000000000) - OA_TSHARES_ETH : 37_000_000
+                                            } else if (chainFilter === 'pulsechain') {
+                                              const plsLatestDay = hexDailyData.dailyPayouts?.PLS?.[hexDailyData.dailyPayouts.PLS.length - 1]
+                                              return plsLatestDay ? (parseFloat(plsLatestDay.shares) / 1000000000000) - OA_TSHARES_PLS : 37_000_000
+                                            }
+                                          }
+                                          return 37_000_000
+                                        })()}
+                                        chainName={chainFilter === 'ethereum' ? 'Ethereum' : 'PulseChain'}
+                                        hexPrice={chainFilter === 'ethereum' ? getTokenPrice('eHEX') : getTokenPrice('HEX')}
+                                      />
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </>
+                            )}
+                            <div className="text-4xl font-bold text-white">
+                              <span className="sm:hidden">${formatBalanceMobile(combinedValue)}</span>
+                              <span className="hidden sm:inline">${formatBalance(combinedValue)}</span>
+                            </div>
+                            <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
+                              {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
+                            </div>
+                          </div>
+                                    <div className="text-sm text-gray-400 mt-1">
                           {combinedHexAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} HEX • {combinedTShares >= 100 
                             ? combinedTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                             : combinedTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -3091,159 +3475,251 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             </>
                           )}
                         </div>
-                    </>
-                  )
-                })()}
-              </div>
-
-              {/* Split View: Solo and Pooled Stakes */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {/* Solo Stakes Card */}
-                <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center">
-                      {(() => {
-            const totalHexValue = filteredHexStakes.reduce((total, stake) => {
-              const stakeHex = stake.principleHex + stake.yieldHex
-              const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-              return total + (stakeHex * hexPrice)
-            }, 0)
-              
-                    const totalTShares = filteredHexStakes.reduce((total, stake) => total + stake.tShares, 0)
-                    
-                    const weightedStakeLength = totalTShares > 0 ? filteredHexStakes.reduce((sum, stake) => {
-                      const startDate = new Date(stake.startDate)
-                      const endDate = new Date(stake.endDate)
-                      const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-                      return sum + (totalDays * stake.tShares)
-                    }, 0) / totalTShares : 0
-                    
-                    const weightedAPY = totalTShares > 0 ? filteredHexStakes.reduce((sum, stake) => {
-                      const startDate = new Date(stake.startDate)
-                      const now = new Date()
-                      const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
-                      const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
-                      return sum + (apy * stake.tShares)
-                    }, 0) / totalTShares : 0
-                    
-                    return (
-                      <>
-                        <div className="text-lg font-semibold text-white mb-2">Solo Stakes</div>
-                        <div className="text-2xl font-bold text-white mb-2">
-                          <span className="sm:hidden">${formatBalanceMobile(totalHexValue)}</span>
-                          <span className="hidden sm:inline">${formatBalance(totalHexValue)}</span>
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          {filteredHexStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0).toLocaleString()} HEX across {filteredHexStakes.length} stake{filteredHexStakes.length !== 1 ? 's' : ''}
-                        </div>
-                        <div className="text-sm text-gray-400 mt-1">
-                          {totalTShares >= 100 
-                            ? totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                            : totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          } T-Shares{totalTShares > 0 && (
-                            <>
-                              <br />
-                              {(weightedStakeLength / 365).toFixed(1)} year avg • {weightedAPY.toFixed(1)}% APY
-                            </>
-                          )}
-                        </div>
                       </>
                     )
                   })()}
                 </div>
+              )}
 
-                {/* Pooled Stakes Card */}
-                <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center">
-                  <div className="text-lg font-semibold text-white mb-2">Pooled Stakes</div>
-                  <div className="text-2xl font-bold text-white mb-2">
-                    <span className="sm:hidden">${formatBalanceMobile(pooledStakesData.totalValue)}</span>
-                    <span className="hidden sm:inline">${formatBalance(pooledStakesData.totalValue)}</span>
+              {/* Split View: Solo and Pooled Stakes */}
+              {stakeStatusFilter === 'active' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {/* Solo Stakes Card */}
+                  <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center">
+                        {(() => {
+              const activeSoloStakes = filteredHexStakes.filter(stake => stake.status === 'active')
+              const totalHexValue = activeSoloStakes.reduce((total, stake) => {
+                const stakeHex = stake.principleHex + stake.yieldHex
+                const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+                return total + (stakeHex * hexPrice)
+              }, 0)
+                
+                      const totalTShares = activeSoloStakes.reduce((total, stake) => total + stake.tShares, 0)
+                      
+                      const weightedStakeLength = totalTShares > 0 ? activeSoloStakes.reduce((sum, stake) => {
+                        const startDate = new Date(stake.startDate)
+                        const endDate = new Date(stake.endDate)
+                        const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                        return sum + (totalDays * stake.tShares)
+                      }, 0) / totalTShares : 0
+                      
+                      const weightedAPY = totalTShares > 0 ? activeSoloStakes.reduce((sum, stake) => {
+                        const startDate = new Date(stake.startDate)
+                        const now = new Date()
+                        const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+                        const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                        return sum + (apy * stake.tShares)
+                      }, 0) / totalTShares : 0
+                      
+                      return (
+                        <>
+                          <div className="text-lg font-semibold text-white mb-2">Solo Stakes</div>
+                          <div className="text-2xl font-bold text-white mb-2">
+                            <span className="sm:hidden">${formatBalanceMobile(totalHexValue)}</span>
+                            <span className="hidden sm:inline">${formatBalance(totalHexValue)}</span>
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {activeSoloStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0).toLocaleString()} HEX across {activeSoloStakes.length} stake{activeSoloStakes.length !== 1 ? 's' : ''}
+                          </div>
+                          <div className="text-sm text-gray-400 mt-1">
+                            {totalTShares >= 100 
+                              ? totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                              : totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            } T-Shares{totalTShares > 0 && (
+                              <>
+                                <br />
+                                {(weightedStakeLength / 365).toFixed(1)} year avg • {weightedAPY.toFixed(1)}% APY
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )
+                    })()}
                   </div>
-                  <div className="text-sm text-gray-400">
-                    {pooledStakesData.totalHex ? pooledStakesData.totalHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'} HEX across {pooledStakesData.tokens.length} token{pooledStakesData.tokens.length !== 1 ? 's' : ''}
-                  </div>
-                  <div className="text-sm text-gray-400 mt-1">
-                    {pooledStakesData.totalTShares >= 100 
-                      ? pooledStakesData.totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                      : pooledStakesData.totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    } T-Shares{pooledStakesData.totalTShares > 0 && (pooledStakesData.avgStakeLength || 0) > 0 && (
-                      <>
-                        <br />
-                        {((pooledStakesData.avgStakeLength || 0) / 365).toFixed(1)} year avg • {(pooledStakesData.avgAPY || 0).toFixed(1)}% APY
-                      </>
-                    )}
+
+                  {/* Pooled Stakes Card */}
+                  <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center">
+                    <div className="text-lg font-semibold text-white mb-2">Pooled Stakes</div>
+                    <div className="text-2xl font-bold text-white mb-2">
+                      <span className="sm:hidden">${formatBalanceMobile(pooledStakesData.totalValue)}</span>
+                      <span className="hidden sm:inline">${formatBalance(pooledStakesData.totalValue)}</span>
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      {pooledStakesData.totalHex ? pooledStakesData.totalHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'} HEX across {pooledStakesData.tokens.length} token{pooledStakesData.tokens.length !== 1 ? 's' : ''}
+                    </div>
+                    <div className="text-sm text-gray-400 mt-1">
+                      {pooledStakesData.totalTShares >= 100 
+                        ? pooledStakesData.totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                        : pooledStakesData.totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      } T-Shares{pooledStakesData.totalTShares > 0 && (pooledStakesData.avgStakeLength || 0) > 0 && (
+                        <>
+                          <br />
+                          {((pooledStakesData.avgStakeLength || 0) / 365).toFixed(1)} year avg • {(pooledStakesData.avgAPY || 0).toFixed(1)}% APY
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </>
           ) : (
             /* Original Solo Stakes Only Card */
-            <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center mb-6">
-              {(() => {
-                const totalHexValue = filteredHexStakes.reduce((total, stake) => {
+            stakeStatusFilter === 'active' && (
+              <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center mb-6">
+                {(() => {
+                  const activeStakesOnly = filteredHexStakes.filter(stake => stake.status === 'active')
+                  const totalHexValue = activeStakesOnly.reduce((total, stake) => {
+                    const stakeHex = stake.principleHex + stake.yieldHex
+                    const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+                    return total + (stakeHex * hexPrice)
+                  }, 0)
+                    
+                const { totalValue, weightedPriceChange } = activeStakesOnly.reduce((acc, stake) => {
                   const stakeHex = stake.principleHex + stake.yieldHex
                   const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-                  return total + (stakeHex * hexPrice)
-                }, 0)
+                  const stakeValue = stakeHex * hexPrice
+                  const priceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
+                  const change = priceData?.priceChange?.h24 || 0
                   
-              const { totalValue, weightedPriceChange } = filteredHexStakes.reduce((acc, stake) => {
-                const stakeHex = stake.principleHex + stake.yieldHex
-                const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-                const stakeValue = stakeHex * hexPrice
-                const priceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
-                const change = priceData?.priceChange?.h24 || 0
+                  return {
+                    totalValue: acc.totalValue + stakeValue,
+                    weightedPriceChange: acc.weightedPriceChange + (change * stakeValue)
+                  }
+                }, { totalValue: 0, weightedPriceChange: 0 })
                 
-                return {
-                  totalValue: acc.totalValue + stakeValue,
-                  weightedPriceChange: acc.weightedPriceChange + (change * stakeValue)
-                }
-              }, { totalValue: 0, weightedPriceChange: 0 })
-              
-              const priceChange24h = totalValue > 0 ? weightedPriceChange / totalValue : 0
-              
-              const totalTShares = filteredHexStakes.reduce((total, stake) => total + stake.tShares, 0)
-              
-                const weightedStakeLength = totalTShares > 0 ? filteredHexStakes.reduce((sum, stake) => {
-                const startDate = new Date(stake.startDate)
-                const endDate = new Date(stake.endDate)
-                const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-                return sum + (totalDays * stake.tShares)
-                }, 0) / totalTShares : 0
-              
-                const weightedAPY = totalTShares > 0 ? filteredHexStakes.reduce((sum, stake) => {
-                const startDate = new Date(stake.startDate)
-                const now = new Date()
-                const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
-                const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
-                return sum + (apy * stake.tShares)
-                }, 0) / totalTShares : 0
-              
-              return (
-                <>
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="text-4xl font-bold text-white">
-                      <span className="sm:hidden">${formatBalanceMobile(totalHexValue)}</span>
-                      <span className="hidden sm:inline">${formatBalance(totalHexValue)}</span>
+                const priceChange24h = totalValue > 0 ? weightedPriceChange / totalValue : 0
+                
+                const totalTShares = activeStakesOnly.reduce((total, stake) => total + stake.tShares, 0)
+                
+                  const weightedStakeLength = totalTShares > 0 ? activeStakesOnly.reduce((sum, stake) => {
+                  const startDate = new Date(stake.startDate)
+                  const endDate = new Date(stake.endDate)
+                  const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                  return sum + (totalDays * stake.tShares)
+                  }, 0) / totalTShares : 0
+                
+                  const weightedAPY = totalTShares > 0 ? activeStakesOnly.reduce((sum, stake) => {
+                  const startDate = new Date(stake.startDate)
+                  const now = new Date()
+                  const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+                  const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                  return sum + (apy * stake.tShares)
+                  }, 0) / totalTShares : 0
+                
+                return (
+                  <>
+                    <div className="flex items-center justify-center gap-2">
+                      {/* Show league icon only when specific chain is selected */}
+                      {chainFilter !== 'both' && totalTShares > 0 && (
+                        (() => {
+                          const getHexStakesLeague = (tShares: number) => {
+                            const OA_TSHARES_PLS = 35482068
+                            const OA_TSHARES_ETH = 35155727
+                            
+                            let totalHexTShares = 37_000_000 // fallback
+                            
+                            if (hexDailyData) {
+                              if (chainFilter === 'ethereum') {
+                                const ethLatestDay = hexDailyData.dailyPayouts?.ETH?.[hexDailyData.dailyPayouts.ETH.length - 1]
+                                totalHexTShares = ethLatestDay ? (parseFloat(ethLatestDay.shares) / 1000000000000) - OA_TSHARES_ETH : 37_000_000
+                              } else if (chainFilter === 'pulsechain') {
+                                const plsLatestDay = hexDailyData.dailyPayouts?.PLS?.[hexDailyData.dailyPayouts.PLS.length - 1]
+                                totalHexTShares = plsLatestDay ? (parseFloat(plsLatestDay.shares) / 1000000000000) - OA_TSHARES_PLS : 37_000_000
+                              }
+                            }
+                            
+                            const percentage = (tShares / totalHexTShares) * 100
+                            
+                            if (percentage >= 10) return { league: 'Poseidon', icon: '/other-images/poseidon.png' }
+                            if (percentage >= 1) return { league: 'Whale', icon: '/other-images/whale.png' }
+                            if (percentage >= 0.1) return { league: 'Shark', icon: '/other-images/shark.png' }
+                            if (percentage >= 0.01) return { league: 'Dolphin', icon: '/other-images/dolphin.png' }
+                            if (percentage >= 0.001) return { league: 'Squid', icon: '/other-images/squid.png' }
+                            if (percentage >= 0.0001) return { league: 'Turtle', icon: '/other-images/turtle.png' }
+                            if (percentage >= 0.00001) return { league: 'Crab', icon: '/other-images/crab.png' }
+                            if (percentage >= 0.000001) return { league: 'Shrimp', icon: '/other-images/shrimp.png' }
+                            return { league: 'Shell', icon: '/other-images/shell.png' }
+                          }
+                          return (
+                            <>
+                              <div 
+                                className="relative z-10 cursor-pointer hover:bg-white/5 hover:shadow-lg transition-all duration-300 mr-1 p-1 rounded-lg"
+                                onClick={() => setSoloLeagueDialogOpen(true)}
+                              >
+                                <Image
+                                  src={getHexStakesLeague(totalTShares).icon}
+                                  alt="HEX League"
+                                  width={22}
+                                  height={22}
+                                  className="object-contain hover:brightness-150 hover:contrast-125 hover:saturate-150 transition-all duration-300 hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+                                />
+                              </div>
+                              <Dialog open={soloLeagueDialogOpen} onOpenChange={setSoloLeagueDialogOpen}>
+                                <DialogContent className="w-full max-w-[360px] sm:max-w-lg max-h-[80vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto scrollbar-hide">
+                                  <div className="p-2">
+                                    <TSharesLeagueTable 
+                                      userTShares={totalTShares}
+                                      totalTShares={(() => {
+                                        const OA_TSHARES_PLS = 35482068
+                                        const OA_TSHARES_ETH = 35155727
+                                        
+                                        if (hexDailyData) {
+                                          if (chainFilter === 'ethereum') {
+                                            const ethLatestDay = hexDailyData.dailyPayouts?.ETH?.[hexDailyData.dailyPayouts.ETH.length - 1]
+                                            return ethLatestDay ? (parseFloat(ethLatestDay.shares) / 1000000000000) - OA_TSHARES_ETH : 37_000_000
+                                          } else if (chainFilter === 'pulsechain') {
+                                            const plsLatestDay = hexDailyData.dailyPayouts?.PLS?.[hexDailyData.dailyPayouts.PLS.length - 1]
+                                            return plsLatestDay ? (parseFloat(plsLatestDay.shares) / 1000000000000) - OA_TSHARES_PLS : 37_000_000
+                                          }
+                                        }
+                                        return 37_000_000
+                                      })()}
+                                      chainName={chainFilter === 'ethereum' ? 'Ethereum' : 'PulseChain'}
+                                      hexPrice={chainFilter === 'ethereum' ? getTokenPrice('eHEX') : getTokenPrice('HEX')}
+                                    />
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </>
+                          )
+                        })()
+                      )}
+                      <div className="text-4xl font-bold text-white">
+                        <span className="sm:hidden">${formatBalanceMobile(totalHexValue)}</span>
+                        <span className="hidden sm:inline">${formatBalance(totalHexValue)}</span>
+                      </div>
+                      <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
+                        {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
+                      </div>
                     </div>
-                    <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
-                      {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
+                    <div className="text-sm text-gray-400 mt-2">
+                      {activeStakesOnly.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0).toLocaleString()} HEX across {activeStakesOnly.length} stake{activeStakesOnly.length !== 1 ? 's' : ''}
                     </div>
-                  </div>
-                  <div className="text-sm text-gray-400 mt-2">
-                    {filteredHexStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0).toLocaleString()} HEX across {filteredHexStakes.length} stake{filteredHexStakes.length !== 1 ? 's' : ''}
-                  </div>
-                  <div className="text-sm text-gray-400 mt-1">
-                    {totalTShares >= 100 
-                      ? totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                      : totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    } T-Shares • {(weightedStakeLength / 365).toFixed(1)} year avg length • {weightedAPY.toFixed(1)}% avg APY
-                  </div>
-                </>
-              )
-            })()}
-          </div>
+                    <div className="text-sm text-gray-400 mt-1">
+                      {totalTShares >= 100 
+                        ? totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                        : totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      } T-Shares • {(weightedStakeLength / 365).toFixed(1)} year avg length • {weightedAPY.toFixed(1)}% avg APY
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+            )
           )}
           
           <div className="space-y-4">
-            {filteredHexStakes.map((stake) => (
+            {filteredHexStakes.length === 0 ? (
+              <div className="bg-black border-2 border-white/10 rounded-2xl p-8 text-center">
+                <div className="text-gray-400">
+                  No stakes found with the selected filters.
+                </div>
+                <div className="text-sm text-gray-500 mt-2">
+                  Try adjusting your status or chain filters above.
+                </div>
+              </div>
+            ) : (
+              filteredHexStakes.slice(0, displayedStakesCount).map((stake) => (
               <Card key={stake.id} className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10 relative">
                 {/* Chain Icon - Absolutely positioned */}
                 <div className="absolute top-6 right-6 z-10">
@@ -3271,13 +3747,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       <span className="text-xs font-medium text-cyan-400">Stake ID:</span>
                       <span className="text-xs font-bold text-cyan-400">{stake.stakeId}</span>
                     </button>
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium border bg-green-400/10 ${
-                      stake.status === 'active' 
-                        ? 'border-green-400 text-green-400' 
-                        : 'border-gray-400 text-gray-400'
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                      stake.status === 'active'
+                        ? 'border-green-400 text-green-400 bg-green-400/10'
+                        : 'border-zinc-400 text-zinc-400 bg-zinc-400/10'
                     }`}>
-                      {stake.status.charAt(0).toUpperCase() + stake.status.slice(1)}
+                      {stake.status === 'inactive' ? 'Ended' : stake.status.charAt(0).toUpperCase() + stake.status.slice(1)}
                     </div>
+                    {stake.isEES && (
+                      <div className="px-3 py-1 rounded-full text-xs font-medium border border-red-400 text-red-400 bg-red-400/10">
+                        EES
+                      </div>
+                    )}
+                    {stake.isOverdue && (
+                      <div className="px-3 py-1 rounded-full text-xs font-medium border border-red-400 text-red-400 bg-red-400/10">
+                        Late
+                      </div>
+                    )}
                     {/* BPD Stake Badge */}
                     {(() => {
                       const startDate = new Date(stake.startDate)
@@ -3337,37 +3823,54 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 <div>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2">
+                      {/* Stake value display */}
                       {(() => {
-                        const totalHex = stake.principleHex + stake.yieldHex
-                        // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
                         const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-                        const totalValue = totalHex * hexPrice
-                        // Use eHEX price data for Ethereum stakes, HEX price data for PulseChain stakes
                         const hexPriceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
                         const priceChange24h = hexPriceData?.priceChange?.h24 || 0
                         
+                        if (stake.isEES) {
+                          // For EES stakes, show principal value in dollars
+                          const principalValue = stake.principleHex * hexPrice
+                          return (
+                            <div className="text-4xl font-bold text-white">
+                              <span className="sm:hidden">${formatBalanceMobile(principalValue)}</span>
+                              <span className="hidden sm:inline">${formatBalance(principalValue)}</span>
+                            </div>
+                          )
+                        }
+                        
+                        // For normal stakes
+                        const totalValue = (stake.principleHex + stake.yieldHex) * hexPrice
                         return (
-                          <>
-                            <div className="text-3xl font-bold">
+                          <div className="flex items-center gap-2">
+                            <div className="text-4xl font-bold text-white">
                               <span className="sm:hidden">${formatBalanceMobile(totalValue)}</span>
                               <span className="hidden sm:inline">${formatBalance(totalValue)}</span>
                             </div>
-                            <div className={`text-xs font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
+                            <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
                               {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
                             </div>
-                          </>
+                          </div>
                         )
                       })()}
                     </div>
                   </div>
-                  <div className="text-zinc-500">
-                    <span className="text-md">{(stake.principleHex + stake.yieldHex).toLocaleString()} HEX</span>
-                    <span className="text-xs"> = ({stake.principleHex.toLocaleString()} HEX principal + {stake.yieldHex.toLocaleString()} HEX yield)</span>
-                  </div>
-                  <div className="text-sm text-zinc-500">
+                                        <div className="text-sm text-gray-400 mt-2">
+                        {stake.isEES ? (
+                          <>
+                            {stake.principleHex.toLocaleString()} HEX principal
+                          </>
+                        ) : (
+                          <>
+                            {(stake.principleHex + stake.yieldHex).toLocaleString()} total HEX = <span className="text-xs">({stake.principleHex.toLocaleString()} principal + {stake.yieldHex.toLocaleString()} yield)</span>
+                          </>
+                        )}
+                      </div>
+                  <div className="text-sm text-zinc-500 mt-1">
                     {stake.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} T-Shares
                   </div>
-                  <div className="text-sm text-zinc-500">
+                  <div className="text-sm text-zinc-500 pb-2">
                     {(() => {
                       // Calculate APY: ((hex yield/hex principle)/days so far)*365
                       const startDate = new Date(stake.startDate)
@@ -3382,18 +3885,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </div>
                   
                   {/* Progress Bar with percentage above and days left below */}
-                  <div className="text-xs mb-2 mt-2 mr-8">
-                    <div 
-                      className="text-[#70D668] font-bold"
-                      style={{ marginLeft: `${Math.min(stake.progress, 90)}%` }}
-                    >
-                      {stake.progress}%
+                  {(!stake.isOverdue) && (
+                    <div className="text-xs mb-4 ml-2 mt-6 mb-4 mr-4 relative">
+                      <div 
+                        className={`font-bold ${stake.isEES ? 'text-red-400' : 'text-[#70D668]'} absolute bottom-0 mb-2`}
+                        style={{ 
+                          left: `${stake.progress}%`,
+                          transform: 'translateX(-50%)'
+                        }}
+                      >
+                        {stake.progress}%
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div className="relative h-[4px] mb-2">
-                    <div className="absolute inset-0 bg-[#23411F] rounded-full" />
+                    <div className={`absolute inset-0 rounded-full ${stake.isOverdue ? 'bg-red-900/30' : stake.isEES ? 'bg-red-900/30' : 'bg-[#23411F]'}`} />
                     <div 
-                      className="absolute inset-y-0 left-0 bg-[#70D668] rounded-full" 
+                      className={`absolute inset-y-0 left-0 rounded-full ${stake.isOverdue || stake.isEES ? 'bg-red-400' : 'bg-[#70D668]'}`}
                       style={{ width: `${stake.progress}%` }} 
                     />
                   </div>
@@ -3402,11 +3910,38 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       const startDate = new Date(stake.startDate)
                       const endDate = new Date(stake.endDate)
                       const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                      const daysServed = Math.round((stake.progress / 100) * totalDays)
                       
                       // Special numbers that get gradient styling
                       const specialNumbers = [5555, 555, 369]
                       const isSpecialTotal = specialNumbers.includes(totalDays)
                       const isSpecialDaysLeft = specialNumbers.includes(stake.daysLeft)
+                      
+                      if (stake.isEES) {
+                        const actualEndDate = new Date(stake.actualEndDate)
+                        const daysEarly = totalDays - daysServed
+                        return (
+                          <span className="text-red-400">
+                            Ended {daysEarly} days early
+                          </span>
+                        )
+                      }
+                      
+                      if (stake.isOverdue && stake.daysLeft < 0) {
+                        return (
+                          <span className="text-red-400">
+                            {Math.abs(stake.daysLeft)} days late
+                          </span>
+                        )
+                      }
+
+                      if (stake.status === 'inactive' && !stake.isEES) {
+                        return (
+                          <span className="text-[#70D668]">
+                            {daysServed} of {totalDays} days
+                          </span>
+                        )
+                      }
                       
                       if (isSpecialTotal || isSpecialDaysLeft) {
                         return (
@@ -3448,8 +3983,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       return formattedDate
                     })()}</div>
                     <div className="text-right">End: {(() => {
-                      const date = new Date(stake.endDate)
-                      return date.toLocaleDateString('en-US', { 
+                      // Calculate the original promised end date from the start date and total days
+                      const startDate = new Date(stake.startDate)
+                      const totalDays = Math.round((new Date(stake.endDate).getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                      const promisedEndDate = new Date(startDate)
+                      promisedEndDate.setDate(startDate.getDate() + totalDays)
+                      
+                      return promisedEndDate.toLocaleDateString('en-US', { 
                         month: 'short', 
                         day: '2-digit', 
                         year: 'numeric' 
@@ -3458,7 +3998,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </div>
                 </div>
               </Card>
-            ))}
+            ))
+            )}
+            
+            {/* Load More Stakes Button */}
+            {filteredHexStakes.length > displayedStakesCount && (
+              <div className="text-center pt-4">
+                <button
+                  onClick={() => setDisplayedStakesCount(prev => Math.min(prev + 20, filteredHexStakes.length))}
+                  className="px-6 py-3 bg-white/5 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  Load More Stakes ({filteredHexStakes.length - displayedStakesCount} remaining)
+                </button>
+              </div>
+            )}
               </div>
         </Section>
       )}
@@ -3638,9 +4191,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex-1">
-                        <div className="font-medium text-white mb-1">Pooled Stakes</div>
+                        <div className="font-medium text-white mb-1">Include T-Shares from Pooled Stakes?</div>
                         <div className="text-sm text-gray-400">
-                          Include advanced HEX stake stats on pooled stake tokens
+                          This will include pooled T-Shares in certain stats.
                           {detectiveMode && <span className="block text-xs text-blue-400 mt-1">Detective mode defaults: ON</span>}
                         </div>
                       </div>
@@ -3816,6 +4369,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           </motion.div>
         )}
       </AnimatePresence>
+
     </Container>
     </div>
   )

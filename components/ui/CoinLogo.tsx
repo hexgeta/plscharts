@@ -58,7 +58,7 @@ export function CoinLogo({
   if (baseSymbol === 'HDRN' && inverted) {
     logoPath = '/coin-logos/HDRN-white.svg'
   }
-
+  
   const [hasError, setHasError] = useState(() => failedLogos.has(logoPath))
   
   const handleError = useCallback(() => {

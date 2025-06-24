@@ -82,7 +82,7 @@ export default function MobileNavigation() {
                   : 'text-gray-400'
               }`}
               animate={{
-                scale: isPressed ? 0.85 : 1,
+                scale: isPressed ? 0.65 : 1,
               }}
               transition={{
                 type: "spring",
