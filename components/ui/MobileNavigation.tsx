@@ -18,11 +18,7 @@ const NAV_ITEMS = [
     label: 'Portfolio',
     href: '/portfolio'
   },
-  {
-    icon: PieChart,
-    label: 'Holders',
-    href: '/holders'
-  },
+
   {
     icon: Search,
     label: 'Search',

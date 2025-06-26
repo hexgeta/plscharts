@@ -501,11 +501,23 @@ export default React.memo(function LeagueTable({
             {hasValidPriceData ? formatHeaderMarketCap(totalMarketCap) : 'No price'}
           </div>
         </div>
-        <div className="text-right">
+                <div className="text-right">
           <div className="text-gray-400 text-xs">Supply</div>
           <div className="text-white font-bold text-sm transition-all duration-300">{formatCompactNumber(totalSupply)}</div>
         </div>
-      </div>
+        {/* COMMENTED OUT - Holders Column (uncomment to re-enable)
+        {shouldShowHolders ? (
+          <div className="text-right">
+            <div className="text-gray-400 text-xs">Holders</div>
+            <div className="text-white font-bold text-sm transition-all duration-300">
+              {mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders.toLocaleString() || 'N/A'}
+            </div>
+          </div>
+        ) : (
+          <div></div>
+        )}
+        */}
+        </div>
 
       {/* Separator */}
       <div className="border-t border-white/10 mb-2"></div>
@@ -562,6 +574,26 @@ export default React.memo(function LeagueTable({
                 </div>
               </div>
 
+              {/* COMMENTED OUT - Holders Column in League Rows (uncomment to re-enable)
+              Also change grid-cols-3 to grid-cols-4 in header and league rows when uncommenting
+              {shouldShowHolders && leagueHolderData ? (
+                <div className="text-right text-sm">
+                  <div className="flex flex-col items-end">
+                    <span className="text-white">
+                      {leagueHolderData.user_holders.toLocaleString()}
+                    </span>
+                    <span className={`text-xs ${
+                      leagueHolderData.holder_change > 0 ? 'text-green-400' : 
+                      leagueHolderData.holder_change < 0 ? 'text-red-400' : 
+                      'text-gray-400'
+                    }`}>
+                      {formatHolderChange(leagueHolderData.holder_change)}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              */}
 
             </div>
           );

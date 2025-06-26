@@ -189,7 +189,7 @@ async function fetchAllHexHolders(): Promise<HexHolder[]> {
   let hasNextPage = true;
   let nextPageParams = {};
   let pageCount = 0;
-  const maxPages =200; // Fetch 500 holders (50 per page * 50 pages)
+  const maxPages =1000; // Fetch 500 holders (50 per page * 50 pages)
   const DELAY_BETWEEN_REQUESTS = 500; // Increased delay to 500ms
   let consecutive404s = 0; // Track consecutive 404 errors
 
