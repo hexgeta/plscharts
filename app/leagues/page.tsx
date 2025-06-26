@@ -165,6 +165,7 @@ PopupTokenCard.displayName = 'PopupTokenCard';
 export default function LeaguesPage() {
   const [mounted, setMounted] = useState(false);
   const [excludeOA, setExcludeOA] = useState(true);
+  const [showHolders, setShowHolders] = useState(true); // Toggle for holders column
 
   // League images are now preloaded by the background preloader
   
@@ -303,6 +304,7 @@ export default function LeaguesPage() {
           preloadedSupply={memoizedSupplies?.['HEX']}
           supplyDeduction={getOADeduction('HEX')}
           showLeagueNames={true}
+          showHolders={showHolders}
         />
       </div>
 
@@ -360,7 +362,7 @@ export default function LeaguesPage() {
         />
       </div>
     </>
-  ), [memoizedPrices, memoizedSupplies, excludeOA]);
+  ), [memoizedPrices, memoizedSupplies, excludeOA, showHolders]);
 
   if (!mounted || loading) {
     return <div className="bg-black h-screen" />;
@@ -377,8 +379,8 @@ export default function LeaguesPage() {
           }}
           className="max-w-[1200px] py-8 mx-auto w-full relative flex flex-col gap-4 sm:gap-8"
         >
-          {/* OA Toggle Button */}
-          <div className="flex justify-center mb-0">
+          {/* Toggle Buttons */}
+          <div className="flex justify-center gap-4 mb-0">
             <button
               onClick={() => setExcludeOA(!excludeOA)}
               className={`px-6 py-2 rounded-full border-2 font-medium transition-all duration-200 ${
@@ -388,6 +390,16 @@ export default function LeaguesPage() {
               }`}
             >
               {excludeOA ? 'Include OA' : 'Exclude OA'}
+            </button>
+            <button
+              onClick={() => setShowHolders(!showHolders)}
+              className={`px-6 py-2 rounded-full border-2 font-medium transition-all duration-200 ${
+                showHolders 
+                  ? 'bg-white text-black border-white' 
+                  : 'bg-transparent text-white border-white/20 hover:border-white/40'
+              }`}
+            >
+              {showHolders ? 'Hide Holders' : 'Show Holders'}
             </button>
           </div>
 

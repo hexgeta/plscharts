@@ -33,6 +33,7 @@ interface LeagueTableProps {
   userBalance?: number // User's token balance to highlight current league
   showLeagueNames?: boolean // Whether to show league names next to icons (only on main leagues page)
   userTShares?: number // User's calculated T-shares for MAXI DAO tokens
+  showHolders?: boolean // Whether to show holders column (easy toggle)
 }
 
 // Sea creature ranks from highest to lowest
@@ -222,7 +223,8 @@ export default React.memo(function LeagueTable({
   supplyDeduction,
   userBalance,
   showLeagueNames = false,
-  userTShares
+  userTShares,
+  showHolders = false
 }: LeagueTableProps) {
   
   const displayTicker = getDisplayTicker(tokenTicker);
@@ -413,10 +415,9 @@ export default React.memo(function LeagueTable({
     )
   }
 
-  // Only show holders for HEX on PulseChain (not Ethereum)
+  // Show holders based on prop and token conditions
   const isEthereumToken = tokenTicker.startsWith('e') || tokenTicker.startsWith('we');
-  // const shouldShowHolders = tokenTicker === 'HEX' && !isEthereumToken;
-  const shouldShowHolders = false; // Temporarily disabled
+  const shouldShowHolders = showHolders && tokenTicker === 'HEX' && !isEthereumToken;
 
   const content = (
     <div className="w-full transition-all duration-300 ease-in-out">
@@ -477,7 +478,7 @@ export default React.memo(function LeagueTable({
       )}
 
       {/* Header */}
-      <div className="grid grid-cols-3 items-center gap-4 mb-2">
+      <div className={`grid ${shouldShowHolders ? 'grid-cols-4' : 'grid-cols-3'} items-center gap-4 mb-2`}>
         <div className="flex items-center space-x-3">
           <CoinLogo
             symbol={tokenTicker}
@@ -501,22 +502,20 @@ export default React.memo(function LeagueTable({
             {hasValidPriceData ? formatHeaderMarketCap(totalMarketCap) : 'No price'}
           </div>
         </div>
-                <div className="text-right">
+                <div className={shouldShowHolders ? "text-center" : "text-right"}>
           <div className="text-gray-400 text-xs">Supply</div>
           <div className="text-white font-bold text-sm transition-all duration-300">{formatCompactNumber(totalSupply)}</div>
         </div>
-        {/* COMMENTED OUT - Holders Column (uncomment to re-enable)
-        {shouldShowHolders ? (
+        {shouldShowHolders && (
           <div className="text-right">
             <div className="text-gray-400 text-xs">Holders</div>
             <div className="text-white font-bold text-sm transition-all duration-300">
-              {mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders.toLocaleString() || 'N/A'}
+              {mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders === -1 
+                ? 'N/A' 
+                : mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders.toLocaleString() || 'N/A'}
             </div>
           </div>
-        ) : (
-          <div></div>
         )}
-        */}
         </div>
 
       {/* Separator */}
@@ -530,7 +529,7 @@ export default React.memo(function LeagueTable({
           return (
             <div 
               key={rank.name}
-              className={`grid grid-cols-3 items-center gap-4 py-1 transition-all duration-300 ${
+              className={`grid ${shouldShowHolders ? 'grid-cols-4' : 'grid-cols-3'} items-center gap-4 py-1 transition-all duration-300 ${
                 userCurrentLeague === rank.name 
                   ? 'bg-gray-500/20 rounded-lg ml-[-12px] mr-[-12px] px-3' 
                   : ''
@@ -561,8 +560,8 @@ export default React.memo(function LeagueTable({
                 {hasValidPriceData ? formatLeagueMarketCap(rank.marketCap) : 'No price'}
               </div>
 
-              {/* Supply Required - Right Aligned */}
-              <div className="text-gray-400 text-right flex items-center justify-end text-sm transition-all duration-300">
+              {/* Supply Required - Aligned based on holders column visibility */}
+              <div className={`text-gray-400 flex items-center justify-end text-sm transition-all duration-300 ${shouldShowHolders ? 'text-center' : 'text-right'}`}>
                 {formatCompactNumber(rank.minTokens)}
                 <div className="w-4 h-4 rounded-full flex items-center justify-center ml-1">
                   <CoinLogo
@@ -574,26 +573,28 @@ export default React.memo(function LeagueTable({
                 </div>
               </div>
 
-              {/* COMMENTED OUT - Holders Column in League Rows (uncomment to re-enable)
-              Also change grid-cols-3 to grid-cols-4 in header and league rows when uncommenting
-              {shouldShowHolders && leagueHolderData ? (
+              {/* Holders Column in League Rows */}
+              {shouldShowHolders && (
                 <div className="text-right text-sm">
-                  <div className="flex flex-col items-end">
-                    <span className="text-white">
-                      {leagueHolderData.user_holders.toLocaleString()}
-                    </span>
-                    <span className={`text-xs ${
-                      leagueHolderData.holder_change > 0 ? 'text-green-400' : 
-                      leagueHolderData.holder_change < 0 ? 'text-red-400' : 
-                      'text-gray-400'
-                    }`}>
-                      {formatHolderChange(leagueHolderData.holder_change)}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-gray-400">-</span>
-                )}
-              */}
+                  {leagueHolderData ? (
+                    <div className="flex flex-col items-end">
+                      <span className="text-white">
+                        {leagueHolderData.user_holders === -1 ? 'N/A' : leagueHolderData.user_holders.toLocaleString()}
+                      </span>
+                      <span className={`text-xs ${
+                        leagueHolderData.holder_change === -1 ? 'text-gray-400' :
+                        leagueHolderData.holder_change > 0 ? 'text-green-400' : 
+                        leagueHolderData.holder_change < 0 ? 'text-red-400' : 
+                        'text-gray-400'
+                      }`}>
+                        {leagueHolderData.holder_change === -1 ? 'N/A' : formatHolderChange(leagueHolderData.holder_change)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">N/A</span>
+                  )}
+                </div>
+              )}
 
             </div>
           );

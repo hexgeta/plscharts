@@ -157,7 +157,7 @@ function hexToString(hex: string): string | null {
     const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex
     
     // Convert hex to bytes
-    const bytes = []
+    const bytes: number[] = []
     for (let i = 0; i < cleanHex.length; i += 2) {
       bytes.push(parseInt(cleanHex.substr(i, 2), 16))
     }
