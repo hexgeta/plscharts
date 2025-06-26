@@ -165,7 +165,7 @@ PopupTokenCard.displayName = 'PopupTokenCard';
 export default function LeaguesPage() {
   const [mounted, setMounted] = useState(false);
   const [excludeOA, setExcludeOA] = useState(true);
-  const [showHolders, setShowHolders] = useState(true); // Toggle for holders column
+  const [showHolders, setShowHolders] = useState(false); // Toggle for holders column
 
   // League images are now preloaded by the background preloader
   
