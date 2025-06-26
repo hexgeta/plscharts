@@ -201,9 +201,18 @@ const fetchDailyPayoutsFromChain = async (url: string, chain: 'ETH' | 'PLS'): Pr
 
 // Fetch recent share rate changes from a specific chain
 const fetchShareRatesFromChain = async (url: string, chain: 'ETH' | 'PLS'): Promise<ShareRatePoint[]> => {
+  let allRates: ShareRatePoint[] = [];
+  let hasMore = true;
+  let skip = 0;
+  const first = 1000;
+
+  console.log(`[HEX Daily Cache] Fetching share rates from ${chain}...`);
+
+  while (hasMore) {
   const query = `{
     shareRateChanges(
-      first: 1000,
+        first: ${first},
+        skip: ${skip},
       orderBy: timestamp
       orderDirection: desc
     ) {
@@ -218,8 +227,6 @@ const fetchShareRatesFromChain = async (url: string, chain: 'ETH' | 'PLS'): Prom
   }`;
 
   try {
-    console.log(`[HEX Daily Cache] Fetching share rates from ${chain}...`);
-    
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -234,16 +241,31 @@ const fetchShareRatesFromChain = async (url: string, chain: 'ETH' | 'PLS'): Prom
     
     if (result.errors) {
       console.error(`[${chain}] GraphQL errors:`, result.errors);
-      return [];
+        hasMore = false;
+        continue;
     }
 
-    const shareRates = result.data?.shareRateChanges || [];
-    console.log(`[${chain}] Fetched ${shareRates.length} share rate records`);
-    return shareRates;
+      const fetchedRates = result.data?.shareRateChanges || [];
+      
+      if (fetchedRates.length > 0) {
+        allRates = [...allRates, ...fetchedRates];
+        skip += first;
+        
+        // Log progress every 1000 records
+        if (skip % 1000 === 0) {
+          console.log(`[${chain}] Fetched ${allRates.length} share rate records...`);
+        }
+      } else {
+        hasMore = false;
+      }
   } catch (error) {
     console.error(`[${chain}] Error fetching share rates:`, error);
-    return [];
+      hasMore = false;
+    }
   }
+  
+  console.log(`[${chain}] Completed: ${allRates.length} share rate records`);
+  return allRates;
 };
 
 // Main fetcher function for SWR
@@ -342,6 +364,21 @@ export const useHexDailyDataCache = () => {
     return data.shareRates[chain][0]; // Already sorted by timestamp desc
   };
 
+  // Helper function to get historical share rates from a specific day
+  const getHistoricalShareRates = (chain: 'ETH' | 'PLS', fromDay: number): ShareRatePoint[] | null => {
+    if (!data?.shareRates[chain]) return null;
+
+    // Convert HEX day to timestamp
+    const HEX_LAUNCH_DATE = new Date('2019-12-03T00:00:00Z').getTime();
+    const SECONDS_PER_DAY = 86400;
+    const fromTimestamp = (HEX_LAUNCH_DATE + (fromDay * SECONDS_PER_DAY * 1000)).toString();
+
+    // Filter share rates after the fromDay and sort by timestamp
+    return data.shareRates[chain]
+      .filter(rate => rate.timestamp >= fromTimestamp)
+      .sort((a, b) => parseInt(a.timestamp) - parseInt(b.timestamp));
+  };
+
   return {
     data,
     error,
@@ -350,6 +387,7 @@ export const useHexDailyDataCache = () => {
     // Helper functions
     getDailyPayoutsForRange,
     getLatestShareRate,
+    getHistoricalShareRates,
     // Status info
     isReady: !!data && !error,
     lastUpdated: data?.lastUpdated,

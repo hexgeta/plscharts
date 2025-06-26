@@ -143,7 +143,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0xabf663531fa10ab8116cbf7d5c6229b018a26ff9",
-  dexs: ["0x3819f64f282bf135d62168c1e513280daf905e06"],
+  dexs: ["0x989963cACdc93470bD733bcb926475817b1ce03E"],
   ticker: "weHDRN",
   decimals: 9,
   name: "Wrapped HDRN from Eth",
@@ -151,7 +151,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0xb4d363d5df85f0fbc746c236fd410d82bf856f78",
-  dexs: ["0xfc4913214444af5c715cc9f7b52655e788a569ed"],
+  dexs: ["0xEE0395AEa26fE8B5ca6BDF73a746cecc105d3ECF"],
   ticker: "weICSA",
   decimals: 9,
   name: "Wrapped ICSA from Eth",
@@ -1279,7 +1279,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0x3ab667c153b8dd2248bb96e7a2e1575197667784",
-  dexs: ["0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce"],
+  dexs: ["0xe48476645462B7F7Ddc0E4D20eC5DD1AD56203dE"],
   ticker: "weSHIB",
   decimals: 18,
   name: "Wrapped SHIB from Eth",
@@ -1287,7 +1287,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0xb17d901469b9208b17d916112988a3fed19b5ca1",
-  dexs: ["0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"],
+  dexs: ["0x8c52470a05eEB2fCe4905688Ec59bFDd32E71D07"],
   ticker: "weWBTC",
   decimals: 8,
   name: "Wrapped BTC from Eth",
@@ -1295,7 +1295,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0xee2d275dbb79c7871f8c6eb2a4d0687dd85409d1",
-  dexs: ["0x514910771af9ca656af840dff83e8264ecf986ca"],
+  dexs: ["0xf1D8a2242A03957eEd09607CeA29B3cDeF2628cd"],
   ticker: "weLINK",
   decimals: 18,
   name: "Wrapped LINK from Eth",
@@ -1303,7 +1303,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0x3f105121a10247de9a92e818554dd5fcd2063ae7",
-  dexs: ["0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"],
+  dexs: ["0x97280929166f6f724b8F8a6c666468C8D718084c"],
   ticker: "weUNI",
   decimals: 18,
   name: "Wrapped UNI from Eth",
@@ -1311,7 +1311,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0x4d3aea379b7689e0cb722826c909fab39e54123d",
-  dexs: ["0x6982508145454ce325ddbe47a25d4ec3d2311933"],
+  dexs: ["0x36Aa4EDFde9B604c50dc138657646AEd8e0628Bc"],
   ticker: "wePEPE",
   decimals: 18,
   name: "Wrapped PEPE from Eth",

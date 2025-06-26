@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { href: '/bridge', label: 'Bridge', mobileLabel: 'Bridge' },
   { href: '/gas', label: 'Gas', mobileLabel: 'Gas' },
   { href: '/validators', label: 'Validators', mobileLabel: 'Validators' },
+  { href: '/holders', label: 'Holders', mobileLabel: 'Holders' },
   { href: '/portfolio', label: 'Portfolio', mobileLabel: 'Portfolio' },
 ];
 

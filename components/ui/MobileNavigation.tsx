@@ -19,6 +19,11 @@ const NAV_ITEMS = [
     href: '/portfolio'
   },
   {
+    icon: PieChart,
+    label: 'Holders',
+    href: '/holders'
+  },
+  {
     icon: Search,
     label: 'Search',
     href: null // Special case for search - handled differently

@@ -234,7 +234,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-2xl text-white">
+                <span className="text-3xl text-white">
                   {price ? formatPriceSigFig(price, 3) : '--'}
                 </span>
                 <span
@@ -253,43 +253,43 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               </div>
               {/* Add PLS price equivalent for PLSX */}
               {ticker === "PLSX" && prices?.PLS?.price && (
-                <div className="text-[12px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[16px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 2 })} PLS | {formatNumber(price/0.0001, { decimals: 2 })}x Sac
                 </div>
               )}
               {/* Add PLS price equivalent for INC */}
               {ticker === "INC" && prices?.PLS?.price && (
-                <div className="text-[12px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[16px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS
                 </div>
               )}
               {/* Add Sac ratio for PLS */}
               {ticker === "PLS" && (
-                <div className="text-[12px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[16px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price/0.0001, { decimals: 2 })}x Sac
                 </div>
               )}
               {/* Add PLS price equivalent and ratio for HEX */}
               {ticker === "HEX" && prices?.PLS?.price && prices?.eHEX?.price && (
-                <div className="text-[11px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[14px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} eHEX | +eHEX: {formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}
                 </div>
               )}
               {/* Add COM coupon rate for HEX */}
               {ticker === "HEX" && comCouponRate !== null && (
-                <div className="text-[11px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[14px] text-[#777] text-bold whitespace-nowrap">
                   COM Coupon Rate: {formatNumber(comCouponRate, { decimals: 2 })}%
                 </div>
               )}
               {/* Add PLS price equivalent and HEX ratio for eHEX */}
               {ticker === "eHEX" && prices?.PLS?.price && prices?.HEX?.price && (
-                <div className="text-[11px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[14px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price / prices.HEX.price, { decimals: 2 })} HEX
                 </div>
               )}
               {/* Add eCOM coupon rate for eHEX */}
               {ticker === "eHEX" && ecomCouponRate !== null && (
-                <div className="text-[11px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[14px] text-[#777] text-bold whitespace-nowrap">
                   COM Coupon Rate: {formatNumber(ecomCouponRate, { decimals: 2 })}%
                 </div>
               )}
@@ -352,7 +352,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
         >
           <div>
             <h3 className="text-2xl font-bold text-white mb-4">Get Started</h3>
-            <ol className="text-gray-400 text-sm md:text-md list-decimal pl-5 [&>li]:mb-1">
+            <ol className="text-gray-400 text-sm md:text-md list-decimal pl-5 [&>li]:mb-4">
               <li>Buy USDC, DAI or ETH on <a href="https://www.zkp2p.xyz/swap?tab=buy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">ZKP2P</a></li>
               <li>Bridge from to PulseChain with <a href="https://libertyswap.finance/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">LibertySwap</a></li>
               <li>Track your <a href="/portfolio" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">Portfolio</a></li>

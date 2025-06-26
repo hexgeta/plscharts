@@ -1388,12 +1388,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         return addressMatch && chainMatch && statusMatch
       })
 
-    // Helper function to calculate stake value
-    const getStakeValue = (stake: any) => {
-      const stakeHex = stake.principleHex + stake.yieldHex
-      const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
-      return stakeHex * hexPrice
-    }
+        // Helper function to calculate stake value
+        const getStakeValue = (stake: any) => {
+          const stakeHex = stake.principleHex + stake.yieldHex
+          const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+          return stakeHex * hexPrice
+        }
 
     // Sort the filtered stakes
     return filtered.sort((a, b) => {
@@ -1401,8 +1401,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
       switch (hexStakesSortField) {
         case 'amount':
-          const aValue = getStakeValue(a)
-          const bValue = getStakeValue(b)
+            const aValue = getStakeValue(a)
+            const bValue = getStakeValue(b)
           comparison = bValue - aValue // Higher values first
           break
         case 'startDate':
@@ -1419,16 +1419,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           comparison = b.progress - a.progress // Higher progress first
           break
       }
-
+          
       // Secondary sort by amount if primary sort yields equal values
       if (comparison === 0 && hexStakesSortField !== 'amount') {
-        const aValue = getStakeValue(a)
-        const bValue = getStakeValue(b)
-        comparison = bValue - aValue
-      }
+            const aValue = getStakeValue(a)
+            const bValue = getStakeValue(b)
+            comparison = bValue - aValue
+        }
 
-      return hexStakesSortDirection === 'asc' ? comparison : -comparison
-    })
+        return hexStakesSortDirection === 'asc' ? comparison : -comparison
+      })
   }, [hexStakes, selectedAddressIds, addresses, chainFilter, getTokenPrice, hexStakesSortField, hexStakesSortDirection, removedAddressIds, stakeStatusFilter])
 
   // Always show all possible status types regardless of data
@@ -3847,7 +3847,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         if (stake.isEES) {
                           // For EES stakes, show principal value in dollars
                           const principalValue = stake.principleHex * hexPrice
-                          return (
+                        return (
                             <div className="text-4xl font-bold text-white">
                               <span className="sm:hidden">${formatBalanceMobile(principalValue)}</span>
                               <span className="hidden sm:inline">${formatBalance(principalValue)}</span>
@@ -3881,7 +3881,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             {(stake.principleHex + stake.yieldHex).toLocaleString()} total HEX = <span className="text-xs">({stake.principleHex.toLocaleString()} principal + {stake.yieldHex.toLocaleString()} yield)</span>
                           </>
                         )}
-                      </div>
+                  </div>
                   <div className="text-sm text-zinc-500 mt-1">
                     {stake.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} T-Shares
                   </div>

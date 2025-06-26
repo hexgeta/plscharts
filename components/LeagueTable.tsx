@@ -6,6 +6,7 @@ import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
 import { useHexDailyDataCache } from '@/hooks/crypto/useHexDailyData'
+import { useLeagueHex } from '@/hooks/crypto/useLeagueHex'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import React from 'react'
@@ -17,6 +18,10 @@ interface LeagueRank {
   minTokens: number
   marketCap: number
   color: string
+  holders?: {
+    current: number
+    change: number
+  }
 }
 
 interface LeagueTableProps {
@@ -87,6 +92,19 @@ const LEAGUE_RANKS: Omit<LeagueRank, 'minTokens' | 'marketCap'>[] = [
     color: 'text-gray-400'
   }
 ]
+
+// Add this mapping object after LEAGUE_RANKS
+const LEAGUE_NAME_MAPPING: { [key: string]: string } = {
+  '🔱': 'Poseidon',
+  '🐋': 'Whale',
+  '🦈': 'Shark',
+  '🐬': 'Dolphin',
+  '🦑': 'Squid',
+  '🐢': 'Turtle',
+  '🦀': 'Crab',
+  '🦐': 'Shrimp',
+  '🐚': 'Shell'
+}
 
 // Local formatting functions to match the website's style
 function formatCompactNumber(num: number | null | undefined): string {
@@ -189,6 +207,13 @@ function formatPercentage(percentage: number): string {
   return percentage.toPrecision(2) + '%'
 }
 
+// Add this function before the component
+function formatHolderChange(change: number) {
+  if (change === 0) return '±0'
+  const prefix = change > 0 ? '+' : ''
+  return `${prefix}${change.toLocaleString()}`
+}
+
 export default React.memo(function LeagueTable({ 
   tokenTicker, 
   containerStyle = true, 
@@ -230,6 +255,19 @@ export default React.memo(function LeagueTable({
   // Get HEX daily data for T-shares calculations
   const { data: hexDailyData } = useHexDailyDataCache()
   
+  // Add this after other hooks
+  const { leagueData, isLoading: leagueLoading } = useLeagueHex()
+  
+  // Map the league data to use proper league names
+  const mappedLeagueData = useMemo(() => {
+    if (!leagueData || leagueData.length === 0) return [];
+    
+    return leagueData.map(data => ({
+      ...data,
+      league_name: LEAGUE_NAME_MAPPING[data.league_name] || data.league_name
+    }));
+  }, [leagueData]);
+
   // Memoize T-shares calculations to prevent flickering
   const tSharesData = useMemo(() => {
     if (!userTShares || userTShares <= 0 || !hexDailyData) return null
@@ -323,22 +361,28 @@ export default React.memo(function LeagueTable({
     return null
   }, [userBalance, totalSupply, hasValidSupplyData])
 
-  // Memoize the league calculations to prevent recalculation on every render
+  // Update the leagueRanks useMemo to include holder data
   const leagueRanks = useMemo(() => {
     if (!hasValidSupplyData) return []
     
     return LEAGUE_RANKS.map(rank => {
       const minTokens = (totalSupply * rank.percentage) / 100
-      // Use 0 for market cap if no price data
       const marketCap = hasValidPriceData ? minTokens * tokenPrice.price : 0
+      
+      // Find matching league data
+      const leagueInfo = leagueData.find(l => l.league_name === rank.name)
       
       return {
         ...rank,
         minTokens,
-        marketCap
+        marketCap,
+        holders: leagueInfo ? {
+          current: leagueInfo.user_holders,
+          change: leagueInfo.holder_change
+        } : undefined
       }
     })
-  }, [totalSupply, hasValidPriceData, tokenPrice, hasValidSupplyData])
+  }, [totalSupply, hasValidPriceData, tokenPrice, hasValidSupplyData, leagueData])
 
   // Calculate total market cap (0 if no price data)
   const totalMarketCap = useMemo(() => {
@@ -360,7 +404,7 @@ export default React.memo(function LeagueTable({
     const errorMessage = supplyError || 'No supply data available';
     
     return (
-      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full max-w-sm">
+      <div className="bg-black border-2 border-white/10 rounded-2xl p-6 w-full min-w-2xl max-w-2xl">
         <div className="text-red-400 text-center">
           <p>Error loading {tokenTicker} league data</p>
           <p className="text-sm text-gray-500 mt-2">{typeof errorMessage === 'string' ? errorMessage : 'Supply fetch failed'}</p>
@@ -368,6 +412,11 @@ export default React.memo(function LeagueTable({
       </div>
     )
   }
+
+  // Only show holders for HEX on PulseChain (not Ethereum)
+  const isEthereumToken = tokenTicker.startsWith('e') || tokenTicker.startsWith('we');
+  // const shouldShowHolders = tokenTicker === 'HEX' && !isEthereumToken;
+  const shouldShowHolders = false; // Temporarily disabled
 
   const content = (
     <div className="w-full transition-all duration-300 ease-in-out">
@@ -463,54 +512,60 @@ export default React.memo(function LeagueTable({
 
       {/* League Table */}
       <div className="space-y-1">
-        {leagueRanks.map((rank, index) => (
-          <div
-            key={rank.name}
-            className={`grid grid-cols-3 items-center gap-4 py-1 transition-all duration-300 ${
-              userCurrentLeague === rank.name 
-                ? 'bg-gray-500/20 rounded-lg ml-[-12px] mr-[-12px] px-3' 
-                : ''
-            }`}
-          >
-            {/* Rank Info - Left Aligned */}
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 relative">
-                <Image
-                  src={rank.icon}
-                  alt={rank.name}
-                  width={24}
-                  height={24}
-                  className="object-contain"
-                  priority={index < 3} // Priority load first 3 ranks (most important)
-                  sizes="24px"
-                />
-              </div>
-              {showLeagueNames && (
-                <div className="text-white text-[10px] sm:text-xs font-medium">
-                  {rank.name}
+        {leagueRanks.map((rank, index) => {
+          const leagueHolderData = shouldShowHolders ? mappedLeagueData.find(l => l.league_name === rank.name) : null;
+          
+          return (
+            <div 
+              key={rank.name}
+              className={`grid grid-cols-3 items-center gap-4 py-1 transition-all duration-300 ${
+                userCurrentLeague === rank.name 
+                  ? 'bg-gray-500/20 rounded-lg ml-[-12px] mr-[-12px] px-3' 
+                  : ''
+              }`}
+            >
+              {/* Rank Info - Left Aligned */}
+              <div className="flex items-center space-x-2 min-w-[80px]">
+                <div className="w-6 h-6 relative flex-shrink-0">
+                  <Image
+                    src={rank.icon}
+                    alt={rank.name}
+                    width={24}
+                    height={24}
+                    className="object-contain"
+                    priority={index < 3} // Priority load first 3 ranks (most important)
+                    sizes="24px"
+                  />
                 </div>
-              )}
-            </div>
-
-            {/* Market Cap - Center Aligned */}
-            <div className="text-white font-medium text-center text-xs md:text-sm ml-4 md:ml-2 transition-all duration-300">
-              {hasValidPriceData ? formatLeagueMarketCap(rank.marketCap) : 'No price'}
-            </div>
-
-            {/* Supply Required - Right Aligned */}
-            <div className="text-gray-400 text-right flex items-center justify-end text-sm transition-all duration-300">
-              {formatCompactNumber(rank.minTokens)}
-              <div className="w-4 h-4 rounded-full flex items-center justify-center ml-1">
-                <CoinLogo
-                  symbol={tokenTicker}
-                  size="sm"
-                  className="brightness-0 invert rounded-none w-3 h-3"
-                  variant="no-bg"
-                />
+                {showLeagueNames && (
+                  <div className="text-white text-[10px] sm:text-[10px] font-medium">
+                    {rank.name}
+                  </div>
+                )}
               </div>
+
+              {/* Market Cap - Center Aligned */}
+              <div className="text-white font-medium text-center text-xs md:text-sm ml-4 md:ml-2 transition-all duration-300">
+                {hasValidPriceData ? formatLeagueMarketCap(rank.marketCap) : 'No price'}
+              </div>
+
+              {/* Supply Required - Right Aligned */}
+              <div className="text-gray-400 text-right flex items-center justify-end text-sm transition-all duration-300">
+                {formatCompactNumber(rank.minTokens)}
+                <div className="w-4 h-4 rounded-full flex items-center justify-center ml-1">
+                  <CoinLogo
+                    symbol={tokenTicker}
+                    size="sm"
+                    className="brightness-0 invert rounded-none w-3 h-3"
+                    variant="no-bg"
+                  />
+                </div>
+              </div>
+
+
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   )
