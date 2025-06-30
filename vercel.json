@@ -10,7 +10,15 @@
     },
     {
       "path": "/api/cron/daily-hex-holders",
-      "schedule": "0 0 * * *"
+      "schedule": "0 0 * * 0"
+    },
+    {
+      "path": "/api/cron/daily-hex-holders-batch2", 
+      "schedule": "5 0 * * 0"
+    },
+    {
+      "path": "/api/cron/calculate-leagues",
+      "schedule": "15 0 * * 0"
     }
   ]
 }

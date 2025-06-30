@@ -261,6 +261,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return 0
   })
 
+  // 24h change display toggle state (percentage vs dollar amount)
+  const [showDollarChange, setShowDollarChange] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioShowDollarChange')
+      return saved === 'true'
+    }
+    return false // Default to showing percentage
+  })
+
   // Dialog state for league tables (moved up to prevent closing on price refresh)
   const [openDialogToken, setOpenDialogToken] = useState<string | null>(null)
 
@@ -421,6 +430,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   useEffect(() => {
     localStorage.setItem('portfolioValidatorCount', validatorCount.toString())
   }, [validatorCount])
+
+  // Save 24h change display toggle to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('portfolioShowDollarChange', showDollarChange.toString())
+  }, [showDollarChange])
 
   // Save advanced filter states to localStorage whenever they change
   useEffect(() => {
@@ -1493,12 +1507,30 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         // Sort by USD value
         comparison = bValue - aValue // Higher value first for desc
       } else if (tokenSortField === 'change') {
-        // Sort by 24h price change
-        const aPriceData = prices[a.symbol]
-        const bPriceData = prices[b.symbol]
-        const aChange = aPriceData?.priceChange?.h24 || 0
-        const bChange = bPriceData?.priceChange?.h24 || 0
-        comparison = bChange - aChange // Higher change first for desc
+        if (showDollarChange) {
+          // Sort by 24h dollar change when in dollar mode
+          const aPriceData = prices[a.symbol]
+          const bPriceData = prices[b.symbol]
+          const aPercentChange = aPriceData?.priceChange?.h24 || 0
+          const bPercentChange = bPriceData?.priceChange?.h24 || 0
+          
+          // Calculate dollar changes
+          const aDollarChange = aPrice !== 0 && aPercentChange !== undefined 
+            ? (a.balanceFormatted * aPrice * aPercentChange) / 100
+            : 0
+          const bDollarChange = bPrice !== 0 && bPercentChange !== undefined 
+            ? (b.balanceFormatted * bPrice * bPercentChange) / 100  
+            : 0
+          
+          comparison = bDollarChange - aDollarChange // Higher dollar change first for desc
+        } else {
+          // Sort by 24h percentage change when in percentage mode
+          const aPriceData = prices[a.symbol]
+          const bPriceData = prices[b.symbol]
+          const aChange = aPriceData?.priceChange?.h24 || 0
+          const bChange = bPriceData?.priceChange?.h24 || 0
+          comparison = bChange - aChange // Higher change first for desc
+        }
         
         // Secondary sort by USD value if changes are equal
         if (Math.abs(comparison) < 0.01) {
@@ -1533,7 +1565,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     hideTokensWithoutPrice,
     // Include token sorting
     tokenSortField,
-    tokenSortDirection
+    tokenSortDirection,
+    // Include 24h change display mode to trigger re-sort when toggling
+    showDollarChange
   ])
 
   // Format balance for display
@@ -1639,6 +1673,33 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       console.error('Failed to copy address:', err)
     }
   }, [])
+
+  // Toggle between percentage and dollar amount for 24h change
+  const toggle24hChangeDisplay = useCallback(() => {
+    const newShowDollarChange = !showDollarChange
+    setShowDollarChange(newShowDollarChange)
+    
+    // Auto-sort by change when switching to dollar mode for better UX
+    if (newShowDollarChange && tokenSortField !== 'change') {
+      setTokenSortField('change')
+      setTokenSortDirection('desc') // Show highest dollar changes first
+    }
+  }, [showDollarChange, tokenSortField])
+
+  // Helper function to format 24h change (percentage or dollar)
+  const format24hChange = useCallback((percentChange: number | undefined, dollarChange: number, showDollar: boolean = showDollarChange) => {
+    if (showDollar) {
+      if (dollarChange === 0) return '$0.00'
+      const absChange = Math.abs(dollarChange)
+      const decimals = absChange >= 10 ? 0 : absChange >= 1 ? 2 : 2
+      return `${dollarChange >= 0 ? '+' : '-'}$${absChange.toFixed(decimals)}`
+    } else {
+      if (percentChange === undefined) return '0%'
+      return `${percentChange >= 0 ? '+' : '-'}${Math.abs(percentChange).toFixed(1)}%`
+    }
+  }, [showDollarChange])
+
+
 
   // Memoized token symbols map to prevent re-renders
   const tokenSymbolsMap = useMemo(() => {
@@ -1813,6 +1874,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const priceData = prices[token.symbol]
     const priceChange24h = priceData?.priceChange?.h24
 
+    // Calculate dollar amount change for 24h
+    const dollarChange24h = useMemo(() => {
+      if (tokenPrice === 0 || priceChange24h === undefined || token.balanceFormatted === 0) {
+        return 0
+      }
+      
+      const currentValue = token.balanceFormatted * tokenPrice
+      const price24hAgo = tokenPrice / (1 + (priceChange24h / 100))
+      const value24hAgo = token.balanceFormatted * price24hAgo
+      
+      return currentValue - value24hAgo
+    }, [tokenPrice, priceChange24h, token.balanceFormatted])
+
     // In TokenRow component, add chain context to league calculations
     const leagueSupplyDeduction = useMemo(() => {
       // Use chain-specific OA supplies
@@ -1873,22 +1947,28 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
         {/* 24h Price Change Column */}
         <div className="text-center">
-          <div className={`text-[10px] md:text-xs font-bold ${
-            tokenPrice === 0
-              ? 'text-gray-400'
-              : priceChange24h !== undefined
-              ? priceChange24h >= 0 
-                ? 'text-[#00ff55]' 
-                : 'text-red-500'
-              : 'text-gray-400'
-          }`}>
+          <button 
+            onClick={toggle24hChangeDisplay}
+            className={`text-[10px] md:text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity ${
+              tokenPrice === 0
+                ? 'text-gray-400'
+                : showDollarChange
+                ? dollarChange24h >= 0 
+                  ? 'text-[#00ff55]' 
+                  : 'text-red-500'
+                : priceChange24h !== undefined
+                ? priceChange24h >= 0 
+                  ? 'text-[#00ff55]' 
+                  : 'text-red-500'
+                : 'text-gray-400'
+            }`}
+            title={showDollarChange ? "Click to show percentage" : "Click to show dollar amount"}
+          >
             {tokenPrice === 0
               ? '--'
-              : priceChange24h !== undefined
-              ? `${priceChange24h >= 0 ? '+' : ''}${priceChange24h.toFixed(1)}%`
-              : '0%'
+              : format24hChange(priceChange24h, dollarChange24h)
             }
-          </div>
+          </button>
         </div>
 
         {/* League Column - Hidden on Mobile */}
@@ -2293,6 +2373,57 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     if (previousTotalValue === 0) return 0
     return ((currentTotalValue - previousTotalValue) / previousTotalValue) * 100
   }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes])
+
+  // Calculate portfolio dollar change for 24h
+  const portfolio24hDollarChange = useMemo(() => {
+    if (!prices || portfolio24hChange === 0) return 0
+    
+    // Calculate current total value
+    let currentTotalValue = 0
+    
+    if (showLiquidBalances && filteredBalances && Array.isArray(filteredBalances)) {
+      filteredBalances.forEach(addressData => {
+        // Native token
+        const nativeSymbol = addressData.nativeBalance.symbol
+        const nativeBalance = addressData.nativeBalance.balanceFormatted
+        const nativeCurrentPrice = getTokenPrice(nativeSymbol)
+        currentTotalValue += nativeBalance * nativeCurrentPrice
+        
+        // Token balances
+        addressData.tokenBalances?.forEach(token => {
+          const tokenBalance = token.balanceFormatted
+          const tokenCurrentPrice = getTokenPrice(token.symbol)
+          currentTotalValue += tokenBalance * tokenCurrentPrice
+        })
+      })
+    }
+
+    // Add validator value if enabled
+    if (showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
+      const validatorPLS = validatorCount * 32_000_000
+      const plsCurrentPrice = getTokenPrice('PLS')
+      currentTotalValue += validatorPLS * plsCurrentPrice
+    }
+
+    // Add HEX stakes value if enabled
+    if (showHexStakes && hexStakes) {
+      const activeStakes = hexStakes.filter(stake => 
+        stake.status === 'active' && 
+        (chainFilter === 'both' || 
+         (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+         (chainFilter === 'pulsechain' && stake.chain !== 'ETH'))
+      )
+      activeStakes.forEach(stake => {
+        const stakeHex = stake.principleHex + stake.yieldHex
+        const hexSymbol = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
+        const hexCurrentPrice = getTokenPrice(hexSymbol)
+        currentTotalValue += stakeHex * hexCurrentPrice
+      })
+    }
+
+    // Calculate dollar change: (percentage / 100) * current value
+    return (portfolio24hChange / 100) * currentTotalValue
+  }, [portfolio24hChange, prices, getTokenPrice, showLiquidBalances, filteredBalances, showValidators, validatorCount, chainFilter, showHexStakes, hexStakes])
 
   // Comprehensive loading state - wait for relevant data to be ready
   // Once ready, stay ready (don't hide UI during price updates)
@@ -2843,15 +2974,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               <span className="sm:hidden">${formatBalanceMobile(totalUsdValue)}</span>
               <span className="hidden sm:inline">${formatBalance(totalUsdValue)}</span>
             </div>
-            <div className={`text-xs md:text-sm font-bold ml-1 ${
-              portfolio24hChange <= -1
-                ? 'text-red-500'
-                : portfolio24hChange >= 1
-                  ? 'text-[#00ff55]'
-                  : 'text-gray-400'
-            }`}>
-              {portfolio24hChange >= 0 ? '+' : ''}{portfolio24hChange.toFixed(2)}%
-            </div>
+            <button 
+              onClick={toggle24hChangeDisplay}
+              className={`text-xs md:text-sm font-bold ml-1 cursor-pointer hover:opacity-80 transition-opacity ${
+                portfolio24hChange <= -1
+                  ? 'text-red-500'
+                  : portfolio24hChange >= 1
+                    ? 'text-[#00ff55]'
+                    : 'text-gray-400'
+              }`}
+              title={showDollarChange ? "Click to show percentage" : "Click to show dollar amount"}
+            >
+              {format24hChange(portfolio24hChange, portfolio24hDollarChange)}
+            </button>
           </div>
           {!detectiveMode && (
             <div className="text-sm text-gray-400 mt-4 flex flex-wrap gap-2 justify-center">
@@ -3473,9 +3608,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               <span className="sm:hidden">${formatBalanceMobile(combinedValue)}</span>
                               <span className="hidden sm:inline">${formatBalance(combinedValue)}</span>
                             </div>
-                            <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
-                              {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
-                            </div>
+                            <button 
+                              onClick={toggle24hChangeDisplay}
+                              className={`text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}
+                              title={showDollarChange ? "Click to show percentage" : "Click to show dollar amount"}
+                            >
+                              {(() => {
+                                const dollarChange = (priceChange24h / 100) * combinedValue
+                                return format24hChange(priceChange24h, dollarChange)
+                              })()}
+                            </button>
                           </div>
                                     <div className="text-sm text-gray-400 mt-1">
                           {combinedHexAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} HEX • {combinedTShares >= 100 
@@ -3703,9 +3845,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         <span className="sm:hidden">${formatBalanceMobile(totalHexValue)}</span>
                         <span className="hidden sm:inline">${formatBalance(totalHexValue)}</span>
                       </div>
-                      <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
-                        {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
-                      </div>
+                      <button 
+                        onClick={toggle24hChangeDisplay}
+                        className={`text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}
+                        title={showDollarChange ? "Click to show percentage" : "Click to show dollar amount"}
+                      >
+                        {(() => {
+                          const dollarChange = (priceChange24h / 100) * totalHexValue
+                          return format24hChange(priceChange24h, dollarChange)
+                        })()}
+                      </button>
                     </div>
                     <div className="text-sm text-gray-400 mt-2">
                       {activeStakesOnly.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0).toLocaleString()} HEX across {activeStakesOnly.length} stake{activeStakesOnly.length !== 1 ? 's' : ''}
@@ -3863,9 +4012,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               <span className="sm:hidden">${formatBalanceMobile(totalValue)}</span>
                               <span className="hidden sm:inline">${formatBalance(totalValue)}</span>
                             </div>
-                            <div className={`text-sm font-bold ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}>
-                              {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(1)}%
-                            </div>
+                            <button 
+                              onClick={toggle24hChangeDisplay}
+                              className={`text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity ${priceChange24h >= 0 ? 'text-[#00ff55]' : 'text-red-500'}`}
+                              title={showDollarChange ? "Click to show percentage" : "Click to show dollar amount"}
+                            >
+                              {(() => {
+                                const dollarChange = (priceChange24h / 100) * totalValue
+                                return format24hChange(priceChange24h, dollarChange)
+                              })()}
+                            </button>
                           </div>
                         )
                       })()}

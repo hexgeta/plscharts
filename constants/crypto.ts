@@ -31,7 +31,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65",
   ticker: "HEX",
   decimals: 8,
-  name: "HEX on PulseChain"
+  name: "HEX on Pls"
 }, {
   chain: 369,
   a: "0x2fa878ab3f87cc1c9737fc071108f904c0b0c95d",
@@ -92,14 +92,14 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x5f4cb14a7858bdb9066f9e4b561cdc1623807da0",
   ticker: "HDRN",
   decimals: 9,
-  name: "Hedron on PulseChain"
+  name: "Hedron on Pls"
 }, {
   chain: 369,
   a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
   dexs: "0xe5bb65e7a384d2671c96cfe1ee9663f7b03a573e",
   ticker: "ICSA",
   decimals: 9,
-  name: "ICSA on PulseChain"
+  name: "ICSA on Pls"
 }, 
 {
   chain: 369,
@@ -1275,7 +1275,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x9e0905249ceefffb9605e034b534544684a58be6",
   ticker: "eHEX",
   decimals: 8,
-  name: "HEX on Ethereum"
+  name: "HEX on Eth"
 }, {
   chain: 369,
   a: "0x3ab667c153b8dd2248bb96e7a2e1575197667784",
@@ -1343,14 +1343,14 @@ a: "0x3819f64f282bf135d62168c1e513280daf905e06",
 dexs: "0x035a397725d3c9fc5ddd3e56066b7b64c749014e",
 ticker: "eHDRN",
 decimals: 9,
-name: "Hedron on Ethereum"
+name: "Hedron on Eth"
 }, {
 chain: 1,
 a: "0xfc4913214444af5c715cc9f7b52655e788a569ed",
 dexs: "0xbaaf3b7a0b9de67de3097420d31800a885db6b41",
 ticker: "eICSA",
 decimals: 9,
-name: "ICSA on Ethereum"
+name: "ICSA on Eth"
 }, {
 chain: 1,
 a: "0xe9f84d418b008888a992ff8c6d22389c2c3504e0",

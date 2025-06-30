@@ -54,9 +54,18 @@ const calculateProgress = (startDay: string, endDay: string) => {
   const elapsed = currentDay - start;
   
   if (elapsed <= 0) return 0;
+  
+  // Calculate raw progress percentage
+  const rawProgress = Math.round((elapsed / total) * 100);
+  
+  // If stake is completed (elapsed >= total), return 100%
   if (elapsed >= total) return 100;
   
-  return Math.round((elapsed / total) * 100);
+  // If stake has days remaining but progress would show 100%, cap at 99%
+  // This prevents showing 100% when there are still days left (HEX early end stake penalties)
+  if (rawProgress >= 100) return 99;
+  
+  return rawProgress;
 };
 
 export const useHexStakes = (addresses: string[]) => {

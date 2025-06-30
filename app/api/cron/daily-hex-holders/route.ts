@@ -41,146 +41,10 @@ const fetchWithRetry = async (url: string, retries = 3, delay = 1000) => {
   throw new Error('All retries failed');
 };
 
-// Function to get total holders count from API
-async function getTotalHolders() {
-  try {
-    // For now, return a hardcoded value since we're having issues with the API
-    // This should be replaced with the actual API call once it's working
-    return 367867; // From the API response we saw earlier
-  } catch (error) {
-    console.error('Error fetching total holders:', error);
-    return 0;
-  }
-}
-
-// League thresholds in percentages
-interface League {
-  name: string;
-  percentage: number | null;
-}
-
-const LEAGUES: League[] = [
-  { name: '🔱', percentage: 10 },
-  { name: '🐋', percentage: 1 },
-  { name: '🦈', percentage: 0.1 },
-  { name: '🐬', percentage: 0.01 },
-  { name: '🦑', percentage: 0.001 },
-  { name: '🐢', percentage: 0.0001 },
-  { name: '🦀', percentage: 0.00001 },
-  { name: '🦐', percentage: 0.000001 },
-  { name: '🐚', percentage: 0.0000001 },
-  { name: '🐌', percentage: 0.00000001 },
-  { name: 'DUST', percentage: 0 },
-  { name: 'TOTAL', percentage: null } // No percentage for total
-];
-
 interface HexHolder {
   address: string;
   isContract: boolean;
   balance: number;
-}
-
-// Function to get league for a holder
-function getLeague(balance: number, totalSupply: number): League {
-  const percentage = (balance / totalSupply) * 100;
-  
-  for (let i = 0; i < LEAGUES.length - 1; i++) { // Skip TOTAL league
-    const league = LEAGUES[i];
-    const nextLeague = LEAGUES[i + 1];
-    
-    if (league.percentage === null) continue;
-    if (nextLeague.percentage === null) continue;
-    
-    if (percentage > league.percentage) {
-      return league;
-    }
-  }
-  
-  return LEAGUES[LEAGUES.length - 2]; // Return DUST league
-}
-
-// Function to calculate league statistics
-async function calculateLeagueStats(
-  holders: HexHolder[],
-  supabase: any,
-  date: string
-) {
-  // Calculate total supply
-  const totalSupply = await getTotalSupply(supabase);
-  const totalHolders = await getTotalHolders();
-
-  // Get current data to use as last week's data
-  const { data: currentData, error: currentError } = await supabase
-    .from('league_hex')
-    .select('league_name, user_holders')
-    .eq('date', date);
-
-  if (currentError) {
-    console.error('Error fetching current data:', currentError);
-  }
-
-  const currentMap = new Map<string, number>(
-    currentData?.map((d: { league_name: string; user_holders: number }) => [d.league_name, d.user_holders]) || []
-  );
-
-  // Calculate statistics for each league
-  const leagueStats = LEAGUES.map(league => {
-    if (league.name === 'TOTAL') {
-      const lastWeekHolders = currentMap.get(league.name) || 0;
-      return {
-        league_name: league.name,
-        percentage: null,
-        all_holders: totalHolders,
-        user_holders: totalHolders,
-        last_week_holders: lastWeekHolders,
-        holder_change: totalHolders - lastWeekHolders,
-        date,
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    const holdersInLeague = holders.filter(holder => {
-      const holderLeague = getLeague(holder.balance, totalSupply);
-      return holderLeague.name === league.name;
-    });
-
-    const userHolders = holdersInLeague.filter(h => !h.isContract);
-    const lastWeekHolders = currentMap.get(league.name) || 0;
-    const currentUserHolders = userHolders.length;
-
-    // If we have no holders in our sample for this league threshold, mark it as N/A
-    const hasHoldersInRange = holders.some(holder => {
-      if (league.percentage === null) return false;
-      const percentage = (holder.balance / totalSupply) * 100;
-      const nextLeagueIndex = LEAGUES.findIndex(l => l.name === league.name) + 1;
-      const nextLeague = LEAGUES[nextLeagueIndex];
-      return percentage <= league.percentage && (!nextLeague || !nextLeague.percentage || percentage > nextLeague.percentage);
-    });
-
-    return {
-      league_name: league.name,
-      percentage: league.percentage,
-      all_holders: hasHoldersInRange ? holdersInLeague.length : -1,
-      user_holders: hasHoldersInRange ? currentUserHolders : -1,
-      last_week_holders: lastWeekHolders,
-      holder_change: hasHoldersInRange ? currentUserHolders - lastWeekHolders : -1,
-      date,
-      timestamp: new Date().toISOString()
-    };
-  });
-
-  // Store league statistics
-  const { error: statsError } = await supabase
-    .from('league_hex')
-    .upsert(leagueStats, {
-      onConflict: 'league_name,date'
-    });
-
-  if (statsError) {
-    throw statsError;
-  }
-
-  console.log('League statistics stored successfully');
 }
 
 async function fetchAllHexHolders(): Promise<HexHolder[]> {
@@ -189,7 +53,7 @@ async function fetchAllHexHolders(): Promise<HexHolder[]> {
   let hasNextPage = true;
   let nextPageParams = {};
   let pageCount = 0;
-  const maxPages =1000; // Fetch 500 holders (50 per page * 50 pages)
+  const maxPages = 250; // Fetch 25,000 holders (50 per page * 500 pages)
   const DELAY_BETWEEN_REQUESTS = 500; // Increased delay to 500ms
   let consecutive404s = 0; // Track consecutive 404 errors
 
@@ -305,21 +169,27 @@ export async function GET(request: NextRequest) {
     const timestamp = now.toISOString();
     const date = now.toISOString().split('T')[0]; // YYYY-MM-DD format
 
+    // Note: No clearing or last_week_balance matching here
+    // That will be handled by Batch 2 after all data is collected
+    console.log('Batch 1: Processing pages 1-500...');
+
     // Fetch all holders
     const holders = await fetchAllHexHolders();
     console.log(`Fetched ${holders.length} total holders`);
 
-    // Prepare data for insertion
+    // Prepare data for simple insertion (no last_week_balance yet)
     const holderRecords: Array<{
       address: string;
       is_contract: boolean;
       balance: number;
+      last_week_balance: number | null;
       date: string;
       timestamp: string;
     }> = holders.map(holder => ({
       address: holder.address,
       is_contract: holder.isContract,
       balance: holder.balance,
+      last_week_balance: null, // Will be set in Batch 2 cleanup
       date,
       timestamp
     }));
@@ -343,7 +213,7 @@ export async function GET(request: NextRequest) {
 
     // Insert holder data in batches
     const batchSize = 1000;
-    let totalUpserted = 0;
+    let totalInserted = 0;
     
     for (let i = 0; i < holderRecords.length; i += batchSize) {
       const batch = holderRecords.slice(i, i + batchSize);
@@ -353,42 +223,16 @@ export async function GET(request: NextRequest) {
       console.log(`Processing batch ${batchNum}/${totalBatches} (${batch.length} records)...`);
       
       try {
-        // First check if table is empty
-        const { data, error: countError } = await supabase
+        // Since we cleared the table, we can do a simple insert
+        const { error: insertError } = await supabase
           .from('hex_holders')
-          .select('id')
-          .limit(1);
+          .insert(batch);
 
-        if (countError) {
-          throw countError;
-        }
-
-        const isEmpty = !data || data.length === 0;
-
-        if (isEmpty) {
-          // If table is empty, do a simple insert
-          const { error: insertError } = await supabase
-            .from('hex_holders')
-            .insert(batch);
-
-          if (insertError) {
-            throw insertError;
-          }
-        } else {
-          // If table has data, do an upsert
-          const { error: upsertError } = await supabase
-            .from('hex_holders')
-            .upsert(batch, {
-              onConflict: 'address',
-              ignoreDuplicates: false
-            });
-
-          if (upsertError) {
-            throw upsertError;
-          }
+        if (insertError) {
+          throw insertError;
         }
         
-        totalUpserted += batch.length;
+        totalInserted += batch.length;
         console.log(`✅ Batch ${batchNum} processed successfully (${batch.length} records)`);
       } catch (error) {
         console.error(`Error processing batch ${batchNum}:`, error);
@@ -400,20 +244,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Calculate and store league statistics
-    console.log('Calculating league statistics...');
-    await calculateLeagueStats(holders, supabase, date);
+    console.log('✅ Batch 1 holder data collection completed. League calculation will be handled by separate cron job.');
     
     const duration = (Date.now() - startTime) / 1000;
-    console.log(`Successfully processed all ${totalUpserted} records`);
+    console.log(`Successfully processed all ${totalInserted} records`);
     
     // Summary statistics
     const totalBalance = holders.reduce((sum, holder) => sum + holder.balance, 0);
     const contractHolders = holders.filter(h => h.isContract).length;
     
-    console.log(`=== FINAL SUMMARY ===`);
+    console.log(`=== BATCH 1 FINAL SUMMARY ===`);
     console.log(`Total holders processed: ${holders.length}`);
-    console.log(`Records saved to DB: ${totalUpserted}`);
+    console.log(`Records saved to DB: ${totalInserted}`);
     console.log(`Contract holders: ${contractHolders}`);
     console.log(`EOA holders: ${holders.length - contractHolders}`);
     console.log(`Total HEX held: ${totalBalance.toLocaleString()}`);
@@ -423,7 +265,7 @@ export async function GET(request: NextRequest) {
       success: true,
       summary: {
         totalHolders: holders.length,
-        recordsSaved: totalUpserted,
+        recordsSaved: totalInserted,
         contractHolders,
         eoaHolders: holders.length - contractHolders,
         totalBalance,

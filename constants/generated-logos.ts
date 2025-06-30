@@ -200,7 +200,8 @@ export const ALL_COIN_LOGOS = [
   "weUNI",
   "weUSDC",
   "weUSDT",
-  "weWBTC"
+  "weWBTC",
+  "weWETH"
 ] as const;
 
 export type CoinLogo = typeof ALL_COIN_LOGOS[number];

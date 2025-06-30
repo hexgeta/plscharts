@@ -478,7 +478,7 @@ export default React.memo(function LeagueTable({
       )}
 
       {/* Header */}
-      <div className={`grid ${shouldShowHolders ? 'grid-cols-4' : 'grid-cols-3'} items-center gap-4 mb-2`}>
+      <div className={`grid ${shouldShowHolders ? 'grid-cols-4' : 'grid-cols-3'} items-center gap-4 mb-2`} style={shouldShowHolders ? { gridTemplateColumns: 'minmax(80px, 1fr) minmax(100px, 1fr) minmax(70px, 1fr) minmax(30px, 1fr)' } : undefined}>
         <div className="flex items-center space-x-3">
           <CoinLogo
             symbol={tokenTicker}
@@ -489,7 +489,7 @@ export default React.memo(function LeagueTable({
           <div>
             <div className="text-white text-sm">{displayTicker}</div>
             {containerStyle && (
-              <div className="text-gray-400 text-[10px] sm:text-xs">{(() => {
+              <div className="text-gray-400 text-[10px] sm:text-[10px]">{(() => {
                 const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === tokenTicker)
                 return tokenConfig?.name || tokenTicker
               })()}</div>
@@ -534,9 +534,10 @@ export default React.memo(function LeagueTable({
                   ? 'bg-gray-500/20 rounded-lg ml-[-12px] mr-[-12px] px-3' 
                   : ''
               }`}
+              style={shouldShowHolders ? { gridTemplateColumns: 'minmax(80px, 1fr) minmax(100px, 1fr) minmax(70px, 1fr) minmax(30px, 1fr)' } : undefined}
             >
               {/* Rank Info - Left Aligned */}
-              <div className="flex items-center space-x-2 min-w-[80px]">
+              <div className="flex items-center space-x-2">
                 <div className="w-6 h-6 relative flex-shrink-0">
                   <Image
                     src={rank.icon}
@@ -579,7 +580,7 @@ export default React.memo(function LeagueTable({
                   {leagueHolderData ? (
                     <div className="flex flex-col items-end">
                       <span className="text-white">
-                        {leagueHolderData.user_holders === -1 ? 'N/A' : leagueHolderData.user_holders.toLocaleString()}
+                        {leagueHolderData.user_holders === null ? 'N/A' : leagueHolderData.user_holders.toLocaleString()}
                       </span>
                       <span className={`text-xs ${
                         leagueHolderData.holder_change === -1 ? 'text-gray-400' :
