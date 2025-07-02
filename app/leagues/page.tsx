@@ -165,7 +165,7 @@ PopupTokenCard.displayName = 'PopupTokenCard';
 export default function LeaguesPage() {
   const [mounted, setMounted] = useState(false);
   const [excludeOA, setExcludeOA] = useState(true);
-  const [showHolders, setShowHolders] = useState(true); // Toggle for holders column
+  const showHolders = true; // Set to true/false to show/hide holders column
 
   // League images are now preloaded by the background preloader
   
@@ -290,7 +290,7 @@ export default function LeaguesPage() {
       </div>
 
       {/* HEX Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
         <LeagueTable 
           tokenTicker="eHEX" 
           preloadedPrices={memoizedPrices} 
@@ -309,7 +309,7 @@ export default function LeaguesPage() {
       </div>
 
       {/* HDRN Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
         <LeagueTable 
           tokenTicker="eHDRN" 
           preloadedPrices={memoizedPrices} 
@@ -327,7 +327,7 @@ export default function LeaguesPage() {
       </div>
 
       {/* ICSA Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
         <LeagueTable 
           tokenTicker="eICSA" 
           preloadedPrices={memoizedPrices} 
@@ -345,7 +345,7 @@ export default function LeaguesPage() {
       </div>
 
       {/* COM Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
         <LeagueTable 
           tokenTicker="eCOM" 
           preloadedPrices={memoizedPrices} 
@@ -377,7 +377,7 @@ export default function LeaguesPage() {
             duration: 0.4,
             ease: [0.23, 1, 0.32, 1]
           }}
-          className="max-w-[1200px] py-8 mx-auto w-full relative flex flex-col gap-4 sm:gap-8"
+          className="max-w-[1000px] py-8 mx-auto w-full relative flex flex-col gap-4 sm:gap-8"
         >
           {/* Toggle Buttons */}
           <div className="flex justify-center gap-4 mb-0">
@@ -390,16 +390,6 @@ export default function LeaguesPage() {
               }`}
             >
               {excludeOA ? 'Include OA' : 'Exclude OA'}
-            </button>
-            <button
-              onClick={() => setShowHolders(!showHolders)}
-              className={`px-6 py-2 rounded-full border-2 font-medium transition-all duration-200 ${
-                showHolders 
-                  ? 'bg-white text-black border-white' 
-                  : 'bg-transparent text-white border-white/20 hover:border-white/40'
-              }`}
-            >
-              {showHolders ? 'Hide Holders' : 'Show Holders'}
             </button>
           </div>
 

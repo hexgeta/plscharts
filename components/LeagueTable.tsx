@@ -415,7 +415,7 @@ export default React.memo(function LeagueTable({
     )
   }
 
-  // Show holders based on prop and token conditions
+  // Show holders based on prop and token conditions - only on xl screens (1280px+)
   const isEthereumToken = tokenTicker.startsWith('e') || tokenTicker.startsWith('we');
   const shouldShowHolders = showHolders && tokenTicker === 'HEX' && !isEthereumToken;
 
@@ -478,7 +478,7 @@ export default React.memo(function LeagueTable({
       )}
 
       {/* Header */}
-      <div className={`grid ${shouldShowHolders ? 'grid-cols-4' : 'grid-cols-3'} items-center gap-4 mb-2`} style={shouldShowHolders ? { gridTemplateColumns: 'minmax(80px, 1fr) minmax(100px, 1fr) minmax(70px, 1fr) minmax(30px, 1fr)' } : undefined}>
+      <div className={`grid ${shouldShowHolders ? 'grid-cols-3 xl:grid-cols-4' : 'grid-cols-3'} items-center gap-4 mb-2`}>
         <div className="flex items-center space-x-3">
           <CoinLogo
             symbol={tokenTicker}
@@ -502,17 +502,17 @@ export default React.memo(function LeagueTable({
             {hasValidPriceData ? formatHeaderMarketCap(totalMarketCap) : 'No price'}
           </div>
         </div>
-                <div className={shouldShowHolders ? "text-center" : "text-right"}>
+        <div className="text-right">
           <div className="text-gray-400 text-xs">Supply</div>
           <div className="text-white font-bold text-sm transition-all duration-300">{formatCompactNumber(totalSupply)}</div>
         </div>
         {shouldShowHolders && (
-          <div className="text-right">
+          <div className="text-right hidden xl:block">
             <div className="text-gray-400 text-xs">Holders</div>
             <div className="text-white font-bold text-sm transition-all duration-300">
               {mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders === -1 
                 ? 'N/A' 
-                : mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders.toLocaleString() || 'N/A'}
+                : formatCompactNumber(mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders) || 'N/A'}
             </div>
           </div>
         )}
@@ -525,17 +525,42 @@ export default React.memo(function LeagueTable({
       <div className="space-y-1">
         {leagueRanks.map((rank, index) => {
           const leagueHolderData = shouldShowHolders ? mappedLeagueData.find(l => l.league_name === rank.name) : null;
+          const isCrabAndBelow = ['Crab', 'Shrimp', 'Shell'].includes(rank.name);
+          const isCrab = rank.name === 'Crab';
+          const isShrimp = rank.name === 'Shrimp';
+          const isShell = rank.name === 'Shell';
           
           return (
-            <div 
-              key={rank.name}
-              className={`grid ${shouldShowHolders ? 'grid-cols-4' : 'grid-cols-3'} items-center gap-4 py-1 transition-all duration-300 ${
-                userCurrentLeague === rank.name 
-                  ? 'bg-gray-500/20 rounded-lg ml-[-12px] mr-[-12px] px-3' 
-                  : ''
-              }`}
-              style={shouldShowHolders ? { gridTemplateColumns: 'minmax(80px, 1fr) minmax(100px, 1fr) minmax(70px, 1fr) minmax(30px, 1fr)' } : undefined}
-            >
+            <div key={rank.name} className="relative">
+              {/* Render the centered "Crab and below" section - only in holders column */}
+              {isCrab && shouldShowHolders && (
+                <div className="absolute top-0 flex items-center justify-center xl:flex hidden" style={{ 
+                  height: 'calc(300% + 0.5rem)', 
+                  right: '0px',
+                  width: '50px' // Fixed width for proper centering
+                }}>
+                  <div className="bg-gray-800/50 border border-dotted border-white/20 rounded-lg ml-2 px-2 py-1 flex flex-col items-center justify-center h-full w-full">
+                    <span className="text-white/70 text-[10px] font-medium text-right">
+                      {(() => {
+                        const totalHolders = mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders || 0;
+                        const higherLeagueHolders = mappedLeagueData
+                          .filter(l => ['Poseidon', 'Whale', 'Shark', 'Dolphin', 'Squid', 'Turtle'].includes(l.league_name))
+                          .reduce((sum, l) => sum + (l.user_holders || 0), 0);
+                        const remainingHolders = totalHolders - higherLeagueHolders;
+                        return remainingHolders > 0 ? `~${formatCompactNumber(remainingHolders)}` : 'N/A';
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              <div 
+                className={`grid ${shouldShowHolders ? 'grid-cols-3 xl:grid-cols-4' : 'grid-cols-3'} items-center gap-4 py-1 transition-all duration-300 ${
+                  userCurrentLeague === rank.name 
+                    ? 'bg-gray-500/20 rounded-lg ml-[-12px] mr-[-12px] px-3' 
+                    : ''
+                }`}
+              >
               {/* Rank Info - Left Aligned */}
               <div className="flex items-center space-x-2">
                 <div className="w-6 h-6 relative flex-shrink-0">
@@ -576,8 +601,11 @@ export default React.memo(function LeagueTable({
 
               {/* Holders Column in League Rows */}
               {shouldShowHolders && (
-                <div className="text-right text-sm">
-                  {leagueHolderData ? (
+                <div className="text-right text-sm hidden xl:block">
+                  {isCrabAndBelow ? (
+                    // For Crab, Shrimp, Shell - hide individual numbers, the overlay will show combined count
+                    <span className="text-transparent">-</span>
+                  ) : leagueHolderData ? (
                     <div className="flex flex-col items-end">
                       <span className="text-white">
                         {leagueHolderData.user_holders === null ? 'N/A' : leagueHolderData.user_holders.toLocaleString()}
@@ -588,7 +616,9 @@ export default React.memo(function LeagueTable({
                         leagueHolderData.holder_change < 0 ? 'text-red-400' : 
                         'text-gray-400'
                       }`}>
-                        {leagueHolderData.holder_change === -1 ? 'N/A' : formatHolderChange(leagueHolderData.holder_change)}
+                        {leagueHolderData.holder_change === -1 ? 'N/A' : 
+                         leagueHolderData.holder_change === 0 ? '' : 
+                         formatHolderChange(leagueHolderData.holder_change)}
                       </span>
                     </div>
                   ) : (
@@ -597,6 +627,7 @@ export default React.memo(function LeagueTable({
                 </div>
               )}
 
+              </div>
             </div>
           );
         })}

@@ -208,7 +208,7 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
                   </div>
                   <div className="flex flex-col flex-1 min-w-0">
                     <span className="font-medium">
-                      {isValidAddress(search) ? 'View Wallet Portfolio' : 'Invalid Address'}
+                      {isValidAddress(search) ? 'View Wallet' : 'Invalid Address'}
                     </span>
                     <span className="text-sm text-muted-foreground font-mono">
                       {isValidAddress(search) ? `0x...${search.slice(-4)}` : search}

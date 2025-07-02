@@ -4,9 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 // Force dynamic rendering since we use request headers
 export const dynamic = 'force-dynamic';
 
-const HEX_CONTRACT = '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39';
-const HEX_DECIMALS = 8;
-const JOB_NAME = 'hex-holders-collection';
+const PLSX_CONTRACT = '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab';
+const PLSX_DECIMALS = 18;
+const JOB_NAME = 'plsx-holders-collection';
 
 // Add league calculation types and constants
 interface LeagueStats {
@@ -26,10 +26,11 @@ interface LeagueData {
   maxPercentage: number;
 }
 
-interface HexHolder {
+interface PlsxHolder {
   address: string;
   is_contract: boolean;
   balance: number;
+  rawValue?: string; // Optional for progress tracking
 }
 
 // League definitions (ordered from highest to lowest percentage)
@@ -95,8 +96,8 @@ async function getOrCreateProgress(supabase: any, date: string): Promise<Progres
     // Build next_page_params from stored values
     const nextPageParams = existing.last_address_hash ? {
       address_hash: existing.last_address_hash,
-      items_count: 50,
-      value: existing.last_value
+      items_count: 50
+      // Skip value for PLSX to avoid bigint overflow
     } : null;
     
     return {
@@ -156,13 +157,13 @@ async function updateProgress(supabase: any, date: string, progress: Partial<Pro
   }
 }
 
-async function fetchHexHoldersFromPage(
+async function fetchPlsxHoldersFromPage(
   startPage: number, 
   nextPageParams: any, 
   maxPages: number = 200
-): Promise<{ holders: HexHolder[], totalPages: number, isComplete: boolean }> {
-  const baseUrl = `https://api.scan.pulsechain.com/api/v2/tokens/${HEX_CONTRACT}/holders`;
-  const holders: HexHolder[] = [];
+): Promise<{ holders: PlsxHolder[], totalPages: number, isComplete: boolean }> {
+  const baseUrl = `https://api.scan.pulsechain.com/api/v2/tokens/${PLSX_CONTRACT}/holders`;
+  const holders: PlsxHolder[] = [];
   let hasNextPage = true;
   let currentPageParams = nextPageParams;
   let pageCount = startPage;
@@ -230,7 +231,8 @@ async function fetchHexHoldersFromPage(
       const newHolders = data.items.map((item: any) => ({
         address: item.address.hash,
         is_contract: item.address.is_contract,
-        balance: Number(item.value) / Math.pow(10, HEX_DECIMALS)
+        balance: Number(item.value) / Math.pow(10, PLSX_DECIMALS),
+        rawValue: item.value // Store raw API value for progress tracking
       }));
 
       holders.push(...newHolders);
@@ -262,31 +264,31 @@ async function fetchHexHoldersFromPage(
 // League calculation helper functions
 async function getTotalSupply(supabase: any): Promise<number> {
   try {
-    console.log('📊 Fetching HEX total supply from database...');
+    console.log('📊 Fetching PLSX total supply from database...');
     
     const { data, error } = await supabase
       .from('daily_token_supplies')
       .select('total_supply_formatted')
-      .eq('ticker', 'HEX')
+      .eq('ticker', 'PLSX')
       .eq('chain', 369) // PulseChain
       .order('id', { ascending: false })
       .limit(1)
       .single();
 
     if (error) {
-      console.error('Error fetching HEX supply from database:', error);
+      console.error('Error fetching PLSX supply from database:', error);
       throw error;
     }
 
     if (!data) {
-      throw new Error('No HEX supply data found in database');
+      throw new Error('No PLSX supply data found in database');
     }
 
     const totalSupply = parseFloat(data.total_supply_formatted);
-    console.log('📊 HEX Total Supply from DB:', totalSupply.toLocaleString());
+    console.log('📊 PLSX Total Supply from DB:', totalSupply.toLocaleString());
     return totalSupply;
   } catch (error) {
-    console.error('Error fetching HEX supply:', error);
+    console.error('Error fetching PLSX supply:', error);
     throw error;
   }
 }
@@ -300,21 +302,21 @@ function getLeague(percentage: number): LeagueData {
   return LEAGUES[LEAGUES.length - 1]; // Default to Shell
 }
 
-async function getAllHolders(supabase: any): Promise<HexHolder[]> {
+async function getAllHolders(supabase: any): Promise<PlsxHolder[]> {
   const today = new Date().toISOString().split('T')[0];
   
-  console.log('📊 Fetching all holders from database...');
+  console.log('📊 Fetching all PLSX holders from database...');
   
   // First get the count to make sure we fetch all records
   const { count } = await supabase
-    .from('hex_holders')
+    .from('plsx_holders')
     .select('*', { count: 'exact', head: true })
     .eq('date', today);
   
-  console.log(`📊 Total holders in database: ${count}`);
+  console.log(`📊 Total PLSX holders in database: ${count}`);
   
   // Supabase has a default limit of 1000, so we need to paginate
-  const allHolders: HexHolder[] = [];
+  const allHolders: PlsxHolder[] = [];
   const pageSize = 1000;
   let from = 0;
   
@@ -322,7 +324,7 @@ async function getAllHolders(supabase: any): Promise<HexHolder[]> {
     console.log(`📊 Fetching page: ${from} to ${from + pageSize - 1}`);
     
     const { data, error } = await supabase
-      .from('hex_holders')
+      .from('plsx_holders')
       .select('address, is_contract, balance')
       .eq('date', today)
       .order('balance', { ascending: false })
@@ -351,20 +353,20 @@ async function getAllHolders(supabase: any): Promise<HexHolder[]> {
 async function clearLeagueTable(supabase: any): Promise<void> {
   const today = new Date().toISOString().split('T')[0];
 
-  console.log('🗑️ Clearing league_hex table for fresh start...');
+  console.log('🗑️ Clearing league_plsx table for fresh start...');
 
   try {
     const { error } = await supabase
-      .from('league_hex')
+      .from('league_plsx')
       .delete()
       .eq('date', today);
 
     if (error) {
-      console.error('Error clearing league_hex table:', error);
+      console.error('Error clearing league_plsx table:', error);
       throw error;
     }
 
-    console.log('✅ league_hex table cleared successfully');
+    console.log('✅ league_plsx table cleared successfully');
   } catch (error) {
     console.error('❌ Error during league table cleanup:', error);
     throw error;
@@ -374,7 +376,7 @@ async function clearLeagueTable(supabase: any): Promise<void> {
 async function getTotalHolders() {
   try {
     console.log('📊 Fetching total holders count from API...');
-    const url = `https://api.scan.pulsechain.com/api/v2/tokens/${HEX_CONTRACT}/counters`;
+    const url = `https://api.scan.pulsechain.com/api/v2/tokens/${PLSX_CONTRACT}/counters`;
     
     const response = await fetch(url);
     if (!response.ok) {
@@ -384,7 +386,7 @@ async function getTotalHolders() {
     const data = await response.json();
     const totalHolders = parseInt(data.token_holders_count) || 0;
     
-    console.log(`📊 Total HEX holders from API: ${totalHolders.toLocaleString()}`);
+    console.log(`📊 Total PLSX holders from API: ${totalHolders.toLocaleString()}`);
     return totalHolders;
   } catch (error) {
     console.error('Error fetching total holders from API:', error);
@@ -394,9 +396,9 @@ async function getTotalHolders() {
   }
 }
 
-async function calculateLeagueStatistics(holders: HexHolder[], totalSupply: number): Promise<Record<string, LeagueStats>> {
-  console.log('📊 Calculating league statistics...');
-  console.log(`📊 Total HEX Supply: ${totalSupply.toLocaleString()}`);
+async function calculateLeagueStatistics(holders: PlsxHolder[], totalSupply: number): Promise<Record<string, LeagueStats>> {
+  console.log('📊 Calculating PLSX league statistics...');
+  console.log(`📊 Total PLSX Supply: ${totalSupply.toLocaleString()}`);
   console.log(`📊 Total Holders to Process: ${holders.length}`);
   
   // Get total holders from API
@@ -453,7 +455,7 @@ async function calculateLeagueStatistics(holders: HexHolder[], totalSupply: numb
   };
 
   // Log results
-  console.log('\n🏆 League Distribution:');
+  console.log('\n🏆 PLSX League Distribution:');
   LEAGUES.forEach(league => {
     const stats = leagueStats[league.emoji];
     console.log(`${league.emoji} ${league.name.padEnd(8)}: ${stats.user_holders.toString().padStart(6)} users, ${stats.all_holders.toString().padStart(6)} total`);
@@ -470,7 +472,7 @@ async function getLastWeekHolders(supabase: any): Promise<Record<string, number>
   
   try {
   const { data, error } = await supabase
-    .from('league_hex')
+    .from('league_plsx')
     .select('league_name, user_holders')
       .gte('date', lastWeek.toISOString().split('T')[0])
       .order('date', { ascending: false })
@@ -492,7 +494,7 @@ async function getLastWeekHolders(supabase: any): Promise<Record<string, number>
 }
 
 async function calculateLeagues(supabase: any): Promise<any> {
-  console.log('\n🏆 Starting league calculation...');
+  console.log('\n🏆 Starting PLSX league calculation...');
   const leagueStartTime = Date.now();
 
   try {
@@ -521,7 +523,7 @@ async function calculateLeagues(supabase: any): Promise<any> {
     // Store results in database
     const leagueArray = Object.values(leagueStats);
     const { error: insertError } = await supabase
-      .from('league_hex')
+      .from('league_plsx')
       .insert(leagueArray);
 
     if (insertError) {
@@ -534,9 +536,9 @@ async function calculateLeagues(supabase: any): Promise<any> {
     const contractHolders = allHolders.length - userHolders;
     const executionTime = (Date.now() - leagueStartTime) / 1000;
 
-    console.log('\n📈 LEAGUE CALCULATION SUMMARY');
+    console.log('\n📈 PLSX LEAGUE CALCULATION SUMMARY');
     console.log('=====================================');
-    console.log(`💰 Total HEX Supply: ${totalSupply.toLocaleString()}`);
+    console.log(`💰 Total PLSX Supply: ${totalSupply.toLocaleString()}`);
     console.log(`👥 Total Holders: ${allHolders.length.toLocaleString()}`);
     console.log(`👤 User Holders: ${userHolders.toLocaleString()}`);
     console.log(`🤖 Contract Holders: ${contractHolders.toLocaleString()}`);
@@ -584,7 +586,7 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    console.log('🚀 Starting HEX holders collection...');
+    console.log('🚀 Starting PLSX holders collection...');
     
     // Get current date info
     const now = new Date();
@@ -600,19 +602,19 @@ export async function GET(request: NextRequest) {
       
       // First, clear the backup table
       const { error: clearBackupError } = await supabase
-        .from('hex_holders_last_week')
+        .from('plsx_holders_last_week')
         .delete()
         .neq('id', 0);
       
       if (clearBackupError) {
         console.error('❌ Error clearing backup table:', clearBackupError);
       } else {
-        console.log('✅ Cleared hex_holders_last_week table');
+        console.log('✅ Cleared plsx_holders_last_week table');
       }
       
       // Copy current data to backup table
       const { data: currentData, error: fetchError } = await supabase
-        .from('hex_holders')
+        .from('plsx_holders')
         .select('*');
       
       if (fetchError) {
@@ -623,7 +625,7 @@ export async function GET(request: NextRequest) {
         const backupData = currentData.map(({ id, ...rest }) => rest);
         
         const { error: backupError } = await supabase
-          .from('hex_holders_last_week')
+          .from('plsx_holders_last_week')
           .insert(backupData);
         
         if (backupError) {
@@ -636,9 +638,9 @@ export async function GET(request: NextRequest) {
       }
       
       // Clear the main table
-      console.log('🗑️ Clearing hex_holders table...');
+      console.log('🗑️ Clearing plsx_holders table...');
       const { error: clearMainError } = await supabase
-        .from('hex_holders')
+        .from('plsx_holders')
         .delete()
         .neq('id', 0);
       
@@ -673,7 +675,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch next batch of holders
-    const result = await fetchHexHoldersFromPage(
+    const result = await fetchPlsxHoldersFromPage(
       progress.lastPage, 
       progress.nextPageParams, 
       PAGES_PER_RUN
@@ -705,7 +707,7 @@ export async function GET(request: NextRequest) {
         
         try {
           const { error: insertError } = await supabase
-            .from('hex_holders')
+            .from('plsx_holders')
             .insert(batch);
 
           if (insertError) {
@@ -724,7 +726,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Update progress with last item for next page params
+            // Update progress with last item for next page params
       const lastItem = result.holders[result.holders.length - 1];
       await updateProgress(supabase, date, {
         lastPage: result.totalPages,
@@ -732,7 +734,7 @@ export async function GET(request: NextRequest) {
         isComplete: result.isComplete
       }, {
         address: lastItem.address,
-        value: Math.round(lastItem.balance * Math.pow(10, HEX_DECIMALS))
+        value: null // Skip value for PLSX due to bigint overflow with 18 decimals
       });
 
       console.log(`✅ Progress updated: Page ${result.totalPages}, Total: ${progress.totalCollected + result.holders.length}`);
@@ -768,9 +770,10 @@ export async function GET(request: NextRequest) {
         .update({ 
           last_processed_page: result.totalPages,
           last_address_hash: lastItem.address,
-          last_address_value: Math.round(lastItem.balance * Math.pow(10, HEX_DECIMALS)),
+          last_address_value: null, // Skip value for PLSX due to bigint overflow
           total_holders_collected: progress.totalCollected + result.holders.length
         })
+        .eq('job_name', JOB_NAME)
         .eq('date', date);
 
       console.log(`✅ Progress saved. Next run will start from page ${result.totalPages + 1}`);
@@ -799,7 +802,7 @@ export async function GET(request: NextRequest) {
               ? `https://${process.env.VERCEL_URL}` 
               : 'http://localhost:3000';
             
-            const response = await fetch(`${baseUrl}/api/cron/daily-hex-holders`, {
+            const response = await fetch(`${baseUrl}/api/cron/daily-plsx-holders`, {
               method: 'GET',
               headers: {
                 'Authorization': `Bearer ${process.env.CRON_SECRET}`
@@ -842,6 +845,7 @@ export async function GET(request: NextRequest) {
           last_processed_page: progress.lastPage,
           total_holders_collected: progress.totalCollected
         })
+        .eq('job_name', JOB_NAME)
         .eq('date', date);
 
       console.log('\n🎉 COLLECTION COMPLETE! All pages processed.');
@@ -875,7 +879,7 @@ export async function GET(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('❌ Error in HEX holders collection:', error);
+    console.error('❌ Error in PLSX holders collection:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 } 

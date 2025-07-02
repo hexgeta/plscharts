@@ -43,6 +43,8 @@ interface PortfolioProps {
 }
 
 export default function Portfolio({ detectiveMode = false, detectiveAddress }: PortfolioProps) {
+  // Temporarily hide portfolio analysis section
+  const showPortfolioAnalysis = false
   // Debug toggle - set to true to show network debug panel
   const SHOW_DEBUG_PANEL = false
   
@@ -124,6 +126,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   })
   // Add to Portfolio component state
   const [chainFilter, setChainFilter] = useState<'pulsechain' | 'ethereum' | 'both'>(() => {
+    // Detective mode always uses PulseChain only
+    if (detectiveMode) {
+      return 'pulsechain'
+    }
     // Initialize from localStorage if available
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('portfolioChainFilter')
@@ -213,6 +219,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return true
   })
   const [showValidators, setShowValidators] = useState<boolean>(() => {
+    // Detective mode never shows validators
+    if (detectiveMode) {
+      return false
+    }
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('portfolioShowValidators')
       return saved !== null ? saved === 'true' : true // Default to true
@@ -272,8 +282,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Dialog state for league tables (moved up to prevent closing on price refresh)
   const [openDialogToken, setOpenDialogToken] = useState<string | null>(null)
-
-
 
   // Detective mode: use the provided address instead of stored addresses
   const effectiveAddresses = detectiveMode && detectiveAddress 
@@ -507,6 +515,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       setShowHexStakes(true)
     }
   }, [detectiveMode])
+
+  // Portfolio analysis state for detective mode
+  const [portfolioAnalysis, setPortfolioAnalysis] = useState<string | null>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime?: string } | null>(null)
 
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
@@ -1391,10 +1405,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           ? selectedAddressIds.some(id => effectiveAddresses.find(addr => addr.id === id && addr.address.toLowerCase() === stake.address.toLowerCase()))
           : true
         
-        // Filter by chain
-        const chainMatch = chainFilter === 'both' || 
-          (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
-          (chainFilter === 'pulsechain' && stake.chain === 'PLS')
+        // Filter by chain - detective mode only shows PulseChain stakes
+        const chainMatch = detectiveMode 
+          ? stake.chain === 'PLS' 
+          : (chainFilter === 'both' || 
+             (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+             (chainFilter === 'pulsechain' && stake.chain === 'PLS'))
         
         // Filter by stake status
         const statusMatch = stakeStatusFilter === stake.status
@@ -1443,7 +1459,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
         return hexStakesSortDirection === 'asc' ? comparison : -comparison
       })
-  }, [hexStakes, selectedAddressIds, addresses, chainFilter, getTokenPrice, hexStakesSortField, hexStakesSortDirection, removedAddressIds, stakeStatusFilter])
+  }, [hexStakes, selectedAddressIds, addresses, chainFilter, getTokenPrice, hexStakesSortField, hexStakesSortDirection, removedAddressIds, stakeStatusFilter, detectiveMode])
 
   // Always show all possible status types regardless of data
   const availableStatuses = useMemo(() => {
@@ -1570,9 +1586,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     showDollarChange
   ])
 
-  // Format balance for display
+  // Format balance for display (token units - can use scientific notation)
   const formatBalance = (balance: number): string => {
     if (balance === 0) return '0'
+    
+    // For very small dust amounts, use scientific notation
+    if (balance > 0 && balance < 0.01) {
+      return balance.toExponential(2)
+    }
+    
     if (balance >= 1e15) return (balance / 1e15).toFixed(1) + 'Q' // Quadrillion
     if (balance >= 1e12) return (balance / 1e12).toFixed(1) + 'T' // Trillion
     if (balance >= 1e9) return (balance / 1e9).toFixed(1) + 'B'   // Billion
@@ -1581,9 +1603,31 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return Math.floor(balance).toLocaleString('en-US')
   }
 
-  // Format large numbers for mobile with K, M, B, T, Q suffixes, hide .0 decimals
+  // Format dollar values for display (USD amounts - never use scientific notation)
+  const formatDollarValue = (dollarAmount: number): string => {
+    if (dollarAmount === 0) return '0.00'
+    
+    // For very small dust amounts, just show 0.00 instead of scientific notation
+    if (dollarAmount > 0 && dollarAmount < 0.01) {
+      return '0.00'
+    }
+    
+    if (dollarAmount >= 1e15) return (dollarAmount / 1e15).toFixed(1) + 'Q' // Quadrillion
+    if (dollarAmount >= 1e12) return (dollarAmount / 1e12).toFixed(1) + 'T' // Trillion
+    if (dollarAmount >= 1e9) return (dollarAmount / 1e9).toFixed(1) + 'B'   // Billion
+    if (dollarAmount >= 1e6) return (dollarAmount / 1e6).toFixed(1) + 'M'   // Million
+    if (dollarAmount < 10) return dollarAmount.toFixed(2)
+    return Math.floor(dollarAmount).toLocaleString('en-US')
+  }
+
+  // Format large numbers for mobile with K, M, B, T, Q suffixes, hide .0 decimals (token units)
   const formatBalanceMobile = (balance: number): string => {
     if (balance === 0) return '0.00'
+    
+    // For very small dust amounts, use scientific notation
+    if (balance > 0 && balance < 0.01) {
+      return balance.toExponential(2)
+    }
     
     const formatWithSuffix = (value: number, suffix: string): string => {
       const fixed = value.toFixed(1)
@@ -1611,6 +1655,43 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       }
     }
     return Math.floor(balance).toString()
+  }
+
+  // Format dollar values for mobile (USD amounts - never use scientific notation)
+  const formatDollarValueMobile = (dollarAmount: number): string => {
+    if (dollarAmount === 0) return '0.00'
+    
+    // For very small dust amounts, just show 0.00 instead of scientific notation
+    if (dollarAmount > 0 && dollarAmount < 0.01) {
+      return '0.00'
+    }
+    
+    const formatWithSuffix = (value: number, suffix: string): string => {
+      const fixed = value.toFixed(1)
+      // Remove .0 if it's exactly .0, otherwise keep the decimal
+      return (fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed) + suffix
+    }
+    
+    if (dollarAmount >= 1e15) return formatWithSuffix(dollarAmount / 1e15, 'Q') // Quadrillion
+    if (dollarAmount >= 1e12) return formatWithSuffix(dollarAmount / 1e12, 'T') // Trillion
+    if (dollarAmount >= 1e9) return formatWithSuffix(dollarAmount / 1e9, 'B')   // Billion
+    if (dollarAmount >= 1e6) return formatWithSuffix(dollarAmount / 1e6, 'M')   // Million
+    if (dollarAmount >= 1e3) return formatWithSuffix(dollarAmount / 1e3, 'K')   // Thousand
+    
+    // For small amounts, show appropriate precision for 3 significant figures
+    if (dollarAmount < 100) {
+      if (dollarAmount >= 10) {
+        // For values 10-99.99, show 1 decimal place (e.g., 81.4, not 81.44)
+        return dollarAmount.toFixed(1)
+      } else if (dollarAmount >= 1) {
+        // For values 1-9.99, show 2 decimal places (e.g., 1.23, not 1.234)
+        return dollarAmount.toFixed(2)
+      } else {
+        // For values under 1, show 2 decimal places instead of scientific notation
+        return dollarAmount.toFixed(2)
+      }
+    }
+    return Math.floor(dollarAmount).toString()
   }
 
   // Format address for display
@@ -1691,6 +1772,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     if (showDollar) {
       if (dollarChange === 0) return '$0.00'
       const absChange = Math.abs(dollarChange)
+      
+      // For very small dust amounts, just show $0.00
+      if (absChange > 0 && absChange < 0.01) {
+        return '$0.00'
+      }
+      
       const decimals = absChange >= 10 ? 0 : absChange >= 1 ? 2 : 2
       return `${dollarChange >= 0 ? '+' : '-'}$${absChange.toFixed(decimals)}`
     } else {
@@ -2020,7 +2107,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 {/* Value - Right Column */}
         <div className="text-right overflow-hidden">
           <div className="text-white font-medium text-sm md:text-lg transition-all duration-200">
-            ${formatBalance(usdValue)}
+            ${formatDollarValue(usdValue)}
           </div>
           <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
             {displayAmount} {getDisplayTicker(token.symbol)}
@@ -2225,8 +2312,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     })
     }
 
-    // Add validator value if enabled
-    if (showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
+    // Add validator value if enabled (but not in detective mode)
+    if (!detectiveMode && showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPrice = getTokenPrice('PLS')
       const validatorValue = validatorPLS * plsPrice
@@ -2235,12 +2322,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Add HEX stakes value if enabled (ONLY ACTIVE STAKES)
     if (showHexStakes && hexStakes) {
-      // Filter active stakes by chain
+      // Filter active stakes by chain - detective mode only shows PulseChain stakes
       const activeStakes = hexStakes.filter(stake => 
         stake.status === 'active' && 
-        (chainFilter === 'both' || 
-         (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
-         (chainFilter === 'pulsechain' && stake.chain !== 'ETH'))
+        (detectiveMode 
+          ? stake.chain === 'PLS'
+          : (chainFilter === 'both' || 
+             (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+             (chainFilter === 'pulsechain' && stake.chain !== 'ETH')))
       )
       const hexStakesValue = activeStakes.reduce((total, stake) => {
         const stakeHex = stake.principleHex + stake.yieldHex
@@ -2252,7 +2341,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes])
+  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, detectiveMode])
 
   // Calculate 24h portfolio change percentage
   const portfolio24hChange = useMemo(() => {
@@ -2322,8 +2411,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     })
     }
 
-    // Add validator value if enabled
-    if (showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
+    // Add validator value if enabled (but not in detective mode)
+    if (!detectiveMode && showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPriceData = prices['PLS']
       const plsCurrentPrice = plsPriceData?.price || 0
@@ -2342,12 +2431,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Add HEX stakes value if enabled (ONLY ACTIVE STAKES)
     if (showHexStakes && hexStakes) {
-      // Filter active stakes by chain
+      // Filter active stakes by chain - detective mode only shows PulseChain stakes
       const activeStakes = hexStakes.filter(stake => 
         stake.status === 'active' && 
-        (chainFilter === 'both' || 
-         (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
-         (chainFilter === 'pulsechain' && stake.chain !== 'ETH'))
+        (detectiveMode 
+          ? stake.chain === 'PLS'
+          : (chainFilter === 'both' || 
+             (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+             (chainFilter === 'pulsechain' && stake.chain !== 'ETH')))
       )
       activeStakes.forEach(stake => {
         const stakeHex = stake.principleHex + stake.yieldHex
@@ -2372,7 +2463,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     // Calculate percentage change
     if (previousTotalValue === 0) return 0
     return ((currentTotalValue - previousTotalValue) / previousTotalValue) * 100
-  }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes])
+  }, [filteredBalances, prices, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes, detectiveMode])
 
   // Calculate portfolio dollar change for 24h
   const portfolio24hDollarChange = useMemo(() => {
@@ -2398,8 +2489,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       })
     }
 
-    // Add validator value if enabled
-    if (showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
+    // Add validator value if enabled (but not in detective mode)
+    if (!detectiveMode && showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000
       const plsCurrentPrice = getTokenPrice('PLS')
       currentTotalValue += validatorPLS * plsCurrentPrice
@@ -2409,9 +2500,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     if (showHexStakes && hexStakes) {
       const activeStakes = hexStakes.filter(stake => 
         stake.status === 'active' && 
-        (chainFilter === 'both' || 
-         (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
-         (chainFilter === 'pulsechain' && stake.chain !== 'ETH'))
+        (detectiveMode 
+          ? stake.chain === 'PLS'
+          : (chainFilter === 'both' || 
+             (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+             (chainFilter === 'pulsechain' && stake.chain !== 'ETH')))
       )
       activeStakes.forEach(stake => {
         const stakeHex = stake.principleHex + stake.yieldHex
@@ -2423,7 +2516,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Calculate dollar change: (percentage / 100) * current value
     return (portfolio24hChange / 100) * currentTotalValue
-  }, [portfolio24hChange, prices, getTokenPrice, showLiquidBalances, filteredBalances, showValidators, validatorCount, chainFilter, showHexStakes, hexStakes])
+  }, [portfolio24hChange, prices, getTokenPrice, showLiquidBalances, filteredBalances, showValidators, validatorCount, chainFilter, showHexStakes, hexStakes, detectiveMode])
 
   // Comprehensive loading state - wait for relevant data to be ready
   // Once ready, stay ready (don't hide UI during price updates)
@@ -2544,6 +2637,159 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     mainTokensWithBalances
   })
 
+  // Generate portfolio analysis for detective mode (manual trigger)
+  const generatePortfolioAnalysis = useCallback(async () => {
+    if (!detectiveMode || analysisLoading) return
+
+    setAnalysisLoading(true)
+    setAnalysisError(null)
+
+    try {
+      // Prepare portfolio data for analysis
+      const significantTokens = sortedTokens.filter(token => {
+        const tokenValue = token.balanceFormatted * getTokenPrice(token.symbol)
+        return tokenValue >= 10 || sortedTokens.length <= 3 // Keep dust if it's all they have
+      })
+
+      const totalLiquidValue = significantTokens.reduce((sum, token) => 
+        sum + (token.balanceFormatted * getTokenPrice(token.symbol)), 0)
+      
+      // Calculate HEX stakes value and stats
+      const hexStakesValue = filteredHexStakes.reduce((sum, stake) => {
+        const hexPrice = getTokenPrice('HEX')
+        return sum + ((stake.principleHex + stake.yieldHex) * hexPrice)
+      }, 0)
+      const totalPortfolioValue = totalLiquidValue + hexStakesValue
+      
+      const activeStakes = filteredHexStakes.filter(stake => stake.status === 'active')
+      const inactiveStakes = filteredHexStakes.filter(stake => stake.status === 'inactive')
+      
+              // Calculate correct values for prompt data only (UI has its own calculations)
+      const promptActiveStakes = filteredHexStakes.filter(stake => stake.status === 'active')
+      const promptTotalTShares = promptActiveStakes.reduce((total, stake) => total + stake.tShares, 0)
+      
+      const promptWeightedStakeLength = promptTotalTShares > 0 ? promptActiveStakes.reduce((sum, stake) => {
+        const startDate = new Date(stake.startDate)
+        const endDate = new Date(stake.endDate)
+        const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+        return sum + (totalDays * stake.tShares)
+      }, 0) / promptTotalTShares : 0
+      
+      const promptWeightedAPY = promptTotalTShares > 0 ? promptActiveStakes.reduce((sum, stake) => {
+        const startDate = new Date(stake.startDate)
+        const now = new Date()
+        const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+        const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+        return sum + (apy * stake.tShares)
+      }, 0) / promptTotalTShares : 0
+
+      // Find earliest stake date to determine if OG
+      const earliestStakeDate = filteredHexStakes.length > 0
+        ? Math.min(...filteredHexStakes.map(stake => new Date(stake.startDate).getTime()))
+        : null
+      const isOGHexican = earliestStakeDate ? new Date(earliestStakeDate).getFullYear() === 2020 : false
+      
+      // Calculate recent staking activity (last 30 days)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      const recentStakeStarts = filteredHexStakes.filter(stake => 
+        new Date(stake.startDate) > thirtyDaysAgo).length
+      const recentStakeEnds = inactiveStakes.filter(stake => 
+        new Date(stake.endDate) > thirtyDaysAgo).length
+
+      // Create complete holdings list including HEX stakes
+      const allHoldings = [
+        ...significantTokens.map(token => ({
+          symbol: token.symbol,
+          value: Math.round(token.balanceFormatted * getTokenPrice(token.symbol)),
+          percentage: Math.round((token.balanceFormatted * getTokenPrice(token.symbol) / totalPortfolioValue) * 100),
+          type: 'liquid'
+        })),
+        ...(hexStakesValue > 0 ? [{
+          symbol: 'HEX (Staked)',
+          value: Math.round(hexStakesValue),
+          percentage: Math.round((hexStakesValue / totalPortfolioValue) * 100),
+          type: 'staked'
+        }] : [])
+      ].sort((a, b) => b.value - a.value)
+
+      const portfolioData = {
+        totalValue: Math.round(totalUsdValue),
+        liquidValue: Math.round(totalLiquidValue),
+        hexStakesValue: Math.round(hexStakesValue),
+        totalPortfolioValue: Math.round(totalPortfolioValue),
+        tokenCount: sortedTokens.length,
+        significantTokenCount: significantTokens.length,
+        dustTokens: sortedTokens.length - significantTokens.length,
+        topHoldings: allHoldings.slice(0, 3),
+        hexStakes: filteredHexStakes.length,
+        activeStakes: activeStakes.length,
+        endedStakes: inactiveStakes.length,
+        earlyEndStakes: (() => {
+          // Count EES stakes - check both isEES flag and actual vs promised end dates
+          return inactiveStakes.filter(stake => {
+            if (stake.isEES === true) return true
+            // Also check if actualEndDate is significantly before endDate (EES indicator)
+            if (stake.actualEndDate && stake.endDate) {
+              const actualEnd = new Date(stake.actualEndDate).getTime()
+              const promisedEnd = new Date(stake.endDate).getTime()
+              const daysDifference = (promisedEnd - actualEnd) / (24 * 60 * 60 * 1000)
+              return daysDifference > 30 // More than 30 days early = EES
+            }
+            return false
+          }).length
+        })(),
+        avgStakeDuration: Math.round((promptWeightedStakeLength / 365) * 10) / 10, // Use correct calculation for prompt
+        avgAPY: Math.round(promptWeightedAPY * 10) / 10, // Use correct calculation for prompt
+        isOGHexican,
+        firstStakeYear: earliestStakeDate ? new Date(earliestStakeDate).getFullYear() : null,
+        recentStakeStarts,
+        recentStakeEnds,
+        largestHolding: allHoldings.length > 0 ? allHoldings[0].symbol : null,
+        portfolioSize: totalUsdValue > 1000000 ? 'whale' : totalUsdValue > 100000 ? 'large' : totalUsdValue > 10000 ? 'medium' : 'small'
+      }
+
+      const response = await fetch('/api/portfolio-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ portfolioData }),
+      })
+
+      // Handle rate limit headers
+      const remaining = response.headers.get('X-RateLimit-Remaining')
+      const resetTime = response.headers.get('X-RateLimit-Reset')
+      
+      if (remaining) {
+        setRateLimitInfo({
+          remaining: parseInt(remaining),
+          resetTime: resetTime ? new Date(parseInt(resetTime)).toLocaleDateString() : undefined
+        })
+      }
+
+      if (!response.ok) {
+        const errorResult = await response.json()
+        console.error('Portfolio Analysis API Error:', errorResult)
+        
+        if (response.status === 429) {
+          setAnalysisError(`Rate limit exceeded: ${errorResult.message}`)
+        } else {
+          throw new Error(`API Error: ${errorResult.error}`)
+        }
+        return
+      }
+
+      const result = await response.json()
+      console.log('Portfolio Analysis Result:', result)
+      setPortfolioAnalysis(result.analysis)
+    } catch (error) {
+      console.error('Error generating portfolio analysis:', error)
+      setAnalysisError(`Error: ${error.message || 'Unable to generate portfolio analysis at this time.'}`)
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }, [detectiveMode, analysisLoading, totalUsdValue, sortedTokens, filteredHexStakes, getTokenPrice])
+
   // Handle animation completion without state updates that cause re-renders
   const handleAnimationComplete = useCallback(() => {
     if (!animationCompleteRef.current) {
@@ -2564,7 +2810,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   useEffect(() => {
     // Only show value when everything is ready and we have a meaningful total
     if (isEverythingReady && effectiveAddresses.length > 0 && totalUsdValue > 0) {
-      document.title = `$${formatBalanceMobile(totalUsdValue)} | PlsCharts.com`
+      document.title = `$${formatDollarValueMobile(totalUsdValue)} | PlsCharts.com`
     } else {
       document.title = 'Portfolio | PlsCharts.com'
     }
@@ -2574,6 +2820,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       document.title = 'PlsCharts.com'
     }
   }, [totalUsdValue, effectiveAddresses.length, isEverythingReady, chainFilter, showLiquidBalances, showValidators, showHexStakes])
+
+  // Auto-trigger analysis in detective mode when data is ready
+  useEffect(() => {
+    // Only generate prompt for the specific address after isEverythingReady is true
+    const targetAddress = '0x77d9c03eb2a82c2bdd6a1a0800f1521e2dee0ebb'
+    
+    if (detectiveMode && 
+        detectiveAddress?.toLowerCase() === targetAddress.toLowerCase() &&
+        isEverythingReady && 
+        effectiveAddresses.length > 0 && 
+        !portfolioAnalysis && 
+        !analysisLoading && 
+        !analysisError) {
+      console.log('🕵️ Detective Mode: Starting prompt generation for target address after isEverythingReady is true')
+      generatePortfolioAnalysis()
+    }
+  }, [detectiveMode, detectiveAddress, isEverythingReady, effectiveAddresses.length, portfolioAnalysis, analysisLoading, analysisError, generatePortfolioAnalysis])
 
   // Add toggle UI component (3-way toggle) - memoized to prevent unnecessary re-renders
   const ChainToggle = useCallback(() => (
@@ -2906,8 +3169,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           } : {})}
           className="bg-black border-2 border-white/10 rounded-2xl py-8 text-center max-w-[860px] w-full relative"
         >
-                    {/* Chain Toggle and Edit button in top right */}
-          {addresses.length > 0 && (
+                    {/* Chain Toggle and Edit button in top right - Hidden in detective mode */}
+          {addresses.length > 0 && !detectiveMode && (
             <div className="absolute top-4 right-2 flex items-center gap-2">
               {/* Chain Toggle - fixed width container for consistent positioning */}
               <button
@@ -2971,8 +3234,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           </div>
                     <div className="flex items-center justify-left sm:justify-center gap-2 ml-6">
             <div className="text-4xl sm:text-5xl font-bold text-white py-2">
-              <span className="sm:hidden">${formatBalanceMobile(totalUsdValue)}</span>
-              <span className="hidden sm:inline">${formatBalance(totalUsdValue)}</span>
+                              <span className="sm:hidden">${formatDollarValueMobile(totalUsdValue)}</span>
+                <span className="hidden sm:inline">${formatDollarValue(totalUsdValue)}</span>
             </div>
             <button 
               onClick={toggle24hChangeDisplay}
@@ -3073,7 +3336,67 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         </Section>
       )}
 
+      {/* Portfolio Analysis Section - Only in detective mode */}
+      {showPortfolioAnalysis && detectiveMode && isEverythingReady && (
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.35,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
+          className="max-w-[860px] w-full"
+        >
+          <div className="bg-black border-2 border-white/10 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="text-lg font-semibold text-white">Portfolio Analysis</div>
+              <div className="px-2 py-1 bg-blue-600/20 border border-blue-500/30 rounded text-xs text-blue-300">
+                ✨ AI generated
+              </div>
+            </div>
+            
+            {/* Auto-generated analysis loading */}
+            {analysisLoading && (
+              <div className="flex items-center gap-3 text-gray-400 justify-center py-8">
+                <div className="animate-spin w-5 h-5 border-2 border-gray-600 border-t-white rounded-full"></div>
+                <span>Analyzing portfolio behavior...</span>
+              </div>
+            )}
 
+            {/* No analysis yet - will auto-trigger */}
+            {!portfolioAnalysis && !analysisLoading && !analysisError && (
+              <div className="flex items-center gap-3 text-gray-400 justify-center py-8">
+                <span>🤖</span>
+                <span>AI analysis will load automatically...</span>
+              </div>
+            )}
+            
+            {analysisError && (
+              <div className="bg-red-600/10 border border-red-500/30 rounded-lg p-4">
+                <div className="text-red-400 text-sm font-medium mb-2">Analysis Failed</div>
+                <div className="text-red-300 text-sm">{analysisError}</div>
+                {!analysisError.includes('Rate limit') && (
+                  <button
+                    onClick={generatePortfolioAnalysis}
+                    className="mt-3 px-3 py-1 bg-red-600/20 hover:bg-red-600/30 text-red-300 rounded text-xs transition-colors"
+                  >
+                    Try Again
+                  </button>
+                )}
+              </div>
+            )}
+            
+            {portfolioAnalysis && !analysisLoading && (
+              <div className="text-gray-300 leading-relaxed bg-gray-900/50 rounded-lg p-4 border border-white/5">
+                {portfolioAnalysis}
+              </div>
+            )}
+          </div>
+        </Section>
+      )}
 
       {/* Tokens Table */}
       {isEverythingReady && sortedTokens.length > 0 && showLiquidBalances && (
@@ -3156,7 +3479,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       )}
 
       {/* Validators Section */}
-      {effectiveAddresses.length > 0 && isEverythingReady && showValidators && validatorCount > 0 && (chainFilter === 'pulsechain' || chainFilter === 'both') && (
+      {effectiveAddresses.length > 0 && isEverythingReady && !detectiveMode && showValidators && validatorCount > 0 && (chainFilter === 'pulsechain' || chainFilter === 'both') && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -3190,7 +3513,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 
                 <div className="text-right">
                   <div className="text-xl font-bold">
-                    ${formatBalance((validatorCount * 32_000_000) * getTokenPrice('PLS'))}
+                    ${formatDollarValue((validatorCount * 32_000_000) * getTokenPrice('PLS'))}
                   </div>
                   <div className="text-sm text-zinc-500">
                     {formatBalance(validatorCount * 32_000_000)} PLS
@@ -3257,7 +3580,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             </div>
             
             {/* Sort buttons */}
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex flex-wrap items-center gap-2 ml-auto sm:ml-auto">
               {[
                 { field: 'amount' as const, label: 'Amount' },
                 { field: 'progress' as const, label: 'Progress' },
@@ -3274,7 +3597,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       setHexStakesSortDirection('asc')
                     }
                   }}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                  className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors border whitespace-nowrap ${
                     hexStakesSortField === field 
                       ? 'bg-white text-black border-white' 
                       : 'bg-transparent text-gray-400 border-gray-400 hover:text-white hover:border-white'
@@ -3856,14 +4179,55 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         })()}
                       </button>
                     </div>
-                    <div className="text-sm text-gray-400 mt-2">
-                      {activeStakesOnly.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0).toLocaleString()} HEX across {activeStakesOnly.length} stake{activeStakesOnly.length !== 1 ? 's' : ''}
+                    <div className="text-sm text-gray-400 mt-2 space-y-1">
+                      {(() => {
+                        // Calculate chain-specific stats for active stakes
+                        const chainStats = activeStakesOnly.reduce((acc, stake) => {
+                          const stakeHex = stake.principleHex + stake.yieldHex
+                          const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+                          const stakeValue = stakeHex * hexPrice
+                          
+                          if (stake.chain === 'ETH') {
+                            acc.eth.hexAmount += stakeHex
+                            acc.eth.hexValue += stakeValue
+                            acc.eth.tShares += stake.tShares
+                            acc.eth.stakeCount += 1
+                          } else {
+                            acc.pls.hexAmount += stakeHex
+                            acc.pls.hexValue += stakeValue
+                            acc.pls.tShares += stake.tShares
+                            acc.pls.stakeCount += 1
+                          }
+                          return acc
+                        }, {
+                          pls: { hexAmount: 0, hexValue: 0, tShares: 0, stakeCount: 0 },
+                          eth: { hexAmount: 0, hexValue: 0, tShares: 0, stakeCount: 0 }
+                        })
+
+                        return (
+                          <>
+                            {chainStats.pls.hexAmount > 0 && (
+                              <div>
+                                {formatBalance(chainStats.pls.hexAmount)} HEX (${formatDollarValue(chainStats.pls.hexValue)}) across {chainStats.pls.stakeCount} stake{chainStats.pls.stakeCount !== 1 ? 's' : ''} • {chainStats.pls.tShares >= 100 
+                                  ? chainStats.pls.tShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                  : chainStats.pls.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                } T-Shares
+                              </div>
+                            )}
+                            {chainStats.eth.hexAmount > 0 && (
+                              <div>
+                                {formatBalance(chainStats.eth.hexAmount)} eHEX (${formatDollarValue(chainStats.eth.hexValue)}) across {chainStats.eth.stakeCount} stake{chainStats.eth.stakeCount !== 1 ? 's' : ''} • {chainStats.eth.tShares >= 100 
+                                  ? chainStats.eth.tShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                  : chainStats.eth.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                } T-Shares
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
                     </div>
                     <div className="text-sm text-gray-400 mt-1">
-                      {totalTShares >= 100 
-                        ? totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                        : totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      } T-Shares • {(weightedStakeLength / 365).toFixed(1)} year avg length • {weightedAPY.toFixed(1)}% avg APY
+                      {(weightedStakeLength / 365).toFixed(1)} year avg length • {weightedAPY.toFixed(1)}% avg APY
                     </div>
                   </>
                 )
