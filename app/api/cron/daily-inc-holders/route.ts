@@ -4,9 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 // Force dynamic rendering since we use request headers
 export const dynamic = 'force-dynamic';
 
-const HEX_CONTRACT = '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39';
-const HEX_DECIMALS = 8;
-const JOB_NAME = 'hex-holders-collection';
+const INC_CONTRACT = '0x2fa878ab3f87cc1c9737fc071108f904c0b0c95d';
+const INC_DECIMALS = 18;
+const JOB_NAME = 'inc-holders-collection';
 
 // Add league calculation types and constants
 interface LeagueStats {
@@ -26,10 +26,11 @@ interface LeagueData {
   maxPercentage: number;
 }
 
-interface HexHolder {
+interface IncHolder {
   address: string;
   is_contract: boolean;
   balance: number;
+  rawValue?: string; // Optional for progress tracking
 }
 
 // League definitions (ordered from highest to lowest percentage)
@@ -48,7 +49,7 @@ const LEAGUES: LeagueData[] = [
 const TOTAL_LEAGUE = { name: 'TOTAL', emoji: 'TOTAL', minPercentage: 0, maxPercentage: 100 };
 
 // Constants
-const MAX_HOLDERS_TO_COLLECT = 50000;
+const MAX_HOLDERS_TO_COLLECT = 10000;
 const PAGES_PER_RUN = 10;
 
 // Use the global fetch in Next.js API routes
@@ -96,7 +97,7 @@ async function getOrCreateProgress(supabase: any, date: string): Promise<Progres
     const nextPageParams = existing.last_address_hash ? {
       address_hash: existing.last_address_hash,
       items_count: 50,
-      value: existing.last_value
+      ...(existing.last_value ? { value: existing.last_value } : {}) // Include value if it exists
     } : null;
     
     return {
@@ -142,7 +143,7 @@ async function updateProgress(supabase: any, date: string, progress: Partial<Pro
   
   if (lastItem) {
     updateData.last_address_hash = lastItem.address;
-    updateData.last_value = lastItem.value;
+    updateData.last_value = lastItem.value; // Store value directly as text field can handle large values
   }
 
   const { error } = await supabase
@@ -156,13 +157,13 @@ async function updateProgress(supabase: any, date: string, progress: Partial<Pro
   }
 }
 
-async function fetchHexHoldersFromPage(
+async function fetchIncHoldersFromPage(
   startPage: number, 
   nextPageParams: any, 
   maxPages: number = 200
-): Promise<{ holders: HexHolder[], totalPages: number, isComplete: boolean }> {
-  const baseUrl = `https://api.scan.pulsechain.com/api/v2/tokens/${HEX_CONTRACT}/holders`;
-  const holders: HexHolder[] = [];
+): Promise<{ holders: IncHolder[], totalPages: number, isComplete: boolean }> {
+  const baseUrl = `https://api.scan.pulsechain.com/api/v2/tokens/${INC_CONTRACT}/holders`;
+  const holders: IncHolder[] = [];
   let hasNextPage = true;
   let currentPageParams = nextPageParams;
   let pageCount = startPage;
@@ -230,7 +231,8 @@ async function fetchHexHoldersFromPage(
       const newHolders = data.items.map((item: any) => ({
         address: item.address.hash,
         is_contract: item.address.is_contract,
-        balance: Number(item.value) / Math.pow(10, HEX_DECIMALS)
+        balance: Number(item.value) / Math.pow(10, INC_DECIMALS),
+        rawValue: item.value // Store raw API value for progress tracking
       }));
 
       holders.push(...newHolders);
@@ -262,31 +264,31 @@ async function fetchHexHoldersFromPage(
 // League calculation helper functions
 async function getTotalSupply(supabase: any): Promise<number> {
   try {
-    console.log('📊 Fetching HEX total supply from database...');
+    console.log('📊 Fetching INC total supply from database...');
     
     const { data, error } = await supabase
       .from('daily_token_supplies')
       .select('total_supply_formatted')
-      .eq('ticker', 'HEX')
+      .eq('ticker', 'INC')
       .eq('chain', 369) // PulseChain
       .order('id', { ascending: false })
       .limit(1)
       .single();
 
     if (error) {
-      console.error('Error fetching HEX supply from database:', error);
+      console.error('Error fetching INC supply from database:', error);
       throw error;
     }
 
     if (!data) {
-      throw new Error('No HEX supply data found in database');
+      throw new Error('No INC supply data found in database');
     }
 
     const totalSupply = parseFloat(data.total_supply_formatted);
-    console.log('📊 HEX Total Supply from DB:', totalSupply.toLocaleString());
+    console.log('📊 INC Total Supply from DB:', totalSupply.toLocaleString());
     return totalSupply;
   } catch (error) {
-    console.error('Error fetching HEX supply:', error);
+    console.error('Error fetching INC supply:', error);
     throw error;
   }
 }
@@ -300,21 +302,21 @@ function getLeague(percentage: number): LeagueData {
   return LEAGUES[LEAGUES.length - 1]; // Default to Shell
 }
 
-async function getAllHolders(supabase: any): Promise<HexHolder[]> {
+async function getAllHolders(supabase: any): Promise<IncHolder[]> {
   const today = new Date().toISOString().split('T')[0];
   
-  console.log('📊 Fetching all holders from database...');
+  console.log('📊 Fetching all INC holders from database...');
   
   // First get the count to make sure we fetch all records
   const { count } = await supabase
-    .from('hex_holders')
+    .from('inc_holders')
     .select('*', { count: 'exact', head: true })
     .eq('date', today);
   
-  console.log(`📊 Total holders in database: ${count}`);
+  console.log(`📊 Total INC holders in database: ${count}`);
   
   // Supabase has a default limit of 1000, so we need to paginate
-  const allHolders: HexHolder[] = [];
+  const allHolders: IncHolder[] = [];
   const pageSize = 1000;
   let from = 0;
   
@@ -322,7 +324,7 @@ async function getAllHolders(supabase: any): Promise<HexHolder[]> {
     console.log(`📊 Fetching page: ${from} to ${from + pageSize - 1}`);
     
     const { data, error } = await supabase
-      .from('hex_holders')
+      .from('inc_holders')
       .select('address, is_contract, balance')
       .eq('date', today)
       .order('balance', { ascending: false })
@@ -351,20 +353,20 @@ async function getAllHolders(supabase: any): Promise<HexHolder[]> {
 async function clearLeagueTable(supabase: any): Promise<void> {
   const today = new Date().toISOString().split('T')[0];
 
-  console.log('🗑️ Clearing league_hex table for fresh start...');
+  console.log('🗑️ Clearing league_inc table for fresh start...');
 
   try {
     const { error } = await supabase
-      .from('league_hex')
+      .from('league_inc')
       .delete()
       .eq('date', today);
 
     if (error) {
-      console.error('Error clearing league_hex table:', error);
+      console.error('Error clearing league_inc table:', error);
       throw error;
     }
 
-    console.log('✅ league_hex table cleared successfully');
+    console.log('✅ league_inc table cleared successfully');
   } catch (error) {
     console.error('❌ Error during league table cleanup:', error);
     throw error;
@@ -374,7 +376,7 @@ async function clearLeagueTable(supabase: any): Promise<void> {
 async function getTotalHolders() {
   try {
     console.log('📊 Fetching total holders count from API...');
-    const url = `https://api.scan.pulsechain.com/api/v2/tokens/${HEX_CONTRACT}/counters`;
+    const url = `https://api.scan.pulsechain.com/api/v2/tokens/${INC_CONTRACT}/counters`;
     
     const response = await fetch(url);
     if (!response.ok) {
@@ -384,7 +386,7 @@ async function getTotalHolders() {
     const data = await response.json();
     const totalHolders = parseInt(data.token_holders_count) || 0;
     
-    console.log(`📊 Total HEX holders from API: ${totalHolders.toLocaleString()}`);
+    console.log(`📊 Total INC holders from API: ${totalHolders.toLocaleString()}`);
     return totalHolders;
   } catch (error) {
     console.error('Error fetching total holders from API:', error);
@@ -394,9 +396,9 @@ async function getTotalHolders() {
   }
 }
 
-async function calculateLeagueStatistics(holders: HexHolder[], totalSupply: number): Promise<Record<string, LeagueStats>> {
-  console.log('📊 Calculating league statistics...');
-  console.log(`📊 Total HEX Supply: ${totalSupply.toLocaleString()}`);
+async function calculateLeagueStatistics(holders: IncHolder[], totalSupply: number): Promise<Record<string, LeagueStats>> {
+  console.log('📊 Calculating INC league statistics...');
+  console.log(`📊 Total INC Supply: ${totalSupply.toLocaleString()}`);
   console.log(`📊 Total Holders to Process: ${holders.length}`);
   
   // Get total holders from API
@@ -453,7 +455,7 @@ async function calculateLeagueStatistics(holders: HexHolder[], totalSupply: numb
   };
 
   // Log results
-  console.log('\n🏆 League Distribution:');
+  console.log('\n🏆 INC League Distribution:');
   LEAGUES.forEach(league => {
     const stats = leagueStats[league.emoji];
     console.log(`${league.emoji} ${league.name.padEnd(8)}: ${stats.user_holders.toString().padStart(6)} users, ${stats.all_holders.toString().padStart(6)} total`);
@@ -470,7 +472,7 @@ async function getLastWeekHolders(supabase: any): Promise<Record<string, number>
   
   try {
   const { data, error } = await supabase
-    .from('league_hex')
+    .from('league_inc')
     .select('league_name, user_holders')
       .gte('date', lastWeek.toISOString().split('T')[0])
       .order('date', { ascending: false })
@@ -492,7 +494,7 @@ async function getLastWeekHolders(supabase: any): Promise<Record<string, number>
 }
 
 async function calculateLeagues(supabase: any): Promise<any> {
-  console.log('\n🏆 Starting league calculation...');
+  console.log('\n🏆 Starting INC league calculation...');
   const leagueStartTime = Date.now();
 
   try {
@@ -521,7 +523,7 @@ async function calculateLeagues(supabase: any): Promise<any> {
     // Store results in database
     const leagueArray = Object.values(leagueStats);
     const { error: insertError } = await supabase
-      .from('league_hex')
+      .from('league_inc')
       .insert(leagueArray);
 
     if (insertError) {
@@ -534,9 +536,9 @@ async function calculateLeagues(supabase: any): Promise<any> {
     const contractHolders = allHolders.length - userHolders;
     const executionTime = (Date.now() - leagueStartTime) / 1000;
 
-    console.log('\n📈 LEAGUE CALCULATION SUMMARY');
+    console.log('\n📈 INC LEAGUE CALCULATION SUMMARY');
     console.log('=====================================');
-    console.log(`💰 Total HEX Supply: ${totalSupply.toLocaleString()}`);
+    console.log(`💰 Total INC Supply: ${totalSupply.toLocaleString()}`);
     console.log(`👥 Total Holders: ${allHolders.length.toLocaleString()}`);
     console.log(`👤 User Holders: ${userHolders.toLocaleString()}`);
     console.log(`🤖 Contract Holders: ${contractHolders.toLocaleString()}`);
@@ -584,7 +586,7 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    console.log('🚀 Starting HEX holders collection...');
+    console.log('🚀 Starting INC holders collection...');
     
     // Get current date info
     const now = new Date();
@@ -600,19 +602,19 @@ export async function GET(request: NextRequest) {
       
       // First, clear the backup table
       const { error: clearBackupError } = await supabase
-        .from('hex_holders_last_week')
+        .from('inc_holders_last_week')
         .delete()
         .neq('id', 0);
       
       if (clearBackupError) {
         console.error('❌ Error clearing backup table:', clearBackupError);
       } else {
-        console.log('✅ Cleared hex_holders_last_week table');
+        console.log('✅ Cleared inc_holders_last_week table');
       }
       
       // Copy current data to backup table
       const { data: currentData, error: fetchError } = await supabase
-        .from('hex_holders')
+        .from('inc_holders')
         .select('*');
       
       if (fetchError) {
@@ -623,7 +625,7 @@ export async function GET(request: NextRequest) {
         const backupData = currentData.map(({ id, ...rest }) => rest);
         
         const { error: backupError } = await supabase
-          .from('hex_holders_last_week')
+          .from('inc_holders_last_week')
           .insert(backupData);
         
         if (backupError) {
@@ -636,9 +638,9 @@ export async function GET(request: NextRequest) {
       }
       
       // Clear the main table
-      console.log('🗑️ Clearing hex_holders table...');
+      console.log('🗑️ Clearing inc_holders table...');
       const { error: clearMainError } = await supabase
-        .from('hex_holders')
+        .from('inc_holders')
         .delete()
         .neq('id', 0);
       
@@ -673,7 +675,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch next batch of holders
-    const result = await fetchHexHoldersFromPage(
+    const result = await fetchIncHoldersFromPage(
       progress.lastPage, 
       progress.nextPageParams, 
       PAGES_PER_RUN
@@ -684,7 +686,7 @@ export async function GET(request: NextRequest) {
     if (result.holders.length > 0) {
       // Get existing addresses from today to avoid duplicates
       const { data: existingAddresses } = await supabase
-        .from('hex_holders')
+        .from('inc_holders')
         .select('address')
         .eq('date', date);
       
@@ -717,7 +719,7 @@ export async function GET(request: NextRequest) {
         
         try {
           const { error: insertError } = await supabase
-            .from('hex_holders')
+            .from('inc_holders')
             .insert(batch);
 
           if (insertError) {
@@ -744,7 +746,7 @@ export async function GET(request: NextRequest) {
         isComplete: result.isComplete
       }, {
         address: lastItem.address,
-        value: Math.round(lastItem.balance * Math.pow(10, HEX_DECIMALS))
+        value: lastItem.rawValue
       });
 
       console.log(`✅ Progress updated: Page ${result.totalPages}, Total: ${progress.totalCollected + uniqueHolders.length}`);
@@ -770,7 +772,7 @@ export async function GET(request: NextRequest) {
           },
           leagueCalculation: leagueResult,
           nextRunTriggered: false,
-          leagueCalculationTriggered: false // Already calculated inline
+          leagueCalculationTriggered: false
         });
       }
 
@@ -780,9 +782,10 @@ export async function GET(request: NextRequest) {
         .update({ 
           last_processed_page: result.totalPages,
           last_address_hash: lastItem.address,
-          last_address_value: Math.round(lastItem.balance * Math.pow(10, HEX_DECIMALS)),
+          last_value: lastItem.rawValue,
           total_holders_collected: progress.totalCollected + result.holders.length
         })
+        .eq('job_name', JOB_NAME)
         .eq('date', date);
 
       console.log(`✅ Progress saved. Next run will start from page ${result.totalPages + 1}`);
@@ -811,7 +814,7 @@ export async function GET(request: NextRequest) {
               ? `https://${process.env.VERCEL_URL}` 
               : 'http://localhost:3000';
             
-            const response = await fetch(`${baseUrl}/api/cron/daily-hex-holders`, {
+            const response = await fetch(`${baseUrl}/api/cron/daily-inc-holders`, {
               method: 'GET',
               headers: {
                 'Authorization': `Bearer ${process.env.CRON_SECRET}`
@@ -854,6 +857,7 @@ export async function GET(request: NextRequest) {
           last_processed_page: progress.lastPage,
           total_holders_collected: progress.totalCollected
         })
+        .eq('job_name', JOB_NAME)
         .eq('date', date);
 
       console.log('\n🎉 COLLECTION COMPLETE! All pages processed.');
@@ -882,12 +886,12 @@ export async function GET(request: NextRequest) {
         },
         leagueCalculation: leagueResult,
         nextRunTriggered: false,
-        leagueCalculationTriggered: false // Already calculated inline
+        leagueCalculationTriggered: false
       });
     }
 
   } catch (error) {
-    console.error('❌ Error in HEX holders collection:', error);
+    console.error('❌ Error in INC holders collection:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 } 

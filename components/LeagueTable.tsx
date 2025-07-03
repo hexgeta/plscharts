@@ -6,7 +6,7 @@ import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
 import { useHexDailyDataCache } from '@/hooks/crypto/useHexDailyData'
-import { useLeagueHex } from '@/hooks/crypto/useLeagueHex'
+import { useLeagueData } from '@/hooks/crypto/useLeagueData'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import React from 'react'
@@ -257,8 +257,13 @@ export default React.memo(function LeagueTable({
   // Get HEX daily data for T-shares calculations
   const { data: hexDailyData } = useHexDailyDataCache()
   
-  // Add this after other hooks
-  const { leagueData, isLoading: leagueLoading } = useLeagueHex()
+  // Determine if this token should have holders data
+  const isEthereumToken = tokenTicker.startsWith('e') || tokenTicker.startsWith('we');
+  const tokensWithHolders = ['HEX', 'PLSX', 'INC', 'HDRN', 'ICSA', 'COM'];
+  const shouldFetchLeagueData = showHolders && tokensWithHolders.includes(tokenTicker) && !isEthereumToken;
+  
+  // Add this after other hooks - use generic hook for token-specific league data
+  const { leagueData, isLoading: leagueLoading } = useLeagueData(shouldFetchLeagueData ? tokenTicker : null)
   
   // Map the league data to use proper league names
   const mappedLeagueData = useMemo(() => {
@@ -415,9 +420,8 @@ export default React.memo(function LeagueTable({
     )
   }
 
-  // Show holders based on prop and token conditions - only on xl screens (1280px+)
-  const isEthereumToken = tokenTicker.startsWith('e') || tokenTicker.startsWith('we');
-  const shouldShowHolders = showHolders && tokenTicker === 'HEX' && !isEthereumToken;
+  // Show holders based on prop and token conditions - only on xl screens (1280px+)  
+  const shouldShowHolders = shouldFetchLeagueData;
 
   const content = (
     <div className="w-full transition-all duration-300 ease-in-out">
@@ -539,7 +543,7 @@ export default React.memo(function LeagueTable({
                   right: '0px',
                   width: '50px' // Fixed width for proper centering
                 }}>
-                  <div className="bg-gray-800/50 border border-dotted border-white/20 rounded-lg ml-2 px-2 py-1 flex flex-col items-center justify-center h-full w-full">
+                  <div className="bg-gray-800/50 border border-dotted border-white/20 rounded-lg ml-2 px-2 py-1 flex flex-col items-center justify-center h-full min-w-[50px]">
                     <span className="text-white/70 text-[10px] font-medium text-right">
                       {(() => {
                         const totalHolders = mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders || 0;
@@ -610,7 +614,7 @@ export default React.memo(function LeagueTable({
                       <span className="text-white">
                         {leagueHolderData.user_holders === null ? 'N/A' : leagueHolderData.user_holders.toLocaleString()}
                       </span>
-                      <span className={`text-xs ${
+                      {/* <span className={`text-xs ${
                         leagueHolderData.holder_change === -1 ? 'text-gray-400' :
                         leagueHolderData.holder_change > 0 ? 'text-green-400' : 
                         leagueHolderData.holder_change < 0 ? 'text-red-400' : 
@@ -619,7 +623,7 @@ export default React.memo(function LeagueTable({
                         {leagueHolderData.holder_change === -1 ? 'N/A' : 
                          leagueHolderData.holder_change === 0 ? '' : 
                          formatHolderChange(leagueHolderData.holder_change)}
-                      </span>
+                      </span> */}
                     </div>
                   ) : (
                     <span className="text-gray-400">N/A</span>

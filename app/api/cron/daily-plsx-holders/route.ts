@@ -96,8 +96,8 @@ async function getOrCreateProgress(supabase: any, date: string): Promise<Progres
     // Build next_page_params from stored values
     const nextPageParams = existing.last_address_hash ? {
       address_hash: existing.last_address_hash,
-      items_count: 50
-      // Skip value for PLSX to avoid bigint overflow
+      items_count: 50,
+      value: existing.last_value // Include value for proper pagination
     } : null;
     
     return {
@@ -143,7 +143,7 @@ async function updateProgress(supabase: any, date: string, progress: Partial<Pro
   
   if (lastItem) {
     updateData.last_address_hash = lastItem.address;
-    updateData.last_value = lastItem.value;
+    updateData.last_value = lastItem.rawValue; // Store the raw value for pagination
   }
 
   const { error } = await supabase
@@ -684,8 +684,20 @@ export async function GET(request: NextRequest) {
     console.log(`📊 Batch fetched: ${result.holders.length} holders`);
 
     if (result.holders.length > 0) {
-      // Prepare data for insertion
-      const holderRecords = result.holders.map(holder => ({
+      // Get existing addresses from today to avoid duplicates
+      const { data: existingAddresses } = await supabase
+        .from('plsx_holders')
+        .select('address')
+        .eq('date', date);
+      
+      const existingAddressSet = new Set(existingAddresses?.map(row => row.address) || []);
+      
+      // Filter out duplicates and prepare data for insertion
+      const uniqueHolders = result.holders.filter(holder => !existingAddressSet.has(holder.address));
+      
+      console.log(`📊 Filtered ${result.holders.length - uniqueHolders.length} duplicate addresses. Processing ${uniqueHolders.length} unique holders.`);
+      
+      const holderRecords = uniqueHolders.map(holder => ({
         address: holder.address,
         is_contract: holder.is_contract,
         balance: holder.balance,
@@ -730,14 +742,14 @@ export async function GET(request: NextRequest) {
       const lastItem = result.holders[result.holders.length - 1];
       await updateProgress(supabase, date, {
         lastPage: result.totalPages,
-        totalCollected: progress.totalCollected + result.holders.length,
+        totalCollected: progress.totalCollected + uniqueHolders.length,
         isComplete: result.isComplete
       }, {
         address: lastItem.address,
-        value: null // Skip value for PLSX due to bigint overflow with 18 decimals
+        rawValue: lastItem.rawValue // Use rawValue for pagination
       });
 
-      console.log(`✅ Progress updated: Page ${result.totalPages}, Total: ${progress.totalCollected + result.holders.length}`);
+      console.log(`✅ Progress updated: Page ${result.totalPages}, Total: ${progress.totalCollected + uniqueHolders.length}`);
 
       // Check if we've reached our target after this batch
       const newTotal = progress.totalCollected + result.holders.length;
@@ -770,7 +782,7 @@ export async function GET(request: NextRequest) {
         .update({ 
           last_processed_page: result.totalPages,
           last_address_hash: lastItem.address,
-          last_address_value: null, // Skip value for PLSX due to bigint overflow
+          last_value: lastItem.rawValue, // Use rawValue consistently
           total_holders_collected: progress.totalCollected + result.holders.length
         })
         .eq('job_name', JOB_NAME)

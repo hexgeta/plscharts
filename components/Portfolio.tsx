@@ -3378,7 +3378,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               <div className="bg-red-600/10 border border-red-500/30 rounded-lg p-4">
                 <div className="text-red-400 text-sm font-medium mb-2">Analysis Failed</div>
                 <div className="text-red-300 text-sm">{analysisError}</div>
-                {!analysisError.includes('Rate limit') && (
+                {!analysisError?.includes('Rate limit') && (
                   <button
                     onClick={generatePortfolioAnalysis}
                     className="mt-3 px-3 py-1 bg-red-600/20 hover:bg-red-600/30 text-red-300 rounded text-xs transition-colors"

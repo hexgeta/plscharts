@@ -264,8 +264,8 @@ export default function LeaguesPage() {
   // Memoize the main league tables to prevent re-renders
   const mainLeagueTables = useMemo(() => (
     <>
-      {/* First Row - Main Tokens */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* PLS Row - Single Token */}
+      <div className="grid grid-cols-1 gap-4 justify-items-center w-[490px] min-w-[490px] mx-auto">
         <LeagueTable 
           tokenTicker="PLS" 
           preloadedPrices={memoizedPrices} 
@@ -273,12 +273,17 @@ export default function LeaguesPage() {
           supplyDeduction={getOADeduction('PLS')}
           showLeagueNames={true}
         />
+      </div>
+
+      {/* PLSX & INC Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
         <LeagueTable 
           tokenTicker="PLSX" 
           preloadedPrices={memoizedPrices} 
           preloadedSupply={memoizedSupplies?.['PLSX']}
           supplyDeduction={getOADeduction('PLSX')}
           showLeagueNames={true}
+          showHolders={showHolders}
         />
         <LeagueTable 
           tokenTicker="INC" 
@@ -286,6 +291,7 @@ export default function LeaguesPage() {
           preloadedSupply={memoizedSupplies?.['INC']}
           supplyDeduction={getOADeduction('INC')}
           showLeagueNames={true}
+          showHolders={showHolders}
         />
       </div>
 
@@ -323,6 +329,7 @@ export default function LeaguesPage() {
           preloadedSupply={memoizedSupplies?.['HDRN']}
           supplyDeduction={getOADeduction('HDRN')}
           showLeagueNames={true}
+          showHolders={showHolders}
         />
       </div>
 
@@ -341,6 +348,7 @@ export default function LeaguesPage() {
           preloadedSupply={memoizedSupplies?.['ICSA']}
           supplyDeduction={getOADeduction('ICSA')}
           showLeagueNames={true}
+          showHolders={showHolders}
         />
       </div>
 
@@ -359,6 +367,7 @@ export default function LeaguesPage() {
           preloadedSupply={memoizedSupplies?.['COM']}
           supplyDeduction={getOADeduction('COM')}
           showLeagueNames={true}
+          showHolders={showHolders}
         />
       </div>
     </>
