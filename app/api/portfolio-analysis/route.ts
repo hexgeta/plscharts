@@ -48,7 +48,7 @@ function checkRateLimit(key: string): { allowed: boolean; remaining: number; res
 export async function POST(request: NextRequest) {
   try {
     // Basic validation
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.OPEN_AI_KEY) {
       return NextResponse.json({
         error: 'Configuration Error',
         message: 'OpenAI API key is not configured',
