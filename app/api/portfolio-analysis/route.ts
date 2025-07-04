@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
+// Force dynamic runtime for OpenAI API calls
+export const runtime = 'edge'
+
 // Simple in-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
 const RATE_LIMIT = 10 // requests per day
 const RATE_LIMIT_WINDOW = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+
+// Initialize OpenAI client with fetch configuration for Edge runtime
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  fetch: fetch, // Use native fetch in Edge runtime
+  defaultHeaders: { 'api-key': process.env.OPENAI_API_KEY }
+})
 
 function getRateLimitKey(request: NextRequest): string {
   // Try to get a unique identifier for the client
@@ -42,19 +52,6 @@ function checkRateLimit(key: string): { allowed: boolean; remaining: number; res
 
 export async function POST(request: NextRequest) {
   try {
-    // Initialize OpenAI client
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('OpenAI API key is not configured')
-      return NextResponse.json({ 
-        error: 'Configuration Error',
-        message: 'OpenAI API key is not configured'
-      }, { status: 500 })
-    }
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    })
-
     // Rate limiting check
     const rateLimitKey = getRateLimitKey(request)
     const { allowed, remaining, resetTime } = checkRateLimit(rateLimitKey)
