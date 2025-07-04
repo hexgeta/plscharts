@@ -43,8 +43,6 @@ interface PortfolioProps {
 }
 
 export default function Portfolio({ detectiveMode = false, detectiveAddress }: PortfolioProps) {
-  // Temporarily hide portfolio analysis section
-  const showPortfolioAnalysis = false
   // Debug toggle - set to true to show network debug panel
   const SHOW_DEBUG_PANEL = false
   
@@ -521,6 +519,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime?: string } | null>(null)
+  const [showPortfolioAnalysis, setShowPortfolioAnalysis] = useState(true)
 
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
@@ -2567,6 +2566,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return (portfolio24hChange / 100) * currentTotalValue
   }, [portfolio24hChange, prices, getTokenPrice, showLiquidBalances, filteredBalances, showValidators, validatorCount, chainFilter, showHexStakes, hexStakes, detectiveMode])
 
+  // Get HEX daily data cache
+  const { data: hexDailyDataCache } = useHexDailyDataCache()
+  const hexDailyCacheReady = !showHexStakes || (
+    hexDailyDataCache && 
+    hexDailyDataCache.dailyPayouts && 
+    hexDailyDataCache.dailyPayouts.ETH && 
+    hexDailyDataCache.dailyPayouts.PLS
+  )
+
   // Comprehensive loading state - wait for relevant data to be ready
   // Once ready, stay ready (don't hide UI during price updates)
   const isEverythingReady = useMemo(() => {
@@ -2586,9 +2594,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     // More robust check: ensure we're not loading AND have valid stake data structure
     const hexStakesCalculationsReady = !showHexStakes || (
       !hexStakesLoading && 
-      Array.isArray(filteredHexStakes) && 
+      Array.isArray(hexStakes) && 
       // Either no stakes found (valid result) OR all stakes have required properties
-      (filteredHexStakes.length === 0 || filteredHexStakes.every(stake => 
+      (hexStakes.length === 0 || hexStakes.every(stake => 
         stake && 
         typeof stake.progress === 'number' && 
         typeof stake.principleHex === 'number' && 
@@ -2612,6 +2620,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
              hasCalculatedData && 
              hexStakesCalculationsReady && 
              pooledStakesCalculationsReady &&
+             hexDailyCacheReady &&
              !balancesLoading && 
              !pricesLoading && 
              !maxiLoading
@@ -2619,7 +2628,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // After initial load, stay ready as long as we have data and calculations
     // For subsequent loads (like adding new addresses), ensure HEX stakes are also ready
-    return hasInitialData && hasCalculatedData && hexStakesCalculationsReady
+    return hasInitialData && hasCalculatedData && hexStakesCalculationsReady && hexDailyCacheReady
   }, [
     effectiveAddresses.length,
     balancesLoading,
@@ -2634,12 +2643,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     portfolio24hChange,
     isInitialLoad,
     showHexStakes,
-    filteredHexStakes,
-    filteredHexStakes?.length, // Add explicit dependency on stakes length
+    hexStakes,
+    hexStakes?.length, // Add explicit dependency on stakes length
     includePooledStakes,
     pooledStakesData.totalTShares,
     pooledStakesData.totalValue,
-    pooledStakesData.tokens
+    pooledStakesData.tokens,
+    hexDailyCacheReady
   ])
 
   // Debug logging
@@ -2686,9 +2696,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     mainTokensWithBalances
   })
 
-  // Generate portfolio analysis for detective mode (manual trigger)
+  // Generate portfolio analysis for detective mode
   const generatePortfolioAnalysis = useCallback(async () => {
     if (!detectiveMode || analysisLoading) return
+
+    // Check if HEX daily data cache is ready
+    if (!hexDailyCacheReady) {
+      console.log('🕵️ Detective Mode: Waiting for HEX daily data cache to be ready')
+      return
+    }
 
     setAnalysisLoading(true)
     setAnalysisError(null)
@@ -2761,23 +2777,46 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         }] : [])
       ].sort((a, b) => b.value - a.value)
 
+      // Calculate stake history stats
+      const lateEndStakes = inactiveStakes.filter(stake => {
+        if (stake.actualEndDate && stake.endDate) {
+          const actualEnd = new Date(stake.actualEndDate).getTime()
+          const promisedEnd = new Date(stake.endDate).getTime()
+          const daysDifference = (actualEnd - promisedEnd) / (24 * 60 * 60 * 1000)
+          return daysDifference > 1 // More than 1 day late = late end
+        }
+        return false
+      }).length
+
+      // Count BPD stakes
+      const bpdStakes = filteredHexStakes.filter(stake => stake.isBPD === true).length
+
+      // Calculate max stake length
+      const maxStakeLength = Math.max(...filteredHexStakes.map(stake => {
+        const startDate = new Date(stake.startDate)
+        const endDate = new Date(stake.endDate)
+        return Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+      }), 0)
+
       const portfolioData = {
         totalValue: Math.round(totalUsdValue),
         liquidValue: Math.round(totalLiquidValue),
-        hexStakesValue: Math.round(hexStakesValue),
-        totalPortfolioValue: Math.round(totalPortfolioValue),
         tokenCount: sortedTokens.length,
         significantTokenCount: significantTokens.length,
         dustTokens: sortedTokens.length - significantTokens.length,
         topHoldings: allHoldings.slice(0, 3),
+        largestHolding: allHoldings.length > 0 ? allHoldings[0].symbol : null,
+        portfolioSize: totalUsdValue > 1000000 ? 'whale' : totalUsdValue > 100000 ? 'large' : totalUsdValue > 10000 ? 'medium' : 'small',
+        totalPortfolioValue: Math.round(totalPortfolioValue),
+        
+        // Include all HEX staking history
+        hexStakesValue: Math.round(hexStakesValue),
         hexStakes: filteredHexStakes.length,
         activeStakes: activeStakes.length,
         endedStakes: inactiveStakes.length,
         earlyEndStakes: (() => {
-          // Count EES stakes - check both isEES flag and actual vs promised end dates
           return inactiveStakes.filter(stake => {
             if (stake.isEES === true) return true
-            // Also check if actualEndDate is significantly before endDate (EES indicator)
             if (stake.actualEndDate && stake.endDate) {
               const actualEnd = new Date(stake.actualEndDate).getTime()
               const promisedEnd = new Date(stake.endDate).getTime()
@@ -2787,14 +2826,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             return false
           }).length
         })(),
-        avgStakeDuration: Math.round((promptWeightedStakeLength / 365) * 10) / 10, // Use correct calculation for prompt
-        avgAPY: Math.round(promptWeightedAPY * 10) / 10, // Use correct calculation for prompt
+        lateEndStakes,
+        bpdStakes,
+        maxStakeLength,
+        avgStakeDuration: promptWeightedStakeLength,
+        avgAPY: Math.round(promptWeightedAPY * 10) / 10,
         isOGHexican,
         firstStakeYear: earliestStakeDate ? new Date(earliestStakeDate).getFullYear() : null,
         recentStakeStarts,
-        recentStakeEnds,
-        largestHolding: allHoldings.length > 0 ? allHoldings[0].symbol : null,
-        portfolioSize: totalUsdValue > 1000000 ? 'whale' : totalUsdValue > 100000 ? 'large' : totalUsdValue > 10000 ? 'medium' : 'small'
+        recentStakeEnds
       }
 
       const response = await fetch('/api/portfolio-analysis', {
@@ -2837,7 +2877,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     } finally {
       setAnalysisLoading(false)
     }
-  }, [detectiveMode, analysisLoading, totalUsdValue, sortedTokens, filteredHexStakes, getTokenPrice])
+  }, [detectiveMode, analysisLoading, totalUsdValue, sortedTokens, filteredHexStakes, getTokenPrice, hexDailyCacheReady])
 
   // Handle animation completion without state updates that cause re-renders
   const handleAnimationComplete = useCallback(() => {
@@ -2870,22 +2910,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
   }, [totalUsdValue, effectiveAddresses.length, isEverythingReady, chainFilter, showLiquidBalances, showValidators, showHexStakes])
 
-  // Auto-trigger analysis in detective mode when data is ready
+  // Auto-trigger analysis in detective mode when portfolio data is loaded
   useEffect(() => {
-    // Only generate prompt for the specific address after isEverythingReady is true
-    const targetAddress = '0x77d9c03eb2a82c2bdd6a1a0800f1521e2dee0ebb'
-    
-    if (detectiveMode && 
-        detectiveAddress?.toLowerCase() === targetAddress.toLowerCase() &&
+    if (detectiveMode &&
         isEverythingReady && 
         effectiveAddresses.length > 0 && 
         !portfolioAnalysis && 
         !analysisLoading && 
         !analysisError) {
-      console.log('🕵️ Detective Mode: Starting prompt generation for target address after isEverythingReady is true')
+      console.log('🕵️ Detective Mode: Starting portfolio analysis...')
       generatePortfolioAnalysis()
     }
-  }, [detectiveMode, detectiveAddress, isEverythingReady, effectiveAddresses.length, portfolioAnalysis, analysisLoading, analysisError, generatePortfolioAnalysis])
+  }, [detectiveMode, isEverythingReady, effectiveAddresses.length, portfolioAnalysis, analysisLoading, analysisError, generatePortfolioAnalysis])
 
   // Add toggle UI component (3-way toggle) - memoized to prevent unnecessary re-renders
   const ChainToggle = useCallback(() => (
@@ -3407,6 +3443,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               </div>
             </div>
             
+            {/* No analysis yet - will auto-trigger */}
+            {!portfolioAnalysis && !analysisLoading && !analysisError && (
+              <div className="flex items-center gap-3 text-gray-400 justify-center py-8">
+                <div className="animate-spin w-5 h-5 border-2 border-gray-600 border-t-white rounded-full"></div>
+                <span>Loading analysis...</span>
+              </div>
+            )}
+            
             {/* Auto-generated analysis loading */}
             {analysisLoading && (
               <div className="flex items-center gap-3 text-gray-400 justify-center py-8">
@@ -3414,15 +3458,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 <span>Analyzing portfolio behavior...</span>
               </div>
             )}
-
-            {/* No analysis yet - will auto-trigger */}
-            {!portfolioAnalysis && !analysisLoading && !analysisError && (
-              <div className="flex items-center gap-3 text-gray-400 justify-center py-8">
-                <span>🤖</span>
-                <span>AI analysis will load automatically...</span>
-              </div>
-            )}
             
+            {/* Analysis error state */}
             {analysisError && (
               <div className="bg-red-600/10 border border-red-500/30 rounded-lg p-4">
                 <div className="text-red-400 text-sm font-medium mb-2">Analysis Failed</div>
@@ -3438,8 +3475,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               </div>
             )}
             
+            {/* Analysis results */}
             {portfolioAnalysis && !analysisLoading && (
-              <div className="text-gray-300 leading-relaxed bg-gray-900/50 rounded-lg p-4 border border-white/5">
+              <div className="text-gray-300 leading-relaxed rounded-lg p-4">
                 {portfolioAnalysis}
               </div>
             )}

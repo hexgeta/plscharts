@@ -5,7 +5,7 @@ import { openai } from '@ai-sdk/openai'
 // Simple in-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
-const RATE_LIMIT = 100 // requests per day
+const RATE_LIMIT = 10 // requests per day
 const RATE_LIMIT_WINDOW = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 
 function getRateLimitKey(request: NextRequest): string {
@@ -86,11 +86,17 @@ export async function POST(request: NextRequest) {
 
 Holdings breakdown: ${portfolioData.topHoldings?.map(h => `${h.symbol} (${h.percentage}%)`).join(', ') || 'Loading...'}
 
-HEX Staking: ${portfolioData.activeStakes || 0} currently active stakes${portfolioData.endedStakes > 0 ? `, ${portfolioData.endedStakes} successfully completed` : ''}${portfolioData.earlyEndStakes > 0 ? `, ${portfolioData.earlyEndStakes} early ended (EES)` : ', no early ends'}. Average stake duration: ${Math.round((portfolioData.avgStakeDuration || 0) / 365 * 10) / 10} years${portfolioData.avgAPY ? `, ~${portfolioData.avgAPY}% APY` : ''}.
+HEX History: This user has successfully completed all ${portfolioData.hexStakes || 0} of their stakes, showing a strong track record:
+• ${portfolioData.endedStakes > 0 ? `${portfolioData.endedStakes} completed normally to full term` : '0 completed normally'}
+• ${portfolioData.earlyEndStakes > 0 ? `${portfolioData.earlyEndStakes} ended early (EES)` : '0 ended early'}
+• ${portfolioData.lateEndStakes > 0 ? `${portfolioData.lateEndStakes} ended late` : '0 ended late'}
+• ${portfolioData.bpdStakes || 0} BPD stakes
+Their completed stakes averaged ${Math.round((portfolioData.avgStakeDuration || 0) * 10) / 10} days${portfolioData.avgAPY ? ` with ~${portfolioData.avgAPY}% APY` : ''}.
+${portfolioData.maxStakeLength ? `Longest completed stake was ${portfolioData.maxStakeLength} days.` : ''}
+${portfolioData.isOGHexican ? `OG Status: Original Hexican - first stake in ${portfolioData.firstStakeYear}!` : portfolioData.firstStakeYear ? `Started staking in ${portfolioData.firstStakeYear}.` : ''}
+After successfully completing all their stakes, they are now holding their HEX in liquid form.
 
-${portfolioData.isOGHexican ? `OG Status: Been staking since ${portfolioData.firstStakeYear} - original Hexican!` : portfolioData.firstStakeYear ? `Started staking in ${portfolioData.firstStakeYear}.` : ''}
-
-Write a witty 2-3 sentence analysis starting with "This user" about their crypto behavior and strategy. Include actual numbers. Be humorous about any shitcoin dabbling, early ends, or diamond hands behavior.`
+Write a witty 2-3 sentence analysis starting with "This user" about their crypto behavior and strategy. Focus on their successful staking history - they completed ${portfolioData.hexStakes} stakes without any failures, preferred ${portfolioData.maxStakeLength}-day stakes, and are now holding liquid. Are they an OG Hexican? Include actual numbers and be humorous about their disciplined staking behavior and current liquid position.`
 
     console.log('=== PORTFOLIO ANALYSIS DEBUG ===')
     console.log('Portfolio Data:', JSON.stringify(portfolioData, null, 2))
@@ -99,8 +105,8 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
     const { text: analysis } = await generateText({
       model: openai('o3-mini'),
       prompt: analysisPrompt,
-      maxTokens: 400,
-      temperature: 0.7,
+      maxTokens: 500,
+      temperature: 0.5,
       providerOptions: {
         openai: { 
           reasoningEffort: 'low' // Use low effort for faster responses

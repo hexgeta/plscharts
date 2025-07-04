@@ -9,6 +9,7 @@ interface HexStake {
   status: 'active' | 'inactive';
   isOverdue?: boolean;
   isEES?: boolean;
+  isBPD?: boolean;
   principleHex: number;
   yieldHex: number;
   tShares: number;
@@ -285,12 +286,16 @@ export const useHexStakes = (addresses: string[]) => {
                           // Calculate the original promised end date
               const promisedEndDay = stakeStartDay + Number(stake.stakedDays);
               
+              // Check if this is a BPD stake (5555 days)
+              const isBPD = Number(stake.stakedDays) === 5555;
+              
               return {
                 id: `${chain}-${stake.id}`,
                 stakeId,
                 status,
                 isEES,
                 isOverdue,
+                isBPD,
                 principleHex: Number(stake.stakedHearts) / 1e8,
                 yieldHex: getCachedYield(stakeId, chain, currentDay) || 
                   calculateYieldForStake(
