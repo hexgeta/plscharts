@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { generateText } from 'ai'
+import { openai } from '@ai-sdk/openai'
 
 // Remove edge runtime and force-dynamic exports
 // export const runtime = 'edge'
@@ -89,52 +91,33 @@ After successfully completing all their stakes, they are now holding their HEX i
 
 Write a witty 2-3 sentence analysis starting with "This user" about their crypto behavior and strategy. Focus on their successful staking history - they completed ${portfolioData.hexStakes} stakes without any failures, preferred ${portfolioData.maxStakeLength}-day stakes, and are now holding liquid. Are they an OG Hexican? Include actual numbers and be humorous about their disciplined staking behavior and current liquid position.`
 
-    // Make the OpenAI request - simplified to match our working curl request
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a witty crypto portfolio analyst. Keep responses to 2-3 sentences.'
-          },
-          {
-            role: 'user',
-            content: analysisPrompt
-          }
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
+    try {
+      // Use AI SDK to generate text with O3-mini
+      const { text: analysis } = await generateText({
+        model: openai('o3-mini'),
+        prompt: analysisPrompt,
+        providerOptions: {
+          openai: { reasoningEffort: 'medium' }, // balanced approach
+        },
       })
-    })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null)
-      return NextResponse.json({
-        error: 'OpenAI API Error',
-        message: errorData?.error?.message || `OpenAI API returned status ${response.status}`,
-        details: errorData
-      }, { status: response.status })
-    }
+      if (!analysis) {
+        return NextResponse.json({
+          error: 'Invalid Response',
+          message: 'AI returned an empty response',
+        }, { status: 500 })
+      }
 
-    const data = await response.json()
-    const analysis = data.choices?.[0]?.message?.content
+      return NextResponse.json({ analysis, prompt: analysisPrompt, portfolioData })
 
-    if (!analysis) {
-      return NextResponse.json({
-        error: 'Invalid Response',
-        message: 'OpenAI returned an empty response',
-        details: data
+    } catch (aiError) {
+      console.error('AI generation error:', aiError)
+      return NextResponse.json({ 
+        error: 'AI Generation Error',
+        message: aiError instanceof Error ? aiError.message : 'Failed to generate analysis',
+        details: aiError instanceof Error ? aiError.stack : undefined
       }, { status: 500 })
     }
-
-    return NextResponse.json({ analysis, prompt: analysisPrompt, portfolioData })
-
   } catch (error) {
     console.error('Portfolio analysis error:', error)
     return NextResponse.json({ 
