@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
@@ -45,6 +44,14 @@ function checkRateLimit(key: string): { allowed: boolean; remaining: number; res
 
 export async function POST(request: NextRequest) {
   try {
+    // Debug environment
+    console.log('Environment check:', {
+      nodeEnv: process.env.NODE_ENV,
+      hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+      keyLength: process.env.OPENAI_API_KEY?.length,
+      keyStart: process.env.OPENAI_API_KEY?.substring(0, 3)
+    })
+
     // Rate limiting check
     const rateLimitKey = getRateLimitKey(request)
     const { allowed, remaining, resetTime } = checkRateLimit(rateLimitKey)
@@ -105,30 +112,43 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
     console.log('Analysis Prompt:', analysisPrompt)
 
     try {
-      const openai = new OpenAI()
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a witty crypto portfolio analyst. Keep responses to 2-3 sentences.'
-          },
-          {
-            role: 'user',
-            content: analysisPrompt
-          }
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a witty crypto portfolio analyst. Keep responses to 2-3 sentences.'
+            },
+            {
+              role: 'user',
+              content: analysisPrompt
+            }
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
       })
 
-      if (!completion.choices[0]?.message?.content) {
-        console.error('OpenAI returned empty response:', completion)
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('OpenAI API error response:', errorData)
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      const analysis = data.choices[0]?.message?.content
+
+      if (!analysis) {
+        console.error('OpenAI returned empty response:', data)
         throw new Error('OpenAI returned empty response')
       }
 
-      const analysis = completion.choices[0].message.content
-      
       console.log('Final Analysis:', analysis)
       
       // Return response with rate limit headers
@@ -148,7 +168,11 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
         error: 'OpenAI API Error', 
         message: 'Failed to generate portfolio analysis',
         details: aiError instanceof Error ? aiError.message : 'Unknown error',
-        stack: aiError instanceof Error ? aiError.stack : undefined
+        stack: aiError instanceof Error ? aiError.stack : undefined,
+        env: {
+          hasKey: !!process.env.OPENAI_API_KEY,
+          keyLength: process.env.OPENAI_API_KEY?.length
+        }
       }, { status: 500 })
     }
   } catch (error) {
