@@ -8,9 +8,5 @@
       "path": "/api/cron/daily-validator-count",
       "schedule": "0 0 * * *"
     }
-    // {
-    //   "path": "/api/cron/daily-hex-holders",
-    //   "schedule": "0 1 * * 1"
-    // }
   ]
 }
