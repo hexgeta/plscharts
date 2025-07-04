@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateText } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import OpenAI from 'openai'
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+})
 
 // Simple in-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
@@ -102,33 +106,52 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
     console.log('Portfolio Data:', JSON.stringify(portfolioData, null, 2))
     console.log('Analysis Prompt:', analysisPrompt)
 
-    const { text: analysis } = await generateText({
-      model: openai('o3-mini'),
-      prompt: analysisPrompt,
-      maxTokens: 500,
-      temperature: 0.5,
-      providerOptions: {
-        openai: { 
-          reasoningEffort: 'low' // Use low effort for faster responses
-        }
-      }
-    })
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a witty crypto portfolio analyst. Keep responses to 2-3 sentences.'
+          },
+          {
+            role: 'user',
+            content: analysisPrompt
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+      })
 
-    console.log('Final Analysis:', analysis)
-    
-    // Return response with rate limit headers
-    return NextResponse.json(
-      { analysis, prompt: analysisPrompt, portfolioData },
-      {
-        headers: {
-          'X-RateLimit-Limit': RATE_LIMIT.toString(),
-          'X-RateLimit-Remaining': remaining.toString(),
-          'X-RateLimit-Reset': resetTime.toString()
+      const analysis = completion.choices[0].message.content || 'Unable to generate analysis'
+      
+      console.log('Final Analysis:', analysis)
+      
+      // Return response with rate limit headers
+      return NextResponse.json(
+        { analysis, prompt: analysisPrompt, portfolioData },
+        {
+          headers: {
+            'X-RateLimit-Limit': RATE_LIMIT.toString(),
+            'X-RateLimit-Remaining': remaining.toString(),
+            'X-RateLimit-Reset': resetTime.toString()
+          }
         }
-      }
-    )
+      )
+    } catch (aiError) {
+      console.error('OpenAI API error:', aiError)
+      return NextResponse.json({ 
+        error: 'OpenAI API Error', 
+        message: 'Failed to generate portfolio analysis. Please check OpenAI API configuration.',
+        details: aiError instanceof Error ? aiError.message : 'Unknown error'
+      }, { status: 500 })
+    }
   } catch (error) {
     console.error('Portfolio analysis error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      message: 'Failed to process portfolio data',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 } 
