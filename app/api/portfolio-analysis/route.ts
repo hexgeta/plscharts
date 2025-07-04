@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export const runtime = 'edge'
-export const dynamic = 'force-dynamic'
+// Remove edge runtime and force-dynamic exports
+// export const runtime = 'edge'
+// export const dynamic = 'force-dynamic'
 
 // Simple in-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
@@ -44,44 +45,25 @@ function checkRateLimit(key: string): { allowed: boolean; remaining: number; res
 
 export async function POST(request: NextRequest) {
   try {
-    // Debug environment
-    console.log('Environment check:', {
-      nodeEnv: process.env.NODE_ENV,
-      hasOpenAIKey: !!process.env.OPENAI_API_KEY,
-      keyLength: process.env.OPENAI_API_KEY?.length,
-      keyStart: process.env.OPENAI_API_KEY?.substring(0, 3)
-    })
-
-    // Rate limiting check
-    const rateLimitKey = getRateLimitKey(request)
-    const { allowed, remaining, resetTime } = checkRateLimit(rateLimitKey)
-    
-    if (!allowed) {
-      const resetDate = new Date(resetTime).toISOString()
-      return NextResponse.json(
-        { 
-          error: 'Rate limit exceeded', 
-          message: `You've reached the daily limit of ${RATE_LIMIT} portfolio analyses. Try again after ${resetDate}`,
-          resetTime: resetDate
-        }, 
-        { 
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': RATE_LIMIT.toString(),
-            'X-RateLimit-Remaining': remaining.toString(),
-            'X-RateLimit-Reset': resetTime.toString()
-          }
-        }
-      )
+    // Basic validation
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({
+        error: 'Configuration Error',
+        message: 'OpenAI API key is not configured',
+      }, { status: 500 })
     }
 
-    const { portfolioData } = await request.json()
-    
-    if (!portfolioData) {
-      return NextResponse.json({ error: 'Portfolio data is required' }, { status: 400 })
+    const body = await request.json()
+    if (!body?.portfolioData) {
+      return NextResponse.json({
+        error: 'Invalid Request',
+        message: 'Portfolio data is required',
+      }, { status: 400 })
     }
 
-    // Enhanced prompt with portfolio size context and 3rd person perspective
+    const { portfolioData } = body
+
+    // Construct the prompt
     const getPortfolioSize = (size: string) => {
       switch(size) {
         case 'whale': return 'whale-tier'
@@ -107,81 +89,58 @@ After successfully completing all their stakes, they are now holding their HEX i
 
 Write a witty 2-3 sentence analysis starting with "This user" about their crypto behavior and strategy. Focus on their successful staking history - they completed ${portfolioData.hexStakes} stakes without any failures, preferred ${portfolioData.maxStakeLength}-day stakes, and are now holding liquid. Are they an OG Hexican? Include actual numbers and be humorous about their disciplined staking behavior and current liquid position.`
 
-    console.log('=== PORTFOLIO ANALYSIS DEBUG ===')
-    console.log('Portfolio Data:', JSON.stringify(portfolioData, null, 2))
-    console.log('Analysis Prompt:', analysisPrompt)
-
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a witty crypto portfolio analyst. Keep responses to 2-3 sentences.'
-            },
-            {
-              role: 'user',
-              content: analysisPrompt
-            }
-          ],
-          max_tokens: 500,
-          temperature: 0.7,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('OpenAI API error response:', errorData)
-        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      const analysis = data.choices[0]?.message?.content
-
-      if (!analysis) {
-        console.error('OpenAI returned empty response:', data)
-        throw new Error('OpenAI returned empty response')
-      }
-
-      console.log('Final Analysis:', analysis)
-      
-      // Return response with rate limit headers
-      return NextResponse.json(
-        { analysis, prompt: analysisPrompt, portfolioData },
-        {
-          headers: {
-            'X-RateLimit-Limit': RATE_LIMIT.toString(),
-            'X-RateLimit-Remaining': remaining.toString(),
-            'X-RateLimit-Reset': resetTime.toString()
+    // Make the OpenAI request - simplified to match our working curl request
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a witty crypto portfolio analyst. Keep responses to 2-3 sentences.'
+          },
+          {
+            role: 'user',
+            content: analysisPrompt
           }
-        }
-      )
-    } catch (aiError) {
-      console.error('OpenAI API error:', aiError)
-      return NextResponse.json({ 
-        error: 'OpenAI API Error', 
-        message: 'Failed to generate portfolio analysis',
-        details: aiError instanceof Error ? aiError.message : 'Unknown error',
-        stack: aiError instanceof Error ? aiError.stack : undefined,
-        env: {
-          hasKey: !!process.env.OPENAI_API_KEY,
-          keyLength: process.env.OPENAI_API_KEY?.length
-        }
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null)
+      return NextResponse.json({
+        error: 'OpenAI API Error',
+        message: errorData?.error?.message || `OpenAI API returned status ${response.status}`,
+        details: errorData
+      }, { status: response.status })
+    }
+
+    const data = await response.json()
+    const analysis = data.choices?.[0]?.message?.content
+
+    if (!analysis) {
+      return NextResponse.json({
+        error: 'Invalid Response',
+        message: 'OpenAI returned an empty response',
+        details: data
       }, { status: 500 })
     }
+
+    return NextResponse.json({ analysis, prompt: analysisPrompt, portfolioData })
+
   } catch (error) {
     console.error('Portfolio analysis error:', error)
     return NextResponse.json({ 
-      error: 'Internal server error',
-      message: 'Failed to process portfolio data',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      error: 'Internal Server Error',
+      message: error instanceof Error ? error.message : 'Failed to process request',
+      details: error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   }
 } 
