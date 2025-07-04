@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-// Force dynamic runtime for OpenAI API calls
 export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
 
 // Simple in-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
 const RATE_LIMIT = 10 // requests per day
 const RATE_LIMIT_WINDOW = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-
-// Initialize OpenAI client with fetch configuration for Edge runtime
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  fetch: fetch, // Use native fetch in Edge runtime
-  defaultHeaders: { 'api-key': process.env.OPENAI_API_KEY }
-})
 
 function getRateLimitKey(request: NextRequest): string {
   // Try to get a unique identifier for the client
@@ -112,6 +105,7 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
     console.log('Analysis Prompt:', analysisPrompt)
 
     try {
+      const openai = new OpenAI()
       const completion = await openai.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
