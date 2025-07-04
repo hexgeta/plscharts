@@ -43,6 +43,14 @@ function checkRateLimit(key: string): { allowed: boolean; remaining: number; res
 export async function POST(request: NextRequest) {
   try {
     // Initialize OpenAI client
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('OpenAI API key is not configured')
+      return NextResponse.json({ 
+        error: 'Configuration Error',
+        message: 'OpenAI API key is not configured'
+      }, { status: 500 })
+    }
+
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     })
@@ -123,7 +131,12 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
         temperature: 0.7,
       })
 
-      const analysis = completion.choices[0].message.content || 'Unable to generate analysis'
+      if (!completion.choices[0]?.message?.content) {
+        console.error('OpenAI returned empty response:', completion)
+        throw new Error('OpenAI returned empty response')
+      }
+
+      const analysis = completion.choices[0].message.content
       
       console.log('Final Analysis:', analysis)
       
@@ -142,8 +155,9 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
       console.error('OpenAI API error:', aiError)
       return NextResponse.json({ 
         error: 'OpenAI API Error', 
-        message: 'Failed to generate portfolio analysis. Please check OpenAI API configuration.',
-        details: aiError instanceof Error ? aiError.message : 'Unknown error'
+        message: 'Failed to generate portfolio analysis',
+        details: aiError instanceof Error ? aiError.message : 'Unknown error',
+        stack: aiError instanceof Error ? aiError.stack : undefined
       }, { status: 500 })
     }
   } catch (error) {
@@ -151,7 +165,8 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
     return NextResponse.json({ 
       error: 'Internal server error',
       message: 'Failed to process portfolio data',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   }
 } 
