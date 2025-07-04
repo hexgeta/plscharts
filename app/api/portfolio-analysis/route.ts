@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
-
 // Simple in-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
@@ -47,6 +42,11 @@ function checkRateLimit(key: string): { allowed: boolean; remaining: number; res
 
 export async function POST(request: NextRequest) {
   try {
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    })
+
     // Rate limiting check
     const rateLimitKey = getRateLimitKey(request)
     const { allowed, remaining, resetTime } = checkRateLimit(rateLimitKey)
