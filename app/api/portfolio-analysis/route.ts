@@ -92,14 +92,15 @@ After successfully completing all their stakes, they are now holding their HEX i
 Write a witty 2-3 sentence analysis starting with "This user" about their crypto behavior and strategy. Focus on their successful staking history - they completed ${portfolioData.hexStakes} stakes without any failures, preferred ${portfolioData.maxStakeLength}-day stakes, and are now holding liquid. Are they an OG Hexican? Include actual numbers and be humorous about their disciplined staking behavior and current liquid position.`
 
     try {
-      // Use AI SDK to generate text with GPT-3.5
+      // Use AI SDK to generate text with o3-mini
       const { text: analysis } = await generateText({
-        model: openai('gpt-3.5-turbo'),
+        model: openai('o3-mini'),
         prompt: analysisPrompt,
         providerOptions: {
-          openai: {
-            temperature: 0.7,
-            max_tokens: 150
+          openai: { 
+            reasoningEffort: 'medium',  // balanced approach
+            temperature: 0.5,
+            max_tokens: 500
           },
         },
       })
