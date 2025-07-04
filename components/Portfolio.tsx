@@ -1425,40 +1425,44 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           return stakeHex * hexPrice
         }
 
-    // Sort the filtered stakes
-    return filtered.sort((a, b) => {
-      let comparison = 0
+      // Sort the filtered stakes
+  return filtered.sort((a, b) => {
+    let comparison = 0
 
-      switch (hexStakesSortField) {
-        case 'amount':
-            const aValue = getStakeValue(a)
-            const bValue = getStakeValue(b)
+    switch (hexStakesSortField) {
+      case 'amount': {
+          const aValue = getStakeValue(a)
+          const bValue = getStakeValue(b)
           comparison = bValue - aValue // Higher values first
           break
-        case 'startDate':
-          const aStartDate = new Date(a.startDate).getTime()
-          const bStartDate = new Date(b.startDate).getTime()
-          comparison = aStartDate - bStartDate
-          break
-        case 'endDate':
-          const aEndDate = new Date(a.endDate).getTime()
-          const bEndDate = new Date(b.endDate).getTime()
-          comparison = aEndDate - bEndDate
-          break
-        case 'progress':
-          comparison = b.progress - a.progress // Higher progress first
-          break
       }
-          
-      // Secondary sort by amount if primary sort yields equal values
-      if (comparison === 0 && hexStakesSortField !== 'amount') {
-            const aValue = getStakeValue(a)
-            const bValue = getStakeValue(b)
-            comparison = bValue - aValue
-        }
+      case 'startDate': {
+        const aStartDate = new Date(a.startDate).getTime()
+        const bStartDate = new Date(b.startDate).getTime()
+        comparison = aStartDate - bStartDate
+        break
+      }
+      case 'endDate': {
+        const aEndDate = new Date(a.endDate).getTime()
+        const bEndDate = new Date(b.endDate).getTime()
+        comparison = aEndDate - bEndDate
+        break
+      }
+      case 'progress': {
+        comparison = b.progress - a.progress // Higher progress first
+        break
+      }
+    }
+        
+    // Secondary sort by amount if primary sort yields equal values
+    if (comparison === 0 && hexStakesSortField !== 'amount') {
+      const aValue = getStakeValue(a)
+      const bValue = getStakeValue(b)
+      comparison = bValue - aValue
+    }
 
-        return hexStakesSortDirection === 'asc' ? comparison : -comparison
-      })
+    return hexStakesSortDirection === 'asc' ? comparison : -comparison
+  })
   }, [hexStakes, selectedAddressIds, addresses, chainFilter, getTokenPrice, hexStakesSortField, hexStakesSortDirection, removedAddressIds, stakeStatusFilter, detectiveMode])
 
   // Always show all possible status types regardless of data
@@ -2288,28 +2292,28 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Calculate value for each address (only if liquid balances are included)
     if (showLiquidBalances) {
-    filteredBalances.forEach(addressData => {
-      let addressValue = 0
-      
-      // Add native PLS value
-      const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
-      addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
-      
-      // Add token values
-      addressData.tokenBalances?.forEach(token => {
-        const tokenPrice = getTokenPrice(token.symbol)
-        addressValue += token.balanceFormatted * tokenPrice
-      })
+      filteredBalances.forEach(addressData => {
+        let addressValue = 0
+        
+        // Add native PLS value
+        const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
+        addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+        
+        // Add token values
+        addressData.tokenBalances?.forEach(token => {
+          const tokenPrice = getTokenPrice(token.symbol)
+          addressValue += token.balanceFormatted * tokenPrice
+        })
 
-      totalValue += addressValue
+        totalValue += addressValue
 
-              // Add to address values array
+        // Add to address values array
         addressVals.push({
           address: addressData.address,
           label: effectiveAddresses.find(a => a.address === addressData.address)?.label || '',
           value: addressValue
         })
-    })
+      })
     }
 
     // Add validator value if enabled (but not in detective mode)
@@ -2322,15 +2326,36 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Add HEX stakes value if enabled (ONLY ACTIVE STAKES)
     if (showHexStakes && hexStakes) {
-      // Filter active stakes by chain - detective mode only shows PulseChain stakes
-      const activeStakes = hexStakes.filter(stake => 
-        stake.status === 'active' && 
-        (detectiveMode 
+      // Filter active stakes by chain and selected addresses
+      const activeStakes = hexStakes.filter(stake => {
+        // Filter by status
+        if (stake.status !== 'active') return false
+        
+        // Filter by chain
+        const chainMatch = detectiveMode 
           ? stake.chain === 'PLS'
           : (chainFilter === 'both' || 
              (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
-             (chainFilter === 'pulsechain' && stake.chain !== 'ETH')))
-      )
+             (chainFilter === 'pulsechain' && stake.chain !== 'ETH'))
+        if (!chainMatch) return false
+
+        // Filter by selected addresses
+        if (selectedAddressIds.length > 0) {
+          const addressMatch = selectedAddressIds.some(id => 
+            effectiveAddresses.find(addr => 
+              addr.id === id && addr.address.toLowerCase() === stake.address.toLowerCase()
+            )
+          )
+          if (!addressMatch) return false
+        }
+
+        // Filter out removed addresses
+        const addressObj = effectiveAddresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
+        if (addressObj && removedAddressIds.has(addressObj.id)) return false
+
+        return true
+      })
+
       const hexStakesValue = activeStakes.reduce((total, stake) => {
         const stakeHex = stake.principleHex + stake.yieldHex
         // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
@@ -2338,10 +2363,34 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         return total + (stakeHex * hexPrice)
       }, 0)
       totalValue += hexStakesValue
+
+      // Add to address values array for each address with HEX stakes
+      const addressStakeValues = new Map<string, number>()
+      activeStakes.forEach(stake => {
+        const stakeHex = stake.principleHex + stake.yieldHex
+        const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+        const stakeValue = stakeHex * hexPrice
+        const currentValue = addressStakeValues.get(stake.address) || 0
+        addressStakeValues.set(stake.address, currentValue + stakeValue)
+      })
+
+      // Update or add to addressVals
+      addressStakeValues.forEach((stakeValue, address) => {
+        const existingIndex = addressVals.findIndex(av => av.address === address)
+        if (existingIndex >= 0) {
+          addressVals[existingIndex].value += stakeValue
+        } else {
+          addressVals.push({
+            address,
+            label: effectiveAddresses.find(a => a.address === address)?.label || '',
+            value: stakeValue
+          })
+        }
+      })
     }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, detectiveMode])
+  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds])
 
   // Calculate 24h portfolio change percentage
   const portfolio24hChange = useMemo(() => {
