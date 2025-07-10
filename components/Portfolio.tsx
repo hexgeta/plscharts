@@ -2006,8 +2006,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       preloadedSupply: (leagueSupply || finalSupply) || undefined,
       supplyDeduction: leagueSupplyDeduction,
       userBalance: combinedBalance,
-      userTShares: leagueInfo.userTShares > 0 ? leagueInfo.userTShares : undefined
-    }), [token.symbol, leagueSupply, finalSupply, leagueSupplyDeduction, combinedBalance, leagueInfo.userTShares])
+      userTShares: leagueInfo.userTShares > 0 ? leagueInfo.userTShares : undefined,
+      preloadedPrices: prices?.[token.symbol] ? { [token.symbol]: prices[token.symbol] } : undefined
+    }), [
+      token.symbol, 
+      leagueSupply, 
+      finalSupply, 
+      leagueSupplyDeduction, 
+      combinedBalance, 
+      leagueInfo.userTShares, 
+      prices?.[token.symbol]?.price,
+      prices?.[token.symbol]?.priceChange
+    ])
 
   return (
       <div className="grid grid-cols-[minmax(20px,auto)_2fr_1fr_2fr_minmax(20px,auto)] xs:grid-cols-[minmax(20px,auto)_1fr_1fr_1fr_minmax(20px,auto)] sm:grid-cols-[minmax(20px,auto)_2fr_1fr_1fr_minmax(60px,auto)_2fr_minmax(40px,auto)] items-center gap-2 sm:gap-4 border-b border-white/10 mx-2 sm:mx-4 py-4 last:border-b-0 overflow-hidden">
@@ -2102,7 +2112,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   containerStyle={false}
                   showLeagueNames={true}
                     preloadedSupply={stableDialogProps.preloadedSupply}
-                  preloadedPrices={prices}
+                  preloadedPrices={stableDialogProps.preloadedPrices}
                     supplyDeduction={stableDialogProps.supplyDeduction}
                     userBalance={stableDialogProps.userBalance}
                     userTShares={stableDialogProps.userTShares}
