@@ -59,7 +59,7 @@ export default function MobileNavigation() {
   }
 
   return (
-    <div className="sm:hidden fixed bottom-0 left-0 right-0 w-screen bg-black/90 border-t border-white/20 z-[9999] h-[90px]">
+    <div className="sm:hidden fixed bottom-0 left-0 right-0 w-screen bg-black/90 border-t border-white/20 z-[9999] h-[70px]">
       <div className="flex items-center justify-around py-3 px-4 w-full h-full">
         {NAV_ITEMS.map((item, index) => {
           const Icon = item.icon
