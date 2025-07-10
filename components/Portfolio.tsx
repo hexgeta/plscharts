@@ -2097,7 +2097,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             </DialogTrigger>
             <DialogContent className="w-full max-w-[360px] sm:max-w-[560px] bg-black border-2 border-white/10 rounded-lg">
               <div className="p-4">
-                {isDialogOpen && (
                 <LeagueTable 
                     tokenTicker={stableDialogProps.tokenTicker} 
                   containerStyle={false}
@@ -2108,7 +2107,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     userBalance={stableDialogProps.userBalance}
                     userTShares={stableDialogProps.userTShares}
                 />
-                )}
               </div>
             </DialogContent>
           </Dialog>

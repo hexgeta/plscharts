@@ -215,7 +215,7 @@ const ValidatorRow = memo(({
       initial="hidden"
       animate="visible"
     >
-      <td className="px-6 py-4 text-center font-mono">
+      <td className="px-6 py-4 text-center ">
         {index < 3 ? (
           <img 
             src={`/other-images/${index + 1}.png`} 
@@ -232,7 +232,7 @@ const ValidatorRow = memo(({
             href={`https://midgard.wtf/address/${address}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-mono text-sm text-white hover:underline cursor-pointer"
+            className="text-sm text-white hover:underline cursor-pointer"
           >
             {displayName}
           </a>
@@ -246,12 +246,12 @@ const ValidatorRow = memo(({
           )}
         </div>
       </td>
-      <td className="px-6 py-4 text-center font-mono">
+      <td className="px-6 py-4 text-center">
         <div className="text-white font-semibold">
           {validatorCount}
         </div>
       </td>
-      <td className="px-6 py-4 text-center font-mono">
+      <td className="px-6 py-4 text-center">
         <div className="text-green-400 text-lg font-semibold">
           {tokenPrices?.PLS?.price 
             ? `$${((totalBalance / 1e9) * tokenPrices.PLS.price).toLocaleString('en-US', { 
@@ -536,7 +536,7 @@ export default function ValidatorsTracker() {
         duration: 0.6,
         ease: [0.23, 1, 0.32, 1]
       }}
-      className="min-h-screen bg-black text-white"
+      className="min-h-screen bg-black text-white scrollbar-hide"
     >
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
@@ -552,28 +552,34 @@ export default function ValidatorsTracker() {
               }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
             >
-              <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
-                <div className="text-4xl font-bold text-white">
-                  {formatTotalStakedUSD(totalStaked)}
+              <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px] flex flex-col justify-between">
+                <div>
+                  <div className="text-4xl font-bold text-white">
+                    {formatTotalStakedUSD(totalStaked)}
+                  </div>
+                  <div className="text-md text-gray-500 mt-1">
+                    {(totalStaked / 1e9 / 1e12).toFixed(2)}T PLS
+                  </div>
                 </div>
-                <div className="text-md text-gray-500 mt-1">
-                  {(totalStaked / 1e9 / 1e12).toFixed(2)}T PLS
-                </div>
-                <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Total Staked</div>
+                <div className="text-sm text-gray-400/50 text-center">Total Staked</div>
               </div>
               
-              <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
-                <div className="text-4xl font-bold text-white">
-                  {validatorsData?.data.activeCount.toLocaleString()}
+              <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px] flex flex-col justify-between">
+                <div>
+                  <div className="text-4xl font-bold text-white">
+                    {validatorsData?.data.activeCount.toLocaleString()}
+                  </div>
                 </div>
-                <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Active Validators</div>
+                <div className="text-sm text-gray-400/50 text-center">Active Validators</div>
               </div>
               
-              <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
-                <div className="text-4xl font-bold text-white">
-                  {validatorsData?.data.count.toLocaleString()}
+              <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px] flex flex-col justify-between">
+                <div>
+                  <div className="text-4xl font-bold text-white">
+                    {validatorsData?.data.count.toLocaleString()}
+                  </div>
                 </div>
-                <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">All Historic Validators</div>
+                <div className="text-sm text-gray-400/50 text-center">All Historic Validators</div>
               </div>
             </motion.div>
 
@@ -590,21 +596,25 @@ export default function ValidatorsTracker() {
             >
               {/* Side Cards */}
               <div className="flex flex-col gap-6 lg:order-2">
-                <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px]">
-                  <div className="text-4xl font-bold text-white">
-                    {totalWithdrawalAddresses.toLocaleString()}
+                <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[140px] flex flex-col justify-between">
+                  <div>
+                    <div className="text-4xl font-bold text-white">
+                      {totalWithdrawalAddresses.toLocaleString()}
+                    </div>
                   </div>
-                  <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Unique Addresses</div>
+                  <div className="text-sm text-gray-400/50 text-center">Unique Addresses</div>
                 </div>
 
-                <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[100px]">
-                  <div className="text-4xl font-bold text-white">
-                    {formatAverageBalanceUSD(averageWithdrawalBalance)}
+                <div className="bg-black p-8 rounded-xl border-2 border-white/10 text-center relative min-h-[100px] flex flex-col justify-between">
+                  <div>
+                    <div className="text-4xl font-bold text-white">
+                      {formatAverageBalanceUSD(averageWithdrawalBalance)}
+                    </div>
+                    <div className="text-md text-gray-500 mt-1">
+                      {(averageWithdrawalBalance / 1e9 / 1e9).toFixed(2)}B PLS
+                    </div>
                   </div>
-                  <div className="text-md text-gray-500 mt-1">
-                    {(averageWithdrawalBalance / 1e9 / 1e9).toFixed(2)}B PLS
-                  </div>
-                  <div className="absolute bottom-4 right-4 text-sm text-gray-400/50">Avg Per Address</div>
+                  <div className="text-sm text-gray-400/50 text-center">Avg Per Address</div>
                 </div>
               </div>
 

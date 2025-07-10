@@ -81,7 +81,8 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: 'cover'
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content'
 }
 
 // Font Loading Component
@@ -115,12 +116,52 @@ function FontLoadingOptimizer() {
             font-family: 'Departure Mono', 'ui-monospace', 'SFMono-Regular', 'SF Mono', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
           }
           /* Hide scrollbars globally */
-          html, body {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+          html, body, * {
+            -ms-overflow-style: none !important;
+            scrollbar-width: none !important;
+            -webkit-overflow-scrolling: touch;
           }
-          html::-webkit-scrollbar, body::-webkit-scrollbar {
-            display: none;
+          html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          /* Mobile Chrome specific */
+          @supports (-webkit-touch-callout: none) {
+            * {
+              -webkit-overflow-scrolling: touch;
+              -ms-overflow-style: none !important;
+              scrollbar-width: none !important;
+            }
+            *::-webkit-scrollbar {
+              display: none !important;
+              width: 0 !important;
+            }
+          }
+          /* Prevent mobile browser UI bars from affecting layout */
+          @media screen and (max-width: 768px) {
+            html {
+              height: 100vh !important;
+              height: 100svh !important;
+              overflow: hidden !important;
+            }
+            body {
+              height: 100vh !important;
+              height: 100svh !important;
+              overflow-y: auto !important;
+              position: relative !important;
+              -webkit-overflow-scrolling: touch !important;
+            }
+          }
+          /* iOS Safari specific fixes */
+          @supports (-webkit-touch-callout: none) {
+            html {
+              height: -webkit-fill-available !important;
+            }
+            body {
+              min-height: 100vh !important;
+              min-height: -webkit-fill-available !important;
+            }
           }
         `
       }} />
@@ -137,6 +178,12 @@ export default function RootLayout({
     <html lang="en" className="font-sans scrollbar-hide">
       <head>
         <script defer data-domain="plscharts.com" src="https://plausible.io/js/script.js"></script>
+        {/* Prevent mobile browser UI bars from resizing content */}
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-touch-fullscreen" content="yes" />
         <FontLoadingOptimizer />
         {/* Preload favicon files for immediate availability */}
         {FAVICON_FILES.map((favicon) => (
@@ -160,11 +207,11 @@ export default function RootLayout({
           />
         ))}
       </head>
-      <body className="no-select min-h-screen bg-black text-white overflow-y-auto">
+      <body className="no-select min-h-screen bg-black text-white overflow-y-auto scrollbar-hide">
         <Providers>
-          <div className="flex flex-col min-h-screen">
+          <div className="flex flex-col min-h-screen scrollbar-hide">
             <NavBar />
-            <main className="flex-grow">{children}</main>
+            <main className="flex-grow scrollbar-hide">{children}</main>
             <Footer />
             <MobileNavigation />
           </div>

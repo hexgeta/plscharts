@@ -67,6 +67,39 @@ html,
 body {
   @apply w-full m-0 font-sans bg-[var(--background-color)] text-[var(--text-color)];
   font-family: var(--font-sans);
+  /* Prevent mobile browser UI bars from resizing content */
+  height: 100vh;
+  height: 100svh; /* Small viewport height - static */
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* Allow scrolling in the main content area */
+body {
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Prevent address bar hiding/showing from affecting layout */
+@supports (height: 100svh) {
+  html, body {
+    height: 100svh;
+  }
+}
+
+/* Additional mobile browser UI prevention */
+@media screen and (max-width: 768px) {
+  html {
+    height: -webkit-fill-available;
+    height: fill-available;
+  }
+  
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    min-height: fill-available;
+  }
 }
 
 @keyframes wave {
@@ -147,6 +180,37 @@ a {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;             /* Safari and Chrome */
+}
+
+/* Global scrollbar hiding for all elements */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+*::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+  display: none;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  display: none;
+}
+
+/* Enhanced mobile scrollbar hiding */
+@supports (-webkit-overflow-scrolling: touch) {
+  * {
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
 }
 
 @layer base {
