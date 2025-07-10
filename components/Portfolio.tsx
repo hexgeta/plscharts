@@ -1274,7 +1274,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Calculate pooled stakes T-shares from token balances
   const pooledStakesData = useMemo(() => {
     if (!includePooledStakes || !mainTokensWithBalances.length || !maxiData) {
-      return { totalTShares: 0, totalValue: 0, tokens: [] }
+      return { totalTShares: 0, totalValue: 0, tokens: [], totalHex: 0, totalEHex: 0, totalHexValue: 0, totalEHexValue: 0 }
     }
 
     // Get pooled tokens with balances
@@ -1285,6 +1285,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     let totalTShares = 0
     let totalValue = 0
     let totalHex = 0
+    let totalEHex = 0
+    let totalHexValue = 0
+    let totalEHexValue = 0
     let weightedStakeLength = 0
     let weightedAPY = 0
     const tokens: Array<{ symbol: string; balance: number; tShares: number; value: number }> = []
@@ -1333,9 +1336,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         const backingPerToken = getBackingPerToken(token.symbol)
         const userHexBacking = backingPerToken ? token.balanceFormatted * backingPerToken : 0
         
+        // Separate HEX backing by chain and calculate respective values
+        const isEthToken = token.symbol.startsWith('e') || token.symbol.startsWith('we')
+        if (isEthToken) {
+          totalEHex += userHexBacking
+          const eHexPrice = getTokenPrice('eHEX')
+          totalEHexValue += userHexBacking * eHexPrice
+        } else {
+          totalHex += userHexBacking
+          const hexPrice = getTokenPrice('HEX')
+          totalHexValue += userHexBacking * hexPrice
+        }
+        
         totalTShares += userTShares
         totalValue += tokenValue
-        totalHex += userHexBacking
         
                   // Calculate weighted stake length and APY if stake info is available
           if (tokenConfig?.stakeStartDate && tokenConfig?.stakeEndDate && tokenConfig?.stakePrinciple) {
@@ -1378,7 +1392,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const avgStakeLength = totalTShares > 0 ? weightedStakeLength / totalTShares : 0
     const avgAPY = totalTShares > 0 ? weightedAPY / totalTShares : 0
 
-    return { totalTShares, totalValue, totalHex, tokens, avgStakeLength, avgAPY }
+    return { totalTShares, totalValue, totalHex, totalEHex, totalHexValue, totalEHexValue, tokens, avgStakeLength, avgAPY }
   }, [includePooledStakes, mainTokensWithBalances, maxiData, getTokenSupply, getTokenPrice])
 
   // Filter and sort HEX stakes by selected addresses and chain
@@ -3768,7 +3782,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 // Add pooled stakes to staked HEX if enabled
                 if (includePooledStakes) {
                   stakedHexStats.hexAmount += pooledStakesData.totalHex || 0
-                  stakedHexStats.hexValue += pooledStakesData.totalValue || 0
+                  stakedHexStats.eHexAmount += pooledStakesData.totalEHex || 0
+                  stakedHexStats.hexValue += pooledStakesData.totalHexValue || 0
+                  stakedHexStats.eHexValue += pooledStakesData.totalEHexValue || 0
                 }
 
                 const totalLiquidValue = liquidHexStats.hexValue + liquidHexStats.eHexValue
