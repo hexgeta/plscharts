@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { getCachedSupplies } from '@/hooks/crypto/useBackgroundPreloader'
+import { useLeagueData } from '@/hooks/crypto/useLeagueData'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import React from 'react'
@@ -188,6 +189,25 @@ export default function LeaguesPage() {
   
   const suppliesLoading = !cachedSupplies; // Loading if no cached data available
 
+  // Fetch holder data for tokens that will show holders
+  const tokensWithHolders = showHolders ? ['PLSX', 'INC', 'HEX', 'HDRN', 'ICSA', 'COM'] : [];
+  const { isLoading: plsxHoldersLoading } = useLeagueData(showHolders ? 'PLSX' : null);
+  const { isLoading: incHoldersLoading } = useLeagueData(showHolders ? 'INC' : null);
+  const { isLoading: hexHoldersLoading } = useLeagueData(showHolders ? 'HEX' : null);
+  const { isLoading: hdrnHoldersLoading } = useLeagueData(showHolders ? 'HDRN' : null);
+  const { isLoading: icsaHoldersLoading } = useLeagueData(showHolders ? 'ICSA' : null);
+  const { isLoading: comHoldersLoading } = useLeagueData(showHolders ? 'COM' : null);
+  
+  // Check if any holder data is still loading
+  const holdersLoading = showHolders && (
+    plsxHoldersLoading || 
+    incHoldersLoading || 
+    hexHoldersLoading || 
+    hdrnHoldersLoading || 
+    icsaHoldersLoading || 
+    comHoldersLoading
+  );
+
   // Memoize the price data with a more stable comparison
   const memoizedPrices = useMemo(() => {
     if (!prices) return null;
@@ -255,7 +275,7 @@ export default function LeaguesPage() {
   }, [memoizedPrices, memoizedSupplies]);
 
   // Overall loading state
-  const loading = pricesLoading || suppliesLoading || !hasValidData;
+  const loading = pricesLoading || suppliesLoading || holdersLoading || !hasValidData;
 
   useEffect(() => {
     setMounted(true);
@@ -371,7 +391,7 @@ export default function LeaguesPage() {
         />
       </div>
     </>
-  ), [memoizedPrices, memoizedSupplies, excludeOA, showHolders]);
+  ), [memoizedPrices, memoizedSupplies, excludeOA, showHolders, holdersLoading]);
 
   if (!mounted || loading) {
     return <div className="bg-black h-screen" />;

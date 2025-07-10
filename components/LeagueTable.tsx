@@ -321,7 +321,7 @@ export default React.memo(function LeagueTable({
     return totalSupply && totalSupply > 0
   }, [totalSupply])
   
-  const loading = (hasPreloadedPrice ? false : priceLoading) || (hasPreloadedSupply ? false : supplyLoading)
+  const loading = (hasPreloadedPrice ? false : priceLoading) || (hasPreloadedSupply ? false : supplyLoading) || (shouldFetchLeagueData && leagueLoading)
   
   // Add 5-second delay before showing error messages
   useEffect(() => {
