@@ -512,7 +512,7 @@ export default React.memo(function LeagueTable({
         </div>
         {shouldShowHolders && (
           <div className="text-right hidden xl:block">
-            <div className="text-gray-400 text-xs">Holder</div>
+            <div className="text-gray-400 text-xs">Holders</div>
             <div className="text-white font-bold text-sm transition-all duration-300">
               {mappedLeagueData.find(l => l.league_name === 'TOTAL')?.user_holders === -1 
                 ? 'N/A' 
