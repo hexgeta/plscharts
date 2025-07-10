@@ -4038,7 +4038,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     return (
                       <>
                         <div className="flex items-center justify-center gap-3 mb-2">
-                          <div className="text-lg font-semibold text-white">Total</div>
+                          <div className="text-lg font-semibold text-white">Total staked HEX</div>
                         </div>
                           <div className="flex items-center justify-center gap-2">
                             {/* Show league icon only when specific chain is selected */}

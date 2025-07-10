@@ -26,13 +26,13 @@ export default function HoldersPage() {
     async function fetchHolderData() {
       try {
         console.log('Fetching holder data from:', '/api/holders');
-        
+  
         const response = await fetch('/api/holders');
 
-        if (!response.ok) {
-          console.error('Failed to fetch holder data:', response.status, response.statusText);
+  if (!response.ok) {
+    console.error('Failed to fetch holder data:', response.status, response.statusText);
           throw new Error(`Failed to fetch holder data: ${response.status} ${response.statusText}`);
-        }
+  }
 
         const result = await response.json();
         console.log('Holder data received:', result);
