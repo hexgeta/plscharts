@@ -8,7 +8,25 @@ const HEX_CONTRACT = '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39';
 const HEX_DECIMALS = 8;
 const JOB_NAME = 'hex-holders-collection';
 
-// Add league calculation types and constants
+// League definitions (ordered from highest to lowest percentage)
+const LEAGUES = [
+  { name: 'Poseidon', emoji: '🔱', minPercentage: 10, maxPercentage: 100 },
+  { name: 'Whale', emoji: '🐋', minPercentage: 1, maxPercentage: 10 },
+  { name: 'Shark', emoji: '🦈', minPercentage: 0.1, maxPercentage: 1 },
+  { name: 'Dolphin', emoji: '🐬', minPercentage: 0.01, maxPercentage: 0.1 },
+  { name: 'Squid', emoji: '🦑', minPercentage: 0.001, maxPercentage: 0.01 },
+  { name: 'Turtle', emoji: '🐢', minPercentage: 0.0001, maxPercentage: 0.001 },
+  { name: 'Crab', emoji: '🦀', minPercentage: 0.00001, maxPercentage: 0.0001 },
+  { name: 'Shrimp', emoji: '🦐', minPercentage: 0.000001, maxPercentage: 0.00001 },
+  { name: 'Shell', emoji: '🐚', minPercentage: 0, maxPercentage: 0.000001 }
+];
+
+const TOTAL_LEAGUE = { name: 'TOTAL', emoji: 'TOTAL', minPercentage: 0, maxPercentage: 100 };
+
+// Constants
+const MAX_HOLDERS_TO_COLLECT = 50000;
+const PAGES_PER_RUN = 10;
+
 interface LeagueStats {
   league_name: string;
   percentage: number | null;
@@ -30,236 +48,9 @@ interface HexHolder {
   address: string;
   is_contract: boolean;
   balance: number;
+  rawValue?: string;
 }
 
-// League definitions (ordered from highest to lowest percentage)
-const LEAGUES: LeagueData[] = [
-  { name: 'Poseidon', emoji: '🔱', minPercentage: 10, maxPercentage: 100 },
-  { name: 'Whale', emoji: '🐋', minPercentage: 1, maxPercentage: 10 },
-  { name: 'Shark', emoji: '🦈', minPercentage: 0.1, maxPercentage: 1 },
-  { name: 'Dolphin', emoji: '🐬', minPercentage: 0.01, maxPercentage: 0.1 },
-  { name: 'Squid', emoji: '🦑', minPercentage: 0.001, maxPercentage: 0.01 },
-  { name: 'Turtle', emoji: '🐢', minPercentage: 0.0001, maxPercentage: 0.001 },
-  { name: 'Crab', emoji: '🦀', minPercentage: 0.00001, maxPercentage: 0.0001 },
-  { name: 'Shrimp', emoji: '🦐', minPercentage: 0.000001, maxPercentage: 0.00001 },
-  { name: 'Shell', emoji: '🐚', minPercentage: 0, maxPercentage: 0.000001 }
-];
-
-const TOTAL_LEAGUE = { name: 'TOTAL', emoji: 'TOTAL', minPercentage: 0, maxPercentage: 100 };
-
-// Constants
-const MAX_HOLDERS_TO_COLLECT = 50000;
-const PAGES_PER_RUN = 10;
-
-// Use the global fetch in Next.js API routes
-const fetchWithRetry = async (url: string, retries = 3, delay = 1000) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response;
-    } catch (error) {
-      if (i === retries - 1) throw error;
-      console.log(`Retry ${i + 1}/${retries}: Request failed, waiting before retry...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw new Error('All retries failed');
-};
-
-interface ProgressState {
-  lastPage: number;
-  nextPageParams: any;
-  totalCollected: number;
-  isComplete: boolean;
-}
-
-async function getOrCreateProgress(supabase: any, date: string): Promise<ProgressState> {
-  // Try to get existing progress for today
-  const { data: existing, error: fetchError } = await supabase
-    .from('cron_progress')
-    .select('*')
-    .eq('job_name', JOB_NAME)
-    .eq('date', date)
-    .single();
-
-  if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
-    throw fetchError;
-  }
-
-  if (existing && !existing.is_complete) {
-    console.log(`📄 Resuming from page ${existing.last_page + 1}, collected ${existing.total_collected} holders so far`);
-    
-    // Build next_page_params from stored values
-    const nextPageParams = existing.last_address_hash ? {
-      address_hash: existing.last_address_hash,
-      items_count: 50,
-      value: existing.last_value
-    } : null;
-    
-    return {
-      lastPage: existing.last_page,
-      nextPageParams,
-      totalCollected: existing.total_collected,
-      isComplete: false
-    };
-  }
-
-  // Create new progress entry
-  const { error: insertError } = await supabase
-    .from('cron_progress')
-    .insert({
-      job_name: JOB_NAME,
-      date,
-      last_page: 0,
-      total_collected: 0,
-      is_complete: false
-    });
-
-  if (insertError) {
-    throw insertError;
-  }
-
-  console.log('📄 Starting fresh collection from page 1');
-  return {
-    lastPage: 0,
-    nextPageParams: null,
-    totalCollected: 0,
-    isComplete: false
-  };
-}
-
-async function updateProgress(supabase: any, date: string, progress: Partial<ProgressState>, lastItem?: any) {
-  const updateData: any = {
-    updated_at: new Date().toISOString()
-  };
-
-  if (progress.lastPage !== undefined) updateData.last_page = progress.lastPage;
-  if (progress.totalCollected !== undefined) updateData.total_collected = progress.totalCollected;
-  if (progress.isComplete !== undefined) updateData.is_complete = progress.isComplete;
-  
-  if (lastItem) {
-    updateData.last_address_hash = lastItem.address;
-    updateData.last_value = lastItem.value;
-  }
-
-  const { error } = await supabase
-    .from('cron_progress')
-    .update(updateData)
-    .eq('job_name', JOB_NAME)
-    .eq('date', date);
-
-  if (error) {
-    console.error('Error updating progress:', error);
-  }
-}
-
-async function fetchHexHoldersFromPage(
-  startPage: number, 
-  nextPageParams: any, 
-  maxPages: number = 200
-): Promise<{ holders: HexHolder[], totalPages: number, isComplete: boolean }> {
-  const baseUrl = `https://api.scan.pulsechain.com/api/v2/tokens/${HEX_CONTRACT}/holders`;
-  const holders: HexHolder[] = [];
-  let hasNextPage = true;
-  let currentPageParams = nextPageParams;
-  let pageCount = startPage;
-  const DELAY_BETWEEN_REQUESTS = 50;
-  let consecutive404s = 0;
-
-  console.log(`🔄 Starting collection from page ${startPage + 1}, maxPages: ${maxPages}`);
-
-  while (hasNextPage && pageCount < startPage + maxPages) {
-    try {
-      const queryParams = currentPageParams
-        ? '?' + new URLSearchParams(currentPageParams as Record<string, string>).toString()
-        : '';
-      
-      console.log(`📊 Fetching page ${pageCount + 1}...`);
-      
-      let retries = 3;
-      let response;
-      let got404 = false;
-      
-      while (retries > 0) {
-        try {
-          response = await fetch(baseUrl + queryParams);
-          if (response.ok) {
-            consecutive404s = 0;
-            break;
-          }
-          
-          if (response.status === 404) {
-            got404 = true;
-          }
-          
-          console.log(`Retry ${4-retries}/3: Got status ${response.status}, waiting before retry...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          retries--;
-        } catch (error) {
-          if (retries === 1) throw error;
-          console.log(`Retry ${4-retries}/3: Request failed, waiting before retry...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          retries--;
-        }
-      }
-      
-      if (got404) {
-        consecutive404s++;
-        if (consecutive404s >= 3) {
-          console.log('🏁 Got 3 consecutive 404s, assuming end of data reached');
-          hasNextPage = false;
-          break;
-        }
-      }
-      
-      if (!response || !response.ok) {
-        throw new Error(`HTTP error! status: ${response?.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (!data?.items?.length) {
-        console.log('🏁 No more items, collection complete');
-        hasNextPage = false;
-        break;
-      }
-
-      const newHolders = data.items.map((item: any) => ({
-        address: item.address.hash,
-        is_contract: item.address.is_contract,
-        balance: Number(item.value) / Math.pow(10, HEX_DECIMALS)
-      }));
-
-      holders.push(...newHolders);
-      currentPageParams = data.next_page_params;
-      hasNextPage = !!currentPageParams;
-      pageCount++;
-
-      if (hasNextPage) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
-      }
-
-      console.log(`✅ Page ${pageCount} completed. Total holders: ${holders.length}`);
-    } catch (error) {
-      console.error('❌ Error fetching page:', error);
-      throw error;
-    }
-  }
-
-  const isComplete = !hasNextPage || consecutive404s >= 3;
-  console.log(`📊 Batch complete. Collected ${holders.length} holders in ${pageCount - startPage} pages. Complete: ${isComplete}`);
-  
-  return { 
-    holders, 
-    totalPages: pageCount, 
-    isComplete 
-  };
-}
-
-// League calculation helper functions
 async function getTotalSupply(supabase: any): Promise<number> {
   try {
     console.log('📊 Fetching HEX total supply from database...');
@@ -303,7 +94,7 @@ function getLeague(percentage: number): LeagueData {
 async function getAllHolders(supabase: any): Promise<HexHolder[]> {
   const today = new Date().toISOString().split('T')[0];
   
-  console.log('📊 Fetching all holders from database...');
+  console.log('📊 Fetching all HEX holders from database...');
   
   // First get the count to make sure we fetch all records
   const { count } = await supabase
@@ -311,7 +102,7 @@ async function getAllHolders(supabase: any): Promise<HexHolder[]> {
     .select('*', { count: 'exact', head: true })
     .eq('date', today);
   
-  console.log(`📊 Total holders in database: ${count}`);
+  console.log(`📊 Total HEX holders in database: ${count}`);
   
   // Supabase has a default limit of 1000, so we need to paginate
   const allHolders: HexHolder[] = [];
@@ -389,13 +180,13 @@ async function getTotalHolders() {
   } catch (error) {
     console.error('Error fetching total holders from API:', error);
     // Fallback to a reasonable estimate if API fails
-    console.log('📊 Using fallback estimate: 367,867 holders');
-    return 367867;
+    console.log('📊 Using fallback estimate: 300,000 holders');
+    return 300000;
   }
 }
 
 async function calculateLeagueStatistics(holders: HexHolder[], totalSupply: number): Promise<Record<string, LeagueStats>> {
-  console.log('📊 Calculating league statistics...');
+  console.log('📊 Calculating HEX league statistics...');
   console.log(`📊 Total HEX Supply: ${totalSupply.toLocaleString()}`);
   console.log(`📊 Total Holders to Process: ${holders.length}`);
   
@@ -445,15 +236,15 @@ async function calculateLeagueStatistics(holders: HexHolder[], totalSupply: numb
   leagueStats[TOTAL_LEAGUE.emoji] = {
     league_name: TOTAL_LEAGUE.emoji,
     percentage: null,
-    all_holders: totalHoldersFromAPI, // Use API total, not just our collected sample
-    user_holders: totalHoldersFromAPI, // Assume most are users (we can adjust this later)
+    all_holders: totalHoldersFromAPI,
+    user_holders: totalHoldersFromAPI,
     last_week_holders: 0,
     holder_change: 0,
     date: new Date().toISOString().split('T')[0]
   };
 
   // Log results
-  console.log('\n🏆 League Distribution:');
+  console.log('\n🏆 HEX League Distribution:');
   LEAGUES.forEach(league => {
     const stats = leagueStats[league.emoji];
     console.log(`${league.emoji} ${league.name.padEnd(8)}: ${stats.user_holders.toString().padStart(6)} users, ${stats.all_holders.toString().padStart(6)} total`);
@@ -469,22 +260,22 @@ async function getLastWeekHolders(supabase: any): Promise<Record<string, number>
   lastWeek.setDate(lastWeek.getDate() - 7);
   
   try {
-  const { data, error } = await supabase
-    .from('league_hex')
-    .select('league_name, user_holders')
+    const { data, error } = await supabase
+      .from('league_hex')
+      .select('league_name, user_holders')
       .gte('date', lastWeek.toISOString().split('T')[0])
       .order('date', { ascending: false })
       .limit(LEAGUES.length);
 
-  if (error) {
-    console.error('Error fetching last week holders:', error);
-    return {};
-  }
+    if (error) {
+      console.error('Error fetching last week holders:', error);
+      return {};
+    }
 
-  return data.reduce((acc: Record<string, number>, curr: any) => {
-    acc[curr.league_name] = curr.user_holders;
-    return acc;
-  }, {});
+    return data.reduce((acc: Record<string, number>, curr: any) => {
+      acc[curr.league_name] = curr.user_holders;
+      return acc;
+    }, {});
   } catch (error) {
     console.error('Error in getLastWeekHolders:', error);
     return {};
@@ -492,7 +283,7 @@ async function getLastWeekHolders(supabase: any): Promise<Record<string, number>
 }
 
 async function calculateLeagues(supabase: any): Promise<any> {
-  console.log('\n🏆 Starting league calculation...');
+  console.log('\n🏆 Starting HEX league calculation...');
   const leagueStartTime = Date.now();
 
   try {
@@ -534,7 +325,7 @@ async function calculateLeagues(supabase: any): Promise<any> {
     const contractHolders = allHolders.length - userHolders;
     const executionTime = (Date.now() - leagueStartTime) / 1000;
 
-    console.log('\n📈 LEAGUE CALCULATION SUMMARY');
+    console.log('\n📈 HEX LEAGUE CALCULATION SUMMARY');
     console.log('=====================================');
     console.log(`💰 Total HEX Supply: ${totalSupply.toLocaleString()}`);
     console.log(`👥 Total Holders: ${allHolders.length.toLocaleString()}`);
@@ -591,300 +382,18 @@ export async function GET(request: NextRequest) {
     const timestamp = now.toISOString();
     const date = now.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-    // Get or create progress for today
-    const progress = await getOrCreateProgress(supabase, date);
+    // Start league calculation
+    console.log('🏆 Starting league calculation...');
+    const leagueResult = await calculateLeagues(supabase);
     
-    // If this is a fresh start, backup and clear tables
-    if (progress.lastPage === 0 && progress.totalCollected === 0) {
-      console.log('📋 Fresh start - backing up current data...');
-      
-      // First, clear the backup table
-      const { error: clearBackupError } = await supabase
-        .from('hex_holders_last_week')
-        .delete()
-        .neq('id', 0);
-      
-      if (clearBackupError) {
-        console.error('❌ Error clearing backup table:', clearBackupError);
-      } else {
-        console.log('✅ Cleared hex_holders_last_week table');
-      }
-      
-      // Copy current data to backup table
-      const { data: currentData, error: fetchError } = await supabase
-        .from('hex_holders')
-        .select('*');
-      
-      if (fetchError) {
-        console.error('❌ Error fetching current data:', fetchError);
-      } else if (currentData && currentData.length > 0) {
-        console.log(`📋 Found ${currentData.length} records to backup`);
-        
-        const backupData = currentData.map(({ id, ...rest }) => rest);
-        
-        const { error: backupError } = await supabase
-          .from('hex_holders_last_week')
-          .insert(backupData);
-        
-        if (backupError) {
-          console.error('❌ Error backing up data:', backupError);
-        } else {
-          console.log('✅ Successfully backed up data');
-        }
-      } else {
-        console.log('📋 No existing data to backup');
-      }
-      
-      // Clear the main table
-      console.log('🗑️ Clearing hex_holders table...');
-      const { error: clearMainError } = await supabase
-        .from('hex_holders')
-        .delete()
-        .neq('id', 0);
-      
-      if (clearMainError) {
-        console.error('❌ Error clearing main table:', clearMainError);
-        throw clearMainError;
-      } else {
-        console.log('✅ Main table cleared - ready for fresh data');
-      }
-    }
-
-    // Check if we've collected enough holders
-    if (progress.totalCollected >= MAX_HOLDERS_TO_COLLECT) {
-      console.log(`🎯 Target reached! Collected ${progress.totalCollected} holders (target: ${MAX_HOLDERS_TO_COLLECT})`);
-      console.log('🏆 Starting league calculation...');
-      
-      const leagueResult = await calculateLeagues(supabase);
-      
-      const totalExecutionTime = (Date.now() - startTime) / 1000;
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Collection target reached - leagues calculated',
-        executionTimeSeconds: totalExecutionTime,
-        collectionSummary: {
-          totalPages: progress.lastPage,
-          totalHolders: progress.totalCollected,
-          collectionComplete: true
-        },
-        leagueCalculation: leagueResult
-      });
-    }
-
-    // Fetch next batch of holders
-    const result = await fetchHexHoldersFromPage(
-      progress.lastPage, 
-      progress.nextPageParams, 
-      PAGES_PER_RUN
-    );
-
-    console.log(`📊 Batch fetched: ${result.holders.length} holders`);
-
-    if (result.holders.length > 0) {
-      // Get existing addresses from today to avoid duplicates
-      const { data: existingAddresses } = await supabase
-        .from('hex_holders')
-        .select('address')
-        .eq('date', date);
-      
-      const existingAddressSet = new Set(existingAddresses?.map(row => row.address) || []);
-      
-      // Filter out duplicates and prepare data for insertion
-      const uniqueHolders = result.holders.filter(holder => !existingAddressSet.has(holder.address));
-      
-      console.log(`📊 Filtered ${result.holders.length - uniqueHolders.length} duplicate addresses. Processing ${uniqueHolders.length} unique holders.`);
-      
-      const holderRecords = uniqueHolders.map(holder => ({
-        address: holder.address,
-        is_contract: holder.is_contract,
-        balance: holder.balance,
-        last_week_balance: null,
-        date,
-        timestamp
-      }));
-
-      // Insert holder data in batches
-      const batchSize = 1000;
-      let totalInserted = 0;
-      
-      for (let i = 0; i < holderRecords.length; i += batchSize) {
-        const batch = holderRecords.slice(i, i + batchSize);
-        const batchNum = Math.floor(i / batchSize) + 1;
-        const totalBatches = Math.ceil(holderRecords.length / batchSize);
-        
-        console.log(`💾 Processing batch ${batchNum}/${totalBatches} (${batch.length} records)...`);
-        
-        try {
-          const { error: insertError } = await supabase
-            .from('hex_holders')
-            .insert(batch);
-
-          if (insertError) {
-            throw insertError;
-          }
-
-          totalInserted += batch.length;
-          console.log(`✅ Batch ${batchNum} saved (${batch.length} records)`);
-        } catch (error) {
-          console.error(`❌ Error saving batch ${batchNum}:`, error);
-          throw error;
-        }
-        
-        if (i + batchSize < holderRecords.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-
-      // Update progress with last item for next page params
-      const lastItem = result.holders[result.holders.length - 1];
-      await updateProgress(supabase, date, {
-        lastPage: result.totalPages,
-        totalCollected: progress.totalCollected + uniqueHolders.length,
-        isComplete: result.isComplete
-      }, {
-        address: lastItem.address,
-        value: Math.round(lastItem.balance * Math.pow(10, HEX_DECIMALS))
-      });
-
-      console.log(`✅ Progress updated: Page ${result.totalPages}, Total: ${progress.totalCollected + uniqueHolders.length}`);
-
-      // Check if we've reached our target after this batch
-      const newTotal = progress.totalCollected + result.holders.length;
-      if (newTotal >= MAX_HOLDERS_TO_COLLECT) {
-        console.log(`🎯 Target reached! Collected ${newTotal} holders (target: ${MAX_HOLDERS_TO_COLLECT})`);
-        console.log('🏆 Starting league calculation...');
-        
-        const leagueResult = await calculateLeagues(supabase);
-        
-        const totalExecutionTime = (Date.now() - startTime) / 1000;
-        
-        return NextResponse.json({
-          success: true,
-          message: 'Collection target reached - leagues calculated',
-          executionTimeSeconds: totalExecutionTime,
-          collectionSummary: {
-            totalPages: result.totalPages,
-            totalHolders: newTotal,
-            collectionComplete: true
-          },
-          leagueCalculation: leagueResult,
-          nextRunTriggered: false,
-          leagueCalculationTriggered: false // Already calculated inline
-        });
-      }
-
-      // Save progress
-      await supabase
-        .from('cron_progress')
-        .update({ 
-          last_processed_page: result.totalPages,
-          last_address_hash: lastItem.address,
-          last_address_value: Math.round(lastItem.balance * Math.pow(10, HEX_DECIMALS)),
-          total_holders_collected: progress.totalCollected + result.holders.length
-        })
-        .eq('date', date);
-
-      console.log(`✅ Progress saved. Next run will start from page ${result.totalPages + 1}`);
-
-      const totalExecutionTime = (Date.now() - startTime) / 1000;
-      const currentTotal = progress.totalCollected + result.holders.length;
-      
-      console.log('\n📊 RUN SUMMARY');
-      console.log('=====================================');
-      console.log(`📄 Pages Processed This Run: ${result.totalPages - progress.lastPage + 1}`);
-      console.log(`👥 New Holders This Run: ${result.holders.length}`);
-      console.log(`👥 Total Holders Collected: ${currentTotal}`);
-      console.log(`🎯 Target: ${MAX_HOLDERS_TO_COLLECT} holders`);
-      console.log(`⏱️ Execution Time: ${totalExecutionTime.toFixed(2)}s`);
-
-      // Check if we've reached our target
-      if (currentTotal >= MAX_HOLDERS_TO_COLLECT) {
-        console.log('🎯 Target reached! Will calculate leagues on next run.');
-      } else {
-        console.log('🔄 Triggering next run to continue collection...');
-        
-        // Trigger next run automatically
-        setTimeout(async () => {
-          try {
-            const baseUrl = process.env.VERCEL_URL 
-              ? `https://${process.env.VERCEL_URL}` 
-              : 'http://localhost:3000';
-            
-            const response = await fetch(`${baseUrl}/api/cron/daily-hex-holders`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${process.env.CRON_SECRET}`
-              }
-            });
-            
-            if (response.ok) {
-              console.log('✅ Successfully triggered next run');
-            } else {
-              console.log(`⚠️ Next run trigger got status: ${response.status}`);
-            }
-          } catch (error) {
-            console.log('❌ Failed to trigger next run:', error.message);
-          }
-        }, 2000); // 2 second delay
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: `Processed ${result.holders.length} holders (${currentTotal}/${MAX_HOLDERS_TO_COLLECT})`,
-        executionTimeSeconds: totalExecutionTime,
-        collectionSummary: {
-          pagesProcessedThisRun: result.totalPages - progress.lastPage + 1,
-          totalPages: result.totalPages,
-          newHoldersThisRun: result.holders.length,
-          totalHolders: currentTotal,
-          collectionComplete: currentTotal >= MAX_HOLDERS_TO_COLLECT
-        },
-        nextRunTriggered: currentTotal < MAX_HOLDERS_TO_COLLECT
-      });
-    } else {
-      // Mark as complete if no holders returned
-      await updateProgress(supabase, date, { isComplete: true });
-
-      // Mark collection as complete and calculate leagues
-      await supabase
-        .from('cron_progress')
-        .update({ 
-          collection_complete: true,
-          last_processed_page: progress.lastPage,
-          total_holders_collected: progress.totalCollected
-        })
-        .eq('date', date);
-
-      console.log('\n🎉 COLLECTION COMPLETE! All pages processed.');
-      console.log('🏆 Starting league calculation...');
-      
-      // Calculate leagues immediately
-      const leagueResult = await calculateLeagues(supabase);
-      
-      const totalExecutionTime = (Date.now() - startTime) / 1000;
-      
-      console.log('\n🏁 FINAL SUMMARY');
-      console.log('=====================================');
-      console.log(`📄 Total Pages Processed: ${progress.lastPage}`);
-      console.log(`👥 Total Holders Collected: ${progress.totalCollected.toLocaleString()}`);
-      console.log(`⏱️ Total Execution Time: ${totalExecutionTime.toFixed(2)}s`);
-      console.log(`🏆 League Calculation: ${leagueResult.success ? 'Success' : 'Failed'}`);
-
-      return NextResponse.json({
-        success: true,
-        message: 'Collection complete - all pages processed and leagues calculated',
-        executionTimeSeconds: totalExecutionTime,
-        collectionSummary: {
-          totalPages: progress.lastPage,
-          totalHolders: progress.totalCollected,
-          collectionComplete: true
-        },
-        leagueCalculation: leagueResult,
-        nextRunTriggered: false,
-        leagueCalculationTriggered: false // Already calculated inline
-      });
-    }
+    const totalExecutionTime = (Date.now() - startTime) / 1000;
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Collection complete - leagues calculated',
+      executionTimeSeconds: totalExecutionTime,
+      leagueCalculation: leagueResult
+    });
 
   } catch (error) {
     console.error('❌ Error in HEX holders collection:', error);

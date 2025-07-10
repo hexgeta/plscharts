@@ -1781,8 +1781,24 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         return '$0.00'
       }
       
-      const decimals = absChange >= 10 ? 0 : absChange >= 1 ? 2 : 2
-      return `${dollarChange >= 0 ? '+' : '-'}$${absChange.toFixed(decimals)}`
+      // Use big number formatting for dollar changes
+      const formatDollarChange = (amount: number): string => {
+        if (amount >= 1000000000) {
+          return `${(amount / 1000000000).toFixed(1)}B`
+        } else if (amount >= 1000000) {
+          return `${(amount / 1000000).toFixed(1)}M`
+        } else if (amount >= 100000) {
+          return `${(amount / 1000).toFixed(0)}k`
+        } else if (amount >= 10000) {
+          return amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+        } else if (amount >= 10) {
+          return amount.toFixed(0)
+        } else {
+          return amount.toFixed(2)
+        }
+      }
+      
+      return `${dollarChange >= 0 ? '+' : '-'}$${formatDollarChange(absChange)}`
     } else {
       if (percentChange === undefined) return '0%'
       return `${percentChange >= 0 ? '+' : '-'}${Math.abs(percentChange).toFixed(1)}%`
@@ -3069,7 +3085,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               
               return (
                 <div key={addr.id} className="flex items-center gap-4 py-3 border-b border-white/10 min-w-fit">
-                  <div className="flex-1 text-sm text-white font-mono whitespace-nowrap">
+                  <div className="flex-1 text-sm text-white whitespace-nowrap">
                     <span className="sm:hidden">{formatAddress(addr.address)}</span>
                     <span className="hidden sm:block">{addr.address}</span>
                   </div>
@@ -3771,7 +3787,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               : 'No HEX found'
                         }
                         {includePooledStakes && (pooledStakesData.totalHex || 0) > 0 && (
-                          <span> (including {formatBalance(pooledStakesData.totalHex || 0)} HEX pooled)</span>
+                          <span> (including pooled stakes)</span>
                         )}
                       </div>
                     </div>
@@ -3841,9 +3857,39 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               {soloStakedStats.eHexAmount > 0 && (
                                 <div>{formatBalance(soloStakedStats.eHexAmount)} eHEX (${formatBalance(soloStakedStats.eHexValue)})</div>
                               )}
-                              {includePooledStakes && pooledHex > 0 && (
-                                <div>{formatBalance(pooledHex)} HEX pooled (${formatBalance(pooledValue)})</div>
-                              )}
+                              {includePooledStakes && pooledStakesData.tokens && pooledStakesData.tokens.length > 0 && (() => {
+                                // Separate pooled stakes by chain
+                                let hexPooled = 0, eHexPooled = 0, hexPooledValue = 0, eHexPooledValue = 0
+                                
+                                pooledStakesData.tokens.forEach((token: any) => {
+                                  const isEthToken = token.symbol.startsWith('e') || token.symbol.startsWith('we')
+                                  const backingPerToken = getBackingPerToken(token.symbol) || 0
+                                  const tokenHexBacking = token.balance * backingPerToken
+                                  
+                                  // Calculate USD value based on the HEX backing amount and appropriate HEX price
+                                  const hexPrice = isEthToken ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+                                  const tokenValue = tokenHexBacking * hexPrice
+                                  
+                                  if (isEthToken) {
+                                    eHexPooled += tokenHexBacking
+                                    eHexPooledValue += tokenValue
+                                  } else {
+                                    hexPooled += tokenHexBacking
+                                    hexPooledValue += tokenValue
+                                  }
+                                })
+                                
+                                return (
+                                  <>
+                                    {hexPooled > 0 && (
+                                      <div>{formatBalance(hexPooled)} HEX pooled (${formatBalance(hexPooledValue)})</div>
+                                    )}
+                                    {eHexPooled > 0 && (
+                                      <div>{formatBalance(eHexPooled)} eHEX pooled (${formatBalance(eHexPooledValue)})</div>
+                                    )}
+                                  </>
+                                )
+                              })()}
                             </>
                           )
                         })()}
@@ -4029,18 +4075,106 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               })()}
                             </button>
                           </div>
-                                    <div className="text-sm text-gray-400 mt-1">
-                          {combinedHexAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} HEX • {combinedTShares >= 100 
-                            ? combinedTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                            : combinedTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          } T-Shares{combinedTShares > 0 && chainFilter !== 'both' && (
-                            <> ({formatPercentage(tSharePercentage)})</>
-                          )}{combinedTShares > 0 && combinedAvgLength > 0 && (
-                            <>
-                              {' • '}
-                              {(combinedAvgLength / 365).toFixed(1)} year avg
-                            </>
-                          )}
+                                                                        <div className="text-sm text-gray-400 mt-1">
+                          {(() => {
+                            // Calculate breakdown by chain
+                            const activeStakes = filteredHexStakes.filter(stake => stake.status === 'active')
+                            const ethStats = activeStakes
+                              .filter(stake => stake.chain === 'ETH')
+                              .reduce((acc, stake) => ({
+                                hex: acc.hex + stake.principleHex + stake.yieldHex,
+                                tShares: acc.tShares + stake.tShares
+                              }), { hex: 0, tShares: 0 })
+                            
+                            const plsStats = activeStakes
+                              .filter(stake => stake.chain === 'PLS')
+                              .reduce((acc, stake) => ({
+                                hex: acc.hex + stake.principleHex + stake.yieldHex,
+                                tShares: acc.tShares + stake.tShares
+                              }), { hex: 0, tShares: 0 })
+                            
+                            // Separate pooled stakes by chain
+                            const pooledStats = (() => {
+                              if (!includePooledStakes || !pooledStakesData.tokens) {
+                                return { hexPooled: 0, eHexPooled: 0, hexPooledTShares: 0, eHexPooledTShares: 0 }
+                              }
+                              
+                              let hexPooled = 0, eHexPooled = 0, hexPooledTShares = 0, eHexPooledTShares = 0
+                              
+                              pooledStakesData.tokens.forEach((token: any) => {
+                                const isEthToken = token.symbol.startsWith('e') || token.symbol.startsWith('we')
+                                const backingPerToken = getBackingPerToken(token.symbol) || 0
+                                const tokenHexBacking = token.balance * backingPerToken
+                                
+                                if (isEthToken) {
+                                  eHexPooled += tokenHexBacking
+                                  eHexPooledTShares += token.tShares
+                                } else {
+                                  hexPooled += tokenHexBacking
+                                  hexPooledTShares += token.tShares
+                                }
+                              })
+                              
+                              return { hexPooled, eHexPooled, hexPooledTShares, eHexPooledTShares }
+                            })()
+                            
+                            if (chainFilter === 'both') {
+                              // Show breakdown in two lines when both chains selected
+                              return (
+                                <div className="space-y-1">
+                                  {(plsStats.hex > 0 || pooledStats.hexPooled > 0) && (
+                                    <div>
+                                      {formatBalance(plsStats.hex)} HEX{pooledStats.hexPooled > 0 ? ` + ${formatBalance(pooledStats.hexPooled)} HEX pooled` : ''} ({(() => {
+                                        const totalPLSTShares = plsStats.tShares + pooledStats.hexPooledTShares
+                                        return totalPLSTShares >= 100 
+                                          ? totalPLSTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                          : totalPLSTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                      })()} T-Shares)
+                                    </div>
+                                  )}
+                                  {(ethStats.hex > 0 || pooledStats.eHexPooled > 0) && (
+                                    <div>
+                                      {formatBalance(ethStats.hex)} eHEX{pooledStats.eHexPooled > 0 ? ` + ${formatBalance(pooledStats.eHexPooled)} eHEX pooled` : ''} ({(() => {
+                                        const totalETHTShares = ethStats.tShares + pooledStats.eHexPooledTShares
+                                        return totalETHTShares >= 100 
+                                          ? totalETHTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                          : totalETHTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                      })()} T-Shares)
+                                    </div>
+                                  )}
+                                  {combinedTShares > 0 && combinedAvgLength > 0 && (
+                                    <div>
+                                      {(combinedAvgLength / 365).toFixed(1)} year avg
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            } else {
+                              // Show chain-specific label when single chain selected
+                              const hexLabel = chainFilter === 'ethereum' ? 'eHEX' : 'HEX'
+                              const pooledHex = chainFilter === 'ethereum' ? pooledStats.eHexPooled : pooledStats.hexPooled
+                              const pooledTShares = chainFilter === 'ethereum' ? pooledStats.eHexPooledTShares : pooledStats.hexPooledTShares
+                              const totalTSharesWithPooled = combinedTShares + pooledTShares
+                              
+                              return (
+                                <div className="space-y-1">
+                                  <div>
+                                    {formatBalance(combinedHexAmount)} {hexLabel}{includePooledStakes && pooledHex > 0 ? ` + ${formatBalance(pooledHex)} ${hexLabel} pooled` : ''} ({totalTSharesWithPooled >= 100 
+                                      ? totalTSharesWithPooled.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                      : totalTSharesWithPooled.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                    } T-Shares{totalTSharesWithPooled > 0 && (
+                                      <> {formatPercentage(tSharePercentage)}</>
+                                    )})
+                                  </div>
+                                  {totalTSharesWithPooled > 0 && combinedAvgLength > 0 && (
+                                    <div>
+                                      {(combinedAvgLength / 365).toFixed(1)} year avg
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            }
+                          })()}
                         </div>
                       </>
                     )
@@ -4086,19 +4220,52 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             <span className="hidden sm:inline">${formatBalance(totalHexValue)}</span>
                           </div>
                           <div className="text-sm text-gray-400">
-                            {activeSoloStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0).toLocaleString()} HEX across {activeSoloStakes.length} stake{activeSoloStakes.length !== 1 ? 's' : ''}
+                            {(() => {
+                              const ethSoloHex = activeSoloStakes
+                                .filter(stake => stake.chain === 'ETH')
+                                .reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
+                              const plsSoloHex = activeSoloStakes
+                                .filter(stake => stake.chain === 'PLS')
+                                .reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
+                              
+                              if (chainFilter === 'both') {
+                                // Calculate stake counts and T-Shares by chain
+                                const plsStakeCount = activeSoloStakes.filter(stake => stake.chain === 'PLS').length
+                                const ethStakeCount = activeSoloStakes.filter(stake => stake.chain === 'ETH').length
+                                const plsTShares = activeSoloStakes.filter(stake => stake.chain === 'PLS').reduce((total, stake) => total + stake.tShares, 0)
+                                const ethTShares = activeSoloStakes.filter(stake => stake.chain === 'ETH').reduce((total, stake) => total + stake.tShares, 0)
+                                
+                                return (
+                                  <>
+                                    {plsSoloHex > 0 && (
+                                      <div>{formatBalance(plsSoloHex)} HEX across {plsStakeCount} stake{plsStakeCount !== 1 ? 's' : ''} ({plsTShares >= 100 
+                                        ? plsTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                        : plsTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                      } T-Shares)</div>
+                                    )}
+                                    {ethSoloHex > 0 && (
+                                      <div>{formatBalance(ethSoloHex)} eHEX across {ethStakeCount} stake{ethStakeCount !== 1 ? 's' : ''} ({ethTShares >= 100 
+                                        ? ethTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                        : ethTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                      } T-Shares)</div>
+                                    )}
+                                  </>
+                                )
+                              } else {
+                                const hexLabel = chainFilter === 'ethereum' ? 'eHEX' : 'HEX'
+                                const totalTSharesForChain = activeSoloStakes.reduce((total, stake) => total + stake.tShares, 0)
+                                return `${formatBalance(activeSoloStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0))} ${hexLabel} across ${activeSoloStakes.length} stake${activeSoloStakes.length !== 1 ? 's' : ''} (${totalTSharesForChain >= 100 
+                                  ? totalTSharesForChain.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                  : totalTSharesForChain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                } T-Shares)`
+                              }
+                            })()}
                           </div>
-                          <div className="text-sm text-gray-400 mt-1">
-                            {totalTShares >= 100 
-                              ? totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                              : totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                            } T-Shares{totalTShares > 0 && (
-                              <>
-                                <br />
-                                {(weightedStakeLength / 365).toFixed(1)} year avg • {weightedAPY.toFixed(1)}% APY
-                              </>
-                            )}
-                          </div>
+                          {totalTShares > 0 && (
+                            <div className="text-sm text-gray-400 mt-1">
+                              {(weightedStakeLength / 365).toFixed(1)} year avg • {weightedAPY.toFixed(1)}% APY
+                            </div>
+                          )}
                         </>
                       )
                     })()}
@@ -4112,19 +4279,65 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       <span className="hidden sm:inline">${formatBalance(pooledStakesData.totalValue)}</span>
                     </div>
                     <div className="text-sm text-gray-400">
-                      {pooledStakesData.totalHex ? pooledStakesData.totalHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'} HEX across {pooledStakesData.tokens.length} token{pooledStakesData.tokens.length !== 1 ? 's' : ''}
+                      {(() => {
+                        if (chainFilter === 'both') {
+                          // Calculate breakdown by chain for pooled tokens
+                          let plsHex = 0, plsTShares = 0, plsTokenCount = 0
+                          let ethHex = 0, ethTShares = 0, ethTokenCount = 0
+                          
+                          pooledStakesData.tokens.forEach((token: any) => {
+                            const isEthToken = token.symbol.startsWith('e') || token.symbol.startsWith('we')
+                            const backingPerToken = getBackingPerToken(token.symbol) || 0
+                            const tokenHexBacking = token.balance * backingPerToken
+                            
+                            if (isEthToken) {
+                              ethHex += tokenHexBacking
+                              ethTShares += token.tShares
+                              ethTokenCount += 1
+                            } else {
+                              plsHex += tokenHexBacking
+                              plsTShares += token.tShares
+                              plsTokenCount += 1
+                            }
+                          })
+                          
+                          return (
+                            <>
+                              {plsHex > 0 && (
+                                <div>
+                                  {formatBalance(plsHex)} HEX across {plsTokenCount} pooled token{plsTokenCount !== 1 ? 's' : ''} ({plsTShares >= 100 
+                                    ? plsTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                    : plsTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                  } T-Shares)
+                                </div>
+                              )}
+                              {ethHex > 0 && (
+                                <div>
+                                  {formatBalance(ethHex)} eHEX across {ethTokenCount} pooled token{ethTokenCount !== 1 ? 's' : ''} ({ethTShares >= 100 
+                                    ? ethTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                    : ethTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                  } T-Shares)
+                                </div>
+                              )}
+                            </>
+                          )
+                        } else {
+                          // Single chain view
+                          const pooledHex = pooledStakesData.totalHex || 0
+                          const hexLabel = chainFilter === 'ethereum' ? 'eHEX' : 'HEX'
+                          
+                          return `${formatBalance(pooledHex)} ${hexLabel} across ${pooledStakesData.tokens.length} token${pooledStakesData.tokens.length !== 1 ? 's' : ''} (${pooledStakesData.totalTShares >= 100 
+                            ? pooledStakesData.totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                            : pooledStakesData.totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          } T-Shares)`
+                        }
+                      })()}
                     </div>
-                    <div className="text-sm text-gray-400 mt-1">
-                      {pooledStakesData.totalTShares >= 100 
-                        ? pooledStakesData.totalTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                        : pooledStakesData.totalTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      } T-Shares{pooledStakesData.totalTShares > 0 && (pooledStakesData.avgStakeLength || 0) > 0 && (
-                        <>
-                          <br />
-                          {((pooledStakesData.avgStakeLength || 0) / 365).toFixed(1)} year avg • {(pooledStakesData.avgAPY || 0).toFixed(1)}% APY
-                        </>
-                      )}
-                    </div>
+                    {pooledStakesData.totalTShares > 0 && (pooledStakesData.avgStakeLength || 0) > 0 && (
+                      <div className="text-sm text-gray-400 mt-1">
+                        {((pooledStakesData.avgStakeLength || 0) / 365).toFixed(1)} year avg • {(pooledStakesData.avgAPY || 0).toFixed(1)}% APY
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -4291,26 +4504,32 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           eth: { hexAmount: 0, hexValue: 0, tShares: 0, stakeCount: 0 }
                         })
 
-                        return (
-                          <>
-                            {chainStats.pls.hexAmount > 0 && (
-                              <div>
-                                {formatBalance(chainStats.pls.hexAmount)} HEX (${formatDollarValue(chainStats.pls.hexValue)}) across {chainStats.pls.stakeCount} stake{chainStats.pls.stakeCount !== 1 ? 's' : ''} • {chainStats.pls.tShares >= 100 
-                                  ? chainStats.pls.tShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                                  : chainStats.pls.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                } T-Shares
-                              </div>
-                            )}
-                            {chainStats.eth.hexAmount > 0 && (
-                              <div>
-                                {formatBalance(chainStats.eth.hexAmount)} eHEX (${formatDollarValue(chainStats.eth.hexValue)}) across {chainStats.eth.stakeCount} stake{chainStats.eth.stakeCount !== 1 ? 's' : ''} • {chainStats.eth.tShares >= 100 
-                                  ? chainStats.eth.tShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                                  : chainStats.eth.tShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                } T-Shares
-                              </div>
-                            )}
-                          </>
-                        )
+                        if (chainFilter === 'both') {
+                          return (
+                            <>
+                              {chainStats.pls.hexAmount > 0 && (
+                                <div>
+                                  {formatBalance(chainStats.pls.hexAmount)} HEX across {chainStats.pls.stakeCount} stake{chainStats.pls.stakeCount !== 1 ? 's' : ''}
+                                </div>
+                              )}
+                              {chainStats.eth.hexAmount > 0 && (
+                                <div>
+                                  {formatBalance(chainStats.eth.hexAmount)} eHEX across {chainStats.eth.stakeCount} stake{chainStats.eth.stakeCount !== 1 ? 's' : ''}
+                                </div>
+                              )}
+                            </>
+                          )
+                        } else {
+                          // Show single line with chain-specific label when one chain is selected
+                          const hexLabel = chainFilter === 'ethereum' ? 'eHEX' : 'HEX'
+                          const totalHexAmount = activeStakesOnly.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
+                          
+                          return (
+                            <div>
+                              {formatBalance(totalHexAmount)} {hexLabel} across {activeStakesOnly.length} stake{activeStakesOnly.length !== 1 ? 's' : ''}
+                            </div>
+                          )
+                        }
                       })()}
                     </div>
                     <div className="text-sm text-gray-400 mt-1">
@@ -4723,7 +4942,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           document.body.appendChild(popup);
                           setTimeout(() => popup.remove(), 2000);
                         }}
-                        className="flex-1 font-mono text-sm text-white hover:text-gray-300 transition-colors cursor-pointer text-left"
+                        className="flex-1 text-sm text-white hover:text-gray-300 transition-colors cursor-pointer text-left"
                         title="Click to copy address"
                       >
                         <span className="sm:hidden">0x...{addr.address.slice(-4)}</span>

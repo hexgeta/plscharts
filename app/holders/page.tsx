@@ -1,24 +1,35 @@
-'use client';
+import LeagueDistributionChart from '@/components/LeagueDistributionChart';
 
-import { HexHoldersTable } from '@/components/HexHoldersTable';
+async function getHolderData() {
+  const baseUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}` 
+    : 'http://localhost:3000';
+  
+  console.log('Fetching holder data from:', `${baseUrl}/api/holders`);
+  
+  const response = await fetch(`${baseUrl}/api/holders`, {
+    next: { revalidate: 3600 } // Cache for 1 hour
+  });
 
-export default function HoldersPage() {
+  if (!response.ok) {
+    console.error('Failed to fetch holder data:', response.status, response.statusText);
+    throw new Error('Failed to fetch holder data');
+  }
+
+  const data = await response.json();
+  console.log('Holder data received:', data);
+  return data;
+}
+
+export default async function HoldersPage() {
+  const data = await getHolderData();
+
   return (
-    <main className="container max-w-7xl mx-auto px-4 py-8">
-      <div className="space-y-6">
-        {/* Header Section */}
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight">HEX Holders</h1>
-          <p className="text-muted-foreground">
-            View the top 100 HEX holders on PulseChain, ranked by balance. Data updates every 5 minutes.
-          </p>
-        </div>
-
-        {/* Table Section */}
-        <div className="space-y-4">
-          <HexHoldersTable />
-        </div>
+    <div className="container mx-auto py-8 px-8 md:px-28">
+      <h1 className="text-2xl font-bold mb-0 text-center">Token Holder Distribution</h1>
+      <div className="rounded-lg shadow p-0">
+        <LeagueDistributionChart data={data} />
       </div>
-    </main>
+    </div>
   );
 } 
