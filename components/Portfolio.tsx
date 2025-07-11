@@ -5465,11 +5465,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             {stake.totalHex !== undefined ? (
                               <>
                                 {stake.totalHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
-                                  ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield
-                                  {stake.penaltyHex && stake.penaltyHex > 0 && (
-                                    <span className="text-red-400"> - {stake.penaltyHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>
-                                  )}
-                                  )
+                                  ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{stake.penaltyHex && stake.penaltyHex > 0 && (<span className="text-red-400"> - {stake.penaltyHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>)})
                                 </span>
                               </>
                             ) : (
