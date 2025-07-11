@@ -12,6 +12,9 @@ interface HexStake {
   isBPD?: boolean;
   principleHex: number;
   yieldHex: number;
+  penaltyHex?: number;     // Penalty amount in HEX (for EES/late stakes)
+  netYieldHex?: number;    // Yield after subtracting penalty
+  totalHex?: number;       // Principal + net yield (after penalty)
   tShares: number;
   startDate: string;
   endDate: string;      // The original promised end date
@@ -265,8 +268,21 @@ export const useHexStakes = (addresses: string[]) => {
               daysLeft = 0; // Stake is ended, no days left
               
               if (stakeEnd.penalty && stakeEnd.penalty !== '0') {
-                isEES = true;
-                console.log(`[${chain}] Stake ${stakeId}: INACTIVE (EES with penalty: ${stakeEnd.penalty} Hearts, served ${servedDays} days)`);
+                const promisedEndDay = stakeStartDay + Number(stake.stakedDays);
+                // Check if ended before or after promised end date
+                if (actualEndDay < promisedEndDay) {
+                  // Ended early = EES
+                  isEES = true;
+                  console.log(`[${chain}] Stake ${stakeId}: INACTIVE (EES - ended early with penalty: ${stakeEnd.penalty} Hearts, served ${servedDays} days)`);
+                } else if (actualEndDay > promisedEndDay) {
+                  // Ended late = Late End (not EES)
+                  isOverdue = true;
+                  const daysLate = actualEndDay - promisedEndDay;
+                  console.log(`[${chain}] Stake ${stakeId}: INACTIVE (Late End - ended ${daysLate} days late with penalty: ${stakeEnd.penalty} Hearts)`);
+                } else {
+                  // Ended exactly on time but with penalty (rare edge case)
+                  console.log(`[${chain}] Stake ${stakeId}: INACTIVE (ended on time with penalty: ${stakeEnd.penalty} Hearts)`);
+                }
               } else {
                 console.log(`[${chain}] Stake ${stakeId}: INACTIVE (ended successfully after ${servedDays} days)`);
               }
@@ -289,6 +305,41 @@ export const useHexStakes = (addresses: string[]) => {
               // Check if this is a BPD stake (5555 days)
               const isBPD = Number(stake.stakedDays) === 5555;
               
+              // Calculate penalty for native stakes
+              const penaltyHex = stakeEnd?.penalty ? Number(stakeEnd.penalty) / 1e8 : 0;
+              const principleHex = Number(stake.stakedHearts) / 1e8;
+              const yieldHex = (() => {
+                console.log(`[${chain}] Native Stake ${stakeId}: Yield calculation - stakeStartDay: ${stakeStartDay}, actualEndDay: ${actualEndDay}, currentDay: ${currentDay}`);
+                console.log(`[${chain}] Native Stake ${stakeId}: T-Shares: ${Number(stake.stakeTShares)}`);
+                
+                const cachedYield = getCachedYield(stakeId, chain, currentDay);
+                console.log(`[${chain}] Native Stake ${stakeId}: Cached yield: ${cachedYield}`);
+                
+                if (cachedYield) {
+                  console.log(`[${chain}] Native Stake ${stakeId}: Using cached yield: ${cachedYield} HEX`);
+                  return cachedYield;
+                }
+                
+                const dailyPayouts = getDailyPayoutsForRange(chain, stakeStartDay, actualEndDay);
+                console.log(`[${chain}] Native Stake ${stakeId}: Daily payouts length: ${dailyPayouts?.length || 0}`);
+                
+                const calculatedYield = calculateYieldForStake(
+                  dailyPayouts, 
+                  Number(stake.stakeTShares), 
+                  stakeStartDay, 
+                  actualEndDay
+                );
+                console.log(`[${chain}] Native Stake ${stakeId}: Manual calculation result: ${calculatedYield} HEX`);
+                return calculatedYield;
+              })();
+              
+              // Calculate net total: principal + yield - penalty (can be less than principal if penalty is large)
+              const totalHex = Math.max(0, principleHex + yieldHex - penaltyHex);
+              // Net yield is the effective yield after penalty (can be negative if penalty > yield)
+              const netYieldHex = yieldHex - penaltyHex;
+              
+              console.log(`[${chain}] Native Stake ${stakeId}: Penalty calculation - penaltyHex: ${penaltyHex}, netYieldHex: ${netYieldHex}, totalHex: ${totalHex}`);
+
               return {
                 id: `${chain}-${stake.id}`,
                 stakeId,
@@ -296,14 +347,11 @@ export const useHexStakes = (addresses: string[]) => {
                 isEES,
                 isOverdue,
                 isBPD,
-                principleHex: Number(stake.stakedHearts) / 1e8,
-                yieldHex: getCachedYield(stakeId, chain, currentDay) || 
-                  calculateYieldForStake(
-                    getDailyPayoutsForRange(chain, stakeStartDay, actualEndDay), 
-                    Number(stake.stakeTShares), 
-                    stakeStartDay, 
-                    actualEndDay
-                  ),
+                principleHex,
+                yieldHex,
+                penaltyHex,
+                netYieldHex,
+                totalHex,
                 tShares: Number(stake.stakeTShares),
                 startDate: formatDateToISO(stake.startDay),
                 endDate: formatDateToISO(promisedEndDay.toString()), // Use the original promised end date
