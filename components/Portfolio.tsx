@@ -1269,22 +1269,33 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return backingTokens.includes(symbol)
   }, [])
 
+  // Get LP token data for PulseX V2 tokens
+  const lpTokens = TOKEN_CONSTANTS.filter(token => token.platform === 'PLSX V2')
+  
+  // Use hooks for each LP token (moved to top level to follow Rules of Hooks)
+  const lpTokenPrices: { [ticker: string]: number } = {}
+  
+  // For DAIWPLS token
+  const daiwplsConfig = TOKEN_CONSTANTS.find(token => token.ticker === 'DAIWPLS')
+  const { pricePerToken: daiwplsPrice, loading: daiwplsLoading, error: daiwplsError } = usePulseXLPDataSWR(
+    daiwplsConfig?.a || ''
+  )
+  
+  if (daiwplsPrice && daiwplsPrice > 0) {
+    lpTokenPrices['DAIWPLS'] = daiwplsPrice
+    console.log(`[Portfolio] DAIWPLS LP price fetched: $${daiwplsPrice.toFixed(6)}`)
+  } else if (daiwplsError) {
+    console.error(`[Portfolio] Error fetching DAIWPLS LP price:`, daiwplsError)
+  } else if (daiwplsLoading) {
+    console.log(`[Portfolio] Loading DAIWPLS LP price...`)
+  } else {
+    console.log(`[Portfolio] DAIWPLS LP price not available yet`)
+  }
+
   // Helper function to get LP token price from PulseX V2
   const getLPTokenPrice = useCallback((symbol: string): number => {
-    const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === symbol)
-    if (!tokenConfig?.platform || tokenConfig.platform !== 'PLSX V2') {
-      return 0
-    }
-    
-    // Get LP data for this token address
-    const { pricePerToken } = usePulseXLPDataSWR(tokenConfig.a)
-    
-    if (pricePerToken && pricePerToken > 0) {
-      return pricePerToken
-    }
-    
-    return 0
-  }, [])
+    return lpTokenPrices[symbol] || 0
+  }, [lpTokenPrices])
 
   // Helper function to get token price (market or backing)
   const getTokenPrice = useCallback((symbol: string): number => {
@@ -4068,14 +4079,26 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           {showAdvancedStats && stakeStatusFilter === 'active' && (
             <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-lg">
               {(() => {
-                // Calculate total liquid HEX and eHEX
+                // Calculate total liquid HEX and eHEX (only direct HEX tokens)
                 const liquidHexStats = sortedTokens.reduce((acc, token) => {
-                  if (token.symbol === 'HEX') {
-                    acc.hexAmount += token.balanceFormatted
-                    acc.hexValue += token.balanceFormatted * getTokenPrice('HEX')
-                  } else if (token.symbol === 'eHEX') {
-                    acc.eHexAmount += token.balanceFormatted
-                    acc.eHexValue += token.balanceFormatted * getTokenPrice('eHEX')
+                  // Find the token configuration to determine the chain
+                  const tokenConfig = TOKEN_CONSTANTS.find(config => config.ticker === token.symbol)
+                  
+                  if (token.symbol === 'HEX' || token.symbol === 'eHEX' || token.symbol === 'weHEX') {
+                    // Check if it's an Ethereum-based HEX token (chain 1 or name contains "Eth")
+                    const isEthereumHex = tokenConfig?.chain === 1 || 
+                                         tokenConfig?.name?.includes('Eth') ||
+                                         token.symbol === 'eHEX'
+                    
+                    if (isEthereumHex) {
+                      // Ethereum HEX tokens (eHEX, or any HEX "on Eth")
+                      acc.eHexAmount += token.balanceFormatted
+                      acc.eHexValue += token.balanceFormatted * getTokenPrice(token.symbol)
+                    } else {
+                      // PulseChain HEX tokens (HEX "on Pls", weHEX)
+                      acc.hexAmount += token.balanceFormatted
+                      acc.hexValue += token.balanceFormatted * getTokenPrice(token.symbol)
+                    }
                   }
                   return acc
                 }, { hexAmount: 0, hexValue: 0, eHexAmount: 0, eHexValue: 0 })

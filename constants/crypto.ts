@@ -1279,6 +1279,13 @@ export const TOKEN_CONSTANTS = [{
   name: "BitTorrent on PulseChain"
 }, {
   chain: 369,
+  a: "0x99F58b6979756fc129a33797eF796a6178D8A5De",
+  dexs: "0x03bb886995f4F699dE817582859686388aCB1D56",
+  ticker: "TFC",
+  decimals: 18,
+  name: "TFC"
+}, {
+  chain: 369,
   a: "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",
   dexs: "0xefe14ed5fc8fa9c3bd87cd3e0017235bcccf763e",
   ticker: "pSTETH",

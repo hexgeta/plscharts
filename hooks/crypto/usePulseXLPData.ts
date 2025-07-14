@@ -23,7 +23,6 @@ export interface LPTokenData {
   token0Price: string
   token1Price: string
   reserveUSD: string
-  totalValueLockedUSD: string
 }
 
 export interface UsePulseXLPDataResult {
@@ -56,7 +55,6 @@ const LP_TOKEN_QUERY = `
       token0Price
       token1Price
       reserveUSD
-      totalValueLockedUSD
     }
   }
 `
@@ -98,7 +96,7 @@ async function fetchLPData(lpAddress: string): Promise<LPTokenData | null> {
 
     console.log(`[PulseX LP] Successfully fetched data:`, {
       pair: `${lpData.token0?.symbol}/${lpData.token1?.symbol}`,
-      totalValueLocked: lpData.totalValueLockedUSD,
+      reserveUSD: lpData.reserveUSD,
       totalSupply: lpData.totalSupply
     })
 
@@ -131,9 +129,9 @@ export function usePulseXLPData(lpAddress: string): UsePulseXLPDataResult {
         setData(lpData)
 
         // Calculate price per LP token
-        if (lpData && lpData.totalSupply && lpData.totalValueLockedUSD) {
+        if (lpData && lpData.totalSupply && lpData.reserveUSD) {
           const totalSupply = parseFloat(lpData.totalSupply)
-          const totalValueUSD = parseFloat(lpData.totalValueLockedUSD)
+          const totalValueUSD = parseFloat(lpData.reserveUSD)
           
           if (totalSupply > 0) {
             const pricePerLPToken = totalValueUSD / totalSupply
@@ -170,8 +168,8 @@ export function usePulseXLPDataSWR(lpAddress: string): UsePulseXLPDataResult {
     }
   )
 
-  const pricePerToken = lpData && lpData.totalSupply && lpData.totalValueLockedUSD
-    ? parseFloat(lpData.totalValueLockedUSD) / parseFloat(lpData.totalSupply)
+  const pricePerToken = lpData && lpData.totalSupply && lpData.reserveUSD
+    ? parseFloat(lpData.reserveUSD) / parseFloat(lpData.totalSupply)
     : null
 
   return {
