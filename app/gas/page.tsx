@@ -50,6 +50,7 @@ export default function GasTracker() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [loadingDots, setLoadingDots] = useState(0);
 
   const [visibleLines, setVisibleLines] = useState({
     ethereum: true,
@@ -118,6 +119,17 @@ export default function GasTracker() {
     };
   }, []);
 
+  // Animate loading dots when loading
+  useEffect(() => {
+    if (!loading && !pricesLoading) return
+
+    const interval = setInterval(() => {
+      setLoadingDots(prev => prev === 3 ? 0 : prev + 1)
+    }, 300)
+
+    return () => clearInterval(interval)
+  }, [loading, pricesLoading])
+
   // Calculate USD costs for a standard 21,000 gas transaction
   const calculateTransactionCost = (gasPriceGwei: number, tokenPrice: number) => {
     // Gas Price (Gwei) × 21,000 gas units ÷ 1e9 (to convert to ETH/PLS) × Token Price (USD)
@@ -178,9 +190,11 @@ export default function GasTracker() {
               delay: 0.2,
               ease: [0.23, 1, 0.32, 1]
             }}
-            className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full mx-auto"
+            className="bg-black border-2 border-white/10 rounded-full p-6 text-center max-w-[660px] w-full mx-auto"
           >
-            <div className="text-gray-400">Loading gas data...</div>
+            <div className="text-gray-400">
+              Loading gas data<span className="inline-block w-[24px] text-left">{'.'.repeat(loadingDots)}</span>
+            </div>
           </motion.div>
         </div>
       </div>
@@ -236,7 +250,7 @@ export default function GasTracker() {
               <div className="text-4xl font-bold text-white">
                 {tokenPrices?.ETH?.price ? 
                   `$${calculateTransactionCost(currentGasData.data.ethereum.currentGasPriceGwei, tokenPrices.ETH.price).toPrecision(2)}` :
-                  'Price loading...'
+                  `Price loading${'.'.repeat(loadingDots)}`
                 }
               </div>
               <div className="text-sm text-gray-400">
@@ -260,7 +274,7 @@ export default function GasTracker() {
               <div className="text-4xl font-bold text-white">
                 {tokenPrices?.PLS?.price ? 
                   `$${calculateTransactionCost(currentGasData.data.pulsechain.currentGasPriceGwei, tokenPrices.PLS.price).toPrecision(2)}` :
-                  'Price loading...'
+                  `Price loading${'.'.repeat(loadingDots)}`
                 }
               </div>
               <div className="text-sm text-gray-400">

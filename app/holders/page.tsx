@@ -21,6 +21,7 @@ export default function HoldersPage() {
   const [data, setData] = useState<HolderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingDots, setLoadingDots] = useState(0);
 
   useEffect(() => {
     async function fetchHolderData() {
@@ -48,12 +49,25 @@ export default function HoldersPage() {
     fetchHolderData();
   }, []);
 
+  // Animate loading dots when loading
+  useEffect(() => {
+    if (!loading) return
+
+    const interval = setInterval(() => {
+      setLoadingDots(prev => prev === 3 ? 0 : prev + 1)
+    }, 300)
+
+    return () => clearInterval(interval)
+  }, [loading])
+
   if (loading) {
     return (
       <div className="container mx-auto py-8 px-8 md:px-28">
         <h1 className="text-2xl font-bold mb-0 text-center">Token Holder Distribution</h1>
         <div className="rounded-lg shadow p-8 text-center">
-          <div className="text-gray-400">Loading holder data...</div>
+          <div className="text-gray-400">
+            Loading holder data<span className="inline-block w-[24px] text-left">{'.'.repeat(loadingDots)}</span>
+          </div>
         </div>
       </div>
     );

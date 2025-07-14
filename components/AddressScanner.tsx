@@ -22,7 +22,7 @@ export default function AddressScanner() {
   const [addressInput, setAddressInput] = useState('')
   const [addresses, setAddresses] = useState<ScannedAddress[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [loadingDots, setLoadingDots] = useState(1)
+  const [loadingDots, setLoadingDots] = useState(0)
 
   // Get address strings for balance fetching
   const addressStrings = useMemo(() => {
@@ -334,6 +334,17 @@ export default function AddressScanner() {
     return addresses.length > 0 && !isFullyLoading && !balanceError
   }, [addresses.length, isFullyLoading, balanceError])
 
+  // Animate loading dots when loading
+  useEffect(() => {
+    if (!isFullyLoading) return
+
+    const interval = setInterval(() => {
+      setLoadingDots(prev => prev === 3 ? 0 : prev + 1)
+    }, 300)
+
+    return () => clearInterval(interval)
+  }, [isFullyLoading])
+
   return (
     <div className="space-y-6">
       {/* Address Input Section - Hidden when addresses are loaded */}
@@ -362,13 +373,15 @@ export default function AddressScanner() {
       )}
 
       {/* Loading Section */}
-      {isFullyLoading && (
-        <div className="flex justify-center">
-          <div className="bg-black border-2 border-white/10 rounded-full p-6 text-center max-w-[660px] w-full">
-            <div className="text-gray-400">Loading your PulseChain airdrop...</div>
+              {isFullyLoading && (
+          <div className="flex justify-center">
+            <div className="bg-black border-2 border-white/10 rounded-full p-6 text-center max-w-[660px] w-full">
+              <div className="text-gray-400">
+                Loading your PulseChain airdrop<span className="inline-block w-[24px] text-left">{'.'.repeat(loadingDots)}</span>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Error Section */}
       {addresses.length > 0 && balanceError && !isFullyLoading && (

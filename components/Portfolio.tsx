@@ -10,6 +10,7 @@ import { useHexStakes } from '@/hooks/crypto/useHexStakes'
 import { useHsiStakes } from '@/hooks/crypto/useHsiStakes'
 import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
 import { useHexDailyDataCache } from '@/hooks/crypto/useHexDailyData'
+import { usePulseXLPDataSWR } from '@/hooks/crypto/usePulseXLPData'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { Icons } from '@/components/ui/icons'
@@ -79,6 +80,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const animationCompleteRef = useRef(false)
   const [newAddressInput, setNewAddressInput] = useState('')
   const [newLabelInput, setNewLabelInput] = useState('')
+  const [loadingDots, setLoadingDots] = useState(0)
   // Add state for managing editing states of addresses
   const [editingStates, setEditingStates] = useState<Record<string, { isEditing: boolean; tempLabel: string }>>({})
   // Add state for filtering by specific addresses (now supports multiple)
@@ -227,6 +229,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       return saved !== null ? saved === 'true' : true // Default to true
     }
     return true
+  })
+
+  // Show liquidity positions state (default to false/off)
+  const [showLiquidityPositions, setShowLiquidityPositions] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioShowLiquidityPositions')
+      return saved !== null ? saved === 'true' : false // Default to false
+    }
+    return false
   })
   
   // Dust filter state
@@ -476,6 +487,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   useEffect(() => {
     localStorage.setItem('portfolioShowValidators', showValidators.toString())
   }, [showValidators])
+
+  useEffect(() => {
+    localStorage.setItem('portfolioShowLiquidityPositions', showLiquidityPositions.toString())
+  }, [showLiquidityPositions])
 
   useEffect(() => {
     localStorage.setItem('portfolioShowAdvancedFilters', showAdvancedFilters.toString())
@@ -1254,10 +1269,39 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return backingTokens.includes(symbol)
   }, [])
 
+  // Helper function to get LP token price from PulseX V2
+  const getLPTokenPrice = useCallback((symbol: string): number => {
+    const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === symbol)
+    if (!tokenConfig?.platform || tokenConfig.platform !== 'PLSX V2') {
+      return 0
+    }
+    
+    // Get LP data for this token address
+    const { pricePerToken } = usePulseXLPDataSWR(tokenConfig.a)
+    
+    if (pricePerToken && pricePerToken > 0) {
+      return pricePerToken
+    }
+    
+    return 0
+  }, [])
+
   // Helper function to get token price (market or backing)
   const getTokenPrice = useCallback((symbol: string): number => {
     // Stablecoins are always $1
     if (isStablecoin(symbol)) return 1
+    
+    // Check if this is an LP token
+    const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === symbol)
+    if (tokenConfig?.platform === 'PLSX V2') {
+      // This is a PulseX V2 LP token, get price from LP data
+      const lpPrice = getLPTokenPrice(symbol)
+      if (lpPrice > 0) {
+        return lpPrice
+      }
+      // Fallback to 0 if LP price not available
+      return 0
+    }
     
     // Check if this token should use backing price
     if (useBackingPrice && shouldUseBackingPrice(symbol)) {
@@ -1290,7 +1334,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // Use market price
     return prices[symbol]?.price || 0
-  }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken])
+  }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken, getLPTokenPrice])
 
   // Helper function to get token supply from constants
   const getTokenSupply = (symbol: string): number | null => {
@@ -1543,6 +1587,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const filteredTokens = mainTokensWithBalances.filter(token => {
       const tokenPrice = getTokenPrice(token.symbol)
       
+      // Filter out liquidity positions if setting is off
+      if (!showLiquidityPositions) {
+        const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
+        if (tokenConfig?.platform) {
+          return false // Hide LP tokens when toggle is OFF
+        }
+      }
+      
       // Filter by price data availability
       if (!hideTokensWithoutPrice && tokenPrice === 0) {
         return false // Hide tokens with no price when toggle is OFF
@@ -1633,7 +1685,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     tokenSortField,
     tokenSortDirection,
     // Include 24h change display mode to trigger re-sort when toggling
-    showDollarChange
+    showDollarChange,
+    // Include liquidity positions setting
+    showLiquidityPositions
   ])
 
   // Format balance for display (token units - can use scientific notation)
@@ -2106,6 +2160,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           <div className="text-gray-400 text-xs font-medium">
             {tokenPrice === 0 ? '--' : formatPrice(tokenPrice)}
           </div>
+          {/* Price Multiple for uPLS/vPLS */}
+          {(token.symbol === 'uPLS' || token.symbol === 'vPLS') && tokenPrice > 0 && (() => {
+            const plsPrice = getTokenPrice('PLS')
+            if (plsPrice > 0) {
+              const multiple = tokenPrice / plsPrice
+              return (
+                <div className="text-gray-500 text-[10px] mt-0.5">
+                  {multiple.toFixed(2)}X
+                </div>
+              )
+            }
+            return null
+          })()}
         </div>
 
         {/* 24h Price Change Column */}
@@ -3184,13 +3251,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const Container = showMotion ? motion.div : 'div';
   const Section = showMotion ? motion.div : 'div';
 
+  // Animate loading dots when loading
+  useEffect(() => {
+    const isLoading = (effectiveAddresses.length > 0 && !isEverythingReady) || analysisLoading
+    if (!isLoading) return
+
+    const interval = setInterval(() => {
+      setLoadingDots(prev => prev === 3 ? 0 : prev + 1)
+    }, 300)
+
+    return () => clearInterval(interval)
+  }, [effectiveAddresses.length, isEverythingReady, analysisLoading])
+
   // Show loading state when there are addresses but data isn't ready
   if (effectiveAddresses.length > 0 && !isEverythingReady) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <div className="max-w-6xl mx-auto">
-          <div className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full mx-auto">
-            <div className="text-gray-400">{detectiveMode ? 'Loading address data...' : 'Loading Portfolio data...'}</div>
+          <div className="bg-black border-2 border-white/10 rounded-full p-6 text-center max-w-[660px] w-full mx-auto">
+            <div className="text-gray-400">
+              {detectiveMode ? 'Loading address data' : 'Loading Portfolio data'}<span className="inline-block w-[24px] text-left">{'.'.repeat(loadingDots)}</span>
+            </div>
           </div>
         </div>
 
@@ -3454,7 +3535,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           } : {})}
           className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[860px] w-full"
         >
-          <div className="text-gray-400">{detectiveMode ? 'Loading address data...' : 'Loading portfolio...'}</div>
+          <div className="text-gray-400">
+            {detectiveMode ? 'Loading address data' : 'Loading portfolio'}<span className="inline-block w-[24px] text-left">{'.'.repeat(loadingDots)}</span>
+          </div>
         </Section>
       )}
 
@@ -3653,6 +3736,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     Include validators
                   </label>
                 </div>
+                
+
               </div>
             </div>
           )}
@@ -3685,7 +3770,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             {!portfolioAnalysis && !analysisLoading && !analysisError && (
               <div className="flex items-center gap-3 text-gray-400 justify-center py-8">
                 <div className="animate-spin w-5 h-5 border-2 border-gray-600 border-t-white rounded-full"></div>
-                <span>Loading analysis...</span>
+                <span>Loading analysis<span className="inline-block w-[24px] text-left">{'.'.repeat(loadingDots)}</span></span>
               </div>
             )}
             
@@ -5828,6 +5913,28 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         <span
                           className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
                             includePooledStakes ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex-1">
+                        <div className="font-medium text-white mb-1">Include Liquidity Positions?</div>
+                        <div className="text-sm text-gray-400">
+                          Display LP tokens from PulseX and other DEXs in your portfolio.
+                          {detectiveMode && <span className="block text-xs text-blue-400 mt-1">Detective mode defaults: OFF</span>}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowLiquidityPositions(!showLiquidityPositions)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          showLiquidityPositions ? 'bg-white' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                            showLiquidityPositions ? 'translate-x-6' : 'translate-x-1'
                           }`}
                         />
                       </button>

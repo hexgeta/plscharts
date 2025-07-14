@@ -166,6 +166,7 @@ PopupTokenCard.displayName = 'PopupTokenCard';
 export default function LeaguesPage() {
   const [mounted, setMounted] = useState(false);
   const [excludeOA, setExcludeOA] = useState(true);
+  const [loadingDots, setLoadingDots] = useState(0);
   const showHolders = true; // Set to true/false to show/hide holders column
 
   // League images are now preloaded by the background preloader
@@ -276,6 +277,16 @@ export default function LeaguesPage() {
 
   // Overall loading state
   const loading = pricesLoading || suppliesLoading || holdersLoading || !hasValidData;
+
+  // Animated loading dots
+  useEffect(() => {
+    if (!mounted || loading) {
+      const interval = setInterval(() => {
+        setLoadingDots(prev => prev === 3 ? 0 : prev + 1)
+      }, 300)
+      return () => clearInterval(interval)
+    }
+  }, [loading, mounted])
 
   useEffect(() => {
     setMounted(true);
@@ -394,7 +405,29 @@ export default function LeaguesPage() {
   ), [memoizedPrices, memoizedSupplies, excludeOA, showHolders, holdersLoading]);
 
   if (!mounted || loading) {
-    return <div className="bg-black h-screen" />;
+    return (
+      <div className="bg-black text-white p-4 sm:p-6 pb-24 sm:pb-24 relative overflow-hidden">
+        <div className="max-w-[1000px] py-8 mx-auto w-full relative">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ 
+              duration: 0.5,
+              delay: 0.2,
+              ease: [0.23, 1, 0.32, 1]
+            }}
+            className="bg-black border-2 border-white/10 rounded-full p-6 text-center max-w-[660px] w-full mx-auto"
+          >
+            <div className="text-gray-400">
+              Loading league data
+              <span className="w-[24px] text-left inline-block">
+                {'.'.repeat(loadingDots)}
+              </span>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
   }
 
   return (

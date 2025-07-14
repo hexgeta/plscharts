@@ -285,6 +285,7 @@ export default function ValidatorsTracker() {
   const [selectedValidatorInfo, setSelectedValidatorInfo] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [displayCount, setDisplayCount] = useState(20);
+  const [loadingDots, setLoadingDots] = useState(0);
 
 
 
@@ -513,6 +514,16 @@ export default function ValidatorsTracker() {
   // Check if everything is ready to display (only for initial load)
   const isDataReady = !loading && !historyLoading && !pricesLoading && validatorsData && !error;
 
+  // Animated loading dots
+  useEffect(() => {
+    if (isInitialLoad && (!validatorsData || loading || historyLoading || pricesLoading || error)) {
+      const interval = setInterval(() => {
+        setLoadingDots(prev => prev === 3 ? 0 : prev + 1)
+      }, 300)
+      return () => clearInterval(interval)
+    }
+  }, [isInitialLoad, validatorsData, loading, historyLoading, pricesLoading, error])
+
   // Trigger fade-in effect when data is ready (only on initial load)
   useEffect(() => {
     if (isDataReady && isInitialLoad) {
@@ -524,7 +535,29 @@ export default function ValidatorsTracker() {
 
   if (isInitialLoad && (!validatorsData || loading || historyLoading || pricesLoading || error)) {
     return (
-      <div className="min-h-screen bg-black" />
+      <div className="min-h-screen bg-black text-white">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-6xl mx-auto">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ 
+                duration: 0.5,
+                delay: 0.2,
+                ease: [0.23, 1, 0.32, 1]
+              }}
+              className="bg-black border-2 border-white/10 rounded-full p-6 text-center max-w-[660px] w-full mx-auto"
+            >
+              <div className="text-gray-400">
+                Loading validator data
+                <span className="w-[24px] text-left inline-block">
+                  {'.'.repeat(loadingDots)}
+                </span>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
     );
   }
 

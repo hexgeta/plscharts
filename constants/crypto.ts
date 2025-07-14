@@ -39,7 +39,22 @@ export const TOKEN_CONSTANTS = [{
   ticker: "INC",
   decimals: 18,
   name: "Incentive"
-},  {
+}, {
+  chain: 369,
+  a: "0xaE8429918FdBF9a5867e3243697637Dc56aa76A1",
+  dexs: null,
+  ticker: "DAIWPLS",
+  decimals: 18,
+  name: "DAI / WPLS - PulseX V2 LP",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x19bb45a7270177e303dee6eaa6f5ad700812ba98",
+  dexs: null,
+  ticker: "HEXWPLS",
+  decimals: 18,
+  name: "HEX / WPLS - PulseX V2 Liquidity Position"
+}, {
   chain: 369,
   a: "0x57fde0a71132198BBeC939B98976993d8D89D225",
   dexs: "0x922723FC4de3122F7DC837E2CD2b82Dce9dA81d2",

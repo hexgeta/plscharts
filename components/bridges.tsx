@@ -16,6 +16,7 @@ export default function Bridge() {
   const MAIN_TOKENS = ['DAI', 'eHEX', 'WETH', 'USDC', 'CST', 'USDT', 'WBTC']
   const MAXIMUS_TOKENS = ['eMAXI', 'eDECI', 'eLUCKY', 'eTRIO', 'eBASE']
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [loadingDots, setLoadingDots] = useState(0)
 
   useEffect(() => {
     console.log('[Bridge Component] Mounted/Re-rendered')
@@ -135,6 +136,16 @@ export default function Bridge() {
     isEverythingReady
   })
 
+  // Animated loading dots
+  useEffect(() => {
+    if (!isEverythingReady && isInitialLoad) {
+      const interval = setInterval(() => {
+        setLoadingDots(prev => prev === 3 ? 0 : prev + 1)
+      }, 300)
+      return () => clearInterval(interval)
+    }
+  }, [isEverythingReady, isInitialLoad])
+
   // Get main tokens with balances from Ethereum chain
   const mainTokensWithBalances = useMemo(() => {
     if (!balances || !Array.isArray(balances)) return []
@@ -242,9 +253,14 @@ export default function Bridge() {
           delay: 0.2,
           ease: [0.23, 1, 0.32, 1]
         }}
-        className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[660px] w-full mx-auto"
+        className="bg-black border-2 border-white/10 rounded-full p-6 text-center max-w-[660px] w-full mx-auto"
       >
-        <div className="text-gray-400">Loading bridge data...</div>
+        <div className="text-gray-400">
+          Loading bridge data
+          <span className="w-[24px] text-left inline-block">
+            {'.'.repeat(loadingDots)}
+          </span>
+        </div>
       </motion.div>
     )
   }
