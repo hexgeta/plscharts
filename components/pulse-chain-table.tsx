@@ -359,12 +359,10 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
             </ol>
           </div>
           <a
-            href="https://www.zkp2p.xyz/swap?tab=buy"
-            target="_blank"
-            rel="noopener noreferrer" 
+            href="/start"
             className="w-full bg-white hover:bg-gray-100 text-black px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-4 transition-colors"
           >
-            Explore More
+            Or check your airdrop
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M7 17L17 7M17 7H8M17 7V16" strokeWidth="2" stroke="currentColor" fill="none"/>
             </svg>

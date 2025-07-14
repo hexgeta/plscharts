@@ -99,7 +99,7 @@ const NavBar = () => {
           PlsCharts
         </Link>
         
-        <div className="hidden sm:flex items-center justify-left flex-grow ml-6 relative z-[100]">
+        <div className="hidden sm:flex items-center justify-between flex-grow ml-6 relative z-[100]">
           <div className="flex items-bottom space-x-6 py-0">
             {NAV_LINKS.map((link) => (
               <Link 
@@ -124,6 +124,8 @@ const NavBar = () => {
               <MagnifyingGlassIcon className="h-5 w-5" />
             </button>
           </div>
+          
+
         </div>
 
         {/* MOBILE VIEW */}
@@ -168,6 +170,7 @@ const NavBar = () => {
                   {link.mobileLabel}
                 </Link>
               ))}
+
               <button
                 onClick={() => {
                   setIsSearchOpen(!isSearchOpen);
