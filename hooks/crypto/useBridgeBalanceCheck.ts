@@ -375,19 +375,14 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
   // Create SWR key that rotates daily at 1am UTC
   const cacheKey = walletAddress ? getDailyCacheKey(`bridge-balances-${walletAddress}`) : null
   
-  // Only fetch if we don't have valid cached data
-  const shouldFetch = walletAddress && !hasCachedBalanceData(walletAddress)
-  
+  // Simplified: Always let SWR handle caching, remove conditional fetching
   const { data, error: swrError, isLoading: swrLoading } = useSWR(
-    shouldFetch ? cacheKey : null, // Don't fetch if we have cached data
+    cacheKey, // Always fetch when we have a wallet address
     async () => {
-      console.log(`[useBridgeBalanceCheck] Cache miss - fetching fresh data for ${walletAddress}`)
+      console.log(`[useBridgeBalanceCheck] Fetching data for ${walletAddress}`)
       const result = await getAddressBalances(walletAddress, 'ethereum')
       
-      // Validate that we got meaningful data
-      if (!result.tokenBalances || result.tokenBalances.length < 5) {
-        console.warn(`[useBridgeBalanceCheck] Fetched data seems incomplete: ${result.tokenBalances?.length || 0} tokens`)
-      }
+      console.log(`[useBridgeBalanceCheck] Fetched ${result.tokenBalances?.length || 0} tokens`)
       
       return result
     },
@@ -395,8 +390,8 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       refreshInterval: 0, // Only refresh when cache key rotates at 1am UTC
-      dedupingInterval: 24 * 60 * 60 * 1000, // 24 hours - prevent any duplicate requests for the entire day
-      fallbackData: undefined, // Don't use fallback to ensure we see cache hits/misses clearly
+      dedupingInterval: 60 * 60 * 1000, // 1 hour deduping
+      revalidateIfStale: true, // Allow revalidation if data is stale
       onSuccess: (data) => {
         console.log(`[useBridgeBalanceCheck] SWR fetch completed for ${walletAddress} - got ${data?.tokenBalances?.length || 0} tokens`)
       },
@@ -406,92 +401,25 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
     }
   )
   
+  // Simplified effect: Just use SWR data directly
   useEffect(() => {
     console.log('[useBridgeBalanceCheck] useEffect triggered:', {
       hasData: !!data,
       swrLoading,
-      hasCached: hasCachedBalanceData(walletAddress),
       swrDataTokens: data?.tokenBalances?.length || 0
     })
 
-    // If we have cached data and no SWR data, reconstruct from cache
-    if (!data && hasCachedBalanceData(walletAddress)) {
-      console.log('[useBridgeBalanceCheck] Loading data from localStorage cache')
-      
-      try {
-        // Reconstruct balance data from cached individual token balances
-        const keys = Object.keys(localStorage)
-        const tokenBalances: TokenBalance[] = []
-        
-        console.log('[useBridgeBalanceCheck] Available localStorage keys:', keys.filter(k => k.includes('token_balances')))
-        
-        keys.forEach(key => {
-          if (key.startsWith(CACHE_KEYS.TOKEN_BALANCES) && key.includes(walletAddress)) {
-            try {
-              const cached = localStorage.getItem(key)
-              if (cached) {
-                const tokenBalance = JSON.parse(cached)
-                console.log(`[useBridgeBalanceCheck] Found cached token: ${tokenBalance.symbol} - Balance: ${tokenBalance.balanceFormatted}`)
-                if (tokenBalance.balanceFormatted > 0) {
-                  tokenBalances.push(tokenBalance)
-                }
-              }
-            } catch (error) {
-              console.error('[Cache] Error parsing cached token balance:', error)
-            }
-          }
-        })
-        
-        // Only use cache if we actually found tokens, otherwise force fresh fetch
-        if (tokenBalances.length === 0) {
-          console.log('[useBridgeBalanceCheck] Cache reconstruction found 0 tokens - forcing fresh fetch')
-          // Clear the problematic cache and force fresh fetch
-          clearOldCache()
-          return
-        }
-        
-        // Create balance data structure
-        const cachedBalanceData: BalanceData = {
-          address: walletAddress,
-          chain: 'ethereum',
-          timestamp: new Date().toISOString(),
-          nativeBalance: {
-            address: '0x0',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            balance: '0',
-            balanceFormatted: 0,
-            decimals: 18,
-            isNative: true
-          },
-          tokenBalances
-        }
-        
-        setBalances([cachedBalanceData])
-        setIsLoading(false)
-        setError(null)
-        
-        console.log(`[useBridgeBalanceCheck] CACHE LOAD: Set ${tokenBalances.length} tokens from cache`)
-        console.log(`[useBridgeBalanceCheck] CACHE TOKENS:`, tokenBalances.map(t => t.symbol))
-        return
-      } catch (error) {
-        console.error('[useBridgeBalanceCheck] Error loading cached data:', error)
-        // Clear problematic cache and let SWR fetch fresh data
-        clearOldCache()
-      }
-    }
-    
-    // Otherwise use SWR data
+    // Use SWR data directly - no complex cache reconstruction
     const balanceArray = data ? [data] : []
     setBalances(balanceArray)
     setIsLoading(swrLoading)
     setError(swrError)
     
     if (data) {
-      console.log(`[useBridgeBalanceCheck] SWR LOAD: Set ${data.tokenBalances?.length || 0} tokens from SWR`)
-      console.log(`[useBridgeBalanceCheck] SWR TOKENS:`, data.tokenBalances?.map(t => t.symbol) || [])
+      console.log(`[useBridgeBalanceCheck] Set ${data.tokenBalances?.length || 0} tokens from SWR`)
+      console.log(`[useBridgeBalanceCheck] TOKENS:`, data.tokenBalances?.map(t => t.symbol) || [])
     } else if (!swrLoading) {
-      console.log('[useBridgeBalanceCheck] SWR LOAD: Set empty array - no data and not loading')
+      console.log('[useBridgeBalanceCheck] Set empty array - no data and not loading')
     }
   }, [data, swrLoading, swrError, walletAddress])
   

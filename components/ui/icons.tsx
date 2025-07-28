@@ -19,6 +19,7 @@ import {
   Send,
   Users,
   Check,
+  ExternalLink,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -49,6 +50,7 @@ export const Icons = {
   message: MessageCircle,
   send: Send,
   users: Users,
+  externalLink: ExternalLink,
 } as const
 
 // Type for icon names
@@ -95,5 +97,6 @@ export {
   Send,
   Users,
   Check,
+  ExternalLink,
   type LucideIcon,
 } 

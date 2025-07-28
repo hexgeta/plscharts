@@ -12,14 +12,25 @@ import { TOKEN_CONSTANTS } from '@/constants/crypto'
 const HARDCODED_ADDRESS = '0x1715a3e4a142d8b698131108995174f37aeba10d'
 
 export default function Bridge() {
-  // Priority tokens to display
-  const MAIN_TOKENS = ['DAI', 'eHEX', 'WETH', 'USDC', 'CST', 'USDT', 'WBTC']
-  const MAXIMUS_TOKENS = ['eMAXI', 'eDECI', 'eLUCKY', 'eTRIO', 'eBASE']
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
-  const [loadingDots, setLoadingDots] = useState(0)
+  // Hardcoded list of ALL tokens that should appear on the bridge page
+  const EXPECTED_BRIDGE_TOKENS = {
+    main: ['DAI', 'eHEX', 'WETH', 'USDC', 'CST', 'USDT', 'WBTC'],
+    maximus: ['eMAXI', 'eDECI', 'eLUCKY', 'eTRIO', 'eBASE']
+  }
+  
+  // All tokens we need prices for (including 'w' prefix for maximus tokens)
+  const ALL_PRICE_TICKERS = [
+    ...EXPECTED_BRIDGE_TOKENS.main,
+    ...EXPECTED_BRIDGE_TOKENS.maximus.map(token => `w${token}`)
+  ]
+  
+  // Track client-side hydration to prevent hydration mismatches
+  const [isClient, setIsClient] = useState(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
 
+  // Set isClient to true after component mounts (client-side only)
   useEffect(() => {
-    console.log('[Bridge Component] Mounted/Re-rendered')
+    setIsClient(true)
   }, [])
 
   // Fetch balances using custom hook
@@ -36,36 +47,18 @@ export default function Bridge() {
     })) : []
   })
 
-  // Get CST supply from cached supplies instead of individual API call
-  const cachedSupplies = getCachedSupplies()
+  // Get CST supply from cached supplies - only on client to prevent hydration mismatch
+  const cachedSupplies = isClient ? getCachedSupplies() : null
   const cstSupplyPulseChain = cachedSupplies?.supplies?.['CST'] || 0
-  const cstSupplyLoading = !cachedSupplies
-  const cstSupplyError = null // No error since we're using cache
 
   console.log('[Bridge] CST supply from cache:', cstSupplyPulseChain)
 
   // Get all unique token tickers from balances for price fetching
   const allTokenTickers = useMemo(() => {
-    if (!balances || !Array.isArray(balances)) {
-      console.log('[Bridge Debug] No balances available for ticker calculation')
-      return ['CST']
-    }
-    
-    const balanceTokens = balances.flatMap(addressData => 
-      addressData.tokenBalances?.map(token => {
-        // Add "w" prefix for Maximus tokens when fetching prices
-        if (MAXIMUS_TOKENS.includes(token.symbol)) {
-          return `w${token.symbol}`
-        }
-        return token.symbol
-      }) || []
-    ).filter((ticker, index, array) => array.indexOf(ticker) === index) // Remove duplicates
-
-    // Add CST to price fetching if not already included
-    const result = [...new Set([...balanceTokens, 'CST'])]
-    console.log(`[Bridge Debug] Found ${balanceTokens.length} balance tokens, requesting prices for ${result.length} tickers:`, result)
-    return result
-  }, [balances])
+    // Always use the hardcoded list of expected tokens - no more race conditions!
+    console.log('[Bridge Debug] Using hardcoded token list for price fetching:', ALL_PRICE_TICKERS)
+    return ALL_PRICE_TICKERS
+  }, []) // No dependencies - this list never changes
 
   // Fetch prices for all tokens with balances plus CST
   const { prices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
@@ -79,7 +72,8 @@ export default function Bridge() {
 
   // Calculate total USD value from ALL tokens with balances (not just displayed ones) + CST supply value
   const { allTokensValue, cstValue, totalUsdValue } = useMemo(() => {
-    if (!balances || !Array.isArray(balances)) {
+    // Prevent calculation on server to avoid hydration mismatch
+    if (!isClient || !balances || !Array.isArray(balances)) {
       const cstVal = cstSupplyPulseChain ? cstSupplyPulseChain * 1 : 0
       return { allTokensValue: 0, cstValue: cstVal, totalUsdValue: cstVal }
     }
@@ -93,7 +87,7 @@ export default function Bridge() {
           tokenPrice = 1
         }
         // Use "w" prefix for Maximus tokens
-        else if (MAXIMUS_TOKENS.includes(token.symbol)) {
+        else if (EXPECTED_BRIDGE_TOKENS.maximus.includes(token.symbol)) {
           const priceTicker = `w${token.symbol}`
           tokenPrice = prices[priceTicker]?.price || 0
         }
@@ -111,84 +105,101 @@ export default function Bridge() {
     const totalVal = tokensValue + cstVal
 
     return { allTokensValue: tokensValue, cstValue: cstVal, totalUsdValue: totalVal }
-  }, [balances, prices, cstSupplyPulseChain])
+  }, [isClient, balances, prices, cstSupplyPulseChain])
 
-  // Comprehensive loading state - wait for ALL data to be ready
-  const isEverythingReady = !balancesLoading && 
-                           !cstSupplyLoading && 
-                           !pricesLoading && 
-                           !balancesError && 
-                           !cstSupplyError &&
-                           balances.length > 0 &&
-                           cstSupplyPulseChain !== undefined &&
-                           prices &&
-                           Object.keys(prices).length > 0
+  // Simplified loading check - show content if we have meaningful data and we're on client
+  const hasAnyBalanceData = isClient && balances && balances.length > 0 && balances.some(b => b.tokenBalances && b.tokenBalances.length > 0)
+  const hasAnyPriceData = isClient && prices && Object.keys(prices).length > 0
+  const hasCSTData = isClient && cstSupplyPulseChain > 0
+  
+  // Wait for BOTH balance data AND price data to be ready before showing content
+  // This prevents the flash where CST shows first, then other tokens appear
+  const hasCompleteData = hasAnyBalanceData && hasAnyPriceData
+  
+  // Mark as loaded once we have complete data (not just CST)
+  useEffect(() => {
+    if (hasCompleteData && !hasLoadedOnce) {
+      console.log('[Bridge Debug] Marking as loaded - has complete data')
+      setHasLoadedOnce(true)
+    }
+  }, [hasCompleteData, hasLoadedOnce])
 
-  console.log('[Bridge Debug] isEverythingReady calculation:', {
+  // Show loading if we don't have complete data yet
+  const shouldShowLoading = !hasLoadedOnce || (!hasCompleteData && balancesLoading)
+
+  console.log('[Bridge Debug] Loading states:', {
+    isClient,
     balancesLoading,
-    cstSupplyLoading,
     pricesLoading,
-    balancesError: !!balancesError,
-    cstSupplyError: !!cstSupplyError,
-    balancesLength: balances ? balances.length : 0,
-    cstSupplyPulseChain,
-    pricesAvailable: prices ? Object.keys(prices).length : 0,
-    isEverythingReady
+    hasAnyBalanceData,
+    hasAnyPriceData,
+    hasCSTData,
+    hasCompleteData,
+    hasLoadedOnce,
+    shouldShowLoading,
+    balancesError: !!balancesError
   })
 
-  // Animated loading dots
-  useEffect(() => {
-    if (!isEverythingReady && isInitialLoad) {
-      const interval = setInterval(() => {
-        setLoadingDots(prev => prev === 3 ? 0 : prev + 1)
-      }, 300)
-      return () => clearInterval(interval)
-    }
-  }, [isEverythingReady, isInitialLoad])
-
-  // Get main tokens with balances from Ethereum chain
+  // Get main tokens with balances from Ethereum chain - only on client
   const mainTokensWithBalances = useMemo(() => {
-    if (!balances || !Array.isArray(balances)) return []
+    if (!isClient || !balances || !Array.isArray(balances)) return []
     
     return balances.flatMap(addressData => 
       addressData.tokenBalances?.filter(token => 
-        MAIN_TOKENS.includes(token.symbol)
+        EXPECTED_BRIDGE_TOKENS.main.includes(token.symbol)
       ).map(token => ({
         ...token,
         chain: addressData.chain
       })) || []
     )
-  }, [balances])
+  }, [isClient, balances])
 
-  // Add CST entry even if no balance (for supply display)
-  const mainTokensWithCST = useMemo(() => [
-    ...mainTokensWithBalances,
-    // Add CST entry if not already present
-    ...(mainTokensWithBalances.find(token => token.symbol === 'CST') ? [] : [{
-      address: '0x0', // Placeholder address
-      symbol: 'CST',
-      name: 'Cryptoshares',
-      balance: '0',
-      balanceFormatted: 0,
-      decimals: 18,
-      isNative: false,
-      chain: 'ethereum' as const
-    }])
-  ], [mainTokensWithBalances])
+  // Add CST entry even if no balance (for supply display) - only on client
+  const mainTokensWithCST = useMemo(() => {
+    if (!isClient) return []
+    
+    // Start with tokens that actually have balances > 0
+    const tokensWithBalances = mainTokensWithBalances.slice()
+    
+    // Always add CST (shows supply, not balance)
+    if (!tokensWithBalances.find(token => token.symbol === 'CST')) {
+      tokensWithBalances.push({
+        address: '0x0', // Placeholder address
+        symbol: 'CST',
+        name: 'Cryptoshares',
+        balance: '0',
+        balanceFormatted: 0,
+        decimals: 18,
+        isNative: false,
+        chain: 'ethereum' as const
+      })
+    }
+    
+    console.log('[Bridge Debug] mainTokensWithCST created with tokens:', tokensWithBalances.map(t => `${t.symbol}:${t.balanceFormatted}`))
+    
+    return tokensWithBalances
+  }, [isClient, mainTokensWithBalances])
 
-  // Get Maximus tokens with balances from Ethereum chain
+  // Get Maximus tokens with balances from Ethereum chain - only on client
   const maximusTokensWithBalances = useMemo(() => {
-    if (!balances || !Array.isArray(balances)) return []
+    if (!isClient || !balances || !Array.isArray(balances)) {
+      return []
+    }
     
-    return balances.flatMap(addressData => 
+    // Only include tokens that actually have balances > 0
+    const tokensWithBalances = balances.flatMap(addressData => 
       addressData.tokenBalances?.filter(token => 
-        MAXIMUS_TOKENS.includes(token.symbol)
+        EXPECTED_BRIDGE_TOKENS.maximus.includes(token.symbol) && token.balanceFormatted > 0
       ).map(token => ({
         ...token,
         chain: addressData.chain
       })) || []
     )
-  }, [balances])
+    
+    console.log('[Bridge Debug] maximusTokensWithBalances created with tokens:', tokensWithBalances.map(t => `${t.symbol}:${t.balanceFormatted}`))
+    
+    return tokensWithBalances
+  }, [isClient, balances])
 
   // Format balance for display
   const formatBalance = (balance: number): string => {
@@ -235,15 +246,8 @@ export default function Bridge() {
     return percentage.toFixed(4) + '%'
   }
 
-  // Effect to handle initial load completion
-  useEffect(() => {
-    if (isEverythingReady && isInitialLoad) {
-      setIsInitialLoad(false)
-    }
-  }, [isEverythingReady, isInitialLoad])
-
-  // Show loading state only on initial load
-  if (!isEverythingReady && isInitialLoad) {
+  // Show loading state only on initial load if no data or not client-side yet
+  if (!isClient || shouldShowLoading) {
     return (
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -256,22 +260,19 @@ export default function Bridge() {
         className="bg-black border-2 border-white/10 rounded-full p-6 text-center max-w-[660px] w-full mx-auto"
       >
         <div className="text-gray-400">
-          Loading bridge data
-          <span className="w-[24px] text-left inline-block">
-            {'.'.repeat(loadingDots)}
-          </span>
+          Loading bridge data...
         </div>
       </motion.div>
     )
   }
 
   // Show error state if any critical errors occurred
-  if (balancesError || cstSupplyError) {
+  if (balancesError && !hasAnyBalanceData && !hasCSTData) {
     return (
       <div className="space-y-6">
         <div className="bg-black border-2 border-white/10 rounded-2xl p-6">
           <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
-            Error: {balancesError?.message || balancesError || cstSupplyError || 'Failed to load data'}
+            Error: {balancesError?.message || balancesError || 'Failed to load data'}
           </div>
         </div>
       </div>
@@ -303,6 +304,11 @@ export default function Bridge() {
         <div className="text-3xl font-bold text-green-400">
           ${formatBalance(totalUsdValue)}
         </div>
+        {pricesLoading && (
+          <div className="text-xs text-gray-500 mt-1">
+            Updating prices...
+          </div>
+        )}
       </motion.div>
 
       {/* Main Tokens Table */}
@@ -357,9 +363,7 @@ export default function Bridge() {
                                (token.balanceFormatted * tokenPrice)
                 
                 const displayAmount = token.symbol === 'CST' ? (
-                  cstSupplyLoading ? 'Loading...' : 
-                  cstSupplyError ? 'Error' : 
-                  cstSupplyPulseChain ? formatSupply(cstSupplyPulseChain) : 'N/A'
+                  cstSupplyPulseChain ? formatSupply(cstSupplyPulseChain) : 'Loading...'
                 ) : (
                   formatBalance(token.balanceFormatted)
                 )
@@ -398,23 +402,6 @@ export default function Bridge() {
                   </div>
                 </div>
               )})}
-          </div>
-        </motion.div>
-      )}
-
-      {mainTokensWithCST.length === 0 && !balancesLoading && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            duration: 0.5,
-            delay: 0.3,
-            ease: [0.23, 1, 0.32, 1]
-          }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[460px] w-full"
-        >
-          <div className="text-gray-400">
-            No main tokens found with balance &gt; 0
           </div>
         </motion.div>
       )}
@@ -495,22 +482,6 @@ export default function Bridge() {
         </motion.div>
       )}
 
-      {maximusTokensWithBalances.length === 0 && !balancesLoading && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            duration: 0.5,
-            delay: 0.5,
-            ease: [0.23, 1, 0.32, 1]
-          }}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[460px] w-full"
-        >
-          <div className="text-gray-400">
-            No Maximus tokens found with balance &gt; 0
-          </div>
-        </motion.div>
-      )}
     </motion.div>
   )
 } 

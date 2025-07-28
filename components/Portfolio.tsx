@@ -11,6 +11,8 @@ import { useHsiStakes } from '@/hooks/crypto/useHsiStakes'
 import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
 import { useHexDailyDataCache } from '@/hooks/crypto/useHexDailyData'
 import { usePulseXLPDataSWR } from '@/hooks/crypto/usePulseXLPData'
+import { useAddressTransactions } from '@/hooks/crypto/useAddressTransactions'
+import { useEnrichedTransactions } from '@/hooks/crypto/useEnrichedTransactions'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { Icons } from '@/components/ui/icons'
@@ -563,6 +565,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime?: string } | null>(null)
   const [showPortfolioAnalysis, setShowPortfolioAnalysis] = useState(true)
 
+  // Transactions state for detective mode
+  const [showTransactions, setShowTransactions] = useState(false)
+
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
     return /^0x[a-fA-F0-9]{40}$/.test(address)
@@ -1011,6 +1016,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Fetch balances for ALL addresses using the updated hook
   const { balances: rawBalances, isLoading: balancesLoading, error: balancesError } = usePortfolioBalance(allAddressStrings)
   console.log('Portfolio Debug - Balance hook result:', { balances: rawBalances, balancesLoading, balancesError })
+
+  // Fetch transactions for detective mode (only first address)
+  const { transactions: transactionData, isLoading: transactionsLoading, error: transactionsError } = useAddressTransactions(
+    detectiveMode && detectiveAddress ? detectiveAddress : ''
+  )
+
+  // Enrich transactions with token transfer details
+  const { enrichedTransactions, isLoading: enrichmentLoading, error: enrichmentError } = useEnrichedTransactions(
+    transactionData?.transactions || []
+  )
   
   // Debug logging for balance loading - track state changes only
   const lastBalanceStateRef = useRef<{loading: boolean, hasBalances: boolean, hasError: boolean, addressCount: number}>({
@@ -1867,6 +1882,24 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       }, 2000)
     } catch (err) {
       console.error('Failed to copy address:', err)
+    }
+  }, [])
+
+  // Copy transaction hash to clipboard
+  const copyTransactionHash = useCallback(async (hash: string) => {
+    try {
+      await navigator.clipboard.writeText(hash)
+      const popup = document.createElement('div')
+      popup.textContent = '✓ Copied!'
+      popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[10000] pointer-events-none'
+      document.body.appendChild(popup)
+      setTimeout(() => {
+        if (popup.parentNode) {
+          popup.remove()
+        }
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy transaction hash:', err)
     }
   }, [])
 
@@ -6121,6 +6154,286 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Transactions Tab - Only in detective mode */}
+      {detectiveMode && isEverythingReady && (
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.6,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
+          className="max-w-[860px] w-full"
+        >
+          <div className="bg-black border-2 border-white/10 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white">Recent Transactions</h3>
+              {!showTransactions && (
+                <button
+                  onClick={() => setShowTransactions(true)}
+                  className="px-4 py-2 bg-white text-black rounded-lg font-medium hover:bg-gray-100 transition-colors"
+                >
+                  Load Transactions
+                </button>
+              )}
+            </div>
+            
+            {showTransactions && (
+              <div className="space-y-4">
+                {/* Loading State */}
+                {(transactionsLoading || enrichmentLoading) && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin w-5 h-5 border-2 border-gray-600 border-t-white rounded-full mr-3"></div>
+                    <span className="text-gray-400">
+                      {transactionsLoading ? 'Loading transactions...' : 'Enriching transaction details...'}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Error State */}
+                {(transactionsError || enrichmentError) && (
+                  <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
+                    Error loading transactions: {transactionsError?.message || transactionsError || enrichmentError}
+                  </div>
+                )}
+                
+                {/* Transactions List */}
+                {enrichedTransactions && enrichedTransactions.length > 0 && (
+                  <div className="space-y-3">
+                    {enrichedTransactions.map((tx, index) => (
+                      <div key={tx.hash} className="p-4 bg-white/5 rounded-lg border border-white/10">
+                        {/* Transaction Header */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => copyTransactionHash(tx.hash)}
+                              className="text-white font-medium text-sm hover:text-gray-300 transition-colors cursor-pointer"
+                              title="Click to copy transaction hash"
+                            >
+                              {tx.hash.slice(0, 6)}...{tx.hash.slice(-4)}
+                            </button>
+                            <a
+                              href={`https://midgard.wtf/tx-standard/${tx.hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-gray-400 hover:text-white transition-colors"
+                            >
+                              <Icons.externalLink size={14} />
+                            </a>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-white text-sm">
+                              {new Date(tx.originalData.timestamp).toLocaleDateString()}
+                            </div>
+                            <div className="text-gray-400 text-xs">
+                              {new Date(tx.originalData.timestamp).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Method and Type Tags */}
+                        {(tx.method || (tx.txTypes && tx.txTypes.length > 0)) && (
+                          <div className="flex items-center space-x-2 mb-3">
+                            {tx.method && (
+                              <div className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-medium flex items-center space-x-1">
+                                {tx.method.includes('swap') && <span>🔄</span>}
+                                <span>{tx.method}</span>
+                              </div>
+                            )}
+                            {tx.txTypes && tx.txTypes.slice(0, 2).map((type, idx) => (
+                              <div key={idx} className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded text-xs">
+                                {type.replace('_', ' ')}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                                                {/* Token Transfers - Simplified Swap View */}
+                        {tx.tokenTransfers && tx.tokenTransfers.length > 0 && (
+                          <div className="mb-4">
+                            {(() => {
+                              const userAddress = detectiveAddress?.toLowerCase()
+                              
+                              // For swaps, calculate net token changes (total received - total sent for each token)
+                              if (tx.method && tx.method.includes('swap') && tx.tokenTransfers.length > 0) {
+                                const tokenBalances: { [symbol: string]: { net: number, usdValue: number, symbol: string } } = {}
+                                
+                                // Calculate net change for each token
+                                tx.tokenTransfers.forEach(transfer => {
+                                  const symbol = transfer.tokenSymbol || 'Unknown'
+                                  if (!tokenBalances[symbol]) {
+                                    tokenBalances[symbol] = { net: 0, usdValue: 0, symbol }
+                                  }
+                                  
+                                  if (transfer.from.toLowerCase() === userAddress) {
+                                    // User sent this token (negative)
+                                    tokenBalances[symbol].net -= transfer.amountFormatted
+                                    tokenBalances[symbol].usdValue -= (transfer.usdValue || 0)
+                                  } else if (transfer.to.toLowerCase() === userAddress) {
+                                    // User received this token (positive)
+                                    tokenBalances[symbol].net += transfer.amountFormatted
+                                    tokenBalances[symbol].usdValue += (transfer.usdValue || 0)
+                                  }
+                                })
+                                
+                                // Find the main input (most negative net) and output (most positive net)
+                                const tokenChanges = Object.values(tokenBalances).filter(t => Math.abs(t.net) > 0.000001)
+                                const mainInput = tokenChanges.find(t => t.net < 0 && Math.abs(t.usdValue) > 1)
+                                const mainOutput = tokenChanges.find(t => t.net > 0 && Math.abs(t.usdValue) > 1)
+                                
+                                if (mainInput && mainOutput) {
+                                  return (
+                                    <div>
+                                      <div className="text-gray-400 text-xs mb-2">Swap:</div>
+                                      <div className="bg-white/5 p-3 rounded border border-white/5">
+                                        <div className="flex items-center justify-between">
+                                          {/* Input */}
+                                          <div className="flex items-center space-x-2">
+                                            <CoinLogo
+                                              symbol={mainInput.symbol}
+                                              size="sm"
+                                              className="rounded-none"
+                                            />
+                                            <div>
+                                              <div className="text-white text-sm font-medium">
+                                                {Math.abs(mainInput.net).toLocaleString()} {mainInput.symbol}
+                                              </div>
+                                              <div className="text-gray-400 text-xs">
+                                                ${Math.abs(mainInput.usdValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          
+                                          {/* Arrow */}
+                                          <div className="text-gray-400 mx-4">→</div>
+                                          
+                                          {/* Output */}
+                                          <div className="flex items-center space-x-2">
+                                            <CoinLogo
+                                              symbol={mainOutput.symbol}
+                                              size="sm"
+                                              className="rounded-none"
+                                            />
+                                            <div>
+                                              <div className="text-white text-sm font-medium">
+                                                {mainOutput.net.toLocaleString()} {mainOutput.symbol}
+                                              </div>
+                                              <div className="text-gray-400 text-xs">
+                                                ${mainOutput.usdValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                }
+                              }
+                              
+                              // Fallback: show all transfers
+                              return (
+                                <div>
+                                  <div className="text-gray-400 text-xs mb-2">Token Transfers:</div>
+                                  <div className="space-y-2">
+                                    {tx.tokenTransfers.map((transfer, transferIndex) => (
+                                      <div key={transferIndex} className="bg-white/5 p-2 rounded border border-white/5">
+                                        <div className="flex items-center space-x-2">
+                                          {transfer.tokenSymbol && (
+                                            <CoinLogo
+                                              symbol={transfer.tokenSymbol}
+                                              size="sm"
+                                              className="rounded-none"
+                                            />
+                                          )}
+                                          <div>
+                                            <div className="text-white text-sm">
+                                              {transfer.amountFormatted.toLocaleString()} {transfer.tokenSymbol}
+                                            </div>
+                                            {transfer.usdValue && transfer.usdValue > 0 && (
+                                              <div className="text-gray-400 text-xs">
+                                                ${transfer.usdValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        )}
+
+                        {/* Transaction Details Grid */}
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <div className="text-gray-400 text-xs mb-1">From</div>
+                            <div className="text-white text-xs">
+                              {tx.originalData.fromName || `${tx.originalData.from.slice(0, 6)}...${tx.originalData.from.slice(-4)}`}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-gray-400 text-xs mb-1">To</div>
+                            <div className="text-white text-xs">
+                              {tx.originalData.to ? (tx.originalData.toName || `${tx.originalData.to.slice(0, 6)}...${tx.originalData.to.slice(-4)}`) : 'Contract Creation'}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-gray-400 text-xs mb-1">Value</div>
+                            <div className="text-white">
+                              {tx.originalData.valueFormatted > 0 ? `${tx.originalData.valueFormatted.toFixed(6)} PLS` : '0 PLS'}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-gray-400 text-xs mb-1">Status</div>
+                            <div className={`font-medium ${(tx.status || tx.originalData.status) === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                              {(tx.status || tx.originalData.status) === 'success' ? 'Success' : (tx.status || tx.originalData.status)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Additional Info */}
+                        <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
+                          <div className="text-gray-400 text-xs">
+                            Block {tx.originalData.blockNumber.toLocaleString()}
+                          </div>
+                          {tx.originalData.fee && (
+                            <div className="text-gray-400 text-xs">
+                              Fee: {(parseFloat(tx.originalData.fee.value) / 1e18).toFixed(6)} PLS
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Decoded Function Call */}
+                        {tx.originalData.decodedInput && (
+                          <div className="mt-3 pt-3 border-t border-white/10">
+                            <div className="text-gray-400 text-xs mb-1">Function Call:</div>
+                            <div className="text-white text-xs bg-gray-900/50 p-2 rounded">
+                              {tx.originalData.decodedInput.method_call}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* No Transactions Found */}
+                {transactionData && transactionData.transactions && transactionData.transactions.length === 0 && !transactionsLoading && !enrichmentLoading && (
+                  <div className="text-center py-8 text-gray-400">
+                    No recent transactions found for this address
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </Section>
+      )}
 
     </Container>
     </div>
