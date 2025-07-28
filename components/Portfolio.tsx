@@ -9,7 +9,7 @@ import { useMaxiTokenData } from '@/hooks/crypto/useMaxiTokenData'
 import { useHexStakes } from '@/hooks/crypto/useHexStakes'
 import { useHsiStakes } from '@/hooks/crypto/useHsiStakes'
 import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
-import { useHexDailyDataCache } from '@/hooks/crypto/useHexDailyData'
+import { useHexDailyDataCache, calculateYieldForStake } from '@/hooks/crypto/useHexDailyData'
 import { usePulseXLPDataSWR } from '@/hooks/crypto/usePulseXLPData'
 import { useAddressTransactions } from '@/hooks/crypto/useAddressTransactions'
 import { useEnrichedTransactions } from '@/hooks/crypto/useEnrichedTransactions'
@@ -123,6 +123,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('portfolioUseBackingPrice')
+      return saved === 'true'
+    }
+    return false
+  })
+  // Add state for EES value toggle
+  const [useEESValue, setUseEESValue] = useState<boolean>(() => {
+    if (detectiveMode) {
+      // Detective mode uses regular value by default, no localStorage
+      return false
+    }
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioUseEESValue')
       return saved === 'true'
     }
     return false
@@ -459,6 +471,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     localStorage.setItem('portfolioUseBackingPrice', useBackingPrice.toString())
     }
   }, [useBackingPrice, detectiveMode])
+
+  // Save EES value setting to localStorage whenever it changes (skip in detective mode)
+  useEffect(() => {
+    if (!detectiveMode) {
+    localStorage.setItem('portfolioUseEESValue', useEESValue.toString())
+    }
+  }, [useEESValue, detectiveMode])
 
   // Save pooled stakes setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
@@ -1311,6 +1330,84 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const getLPTokenPrice = useCallback((symbol: string): number => {
     return lpTokenPrices[symbol] || 0
   }, [lpTokenPrices])
+
+  // Get HEX daily data cache for EES calculations
+  const { data: hexDailyDataCacheForEES } = useHexDailyDataCache();
+
+  // Helper function to calculate Emergency End Stake (EES) value and penalty using real HEX penalty calculation
+  const calculateEESDetails = useCallback((stake: any): { eesValue: number; penalty: number; payout: number } => {
+    const { principleHex, yieldHex, tShares, startDate, endDate, progress } = stake;
+    
+    // If stake is completed (100%), no penalty
+    if (progress >= 100) {
+      return { eesValue: principleHex + yieldHex, penalty: 0, payout: yieldHex };
+    }
+    
+    // Calculate the actual HEX penalty using the contract logic
+    const startDay = Math.floor((new Date(startDate).getTime() - new Date('2019-12-03').getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const endDay = Math.floor((new Date(endDate).getTime() - new Date('2019-12-03').getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const currentDay = Math.floor((Date.now() - new Date('2019-12-03').getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    const stakedDays = endDay - startDay;
+    const servedDays = Math.max(0, currentDay - startDay);
+    
+    // Check if we have daily payouts data for penalty calculation
+    if (!hexDailyDataCacheForEES?.dailyPayouts) {
+      // Fallback to simplified calculation if no daily data
+      const fallbackPayout = yieldHex * Math.min(1, servedDays / stakedDays);
+      const fallbackPenalty = yieldHex - fallbackPayout;
+      return { 
+        eesValue: principleHex + fallbackPayout, 
+        penalty: fallbackPenalty, 
+        payout: fallbackPayout 
+      };
+    }
+    
+    const dailyPayouts = stake.chain === 'ETH' 
+      ? hexDailyDataCacheForEES.dailyPayouts.ETH 
+      : hexDailyDataCacheForEES.dailyPayouts.PLS;
+    
+    // HEX contract penalty calculation
+    // 50% of stakedDays (rounded up) with minimum of 1 day
+    const EARLY_PENALTY_MIN_DAYS = 1;
+    let penaltyDays = Math.max(EARLY_PENALTY_MIN_DAYS, Math.ceil(stakedDays / 2));
+    
+    if (servedDays === 0) {
+      // No payout if no days served, just penalty
+      return { eesValue: 0, penalty: 0, payout: 0 };
+    }
+    
+    // Calculate actual payout using daily data
+    const payout = calculateYieldForStake(dailyPayouts, tShares, startDay, startDay + servedDays);
+    
+    let penalty = 0;
+    
+    if (penaltyDays < servedDays) {
+      // Penalty is applied to first penaltyDays only
+      penalty = calculateYieldForStake(dailyPayouts, tShares, startDay, startDay + penaltyDays);
+    } else if (penaltyDays === servedDays) {
+      // Penalty equals the entire payout
+      penalty = payout;
+    } else {
+      // penaltyDays > servedDays - penalty is proportional
+      penalty = payout * penaltyDays / servedDays;
+    }
+    
+    // EES value = principal + payout - penalty
+    const eesValue = principleHex + payout - penalty;
+    
+    // Ensure we never return negative value
+    return { 
+      eesValue: Math.max(0, eesValue), 
+      penalty: penalty, 
+      payout: payout 
+    };
+  }, [hexDailyDataCacheForEES]);
+
+  // Helper function to calculate Emergency End Stake (EES) value using real HEX penalty calculation
+  const calculateEESValue = useCallback((stake: any): number => {
+    return calculateEESDetails(stake).eesValue;
+  }, [calculateEESDetails]);
 
   // Helper function to get token price (market or backing)
   const getTokenPrice = useCallback((symbol: string): number => {
@@ -2546,7 +2643,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       })
 
       const nativeHexStakesValue = activeNativeStakes.reduce((total, stake) => {
-        const stakeHex = stake.principleHex + stake.yieldHex
+        let stakeHex;
+        if (useEESValue) {
+          // Use EES calculation instead of principle + yield
+          stakeHex = calculateEESValue(stake)
+        } else {
+          // Use regular calculation (principle + yield)
+          stakeHex = stake.principleHex + stake.yieldHex
+        }
         // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
         const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
         return total + (stakeHex * hexPrice)
@@ -2585,7 +2689,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         })
 
         const hsiStakesValue = activeHsiStakes.reduce((total, stake) => {
-          const stakeHex = stake.totalHex !== undefined ? stake.totalHex : (stake.principleHex + stake.yieldHex)
+          let stakeHex;
+          if (useEESValue) {
+            // Use EES calculation for HSI stakes as well
+            const totalHexValue = stake.totalHex !== undefined ? stake.totalHex : (stake.principleHex + stake.yieldHex)
+            // For HSI stakes, we need to adapt the EES calculation
+            const adaptedStake = {
+              principleHex: stake.principleHex,
+              yieldHex: stake.yieldHex,
+              progress: stake.progress
+            }
+            stakeHex = calculateEESValue(adaptedStake)
+          } else {
+            stakeHex = stake.totalHex !== undefined ? stake.totalHex : (stake.principleHex + stake.yieldHex)
+          }
           const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
           return total + (stakeHex * hexPrice)
         }, 0)
@@ -2600,7 +2717,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       // Add to address values array for each address with HEX stakes
       const addressStakeValues = new Map<string, number>()
       activeNativeStakes.forEach(stake => {
-        const stakeHex = stake.principleHex + stake.yieldHex
+        let stakeHex;
+        if (useEESValue && stake.status === 'active') {
+          stakeHex = calculateEESValue(stake)
+        } else {
+          stakeHex = stake.principleHex + stake.yieldHex
+        }
         const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
         const stakeValue = stakeHex * hexPrice
         const currentValue = addressStakeValues.get(stake.address) || 0
@@ -2729,7 +2851,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
              (chainFilter === 'pulsechain' && stake.chain !== 'ETH')))
       )
       activeNativeStakes.forEach(stake => {
-        const stakeHex = stake.principleHex + stake.yieldHex
+        let stakeHex;
+        if (useEESValue) {
+          // Use EES calculation instead of principle + yield
+          stakeHex = calculateEESValue(stake)
+        } else {
+          // Use regular calculation (principle + yield)
+          stakeHex = stake.principleHex + stake.yieldHex
+        }
         // Use eHEX price for Ethereum stakes, HEX price for PulseChain stakes
         const hexSymbol = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
         const hexPriceData = prices[hexSymbol]
@@ -2758,7 +2887,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                (chainFilter === 'pulsechain' && stake.chain !== 'ETH')))
         )
         activeHsiStakes.forEach(stake => {
-          const stakeHex = stake.principleHex + stake.yieldHex
+          let stakeHex;
+          if (useEESValue) {
+            // Use EES calculation for HSI stakes as well
+            const adaptedStake = {
+              principleHex: stake.principleHex,
+              yieldHex: stake.yieldHex,
+              progress: stake.progress
+            }
+            stakeHex = calculateEESValue(adaptedStake)
+          } else {
+            stakeHex = stake.principleHex + stake.yieldHex
+          }
         const hexSymbol = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
         const hexPriceData = prices[hexSymbol]
         const hexCurrentPrice = hexPriceData?.price || 0
@@ -2860,7 +3000,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
              (chainFilter === 'pulsechain' && stake.chain !== 'ETH')))
       )
       activeNativeStakes.forEach(stake => {
-        const stakeHex = stake.principleHex + stake.yieldHex
+        let stakeHex;
+        if (useEESValue) {
+          // Use EES calculation instead of principle + yield
+          stakeHex = calculateEESValue(stake)
+        } else {
+          // Use regular calculation (principle + yield)
+          stakeHex = stake.principleHex + stake.yieldHex
+        }
         const hexSymbol = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
         const hexCurrentPrice = getTokenPrice(hexSymbol)
         currentTotalValue += stakeHex * hexCurrentPrice
@@ -2877,7 +3024,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                (chainFilter === 'pulsechain' && stake.chain !== 'ETH')))
         )
         activeHsiStakes.forEach(stake => {
-        const stakeHex = stake.principleHex + stake.yieldHex
+        let stakeHex;
+        if (useEESValue) {
+          // Use EES calculation for HSI stakes as well
+          const adaptedStake = {
+            principleHex: stake.principleHex,
+            yieldHex: stake.yieldHex,
+            progress: stake.progress
+          }
+          stakeHex = calculateEESValue(adaptedStake)
+        } else {
+          stakeHex = stake.principleHex + stake.yieldHex
+        }
         const hexSymbol = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
         const hexCurrentPrice = getTokenPrice(hexSymbol)
         currentTotalValue += stakeHex * hexCurrentPrice
@@ -3093,7 +3251,25 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         const startDate = new Date(stake.startDate)
         const now = new Date()
         const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
-        const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+        
+        // Use EES-adjusted yield for APY calculation when EES mode is active
+        let apy
+        if (useEESValue && stake.status === 'active') {
+          const eesDetails = calculateEESDetails(stake)
+          const eesValue = eesDetails.eesValue
+          
+          if (eesValue <= 0) {
+            // If stake is completely nuked, APY is -100% (losing entire principal)
+            apy = -100
+          } else {
+            // Calculate APY based on EES value vs principal
+            const netGainLoss = eesValue - stake.principleHex
+            apy = ((netGainLoss / stake.principleHex) / daysElapsed) * 365 * 100
+          }
+        } else {
+          // Normal APY calculation using yield
+          apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+        }
         return sum + (apy * stake.tShares)
       }, 0) / promptTotalTShares : 0
 
@@ -4182,7 +4358,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   const allActiveStakes = [...activeNativeStakes, ...activeHsiStakesList]
                   
                   return allActiveStakes.reduce((acc, stake) => {
-                  const stakeHex = stake.principleHex + stake.yieldHex
+                  let stakeHex;
+                  if (useEESValue && stake.status === 'active') {
+                    stakeHex = calculateEESValue(stake)
+                  } else {
+                    stakeHex = stake.principleHex + stake.yieldHex
+                  }
                   if (stake.chain === 'ETH') {
                     acc.eHexAmount += stakeHex
                     acc.eHexValue += stakeHex * getTokenPrice('eHEX')
@@ -4291,7 +4472,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           })
 
                           filteredNativeStakes.forEach(stake => {
-                            const stakeHex = stake.principleHex + stake.yieldHex
+                            let stakeHex;
+                            if (useEESValue && stake.status === 'active') {
+                              stakeHex = calculateEESValue(stake)
+                            } else {
+                              stakeHex = stake.principleHex + stake.yieldHex
+                            }
                             if (stake.chain === 'ETH') {
                               totalHexStats.eHexAmount += stakeHex
                               totalHexStats.eHexValue += stakeHex * getTokenPrice('eHEX')
@@ -4323,7 +4509,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             })
 
                             filteredHsiStakes.forEach(stake => {
-                              const stakeHex = stake.principleHex + stake.yieldHex
+                              let stakeHex;
+                              if (useEESValue && stake.status === 'active') {
+                                // For HSI stakes, we need to adapt the EES calculation
+                                const adaptedStake = {
+                                  principleHex: stake.principleHex,
+                                  yieldHex: stake.yieldHex,
+                                  progress: stake.progress,
+                                  tShares: stake.tShares,
+                                  startDate: stake.startDate,
+                                  endDate: stake.endDate,
+                                  status: stake.status,
+                                  chain: stake.chain
+                                }
+                                stakeHex = calculateEESValue(adaptedStake)
+                              } else {
+                                stakeHex = stake.principleHex + stake.yieldHex
+                              }
                               if (stake.chain === 'ETH') {
                                 totalHexStats.eHexAmount += stakeHex
                                 totalHexStats.eHexValue += stakeHex * getTokenPrice('eHEX')
@@ -4387,13 +4589,24 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     // Solo stakes calculations (ONLY ACTIVE STAKES)
                     const activeStakes = filteredStakes.filter(stake => stake.status === 'active')
                     const soloHexValue = activeStakes.reduce((total, stake) => {
-                      const stakeHex = stake.principleHex + stake.yieldHex
+                      let stakeHex;
+                      if (useEESValue && stake.status === 'active') {
+                        stakeHex = calculateEESValue(stake)
+                      } else {
+                        stakeHex = stake.principleHex + stake.yieldHex
+                      }
                       const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
                       return total + (stakeHex * hexPrice)
                     }, 0)
                     
                     const soloTShares = activeStakes.reduce((total, stake) => total + stake.tShares, 0)
-                    const soloHexAmount = activeStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
+                    const soloHexAmount = activeStakes.reduce((total, stake) => {
+                      if (useEESValue && stake.status === 'active') {
+                        return total + calculateEESValue(stake)
+                      } else {
+                        return total + stake.principleHex + stake.yieldHex
+                      }
+                    }, 0)
                     
                     // Combined totals - include both native and HSI stakes regardless of active tab
                     const allActiveSoloValue = (() => {
@@ -4440,7 +4653,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       // Combine and calculate total value
                       const allFilteredStakes = [...filteredNativeStakes, ...filteredHsiStakes]
                       return allFilteredStakes.reduce((total, stake) => {
-                      const stakeHex = stake.principleHex + stake.yieldHex
+                      let stakeHex;
+                      if (useEESValue && stake.status === 'active') {
+                        stakeHex = calculateEESValue(stake)
+                      } else {
+                        stakeHex = stake.principleHex + stake.yieldHex
+                      }
                       const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
                       return total + (stakeHex * hexPrice)
                     }, 0)
@@ -4682,13 +4900,24 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             ) || []
 
                             activeNativeStakes.forEach(stake => {
-                              const stakeHex = stake.principleHex + stake.yieldHex
+                              let stakeHex;
+                              if (useEESValue && stake.status === 'active') {
+                                stakeHex = calculateEESValue(stake)
+                              } else {
+                                stakeHex = stake.principleHex + stake.yieldHex
+                              }
                               if (stake.chain === 'ETH') {
                                 totalStats.eHexAmount += stakeHex
+                                // Only count T-Shares from stakes with HEX > 0 when EES mode is enabled
+                                if (!useEESValue || stake.status !== 'active' || stakeHex > 0) {
                                 totalStats.eHexTShares += stake.tShares
+                                }
                               } else {
                                 totalStats.hexAmount += stakeHex
+                                // Only count T-Shares from stakes with HEX > 0 when EES mode is enabled
+                                if (!useEESValue || stake.status !== 'active' || stakeHex > 0) {
                                 totalStats.hexTShares += stake.tShares
+                                }
                               }
                             })
 
@@ -4715,13 +4944,35 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               )
 
                               activeHsiStakes.forEach(stake => {
-                                const stakeHex = stake.principleHex + stake.yieldHex
+                                let stakeHex;
+                                if (useEESValue && stake.status === 'active') {
+                                  // For HSI stakes, we need to adapt the EES calculation
+                                  const adaptedStake = {
+                                    principleHex: stake.principleHex,
+                                    yieldHex: stake.yieldHex,
+                                    progress: stake.progress,
+                                    tShares: stake.tShares,
+                                    startDate: stake.startDate,
+                                    endDate: stake.endDate,
+                                    status: stake.status,
+                                    chain: stake.chain
+                                  }
+                                  stakeHex = calculateEESValue(adaptedStake)
+                                } else {
+                                  stakeHex = stake.principleHex + stake.yieldHex
+                                }
                                 if (stake.chain === 'ETH') {
                                   totalStats.eHexAmount += stakeHex
+                                  // Only count T-Shares from stakes with HEX > 0 when EES mode is enabled
+                                  if (!useEESValue || stake.status !== 'active' || stakeHex > 0) {
                                   totalStats.eHexTShares += stake.tShares
+                                  }
                                 } else {
                                   totalStats.hexAmount += stakeHex
+                                  // Only count T-Shares from stakes with HEX > 0 when EES mode is enabled
+                                  if (!useEESValue || stake.status !== 'active' || stakeHex > 0) {
                                   totalStats.hexTShares += stake.tShares
+                                  }
                                 }
                               })
                             }
@@ -4808,7 +5059,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     })()
                   )
               const totalHexValue = activeSoloStakes.reduce((total, stake) => {
-                const stakeHex = stake.principleHex + stake.yieldHex
+                let stakeHex;
+                if (useEESValue && stake.status === 'active') {
+                  stakeHex = calculateEESValue(stake)
+                } else {
+                  stakeHex = stake.principleHex + stake.yieldHex
+                }
                 const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
                 return total + (stakeHex * hexPrice)
               }, 0)
@@ -4826,7 +5082,25 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         const startDate = new Date(stake.startDate)
                         const now = new Date()
                         const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
-                        const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                        
+                        // Use EES-adjusted yield for APY calculation when EES mode is active
+                        let apy
+                        if (useEESValue && stake.status === 'active') {
+                          const eesDetails = calculateEESDetails(stake)
+                          const eesValue = eesDetails.eesValue
+                          
+                          if (eesValue <= 0) {
+                            // If stake is completely nuked, APY is -100% (losing entire principal)
+                            apy = -100
+                          } else {
+                            // Calculate APY based on EES value vs principal
+                            const netGainLoss = eesValue - stake.principleHex
+                            apy = ((netGainLoss / stake.principleHex) / daysElapsed) * 365 * 100
+                          }
+                        } else {
+                          // Normal APY calculation using yield
+                          apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                        }
                         return sum + (apy * stake.tShares)
                       }, 0) / totalTShares : 0
                       
@@ -4841,17 +5115,53 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             {(() => {
                               const ethSoloHex = activeSoloStakes
                                 .filter(stake => stake.chain === 'ETH')
-                                .reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
+                                .reduce((total, stake) => {
+                                  let stakeHex;
+                                  if (useEESValue && stake.status === 'active') {
+                                    stakeHex = calculateEESValue(stake)
+                                  } else {
+                                    stakeHex = stake.principleHex + stake.yieldHex
+                                  }
+                                  return total + stakeHex
+                                }, 0)
                               const plsSoloHex = activeSoloStakes
                                 .filter(stake => stake.chain === 'PLS')
-                                .reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
+                                .reduce((total, stake) => {
+                                  let stakeHex;
+                                  if (useEESValue && stake.status === 'active') {
+                                    stakeHex = calculateEESValue(stake)
+                                  } else {
+                                    stakeHex = stake.principleHex + stake.yieldHex
+                                  }
+                                  return total + stakeHex
+                                }, 0)
                               
                               if (chainFilter === 'both') {
-                                // Calculate stake counts and T-Shares by chain
-                                const plsStakeCount = activeSoloStakes.filter(stake => stake.chain === 'PLS').length
-                                const ethStakeCount = activeSoloStakes.filter(stake => stake.chain === 'ETH').length
-                                const plsTShares = activeSoloStakes.filter(stake => stake.chain === 'PLS').reduce((total, stake) => total + stake.tShares, 0)
-                                const ethTShares = activeSoloStakes.filter(stake => stake.chain === 'ETH').reduce((total, stake) => total + stake.tShares, 0)
+                                // Calculate stake counts and T-Shares by chain (only count stakes with HEX > 0 in EES mode)
+                                const plsStakeCount = activeSoloStakes.filter(stake => {
+                                  if (stake.chain !== 'PLS') return false
+                                  if (!useEESValue || stake.status !== 'active') return true
+                                  const stakeHex = calculateEESValue(stake)
+                                  return stakeHex > 0
+                                }).length
+                                const ethStakeCount = activeSoloStakes.filter(stake => {
+                                  if (stake.chain !== 'ETH') return false
+                                  if (!useEESValue || stake.status !== 'active') return true
+                                  const stakeHex = calculateEESValue(stake)
+                                  return stakeHex > 0
+                                }).length
+                                const plsTShares = activeSoloStakes.filter(stake => {
+                                  if (stake.chain !== 'PLS') return false
+                                  if (!useEESValue || stake.status !== 'active') return true
+                                  const stakeHex = calculateEESValue(stake)
+                                  return stakeHex > 0
+                                }).reduce((total, stake) => total + stake.tShares, 0)
+                                const ethTShares = activeSoloStakes.filter(stake => {
+                                  if (stake.chain !== 'ETH') return false
+                                  if (!useEESValue || stake.status !== 'active') return true
+                                  const stakeHex = calculateEESValue(stake)
+                                  return stakeHex > 0
+                                }).reduce((total, stake) => total + stake.tShares, 0)
                                 
                                                                   // Compact formatting helper for Solo Stakes card
                                   const formatCompact = (value: number): string => {
@@ -4907,9 +5217,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 }
                                 
                                 const hexLabel = chainFilter === 'ethereum' ? 'eHEX' : 'HEX'
-                                const totalTSharesForChain = activeSoloStakes.reduce((total, stake) => total + stake.tShares, 0)
-                                const totalHexForChain = activeSoloStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
-                                return `${formatCompact(totalHexForChain)} ${hexLabel} across ${activeSoloStakes.length} stake${activeSoloStakes.length !== 1 ? 's' : ''} (${formatCompactTShares(totalTSharesForChain)} T-Shares)`
+                                const totalTSharesForChain = useEESValue ? activeSoloStakes.filter(stake => {
+                                  if (stake.status !== 'active') return true
+                                  const stakeHex = calculateEESValue(stake)
+                                  return stakeHex > 0
+                                }).reduce((total, stake) => total + stake.tShares, 0) : activeSoloStakes.reduce((total, stake) => total + stake.tShares, 0)
+                                const totalHexForChain = activeSoloStakes.reduce((total, stake) => {
+                                  let stakeHex;
+                                  if (useEESValue && stake.status === 'active') {
+                                    stakeHex = calculateEESValue(stake)
+                                  } else {
+                                    stakeHex = stake.principleHex + stake.yieldHex
+                                  }
+                                  return total + stakeHex
+                                }, 0)
+                                // Only count stakes with HEX > 0 when EES mode is enabled
+                                const stakeCountForDisplay = useEESValue ? activeSoloStakes.filter(stake => {
+                                  if (stake.status !== 'active') return true
+                                  const stakeHex = calculateEESValue(stake)
+                                  return stakeHex > 0
+                                }).length : activeSoloStakes.length
+                                return `${formatCompact(totalHexForChain)} ${hexLabel} across ${stakeCountForDisplay} stake${stakeCountForDisplay !== 1 ? 's' : ''} (${formatCompactTShares(totalTSharesForChain)} T-Shares)`
                               }
                             })()}
                           </div>
@@ -4971,7 +5299,35 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           const startDate = new Date(stake.startDate)
                           const now = new Date()
                           const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
-                          const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                          
+                          // Use EES-adjusted yield for APY calculation when EES mode is active
+                          let apy
+                          if (useEESValue && stake.status === 'active') {
+                            const adaptedStake = {
+                              principleHex: stake.principleHex,
+                              yieldHex: stake.yieldHex,
+                              progress: stake.progress,
+                              tShares: stake.tShares,
+                              startDate: stake.startDate,
+                              endDate: stake.endDate,
+                              status: stake.status,
+                              chain: stake.chain
+                            }
+                            const eesDetails = calculateEESDetails(adaptedStake)
+                            const eesValue = eesDetails.eesValue
+                            
+                            if (eesValue <= 0) {
+                              // If stake is completely nuked, APY is -100% (losing entire principal)
+                              apy = -100
+                            } else {
+                              // Calculate APY based on EES value vs principal
+                              const netGainLoss = eesValue - stake.principleHex
+                              apy = ((netGainLoss / stake.principleHex) / daysElapsed) * 365 * 100
+                            }
+                          } else {
+                            // Normal APY calculation using yield
+                            apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                          }
                           return sum + (apy * stake.tShares)
                         }, 0) / totalHsiTShares : 0
                         
@@ -5052,9 +5408,58 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   }
                                   
                                   const hexLabel = chainFilter === 'ethereum' ? 'eHEX' : 'HEX'
-                                  const totalTSharesForChain = activeHsiStakes.reduce((total, stake) => total + stake.tShares, 0)
-                                  const totalHexForChain = activeHsiStakes.reduce((total, stake) => total + (stake.totalHex !== undefined ? stake.totalHex : stake.principleHex + stake.yieldHex), 0)
-                                  return `${formatCompact(totalHexForChain)} ${hexLabel} across ${activeHsiStakes.length} HSI${activeHsiStakes.length !== 1 ? 's' : ''} (${formatCompactTShares(totalTSharesForChain)} T-Shares)`
+                                  const totalTSharesForChain = useEESValue ? activeHsiStakes.filter(stake => {
+                                    if (stake.status !== 'active') return true
+                                    const adaptedStake = {
+                                      principleHex: stake.principleHex,
+                                      yieldHex: stake.yieldHex,
+                                      progress: stake.progress,
+                                      tShares: stake.tShares,
+                                      startDate: stake.startDate,
+                                      endDate: stake.endDate,
+                                      status: stake.status,
+                                      chain: stake.chain
+                                    }
+                                    const stakeHex = calculateEESValue(adaptedStake)
+                                    return stakeHex > 0
+                                  }).reduce((total, stake) => total + stake.tShares, 0) : activeHsiStakes.reduce((total, stake) => total + stake.tShares, 0)
+                                  const totalHexForChain = activeHsiStakes.reduce((total, stake) => {
+                                    let stakeHex;
+                                    if (useEESValue && stake.status === 'active') {
+                                      // For HSI stakes, we need to adapt the EES calculation
+                                      const adaptedStake = {
+                                        principleHex: stake.principleHex,
+                                        yieldHex: stake.yieldHex,
+                                        progress: stake.progress,
+                                        tShares: stake.tShares,
+                                        startDate: stake.startDate,
+                                        endDate: stake.endDate,
+                                        status: stake.status,
+                                        chain: stake.chain
+                                      }
+                                      stakeHex = calculateEESValue(adaptedStake)
+                                    } else {
+                                      stakeHex = stake.totalHex !== undefined ? stake.totalHex : stake.principleHex + stake.yieldHex
+                                    }
+                                    return total + stakeHex
+                                  }, 0)
+                                  // Only count HSI stakes with HEX > 0 when EES mode is enabled
+                                  const hsiStakeCountForDisplay = useEESValue ? activeHsiStakes.filter(stake => {
+                                    if (stake.status !== 'active') return true
+                                    const adaptedStake = {
+                                      principleHex: stake.principleHex,
+                                      yieldHex: stake.yieldHex,
+                                      progress: stake.progress,
+                                      tShares: stake.tShares,
+                                      startDate: stake.startDate,
+                                      endDate: stake.endDate,
+                                      status: stake.status,
+                                      chain: stake.chain
+                                    }
+                                    const stakeHex = calculateEESValue(adaptedStake)
+                                    return stakeHex > 0
+                                  }).length : activeHsiStakes.length
+                                  return `${formatCompact(totalHexForChain)} ${hexLabel} across ${hsiStakeCountForDisplay} HSI${hsiStakeCountForDisplay !== 1 ? 's' : ''} (${formatCompactTShares(totalTSharesForChain)} T-Shares)`
                                 }
                               })()}
                             </div>
@@ -5203,13 +5608,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         })()
                       )
                   const totalHexValue = activeStakesOnly.reduce((total, stake) => {
-                    const stakeHex = stake.principleHex + stake.yieldHex
+                    let stakeHex;
+                    if (useEESValue && stake.status === 'active') {
+                      stakeHex = calculateEESValue(stake)
+                    } else {
+                      stakeHex = stake.principleHex + stake.yieldHex
+                    }
                     const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
                     return total + (stakeHex * hexPrice)
                   }, 0)
                     
                 const { totalValue, weightedPriceChange } = activeStakesOnly.reduce((acc, stake) => {
-                  const stakeHex = stake.principleHex + stake.yieldHex
+                  let stakeHex;
+                  if (useEESValue && stake.status === 'active') {
+                    stakeHex = calculateEESValue(stake)
+                  } else {
+                    stakeHex = stake.principleHex + stake.yieldHex
+                  }
                   const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
                   const stakeValue = stakeHex * hexPrice
                   const priceData = stake.chain === 'ETH' ? prices['eHEX'] : prices['HEX']
@@ -5236,7 +5651,25 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   const startDate = new Date(stake.startDate)
                   const now = new Date()
                   const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
-                  const apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                  
+                  // Use EES-adjusted yield for APY calculation when EES mode is active
+                  let apy
+                  if (useEESValue && stake.status === 'active') {
+                    const eesDetails = calculateEESDetails(stake)
+                    const eesValue = eesDetails.eesValue
+                    
+                    if (eesValue <= 0) {
+                      // If stake is completely nuked, APY is -100% (losing entire principal)
+                      apy = -100
+                    } else {
+                      // Calculate APY based on EES value vs principal
+                      const netGainLoss = eesValue - stake.principleHex
+                      apy = ((netGainLoss / stake.principleHex) / daysElapsed) * 365 * 100
+                    }
+                  } else {
+                    // Normal APY calculation using yield
+                    apy = ((stake.yieldHex / stake.principleHex) / daysElapsed) * 365 * 100
+                  }
                   return sum + (apy * stake.tShares)
                   }, 0) / totalTShares : 0
                 
@@ -5337,20 +5770,31 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       {(() => {
                         // Calculate chain-specific stats for active stakes
                         const chainStats = activeStakesOnly.reduce((acc, stake) => {
-                          const stakeHex = stake.principleHex + stake.yieldHex
+                          let stakeHex;
+                          if (useEESValue && stake.status === 'active') {
+                            stakeHex = calculateEESValue(stake)
+                          } else {
+                            stakeHex = stake.principleHex + stake.yieldHex
+                          }
                           const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
                           const stakeValue = stakeHex * hexPrice
                           
                           if (stake.chain === 'ETH') {
                             acc.eth.hexAmount += stakeHex
                             acc.eth.hexValue += stakeValue
+                            // Only count T-Shares from stakes with HEX > 0 when EES mode is enabled
+                            if (!useEESValue || stake.status !== 'active' || stakeHex > 0) {
                             acc.eth.tShares += stake.tShares
                             acc.eth.stakeCount += 1
+                            }
                           } else {
                             acc.pls.hexAmount += stakeHex
                             acc.pls.hexValue += stakeValue
+                            // Only count T-Shares from stakes with HEX > 0 when EES mode is enabled
+                            if (!useEESValue || stake.status !== 'active' || stakeHex > 0) {
                             acc.pls.tShares += stake.tShares
                             acc.pls.stakeCount += 1
+                            }
                           }
                           return acc
                         }, {
@@ -5387,11 +5831,24 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         } else {
                           // Show single line with chain-specific label when one chain is selected
                           const hexLabel = chainFilter === 'ethereum' ? 'eHEX' : 'HEX'
-                          const totalHexAmount = activeStakesOnly.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
+                          const totalHexAmount = activeStakesOnly.reduce((total, stake) => {
+                            if (useEESValue && stake.status === 'active') {
+                              return total + calculateEESValue(stake)
+                            } else {
+                              return total + stake.principleHex + stake.yieldHex
+                            }
+                          }, 0)
+                          
+                          // Only count stakes with HEX > 0 when EES mode is enabled
+                          const stakeCountForSingleChain = useEESValue ? activeStakesOnly.filter(stake => {
+                            if (stake.status !== 'active') return true
+                            const stakeHex = calculateEESValue(stake)
+                            return stakeHex > 0
+                          }).length : activeStakesOnly.length
                           
                           return (
                             <div>
-                              {formatCompact(totalHexAmount)} {hexLabel} across {activeStakesOnly.length} stake{activeStakesOnly.length !== 1 ? 's' : ''}
+                              {formatCompact(totalHexAmount)} {hexLabel} across {stakeCountForSingleChain} stake{stakeCountForSingleChain !== 1 ? 's' : ''}
                             </div>
                           )
                         }
@@ -5461,6 +5918,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     {stake.isOverdue && (
                       <div className="px-3 py-1 rounded-full text-xs font-medium border border-red-400 text-red-400 bg-red-400/10">
                         Late
+                      </div>
+                    )}
+                    {useEESValue && stake.status === 'active' && (
+                      <div className="px-3 py-1 rounded-full text-xs font-medium border border-orange-400 text-orange-400 bg-orange-400/10">
+                        EES Mode
                       </div>
                     )}
                     {/* HSI Badge for HSI stakes */}
@@ -5572,7 +6034,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         }
                         
                         // For normal stakes
-                        const stakeHex = stake.totalHex !== undefined ? stake.totalHex : (stake.principleHex + stake.yieldHex)
+                        let stakeHex;
+                        if (useEESValue && stake.status === 'active') {
+                          // Use EES calculation when toggle is enabled for active stakes
+                          stakeHex = calculateEESValue(stake)
+                        } else {
+                          // Use regular calculation
+                          stakeHex = stake.totalHex !== undefined ? stake.totalHex : (stake.principleHex + stake.yieldHex)
+                        }
                         const totalValue = stakeHex * hexPrice
                         return (
                           <div className="flex items-center gap-2">
@@ -5599,6 +6068,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         {stake.isEES ? (
                           <>
                             {stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} HEX principal
+                          </>
+                        ) : useEESValue && stake.status === 'active' ? (
+                          <>
+                            {(() => {
+                              const eesDetails = calculateEESDetails(stake);
+                              return (
+                                <>
+                                  {eesDetails.eesValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
+                                    ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {eesDetails.payout.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield <span className="text-red-400">- {eesDetails.penalty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>)
+                                  </span>
+                                </>
+                              );
+                            })()}
                           </>
                         ) : (
                           <>
@@ -5627,11 +6109,49 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       const now = new Date()
                       const daysElapsed = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
                       
+                                             // Use EES-adjusted yield for APY calculation when EES mode is active
+                       let apy
+                       if (useEESValue && stake.status === 'active') {
+                         const eesDetails = calculateEESDetails(stake)
+                         const eesValue = eesDetails.eesValue
+                         
+                         if (eesValue <= 0) {
+                           // If stake is completely nuked, APY is -100% (losing entire principal)
+                           apy = -100
+                         } else {
+                           // Calculate APY based on EES value vs principal
+                           const netGainLoss = eesValue - stake.principleHex
+                           apy = ((netGainLoss / stake.principleHex) / daysElapsed) * 365 * 100
+                         }
+                       } else {
                       // Use net yield for APY calculation when available (accounts for penalties)
                       const effectiveYield = stake.netYieldHex !== undefined ? stake.netYieldHex : stake.yieldHex
-                      const apy = ((effectiveYield / stake.principleHex) / daysElapsed) * 365 * 100
+                         apy = ((effectiveYield / stake.principleHex) / daysElapsed) * 365 * 100
+                       }
                       
-                      return `${apy.toFixed(1)}% APY`
+                      // Show ROI instead of APY when EES mode is active
+                      if (useEESValue && stake.status === 'active') {
+                        const eesDetails = calculateEESDetails(stake)
+                        const totalROI = ((eesDetails.eesValue - stake.principleHex) / stake.principleHex) * 100
+                        
+                        if (totalROI <= -100) {
+                          return (
+                            <span className="text-red-400">
+                              -100% 💣
+                            </span>
+                          )
+                        } else if (totalROI < 0) {
+                          return (
+                            <span className="text-red-400">
+                              {totalROI.toFixed(1)}% ROI
+                            </span>
+                          )
+                        } else {
+                          return `${totalROI.toFixed(1)}% ROI`
+                        }
+                      } else {
+                        return `${apy.toFixed(1)}% APY`
+                      }
                     })()}
                   </div>
                   
@@ -5947,6 +6467,28 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         <span
                           className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
                             useBackingPrice ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex-1">
+                        <div className="font-medium text-white mb-1">EES Mode</div>
+                        <div className="text-sm text-gray-400">
+                        Use max extractable value via EES your HEX stakes instead of current paper principle + yield value.
+                          {detectiveMode && <span className="block text-xs text-blue-400 mt-1">Detective mode defaults: OFF</span>}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setUseEESValue(!useEESValue)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          useEESValue ? 'bg-white' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                            useEESValue ? 'translate-x-6' : 'translate-x-1'
                           }`}
                         />
                       </button>
