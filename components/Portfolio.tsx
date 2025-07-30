@@ -1652,7 +1652,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Helper function to calculate Emergency End Stake (EES) value using real HEX penalty calculation
   const calculateEESValue = useCallback((stake: any, timeShiftDate?: string): number => {
-    return calculateEESDetailsWithDate(stake).eesValue;
+    return calculateEESDetails(stake, timeShiftDate).eesValue;
   }, [calculateEESDetails]);
 
   // Helper functions that use the string date (only when Time-Shift is enabled)
@@ -6675,6 +6675,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         if (useEESValue && stake.status === 'active') {
                           // Use EES calculation when toggle is enabled for active stakes
                           stakeHex = calculateEESValueWithDate(stake)
+                        } else if (useTimeShift && stake.status === 'active') {
+                          // Use Time Machine calculation for projected future yield (no penalties)
+                          const projectedDetails = calculateEESDetailsWithDate(stake);
+                          stakeHex = stake.principleHex + projectedDetails.payout;
                         } else {
                           // Use regular calculation
                           stakeHex = stake.totalHex !== undefined ? stake.totalHex : (stake.principleHex + stake.yieldHex)
@@ -6749,7 +6753,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     <div>
                                       {eesDetails.eesValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
                                         ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {baselineYield.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{projectedYieldAmount > 0 && <span className="text-orange-400"> + {projectedYieldAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} projected yield</span>} <span className="text-red-400">- {eesDetails.penalty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>)
-                                      </span>
+                                </span>
                                     </div>
                                   );
                                                                  } else {
@@ -6768,31 +6772,57 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   );
                                 }
                               } else {
-                                // Current date or past date - show normal view
-                                return (
-                                  <div>
-                                    {(stake.principleHex + stake.yieldHex).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
-                                      ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield)
-                                    </span>
-                                  </div>
-                                );
+                                // Current date or past date - show normal view with EES penalties if enabled
+                                if (useEESValue) {
+                                  const eesDetails = calculateEESDetailsWithDate(stake);
+                                  return (
+                                    <div>
+                                      {eesDetails.eesValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
+                                        ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{eesDetails.penalty > 0 && <span className="text-red-400"> - {eesDetails.penalty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>})
+                                      </span>
+                                    </div>
+                                  );
+                                } else {
+                                  // Normal view
+                                  let displayPenalty = 0;
+                                  if (stake.penaltyHex && stake.penaltyHex > 0) {
+                                    displayPenalty = stake.penaltyHex;
+                                  }
+                                  
+                                  return (
+                                    <div>
+                                      {(stake.principleHex + stake.yieldHex).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
+                                        ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{displayPenalty > 0 ? (<span className="text-red-400"> - {displayPenalty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>) : ''})
+                                      </span>
+                                    </div>
+                                  );
+                                }
                               }
                             })()}
-                          </>
-                        ) : (
-                          <>
-                            {/* Check if this is an HSI stake with penalty information */}
-                            {stake.totalHex !== undefined ? (
-                              <>
-                                {stake.totalHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
-                                  ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{(stake.penaltyHex && stake.penaltyHex > 0) ? (<span className="text-red-400"> - {stake.penaltyHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>) : ''})
-                                </span>
                               </>
                             ) : (
                               <>
-                                {(stake.principleHex + stake.yieldHex).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield)</span>
-                              </>
-                            )}
+                            {(() => {
+                              // Calculate EES penalty for display if EES mode is enabled
+                              let displayPenalty = 0;
+                              let totalHexDisplay = stake.totalHex !== undefined ? stake.totalHex : (stake.principleHex + stake.yieldHex);
+                              
+                              if (useEESValue) {
+                                const eesDetails = calculateEESDetailsWithDate(stake);
+                                displayPenalty = eesDetails.penalty;
+                                totalHexDisplay = eesDetails.eesValue;
+                              } else if (stake.penaltyHex && stake.penaltyHex > 0) {
+                                displayPenalty = stake.penaltyHex;
+                              }
+                              
+                              return (
+                                <>
+                                  {totalHexDisplay.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
+                                    ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{displayPenalty > 0 ? (<span className="text-red-400"> - {displayPenalty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>) : ''})
+                                  </span>
+                                </>
+                              );
+                            })()}
                           </>
                         )}
                   </div>
