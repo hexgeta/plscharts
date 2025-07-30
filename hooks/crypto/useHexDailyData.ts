@@ -73,16 +73,26 @@ const getNext1amUTC = (): number => {
   return next1am.getTime();
 };
 
-// Check if cached data is still valid (before next 1am UTC)
+// Check if cached data is still valid (created since last 1am UTC)
 const isCacheValid = (lastUpdated: string): boolean => {
   const cacheTime = new Date(lastUpdated).getTime();
-  const next1am = getNext1amUTC();
   const now = Date.now();
   
-  // Cache is valid if:
-  // 1. It was created before next 1am UTC, AND
-  // 2. Current time is before next 1am UTC
-  return cacheTime < next1am && now < next1am;
+  // Get the most recent 1am UTC (either today or yesterday)
+  const lastOneAm = new Date();
+  lastOneAm.setUTCHours(1, 0, 0, 0);
+  
+  // If current time is before 1am today, use yesterday's 1am
+  if (now < lastOneAm.getTime()) {
+    lastOneAm.setUTCDate(lastOneAm.getUTCDate() - 1);
+  }
+  
+  // Cache is valid if it was created AFTER the most recent 1am UTC
+  const isValid = cacheTime > lastOneAm.getTime();
+  
+  console.log(`[HEX Cache] Validation: Cache from ${new Date(cacheTime).toISOString()}, Last 1am: ${lastOneAm.toISOString()}, Valid: ${isValid}`);
+  
+  return isValid;
 };
 
 // Get cached data from localStorage
@@ -94,6 +104,18 @@ const getCachedHexData = (): HexDailyDataCache | null => {
     if (!cached) return null;
     
     const data: HexDailyDataCache = JSON.parse(cached);
+    
+    // TEMPORARY: Force cache invalidation for data older than Day 2060 to fix stale cache issue
+    const maxDataDay = Math.max(
+      ...(data.dailyPayouts.ETH?.map(p => p.endDay) || [0]),
+      ...(data.dailyPayouts.PLS?.map(p => p.endDay) || [0])
+    );
+    
+    if (maxDataDay < 2060) {
+      console.log(`[HEX Cache] FORCE REFRESH: Cached data too old (latest day: ${maxDataDay}), removing stale cache`);
+      localStorage.removeItem('hex-daily-data-persistent-cache');
+      return null;
+    }
     
     // Check if cache is still valid
     if (isCacheValid(data.lastUpdated)) {

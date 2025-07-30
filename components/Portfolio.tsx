@@ -1389,6 +1389,87 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Get HEX daily data cache for EES calculations
   const { data: hexDailyDataCacheForEES } = useHexDailyDataCache();
+  
+  // Debug: Log current daily payout values and 30-day averages for both chains
+  useEffect(() => {
+    if (hexDailyDataCacheForEES?.dailyPayouts) {
+      const ethPayouts = hexDailyDataCacheForEES.dailyPayouts.ETH;
+      const plsPayouts = hexDailyDataCacheForEES.dailyPayouts.PLS;
+      
+      if (ethPayouts?.length > 0 && plsPayouts?.length > 0) {
+        const latestEthPayout = ethPayouts[ethPayouts.length - 1];
+        const latestPlsPayout = plsPayouts[plsPayouts.length - 1];
+        
+        // Calculate 30-day rolling averages
+        const calculateRolling30DayAvg = (payouts: any[]) => {
+          if (payouts.length < 30) return 'Insufficient data (< 30 days)';
+          
+          const last30Days = payouts.slice(-30);
+          const sum = last30Days.reduce((total, payout) => {
+            return total + parseFloat(payout.payoutPerTShare || '0');
+          }, 0);
+          
+          return (sum / 30).toFixed(20); // Match precision of single day values
+        };
+        
+        const ethRolling30Avg = calculateRolling30DayAvg(ethPayouts);
+        const plsRolling30Avg = calculateRolling30DayAvg(plsPayouts);
+        
+        console.log('📊 DAILY PAYOUT VALUES FOR PROJECTED YIELD:');
+        console.log('='.repeat(80));
+        console.log('🔹 ETH CHAIN:');
+        console.log(`   📈 Latest Daily: ${latestEthPayout.payoutPerTShare} (Day ${latestEthPayout.endDay})`);
+        console.log(`   📊 Rolling 30-Day Avg: ${ethRolling30Avg}`);
+        console.log('');
+        console.log('🔸 PLS CHAIN:');
+        console.log(`   📈 Latest Daily: ${latestPlsPayout.payoutPerTShare} (Day ${latestPlsPayout.endDay})`);
+        console.log(`   📊 Rolling 30-Day Avg: ${plsRolling30Avg}`);
+        console.log('');
+        console.log('💡 Projected yield now uses the 30-DAY ROLLING AVERAGE for more stable projections');
+        console.log('📈 Latest daily values shown for comparison with the average being used');
+        console.log('='.repeat(80));
+      }
+    }
+  }, [hexDailyDataCacheForEES]);
+
+  // Helper function to determine if we should use compact formatting for HEX amounts
+  // Use compact format if pooled stakes + HSI are both enabled (cramped UI) or on small screens
+  const shouldUseCompactFormat = includePooledStakes && hasHsiStakes;
+
+  // Helper function to format HEX amounts responsively based on space constraints
+  const formatHexAmount = useCallback((amount: number, compactFormatter: (val: number) => string) => {
+    if (shouldUseCompactFormat) {
+      // Always use compact format when UI is cramped (pooled + HSI enabled)
+      return compactFormatter(amount);
+    } else {
+      // Use responsive format - compact on mobile, full on desktop
+      return (
+        <>
+          <span className="md:hidden">{compactFormatter(amount)}</span>
+          <span className="hidden md:inline">{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+        </>
+      );
+    }
+  }, [shouldUseCompactFormat]);
+
+  // Helper function to calculate 30-day rolling average payout per T-Share
+  const calculate30DayAvgPayout = useCallback((dailyPayouts: any[]): number => {
+    if (!dailyPayouts || dailyPayouts.length < 30) {
+      // Fallback to latest value if insufficient data
+      if (dailyPayouts && dailyPayouts.length > 0) {
+        const latestPayout = dailyPayouts[dailyPayouts.length - 1];
+        return Number(latestPayout.payoutPerTShare || latestPayout);
+      }
+      return 0;
+    }
+    
+    const last30Days = dailyPayouts.slice(-30);
+    const sum = last30Days.reduce((total, payout) => {
+      return total + parseFloat(payout.payoutPerTShare || '0');
+    }, 0);
+    
+    return sum / 30;
+  }, []);
 
   // Helper function to calculate Emergency End Stake (EES) value and penalty using real HEX penalty calculation
   const calculateEESDetails = useCallback((stake: any, timeShiftDate?: string): { eesValue: number; penalty: number; payout: number } => {
@@ -1469,12 +1550,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         // Future projected yield (from today to natural end date)
         const futureDaysToEnd = endDay - currentDay;
         if (futureDaysToEnd > 0 && dailyPayouts && dailyPayouts.length > 0) {
-          const latestPayout = dailyPayouts[dailyPayouts.length - 1];
-          const latestPayoutNum = Number(latestPayout.payoutPerTShare || latestPayout);
+          // Use 30-day rolling average for more stable projections
+          const avgPayoutPerTShare = calculate30DayAvgPayout(dailyPayouts);
           const tSharesNum = Number(tShares);
           
-          if (!isNaN(latestPayoutNum) && !isNaN(tSharesNum) && latestPayoutNum > 0 && tSharesNum > 0) {
-            const projectedYield = latestPayoutNum * tSharesNum * futureDaysToEnd;
+          if (!isNaN(avgPayoutPerTShare) && !isNaN(tSharesNum) && avgPayoutPerTShare > 0 && tSharesNum > 0) {
+            const projectedYield = avgPayoutPerTShare * tSharesNum * futureDaysToEnd;
             if (!isNaN(projectedYield)) {
               fullPayout += projectedYield;
             }
@@ -1519,15 +1600,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       // Future projected yield (from today to timeShiftDate)
       const futureDays = timeShiftDay - currentDay;
       if (futureDays > 0 && dailyPayouts.length > 0) {
-        // Use the latest daily payout value for projection
-        const latestPayout = dailyPayouts[dailyPayouts.length - 1];
-        // Extract payoutPerTShare from the payout object
-        const latestPayoutNum = Number(latestPayout.payoutPerTShare || latestPayout);
+        // Use 30-day rolling average for more stable projections
+        const avgPayoutPerTShare = calculate30DayAvgPayout(dailyPayouts);
         const tSharesNum = Number(tShares);
         
         // Validate all values before calculation
-        if (!isNaN(latestPayoutNum) && !isNaN(tSharesNum) && latestPayoutNum > 0 && tSharesNum > 0) {
-          const projectedYield = latestPayoutNum * tSharesNum * futureDays;
+        if (!isNaN(avgPayoutPerTShare) && !isNaN(tSharesNum) && avgPayoutPerTShare > 0 && tSharesNum > 0) {
+          const projectedYield = avgPayoutPerTShare * tSharesNum * futureDays;
           if (!isNaN(projectedYield)) {
             payout += projectedYield;
           }
@@ -1569,7 +1648,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       penalty: penaltyNum, 
       payout: payoutNum 
     };
-  }, [hexDailyDataCacheForEES, timeShiftDateString]);
+  }, [hexDailyDataCacheForEES, timeShiftDateString, calculate30DayAvgPayout]);
 
   // Helper function to calculate Emergency End Stake (EES) value using real HEX penalty calculation
   const calculateEESValue = useCallback((stake: any, timeShiftDate?: string): number => {
@@ -2897,9 +2976,28 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             const adaptedStake = {
               principleHex: stake.principleHex,
               yieldHex: stake.yieldHex,
-              progress: stake.progress
+              progress: stake.progress,
+              tShares: stake.tShares,
+              startDate: stake.startDate,
+              endDate: stake.endDate,
+              status: stake.status,
+              chain: stake.chain
             }
             stakeHex = calculateEESValueWithDate(adaptedStake)
+          } else if (useTimeShift) {
+            // Use Time-Shift calculation for projected future yield
+            const adaptedStake = {
+              principleHex: stake.principleHex,
+              yieldHex: stake.yieldHex,
+              progress: stake.progress,
+              tShares: stake.tShares,
+              startDate: stake.startDate,
+              endDate: stake.endDate,
+              status: stake.status,
+              chain: stake.chain
+            }
+            const projectedDetails = calculateEESDetailsWithDate(adaptedStake);
+            stakeHex = stake.principleHex + projectedDetails.payout;
           } else {
             stakeHex = stake.totalHex !== undefined ? stake.totalHex : (stake.principleHex + stake.yieldHex)
           }
@@ -2920,6 +3018,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         let stakeHex;
         if (useEESValue && stake.status === 'active') {
           stakeHex = calculateEESValueWithDate(stake)
+        } else if (useTimeShift) {
+          // Use Time-Shift calculation for projected future yield
+          const projectedDetails = calculateEESDetailsWithDate(stake);
+          stakeHex = stake.principleHex + projectedDetails.payout;
         } else {
           stakeHex = stake.principleHex + stake.yieldHex
         }
@@ -2945,7 +3047,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate])
+  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate])
 
   // Calculate 24h portfolio change percentage using weighted average
   const portfolio24hChange = useMemo(() => {
@@ -3057,6 +3159,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         if (useEESValue) {
           // Use EES calculation instead of principle + yield
           stakeHex = calculateEESValueWithDate(stake)
+        } else if (useTimeShift) {
+          // Use Time-Shift calculation for projected future yield
+          const projectedDetails = calculateEESDetailsWithDate(stake);
+          stakeHex = stake.principleHex + projectedDetails.payout;
         } else {
           // Use regular calculation (principle + yield)
           stakeHex = stake.principleHex + stake.yieldHex
@@ -3109,9 +3215,28 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             const adaptedStake = {
               principleHex: stake.principleHex,
               yieldHex: stake.yieldHex,
-              progress: stake.progress
+              progress: stake.progress,
+              tShares: stake.tShares,
+              startDate: stake.startDate,
+              endDate: stake.endDate,
+              status: stake.status,
+              chain: stake.chain
             }
             stakeHex = calculateEESValueWithDate(adaptedStake)
+          } else if (useTimeShift) {
+            // Use Time-Shift calculation for projected future yield
+            const adaptedStake = {
+              principleHex: stake.principleHex,
+              yieldHex: stake.yieldHex,
+              progress: stake.progress,
+              tShares: stake.tShares,
+              startDate: stake.startDate,
+              endDate: stake.endDate,
+              status: stake.status,
+              chain: stake.chain
+            }
+            const projectedDetails = calculateEESDetailsWithDate(adaptedStake);
+            stakeHex = stake.principleHex + projectedDetails.payout;
           } else {
             stakeHex = stake.principleHex + stake.yieldHex
           }
@@ -3157,7 +3282,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Calculate weighted average percentage change
     return totalValue > 0 ? weightedPriceChange / totalValue : 0
-  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate])
+  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate])
 
   // Calculate portfolio dollar change for 24h
   const portfolio24hDollarChange = useMemo(() => {
@@ -4623,7 +4748,67 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 }
 
                 const totalLiquidValue = liquidHexStats.hexValue + liquidHexStats.eHexValue
-                const totalStakedValue = stakedHexStats.hexValue + stakedHexStats.eHexValue
+                // Calculate staked value using market prices (respecting MAXI toggle)
+                const allActiveSoloValue = (() => {
+                  // Get filtered native stakes
+                  const filteredNativeStakes = (hexStakes || []).filter(stake => {
+                    if (stake.status !== 'active') return false
+                    
+                    const addressObj = effectiveAddresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
+                    if (addressObj && removedAddressIds.has(addressObj.id)) return false
+                    
+                    const addressMatch = selectedAddressIds.length > 0 
+                      ? selectedAddressIds.some(id => effectiveAddresses.find(addr => addr.id === id && addr.address.toLowerCase() === stake.address.toLowerCase()))
+                      : true
+                    
+                    const chainMatch = detectiveMode 
+                      ? stake.chain === 'PLS' 
+                      : (chainFilter === 'both' || 
+                         (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+                         (chainFilter === 'pulsechain' && stake.chain === 'PLS'))
+                    
+                    return addressMatch && chainMatch
+                  })
+
+                  // Get filtered HSI stakes
+                  const filteredHsiStakes = includePooledStakes ? (hsiStakes || []).filter(stake => {
+                    if (stake.status !== 'active') return false
+                    
+                    const addressObj = effectiveAddresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
+                    if (addressObj && removedAddressIds.has(addressObj.id)) return false
+                    
+                    const addressMatch = selectedAddressIds.length > 0 
+                      ? selectedAddressIds.some(id => effectiveAddresses.find(addr => addr.id === id && addr.address.toLowerCase() === stake.address.toLowerCase()))
+                      : true
+                    
+                    const chainMatch = detectiveMode 
+                      ? stake.chain === 'PLS' 
+                      : (chainFilter === 'both' || 
+                         (chainFilter === 'ethereum' && stake.chain === 'ETH') ||
+                         (chainFilter === 'pulsechain' && stake.chain === 'PLS'))
+                    
+                    return addressMatch && chainMatch
+                  }) : []
+
+                  // Combine and calculate total value
+                  const allFilteredStakes = [...filteredNativeStakes, ...filteredHsiStakes]
+                  return allFilteredStakes.reduce((total, stake) => {
+                  let stakeHex;
+                  if (useEESValue && stake.status === 'active') {
+                    stakeHex = calculateEESValueWithDate(stake)
+                  } else if (useTimeShift) {
+                    // Use Time-Shift calculation for projected future yield
+                    const projectedDetails = calculateEESDetailsWithDate(stake);
+                    stakeHex = stake.principleHex + projectedDetails.payout;
+                  } else {
+                    stakeHex = stake.principleHex + stake.yieldHex
+                  }
+                  const hexPrice = stake.chain === 'ETH' ? getTokenPrice('eHEX') : getTokenPrice('HEX')
+                  return total + (stakeHex * hexPrice)
+                }, 0)
+                })()
+                
+                const totalStakedValue = allActiveSoloValue + (includePooledStakes ? pooledStakesData.totalValue : 0)
                 const totalCombinedValue = totalLiquidValue + totalStakedValue
                 const totalCombinedHexAmount = liquidHexStats.hexAmount + stakedHexStats.hexAmount
                 const totalCombinedEHexAmount = liquidHexStats.eHexAmount + stakedHexStats.eHexAmount
@@ -4637,14 +4822,43 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         ${formatBalance(totalCombinedValue)}
                       </div>
                       <div className="text-xs text-gray-400">
+                        {(() => {
+                          // Compact formatting helper for main summary
+                          const formatCompact = (value: number): string => {
+                            if (value >= 1000000) {
+                              return (value / 1000000).toFixed(1) + 'M'
+                            } else if (value >= 1000) {
+                              return (value / 1000).toFixed(1) + 'K'
+                            } else {
+                              return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                            }
+                          }
+
+                          return (
+                            <>
                         {totalCombinedHexAmount > 0 && totalCombinedEHexAmount > 0 
-                          ? `${formatBalance(totalCombinedHexAmount)} HEX + ${formatBalance(totalCombinedEHexAmount)} eHEX`
+                                ? <>
+                                    {formatHexAmount(totalCombinedHexAmount, formatCompact)}
+                                    {' HEX + '}
+                                    {formatHexAmount(totalCombinedEHexAmount, formatCompact)}
+                                    {' eHEX'}
+                                  </>
                           : totalCombinedHexAmount > 0 
-                            ? `${formatBalance(totalCombinedHexAmount)} HEX`
+                                  ? <>
+                                      {formatHexAmount(totalCombinedHexAmount, formatCompact)}
+                                      {' HEX'}
+                                    </>
                             : totalCombinedEHexAmount > 0 
-                              ? `${formatBalance(totalCombinedEHexAmount)} eHEX`
+                                    ? <>
+                                        {formatHexAmount(totalCombinedEHexAmount, formatCompact)}
+                                        {' eHEX'}
+                                      </>
                               : 'No HEX found'
                         }
+                            </>
+                          )
+                        })()}
+                        
                         {includePooledStakes && (pooledStakesData.totalHex || 0) > 0 && (
                           <span> (including pooled stakes)</span>
                         )}
@@ -4664,13 +4878,30 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         ${formatBalance(totalLiquidValue)}
                       </div>
                       <div className="text-xs text-gray-400 space-y-1">
+                        {(() => {
+                          // Compact formatting helper for liquid HEX
+                          const formatCompact = (value: number): string => {
+                            if (value >= 1000000) {
+                              return (value / 1000000).toFixed(1) + 'M'
+                            } else if (value >= 1000) {
+                              return (value / 1000).toFixed(1) + 'K'
+                            } else {
+                              return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                            }
+                          }
+
+                          return (
+                            <>
                         {liquidHexStats.hexAmount > 0 && (
-                          <div>{formatBalance(liquidHexStats.hexAmount)} HEX (${formatBalance(liquidHexStats.hexValue)})</div>
+                                <div>{formatHexAmount(liquidHexStats.hexAmount, formatCompact)} HEX (${formatBalance(liquidHexStats.hexValue)})</div>
                         )}
                         {liquidHexStats.eHexAmount > 0 && (
-                          <div>{formatBalance(liquidHexStats.eHexAmount)} eHEX (${formatBalance(liquidHexStats.eHexValue)})</div>
+                                <div>{formatHexAmount(liquidHexStats.eHexAmount, formatCompact)} eHEX (${formatBalance(liquidHexStats.eHexValue)})</div>
                         )}
                         {totalLiquidValue === 0 && <div>No liquid HEX found</div>}
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
 
@@ -4817,13 +5048,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             return <div>No staked HEX found</div>
                           }
                                 
+                                // Compact formatting helper for staked HEX
+                                const formatCompact = (value: number): string => {
+                                  if (value >= 1000000) {
+                                    return (value / 1000000).toFixed(1) + 'M'
+                                  } else if (value >= 1000) {
+                                    return (value / 1000).toFixed(1) + 'K'
+                                  } else {
+                                    return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                  }
+                          }
+                                
                                 return (
                                   <>
                               {totalHexStats.hexAmount > 0 && (
-                                <div>{formatBalance(totalHexStats.hexAmount)} HEX (${formatBalance(totalHexStats.hexValue)})</div>
+                                <div>{formatHexAmount(totalHexStats.hexAmount, formatCompact)} HEX (${formatBalance(totalHexStats.hexValue)})</div>
                                     )}
                               {totalHexStats.eHexAmount > 0 && (
-                                <div>{formatBalance(totalHexStats.eHexAmount)} eHEX (${formatBalance(totalHexStats.eHexValue)})</div>
+                                <div>
+                                  {formatHexAmount(totalHexStats.eHexAmount, formatCompact)}
+                                  {' eHEX ($'}{formatBalance(totalHexStats.eHexValue)}{')'}
+                                </div>
                                     )}
                             </>
                           )
@@ -4849,6 +5094,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       let stakeHex;
                       if (useEESValue && stake.status === 'active') {
                         stakeHex = calculateEESValueWithDate(stake)
+                      } else if (useTimeShift) {
+                        // Use Time-Shift calculation for projected future yield
+                        const projectedDetails = calculateEESDetailsWithDate(stake);
+                        stakeHex = stake.principleHex + projectedDetails.payout;
                       } else {
                         stakeHex = stake.principleHex + stake.yieldHex
                       }
@@ -4860,13 +5109,17 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     const soloHexAmount = activeStakes.reduce((total, stake) => {
                       if (useEESValue && stake.status === 'active') {
                         return total + calculateEESValueWithDate(stake)
+                      } else if (useTimeShift) {
+                        // Use Time-Shift calculation for projected future yield
+                        const projectedDetails = calculateEESDetailsWithDate(stake);
+                        return total + stake.principleHex + projectedDetails.payout;
                       } else {
                         return total + stake.principleHex + stake.yieldHex
                       }
                     }, 0)
                     
-                    // Combined totals - include both native and HSI stakes regardless of active tab
-                    const allActiveSoloValue = (() => {
+                    // Calculate staked value using market prices (respecting MAXI toggle)
+                    const allActiveSoloValueBottom = (() => {
                       // Get filtered native stakes
                       const filteredNativeStakes = (hexStakes || []).filter(stake => {
                         if (stake.status !== 'active') return false
@@ -4888,7 +5141,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       })
 
                       // Get filtered HSI stakes
-                      const filteredHsiStakes = (hsiStakes || []).filter(stake => {
+                      const filteredHsiStakes = includePooledStakes ? (hsiStakes || []).filter(stake => {
                         if (stake.status !== 'active') return false
                         
                         const addressObj = effectiveAddresses.find(addr => addr.address.toLowerCase() === stake.address.toLowerCase())
@@ -4905,7 +5158,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                              (chainFilter === 'pulsechain' && stake.chain === 'PLS'))
                         
                         return addressMatch && chainMatch
-                      })
+                      }) : []
 
                       // Combine and calculate total value
                       const allFilteredStakes = [...filteredNativeStakes, ...filteredHsiStakes]
@@ -4913,6 +5166,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       let stakeHex;
                       if (useEESValue && stake.status === 'active') {
                         stakeHex = calculateEESValueWithDate(stake)
+                      } else if (useTimeShift) {
+                        // Use Time-Shift calculation for projected future yield
+                        const projectedDetails = calculateEESDetailsWithDate(stake);
+                        stakeHex = stake.principleHex + projectedDetails.payout;
                       } else {
                         stakeHex = stake.principleHex + stake.yieldHex
                       }
@@ -4921,7 +5178,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     }, 0)
                     })()
                     
-                    const combinedValue = allActiveSoloValue + pooledStakesData.totalValue
+                    const combinedValue = allActiveSoloValueBottom + (includePooledStakes ? pooledStakesData.totalValue : 0)
                     
                     // Calculate combined T-shares and weighted average length using native and HSI stakes (only if toggle enabled)
                     const { allActiveTShares, allActiveWeightedLength, allActiveHexAmount } = (() => {
@@ -4968,7 +5225,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       // Combine stakes and calculate totals
                       const allFilteredStakes = [...filteredNativeStakes, ...filteredHsiStakes]
                       const totalTShares = allFilteredStakes.reduce((total, stake) => total + stake.tShares, 0)
-                      const totalHexAmount = allFilteredStakes.reduce((total, stake) => total + stake.principleHex + stake.yieldHex, 0)
+                      const totalHexAmount = allFilteredStakes.reduce((total, stake) => {
+                        let stakeHex;
+                        if (useEESValue && stake.status === 'active') {
+                          stakeHex = calculateEESValueWithDate(stake)
+                        } else if (useTimeShift) {
+                          // Use Time-Shift calculation for projected future yield
+                          const projectedDetails = calculateEESDetailsWithDate(stake);
+                          stakeHex = stake.principleHex + projectedDetails.payout;
+                        } else {
+                          stakeHex = stake.principleHex + stake.yieldHex
+                        }
+                        return total + stakeHex
+                      }, 0)
                       
                       const weightedLength = totalTShares > 0 ? allFilteredStakes.reduce((sum, stake) => {
                       const startDate = new Date(stake.startDate)
@@ -4992,6 +5261,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       let stakeHex;
                       if (useEESValue && stake.status === 'active') {
                         stakeHex = calculateEESValueWithDate(stake)
+                      } else if (useTimeShift) {
+                        // Use Time-Shift calculation for projected future yield
+                        const projectedDetails = calculateEESDetailsWithDate(stake);
+                        stakeHex = stake.principleHex + projectedDetails.payout;
                       } else {
                         stakeHex = stake.principleHex + stake.yieldHex
                       }
@@ -5180,6 +5453,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               let stakeHex;
                               if (useEESValue && stake.status === 'active') {
                                 stakeHex = calculateEESValueWithDate(stake)
+                              } else if (useTimeShift) {
+                                // Use Time-Shift calculation for projected future yield
+                                const projectedDetails = calculateEESDetailsWithDate(stake);
+                                stakeHex = stake.principleHex + projectedDetails.payout;
                               } else {
                                 stakeHex = stake.principleHex + stake.yieldHex
                               }
@@ -5235,6 +5512,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     chain: stake.chain
                                   }
                                   stakeHex = calculateEESValueWithDate(adaptedStake)
+                                } else if (useTimeShift) {
+                                  // Use Time-Shift calculation for projected future yield
+                                  const adaptedStake = {
+                                    principleHex: stake.principleHex,
+                                    yieldHex: stake.yieldHex,
+                                    progress: stake.progress,
+                                    tShares: stake.tShares,
+                                    startDate: stake.startDate,
+                                    endDate: stake.endDate,
+                                    status: stake.status,
+                                    chain: stake.chain
+                                  }
+                                  const projectedDetails = calculateEESDetailsWithDate(adaptedStake);
+                                  stakeHex = stake.principleHex + projectedDetails.payout;
                                 } else {
                                   stakeHex = stake.principleHex + stake.yieldHex
                                 }
@@ -5275,7 +5566,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 <div className="space-y-1">
                                 {totalStats.hexAmount > 0 && (
                                     <div>
-                                    {formatCompactHex(totalStats.hexAmount)} HEX ({totalStats.hexTShares >= 100 
+                                    {formatHexAmount(totalStats.hexAmount, formatCompactHex)} HEX ({totalStats.hexTShares >= 100 
                                       ? totalStats.hexTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                       : totalStats.hexTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                                     } T-Shares)
@@ -5283,10 +5574,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   )}
                                 {totalStats.eHexAmount > 0 && (
                                     <div>
-                                    {formatCompactHex(totalStats.eHexAmount)} eHEX ({totalStats.eHexTShares >= 100 
+                                    {formatHexAmount(totalStats.eHexAmount, formatCompactHex)}
+                                    {' eHEX ('}{totalStats.eHexTShares >= 100 
                                       ? totalStats.eHexTShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                       : totalStats.eHexTShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                    } T-Shares)
+                                    }{' T-Shares)'}
                                     </div>
                                   )}
                                   {combinedTShares > 0 && combinedAvgLength > 0 && (
@@ -5339,6 +5631,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 let stakeHex;
                 if (useEESValue && stake.status === 'active') {
                   stakeHex = calculateEESValueWithDate(stake)
+                } else if (useTimeShift) {
+                  // Use Time-Shift calculation for projected future yield
+                  const projectedDetails = calculateEESDetailsWithDate(stake);
+                  stakeHex = stake.principleHex + projectedDetails.payout;
                 } else {
                   stakeHex = stake.principleHex + stake.yieldHex
                 }
@@ -5396,6 +5692,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   let stakeHex;
                                   if (useEESValue && stake.status === 'active') {
                                     stakeHex = calculateEESValueWithDate(stake)
+                                  } else if (useTimeShift) {
+                                    // Use Time-Shift calculation for projected future yield
+                                    const projectedDetails = calculateEESDetailsWithDate(stake);
+                                    stakeHex = stake.principleHex + projectedDetails.payout;
                                   } else {
                                     stakeHex = stake.principleHex + stake.yieldHex
                                   }
@@ -5407,6 +5707,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   let stakeHex;
                                   if (useEESValue && stake.status === 'active') {
                                     stakeHex = calculateEESValueWithDate(stake)
+                                  } else if (useTimeShift) {
+                                    // Use Time-Shift calculation for projected future yield
+                                    const projectedDetails = calculateEESDetailsWithDate(stake);
+                                    stakeHex = stake.principleHex + projectedDetails.payout;
                                   } else {
                                     stakeHex = stake.principleHex + stake.yieldHex
                                   }
@@ -5465,15 +5769,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   <>
                                     {plsSoloHex > 0 && (
                                         <div>
-                                          <span className="md:hidden">{formatCompact(plsSoloHex)}</span>
-                                          <span className="hidden md:inline">{plsSoloHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                          {formatHexAmount(plsSoloHex, formatCompact)}
                                           {' '}HEX across {plsStakeCount} stake{plsStakeCount !== 1 ? 's' : ''} ({formatCompactTShares(plsTShares)} T-Shares)
                                         </div>
                                     )}
                                     {ethSoloHex > 0 && (
                                         <div>
-                                          <span className="md:hidden">{formatCompact(ethSoloHex)}</span>
-                                          <span className="hidden md:inline">{ethSoloHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                          {formatHexAmount(ethSoloHex, formatCompact)}
                                           {' '}eHEX across {ethStakeCount} stake{ethStakeCount !== 1 ? 's' : ''} ({formatCompactTShares(ethTShares)} T-Shares)
                                         </div>
                                     )}
@@ -5528,8 +5830,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 }).length : activeSoloStakes.length
                                 return (
                                   <>
-                                    <span className="md:hidden">{formatCompact(totalHexForChain)}</span>
-                                    <span className="hidden md:inline">{totalHexForChain.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                    {formatHexAmount(totalHexForChain, formatCompact)}
                                     {' '}{hexLabel} across {stakeCountForDisplay} stake{stakeCountForDisplay !== 1 ? 's' : ''} ({formatCompactTShares(totalTSharesForChain)} T-Shares)
                                   </>
                                 )
@@ -5673,10 +5974,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   return (
                                     <>
                                       {plsHsiHex > 0 && (
-                                        <div>{formatCompact(plsHsiHex)} HEX across {plsHsiCount} HSI{plsHsiCount !== 1 ? 's' : ''} ({formatCompactTShares(plsHsiTShares)} T-Shares)</div>
+                                        <div>{formatHexAmount(plsHsiHex, formatCompact)} HEX across {plsHsiCount} HSI{plsHsiCount !== 1 ? 's' : ''} ({formatCompactTShares(plsHsiTShares)} T-Shares)</div>
                                       )}
                                       {ethHsiHex > 0 && (
-                                        <div>{formatCompact(ethHsiHex)} eHEX across {ethHsiCount} HSI{ethHsiCount !== 1 ? 's' : ''} ({formatCompactTShares(ethHsiTShares)} T-Shares)</div>
+                                        <div>
+                                          {formatHexAmount(ethHsiHex, formatCompact)}
+                                          {' eHEX across '}{ethHsiCount}{' HSI'}{ethHsiCount !== 1 ? 's' : ''}{' ('}{formatCompactTShares(ethHsiTShares)}{' T-Shares)'}
+                                        </div>
                                       )}
                                     </>
                                   )
@@ -5754,7 +6058,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     const stakeHex = calculateEESValueWithDate(adaptedStake)
                                     return stakeHex > 0
                                   }).length : activeHsiStakes.length
-                                  return `${formatCompact(totalHexForChain)} ${hexLabel} across ${hsiStakeCountForDisplay} HSI${hsiStakeCountForDisplay !== 1 ? 's' : ''} (${formatCompactTShares(totalTSharesForChain)} T-Shares)`
+                                  const formattedHex = shouldUseCompactFormat ? formatCompact(totalHexForChain) : totalHexForChain.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                  return `${formattedHex} ${hexLabel} across ${hsiStakeCountForDisplay} HSI${hsiStakeCountForDisplay !== 1 ? 's' : ''} (${formatCompactTShares(totalTSharesForChain)} T-Shares)`
                                 }
                               })()}
                             </div>
@@ -5824,12 +6129,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             <>
                               {plsHex > 0 && (
                                 <div>
-                                  {formatCompact(plsHex)} HEX across {plsTokenCount} pooled token{plsTokenCount !== 1 ? 's' : ''} ({formatCompactTShares(plsTShares)} T-Shares)
+                                  {formatHexAmount(plsHex, formatCompact)} HEX across {plsTokenCount} pooled token{plsTokenCount !== 1 ? 's' : ''} ({formatCompactTShares(plsTShares)} T-Shares)
                                 </div>
                               )}
                               {ethHex > 0 && (
                                 <div>
-                                  {formatCompact(ethHex)} eHEX across {ethTokenCount} pooled token{ethTokenCount !== 1 ? 's' : ''} ({formatCompactTShares(ethTShares)} T-Shares)
+                                  {formatHexAmount(ethHex, formatCompact)}
+                                  {' eHEX across '}{ethTokenCount}{' pooled token'}{ethTokenCount !== 1 ? 's' : ''}{' ('}{formatCompactTShares(ethTShares)}{' T-Shares)'}
                                 </div>
                               )}
                             </>
@@ -5859,7 +6165,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           const pooledHex = pooledStakesData.totalHex || 0
                           const hexLabel = chainFilter === 'ethereum' ? 'eHEX' : 'HEX'
                           
-                          return `${formatCompact(pooledHex)} ${hexLabel} across ${pooledStakesData.tokens.length} token${pooledStakesData.tokens.length !== 1 ? 's' : ''} (${formatCompactTShares(pooledStakesData.totalTShares)} T-Shares)`
+                          const formattedHex = shouldUseCompactFormat ? formatCompact(pooledHex) : pooledHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                          return `${formattedHex} ${hexLabel} across ${pooledStakesData.tokens.length} token${pooledStakesData.tokens.length !== 1 ? 's' : ''} (${formatCompactTShares(pooledStakesData.totalTShares)} T-Shares)`
                         }
                       })()}
                     </div>
@@ -6136,15 +6443,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             <>
                               {chainStats.pls.hexAmount > 0 && (
                                 <div>
-                                  <span className="md:hidden">{formatCompact(chainStats.pls.hexAmount)}</span>
-                                  <span className="hidden md:inline">{chainStats.pls.hexAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                  {formatHexAmount(chainStats.pls.hexAmount, formatCompact)}
                                   {' '}HEX across {chainStats.pls.stakeCount} stake{chainStats.pls.stakeCount !== 1 ? 's' : ''}
                                 </div>
                               )}
                               {chainStats.eth.hexAmount > 0 && (
                                 <div>
-                                  <span className="md:hidden">{formatCompact(chainStats.eth.hexAmount)}</span>
-                                  <span className="hidden md:inline">{chainStats.eth.hexAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                  {formatHexAmount(chainStats.eth.hexAmount, formatCompact)}
                                   {' '}eHEX across {chainStats.eth.stakeCount} stake{chainStats.eth.stakeCount !== 1 ? 's' : ''}
                                 </div>
                               )}
@@ -6174,8 +6479,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           
                           return (
                             <div>
-                              <span className="md:hidden">{formatCompact(totalHexAmount)}</span>
-                              <span className="hidden md:inline">{totalHexAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                              {formatHexAmount(totalHexAmount, formatCompact)}
                               {' '}{hexLabel} across {stakeCountForSingleChain} stake{stakeCountForSingleChain !== 1 ? 's' : ''}
                             </div>
                           )
@@ -6607,23 +6911,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     {/* Percentage above green when too close */}
                                     <div 
                                       className="font-bold text-orange-400 absolute text-center bottom-0 mb-8"
-                                      style={{ 
-                                        left: leftPosition,
-                                        transform: transform
-                                      }}
-                                    >
-                                      {timeShiftProgress.toFixed(0)}%
-                                    </div>
-                                  </>
-                                );
-                              } else if (timeShiftProgress >= 95) {
-                                // Only move to top for very high percentages (not for collision)
-                                return (
-                                  <>
-
-                                    {/* Percentage at top */}
-                                    <div 
-                                      className="font-bold text-orange-400 absolute text-center top-0 -mt-1"
                                       style={{ 
                                         left: leftPosition,
                                         transform: transform
@@ -7068,7 +7355,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex-1">
-                          <div className="font-medium text-white mb-1">Time-Shift</div>
+                          <div className="font-medium text-white mb-1">Time Machine</div>
                           <div className="text-sm text-gray-400">
                             Enable future date projection to see your portfolio's potential yield and values.
                             {detectiveMode && <span className="block text-xs text-blue-400 mt-1">Detective mode defaults: OFF</span>}
