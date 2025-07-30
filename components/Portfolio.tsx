@@ -6554,7 +6554,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     )}
                     {useTimeShift && stake.status === 'active' && (
                       <div className="px-3 py-1 rounded-full text-xs font-medium border border-orange-400 text-orange-400 bg-orange-400/10">
-                        Time-Shift
+                        Time Machine
                       </div>
                     )}
                     {useEESValue && stake.status === 'active' && (
