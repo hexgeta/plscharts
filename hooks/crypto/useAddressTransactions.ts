@@ -66,32 +66,81 @@ function formatAddress(address: string): string {
 
 // Fetcher function for SWR
 async function fetchTransactions(address: string): Promise<TransactionData> {
-  if (!address || address.trim() === '') {
-    throw new Error('Address is required')
+  if (!address || typeof address !== 'string' || address.trim() === '') {
+    throw new Error('Valid address is required')
   }
 
   try {
-    console.log(`[useAddressTransactions] Fetching transactions for ${address} from PLSfolio API`)
+    console.log(`[useAddressTransactions] Fetching ALL transactions for ${address} from PLSfolio API`)
     
-    const response = await fetch(`${PLSFOLIO_API}/transactions/${address}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    const allTransactions: any[] = []
+    let nextPageParams: any = null
+    let pageCount = 0
+    const maxPages = 20 // Safety limit to prevent infinite loops
 
-    if (!response.ok) {
-      throw new Error(`PLSfolio API error: ${response.status} ${response.statusText}`)
-    }
-
-    const data = await response.json()
+    // Fetch first page
+    let url = `${PLSFOLIO_API}/transactions/${address}`
     
-    if (!data.items || !Array.isArray(data.items)) {
-      throw new Error('Invalid response format from PLSfolio API')
-    }
+    do {
+      pageCount++
+      console.log(`[useAddressTransactions] Fetching page ${pageCount} from: ${url}`)
+      
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          console.error(`[useAddressTransactions] API error on page ${pageCount}: ${response.status} ${response.statusText}`)
+          throw new Error(`PLSfolio API error: ${response.status} ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        
+        if (!data.items || !Array.isArray(data.items)) {
+          throw new Error('Invalid response format from PLSfolio API')
+        }
+
+        // Add transactions from this page
+        allTransactions.push(...data.items)
+        console.log(`[useAddressTransactions] Page ${pageCount}: ${data.items.length} transactions (total so far: ${allTransactions.length})`)
+
+        // Check if there are more pages
+        nextPageParams = data.next_page_params
+        console.log(`[useAddressTransactions] Next page params:`, nextPageParams)
+        
+        if (nextPageParams && pageCount < maxPages) {
+          // Build URL for next page using ALL pagination parameters (cursor-based pagination)
+          const params = new URLSearchParams()
+          Object.keys(nextPageParams).forEach(key => {
+            if (nextPageParams[key] !== null && nextPageParams[key] !== undefined) {
+              params.append(key, nextPageParams[key].toString())
+            }
+          })
+          url = `${PLSFOLIO_API}/transactions/${address}?${params.toString()}`
+          console.log(`[useAddressTransactions] Next page URL: ${url}`)
+        } else {
+          console.log(`[useAddressTransactions] No more pages or hit max limit. NextPageParams exists: ${!!nextPageParams}, PageCount: ${pageCount}/${maxPages}`)
+        }
+        
+        // Small delay to be nice to the API
+        if (nextPageParams && pageCount < maxPages) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+      } catch (pageError) {
+        console.error(`[useAddressTransactions] Error fetching page ${pageCount}:`, pageError)
+        // Break the loop on error to prevent infinite attempts
+        break
+      }
+    } while (nextPageParams && pageCount < maxPages)
+
+    console.log(`[useAddressTransactions] Finished! Fetched ${allTransactions.length} transactions across ${pageCount} pages`)
 
     // Convert PLSfolio format to our format
-    const transactions: Transaction[] = data.items.slice(0, 20).map((item: any) => ({
+    const transactions: Transaction[] = allTransactions.map((item: any) => ({
       hash: item.hash || '',
       from: item.from?.hash || '',
       to: item.to?.hash || null,
@@ -117,13 +166,13 @@ async function fetchTransactions(address: string): Promise<TransactionData> {
       fromName: item.from?.name || undefined
     }))
     
-    console.log(`[useAddressTransactions] Successfully fetched ${transactions.length} transactions`)
+    console.log(`[useAddressTransactions] Successfully fetched ${transactions.length} transactions from ALL PAGES`)
     
     return {
       address,
       chain: 'pulsechain',
       transactions,
-      totalFound: transactions.length,
+      totalFound: transactions.length, // Total transactions across all pages
       timestamp: new Date().toISOString()
     }
   } catch (error) {
@@ -140,7 +189,7 @@ export function useAddressTransactions(address: string): UseAddressTransactionsR
   const [error, setError] = useState<any>(null)
 
   // Create SWR key - only fetch if address is provided and valid
-  const swrKey = address && address.trim() !== '' ? 
+  const swrKey = address && typeof address === 'string' && address.trim() !== '' ? 
     getDailyCacheKey(`address-transactions-${address.toLowerCase()}`) : 
     null
 

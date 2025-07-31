@@ -186,6 +186,36 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return timeShiftDate ? timeShiftDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
   }, [timeShiftDate])
 
+  // Time Machine price override states
+  const [timeMachineHexPrice, setTimeMachineHexPrice] = useState<string>(() => {
+    if (detectiveMode) return '' // Detective mode doesn't persist settings
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('portfolioTimeMachineHexPrice') || ''
+    }
+    return ''
+  })
+  const [timeMachineEHexPrice, setTimeMachineEHexPrice] = useState<string>(() => {
+    if (detectiveMode) return '' // Detective mode doesn't persist settings
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('portfolioTimeMachineEHexPrice') || ''
+    }
+    return ''
+  })
+  const [timeMachineEthPayout, setTimeMachineEthPayout] = useState<string>(() => {
+    if (detectiveMode) return '' // Detective mode doesn't persist settings
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('portfolioTimeMachineEthPayout') || ''
+    }
+    return ''
+  })
+  const [timeMachinePlsPayout, setTimeMachinePlsPayout] = useState<string>(() => {
+    if (detectiveMode) return '' // Detective mode doesn't persist settings
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('portfolioTimeMachinePlsPayout') || ''
+    }
+    return ''
+  })
+
 
 
   // Add to Portfolio component state
@@ -478,7 +508,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Save addresses to localStorage whenever addresses change (skip in detective mode)
   useEffect(() => {
     if (detectiveMode) return // Skip localStorage operations in detective mode
-    if (addresses.length > 0) {
+    if (typeof window !== 'undefined' && addresses.length > 0) {
       localStorage.setItem('portfolioAddresses', JSON.stringify(addresses))
     }
   }, [addresses, detectiveMode])
@@ -486,13 +516,17 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Save chain filter to localStorage whenever it changes
   useEffect(() => {
     console.log('[Portfolio] Saving chain filter:', chainFilter)
-    localStorage.setItem('portfolioChainFilter', chainFilter)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioChainFilter', chainFilter)
+    }
   }, [chainFilter])
 
   // Save selected address IDs to localStorage whenever they change
   useEffect(() => {
     console.log('[Portfolio] Saving selected addresses:', selectedAddressIds.length, 'addresses')
-    localStorage.setItem('portfolioSelectedAddresses', JSON.stringify(selectedAddressIds))
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioSelectedAddresses', JSON.stringify(selectedAddressIds))
+    }
   }, [selectedAddressIds])
 
   // Clean up stale selected address IDs whenever addresses change
@@ -516,61 +550,100 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Save backing price setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
-    if (!detectiveMode) {
-    localStorage.setItem('portfolioUseBackingPrice', useBackingPrice.toString())
+    if (!detectiveMode && typeof window !== 'undefined') {
+      localStorage.setItem('portfolioUseBackingPrice', useBackingPrice.toString())
     }
   }, [useBackingPrice, detectiveMode])
 
   // Save EES value setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
-    if (!detectiveMode) {
-    localStorage.setItem('portfolioUseEESValue', useEESValue.toString())
+    if (!detectiveMode && typeof window !== 'undefined') {
+      localStorage.setItem('portfolioUseEESValue', useEESValue.toString())
     }
   }, [useEESValue, detectiveMode])
 
   // Save Time-Shift toggle setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
-    if (!detectiveMode) {
+    if (!detectiveMode && typeof window !== 'undefined') {
       localStorage.setItem('portfolioUseTimeShift', useTimeShift.toString())
     }
   }, [useTimeShift, detectiveMode])
 
+  // Save Time Machine override values to localStorage whenever they change (skip in detective mode)
+  useEffect(() => {
+    if (!detectiveMode && typeof window !== 'undefined') {
+      localStorage.setItem('portfolioTimeMachineHexPrice', timeMachineHexPrice)
+    }
+  }, [timeMachineHexPrice, detectiveMode])
+
+  useEffect(() => {
+    if (!detectiveMode && typeof window !== 'undefined') {
+      localStorage.setItem('portfolioTimeMachineEHexPrice', timeMachineEHexPrice)
+    }
+  }, [timeMachineEHexPrice, detectiveMode])
+
+  useEffect(() => {
+    if (!detectiveMode && typeof window !== 'undefined') {
+      localStorage.setItem('portfolioTimeMachineEthPayout', timeMachineEthPayout)
+    }
+  }, [timeMachineEthPayout, detectiveMode])
+
+  useEffect(() => {
+    if (!detectiveMode && typeof window !== 'undefined') {
+      localStorage.setItem('portfolioTimeMachinePlsPayout', timeMachinePlsPayout)
+    }
+  }, [timeMachinePlsPayout, detectiveMode])
+
   // Save pooled stakes setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
-    if (!detectiveMode) {
-    localStorage.setItem('portfolioIncludePooledStakes', includePooledStakes.toString())
+    if (!detectiveMode && typeof window !== 'undefined') {
+      localStorage.setItem('portfolioIncludePooledStakes', includePooledStakes.toString())
     }
   }, [includePooledStakes, detectiveMode])
 
   // Save validator count to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('portfolioValidatorCount', validatorCount.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioValidatorCount', validatorCount.toString())
+    }
   }, [validatorCount])
 
   // Save 24h change display toggle to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('portfolioShowDollarChange', showDollarChange.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioShowDollarChange', showDollarChange.toString())
+    }
   }, [showDollarChange])
 
   // Save advanced filter states to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('portfolioShowLiquidBalances', showLiquidBalances.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioShowLiquidBalances', showLiquidBalances.toString())
+    }
   }, [showLiquidBalances])
 
   useEffect(() => {
-    localStorage.setItem('portfolioShowHexStakes', showHexStakes.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioShowHexStakes', showHexStakes.toString())
+    }
   }, [showHexStakes])
 
   useEffect(() => {
-    localStorage.setItem('portfolioShowValidators', showValidators.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioShowValidators', showValidators.toString())
+    }
   }, [showValidators])
 
   useEffect(() => {
-    localStorage.setItem('portfolioShowLiquidityPositions', showLiquidityPositions.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioShowLiquidityPositions', showLiquidityPositions.toString())
+    }
   }, [showLiquidityPositions])
 
   useEffect(() => {
-    localStorage.setItem('portfolioShowAdvancedFilters', showAdvancedFilters.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioShowAdvancedFilters', showAdvancedFilters.toString())
+    }
   }, [showAdvancedFilters])
 
   // Advanced stats state
@@ -584,45 +657,63 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Save advanced stats state to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('portfolioShowAdvancedStats', showAdvancedStats.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioShowAdvancedStats', showAdvancedStats.toString())
+    }
   }, [showAdvancedStats])
 
   // Save HEX stakes sorting preferences to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('portfolioHexStakesSortField', hexStakesSortField)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioHexStakesSortField', hexStakesSortField)
+    }
   }, [hexStakesSortField])
 
   useEffect(() => {
-    localStorage.setItem('portfolioHexStakesSortDirection', hexStakesSortDirection)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioHexStakesSortDirection', hexStakesSortDirection)
+    }
   }, [hexStakesSortDirection])
 
   // Save dust filter to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('portfolioDustFilter', dustFilter.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioDustFilter', dustFilter.toString())
+    }
   }, [dustFilter])
 
   // Save hide tokens without price setting to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('portfolioHideTokensWithoutPrice', hideTokensWithoutPrice.toString())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioHideTokensWithoutPrice', hideTokensWithoutPrice.toString())
+    }
   }, [hideTokensWithoutPrice])
 
   // Save token sorting preferences to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('portfolioTokenSortField', tokenSortField)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioTokenSortField', tokenSortField)
+    }
   }, [tokenSortField])
 
   useEffect(() => {
-    localStorage.setItem('portfolioTokenSortDirection', tokenSortDirection)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioTokenSortDirection', tokenSortDirection)
+    }
   }, [tokenSortDirection])
 
   // Save stake status filter to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('portfolioStakeStatusFilter', stakeStatusFilter)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioStakeStatusFilter', stakeStatusFilter)
+    }
   }, [stakeStatusFilter])
 
   // Save active stakes tab to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('portfolioActiveStakesTab', activeStakesTab)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioActiveStakesTab', activeStakesTab)
+    }
   }, [activeStakesTab])
 
   // Detective mode overrides - ensure liquid balances and HEX stakes are always shown
@@ -1098,8 +1189,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   )
 
   // Enrich transactions with token transfer details
-  const { enrichedTransactions, isLoading: enrichmentLoading, error: enrichmentError } = useEnrichedTransactions(
-    transactionData?.transactions || []
+  const { transactions: enrichedTransactions, isLoading: enrichmentLoading, error: enrichmentError } = useEnrichedTransactions(
+    detectiveMode && detectiveAddress ? detectiveAddress : ''
   )
   
   // Debug logging for balance loading - track state changes only
@@ -1453,7 +1544,17 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   }, [shouldUseCompactFormat]);
 
   // Helper function to calculate 30-day rolling average payout per T-Share
-  const calculate30DayAvgPayout = useCallback((dailyPayouts: any[]): number => {
+  const calculate30DayAvgPayout = useCallback((dailyPayouts: any[], chainType?: 'ETH' | 'PLS'): number => {
+    // Time Machine payout overrides (only when time machine is enabled)
+    if (useTimeShift && chainType) {
+      if (chainType === 'ETH' && timeMachineEthPayout && !isNaN(parseFloat(timeMachineEthPayout))) {
+        return parseFloat(timeMachineEthPayout)
+      }
+      if (chainType === 'PLS' && timeMachinePlsPayout && !isNaN(parseFloat(timeMachinePlsPayout))) {
+        return parseFloat(timeMachinePlsPayout)
+      }
+    }
+    
     if (!dailyPayouts || dailyPayouts.length < 30) {
       // Fallback to latest value if insufficient data
       if (dailyPayouts && dailyPayouts.length > 0) {
@@ -1469,7 +1570,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }, 0);
     
     return sum / 30;
-  }, []);
+  }, [useTimeShift, timeMachineEthPayout, timeMachinePlsPayout]);
 
   // Helper function to calculate Emergency End Stake (EES) value and penalty using real HEX penalty calculation
   const calculateEESDetails = useCallback((stake: any, timeShiftDate?: string): { eesValue: number; penalty: number; payout: number } => {
@@ -1551,7 +1652,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         const futureDaysToEnd = endDay - currentDay;
         if (futureDaysToEnd > 0 && dailyPayouts && dailyPayouts.length > 0) {
           // Use 30-day rolling average for more stable projections
-          const avgPayoutPerTShare = calculate30DayAvgPayout(dailyPayouts);
+          const chainType = stake.chain === 'ETH' ? 'ETH' : 'PLS';
+          const avgPayoutPerTShare = calculate30DayAvgPayout(dailyPayouts, chainType);
           const tSharesNum = Number(tShares);
           
           if (!isNaN(avgPayoutPerTShare) && !isNaN(tSharesNum) && avgPayoutPerTShare > 0 && tSharesNum > 0) {
@@ -1601,7 +1703,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       const futureDays = timeShiftDay - currentDay;
       if (futureDays > 0 && dailyPayouts.length > 0) {
         // Use 30-day rolling average for more stable projections
-        const avgPayoutPerTShare = calculate30DayAvgPayout(dailyPayouts);
+        const chainType = stake.chain === 'ETH' ? 'ETH' : 'PLS';
+        const avgPayoutPerTShare = calculate30DayAvgPayout(dailyPayouts, chainType);
         const tSharesNum = Number(tShares);
         
         // Validate all values before calculation
@@ -1668,6 +1771,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Helper function to get token price (market or backing)
   const getTokenPrice = useCallback((symbol: string): number => {
+    // Time Machine price overrides (only when time machine is enabled)
+    if (useTimeShift) {
+      if (symbol === 'HEX' && timeMachineHexPrice && !isNaN(parseFloat(timeMachineHexPrice))) {
+        return parseFloat(timeMachineHexPrice)
+      }
+      if ((symbol === 'eHEX' || symbol === 'weHEX') && timeMachineEHexPrice && !isNaN(parseFloat(timeMachineEHexPrice))) {
+        return parseFloat(timeMachineEHexPrice)
+      }
+    }
+    
     // Stablecoins are always $1
     if (isStablecoin(symbol)) return 1
     
@@ -1690,23 +1803,35 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       
       if (backingPerToken !== null) {
         // For e/we tokens, use eHEX price with backing multiplier
-      if (symbol.startsWith('e') || symbol.startsWith('we')) {
-        const eHexPrice = prices['eHEX']?.price || 0
+        if (symbol.startsWith('e') || symbol.startsWith('we')) {
+          // Use time machine override if available, otherwise market price
+          const eHexPrice = (useTimeShift && timeMachineEHexPrice && !isNaN(parseFloat(timeMachineEHexPrice))) 
+            ? parseFloat(timeMachineEHexPrice)
+            : (prices['eHEX']?.price || 0)
           return eHexPrice * backingPerToken
-      }
+        }
         // For regular MAXI tokens (p-versions), use HEX price with backing multiplier
-      else {
-        const hexPrice = prices['HEX']?.price || 0
+        else {
+          // Use time machine override if available, otherwise market price
+          const hexPrice = (useTimeShift && timeMachineHexPrice && !isNaN(parseFloat(timeMachineHexPrice))) 
+            ? parseFloat(timeMachineHexPrice)
+            : (prices['HEX']?.price || 0)
           return hexPrice * backingPerToken
         }
       } else {
         // Fallback to old calculation if API data not available
         console.warn(`[Portfolio] No backing data found for ${symbol}, using fallback calculation`)
         if (symbol.startsWith('e') || symbol.startsWith('we')) {
-          const eHexPrice = prices['eHEX']?.price || 0
+          // Use time machine override if available, otherwise market price
+          const eHexPrice = (useTimeShift && timeMachineEHexPrice && !isNaN(parseFloat(timeMachineEHexPrice))) 
+            ? parseFloat(timeMachineEHexPrice)
+            : (prices['eHEX']?.price || 0)
           return eHexPrice * 2 // Fallback: 2.0 * eHEX price
         } else {
-          const hexPrice = prices['HEX']?.price || 0
+          // Use time machine override if available, otherwise market price
+          const hexPrice = (useTimeShift && timeMachineHexPrice && !isNaN(parseFloat(timeMachineHexPrice))) 
+            ? parseFloat(timeMachineHexPrice)
+            : (prices['HEX']?.price || 0)
           return hexPrice * 2 // Fallback: 2.0 * HEX price
         }
       }
@@ -1714,7 +1839,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // Use market price
     return prices[symbol]?.price || 0
-  }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken, getLPTokenPrice])
+  }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken, getLPTokenPrice, useTimeShift, timeMachineHexPrice, timeMachineEHexPrice])
 
   // Helper function to get token supply from constants
   const getTokenSupply = (symbol: string): number | null => {
@@ -7405,42 +7530,122 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         </button>
                       </div>
 
-                      {/* Date Picker - Only show when Time-Shift is enabled */}
+                      {/* Date Picker and Override Fields - Only show when Time-Shift is enabled */}
                       {useTimeShift && (
-                        <div 
-                          onClick={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onMouseUp={(e) => e.stopPropagation()}
-                          onTouchStart={(e) => e.stopPropagation()}
-                          onTouchEnd={(e) => e.stopPropagation()}
-                        >
-                          <DatePicker
-                            date={timeShiftDate}
-                            setDate={(date: Date | undefined) => {
-                              if (date) {
-                                // Check if selected date is today
-                                const today = new Date();
-                                const isToday = date.toDateString() === today.toDateString();
-                                
-                                if (isToday) {
-                                  // Turn off Time-Shift mode if today is selected
-                                  setUseTimeShift(false);
-                                  // Reset to a future date instead of null
-                                  const tomorrow = new Date();
-                                  tomorrow.setDate(tomorrow.getDate() + 1);
-                                  setTimeShiftDate(tomorrow);
-                                } else {
-                                  setTimeShiftDate(date);
+                        <div className="space-y-4">
+                          {/* Date Picker */}
+                          <div 
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                          >
+                            <div className="text-sm text-gray-300 mb-2">Target Date</div>
+                            <DatePicker
+                              date={timeShiftDate}
+                              setDate={(date: Date | undefined) => {
+                                if (date) {
+                                  // Check if selected date is today
+                                  const today = new Date();
+                                  const isToday = date.toDateString() === today.toDateString();
+                                  
+                                  if (isToday) {
+                                    // Turn off Time-Shift mode if today is selected
+                                    setUseTimeShift(false);
+                                    // Reset to a future date instead of null
+                                    const tomorrow = new Date();
+                                    tomorrow.setDate(tomorrow.getDate() + 1);
+                                    setTimeShiftDate(tomorrow);
+                                  } else {
+                                    setTimeShiftDate(date);
+                                  }
                                 }
-                              }
-                            }}
-                            placeholder="Select time-shift date"
-                            minDate={(() => {
-                              const yesterday = new Date();
-                              yesterday.setDate(yesterday.getDate() - 1);
-                              return yesterday;
-                            })()}
-                          />
+                              }}
+                              placeholder="Select time-shift date"
+                              minDate={(() => {
+                                const yesterday = new Date();
+                                yesterday.setDate(yesterday.getDate() - 1);
+                                return yesterday;
+                              })()}
+                            />
+                          </div>
+
+                          {/* Price & Payout Overrides - Single Row */}
+                          <div>
+                            <div className="text-sm text-gray-300 mb-2">Price & Payout Overrides</div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              <div>
+                                <label className="text-xs text-gray-400 block mb-1">pHEX Price</label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">$</span>
+                                  <input
+                                    type="number"
+                                    step="0.0001"
+                                    value={timeMachineHexPrice}
+                                    onChange={(e) => setTimeMachineHexPrice(e.target.value)}
+                                    placeholder={`${formatPrice(getTokenPrice('HEX')).replace('$', '')}`}
+                                    className="w-full pl-6 pr-2 py-1 text-sm bg-black border border-white/20 rounded text-white placeholder-gray-500 focus:outline-none focus:border-white/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-400 block mb-1">eHEX Price</label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">$</span>
+                                  <input
+                                    type="number"
+                                    step="0.0001"
+                                    value={timeMachineEHexPrice}
+                                    onChange={(e) => setTimeMachineEHexPrice(e.target.value)}
+                                    placeholder={`${formatPrice(getTokenPrice('eHEX')).replace('$', '')}`}
+                                    className="w-full pl-6 pr-2 py-1 text-sm bg-black border border-white/20 rounded text-white placeholder-gray-500 focus:outline-none focus:border-white/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-400 block mb-1">pHEX Daily Payout</label>
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={timeMachinePlsPayout}
+                                    onChange={(e) => setTimeMachinePlsPayout(e.target.value)}
+                                    placeholder={(() => {
+                                      if (hexDailyDataCacheForEES?.dailyPayouts?.PLS) {
+                                        const current = calculate30DayAvgPayout(hexDailyDataCacheForEES.dailyPayouts.PLS);
+                                        return `${current.toFixed(2)}`;
+                                      }
+                                      return 'Loading...';
+                                    })()}
+                                    className="w-full pl-2 pr-12 py-1 text-sm bg-black border border-white/20 rounded text-white placeholder-gray-500 focus:outline-none focus:border-white/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                  <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">pHEX</span>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-400 block mb-1">eHEX Daily Payout</label>
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={timeMachineEthPayout}
+                                    onChange={(e) => setTimeMachineEthPayout(e.target.value)}
+                                    placeholder={(() => {
+                                      if (hexDailyDataCacheForEES?.dailyPayouts?.ETH) {
+                                        const current = calculate30DayAvgPayout(hexDailyDataCacheForEES.dailyPayouts.ETH);
+                                        return `${current.toFixed(2)}`;
+                                      }
+                                      return 'Loading...';
+                                    })()}
+                                    className="w-full pl-2 pr-12 py-1 text-sm bg-black border border-white/20 rounded text-white placeholder-gray-500 focus:outline-none focus:border-white/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                  <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">eHEX</span>
+                                </div>
+                              </div>
+                              
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

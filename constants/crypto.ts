@@ -53,7 +53,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: null,
   ticker: "HEXWPLS",
   decimals: 18,
-  name: "HEX / WPLS - PulseX V2 Liquidity Position"
+  name: "HEX / WPLS - PulseX V2 LP"
 }, {
   chain: 369,
   a: "0x57fde0a71132198BBeC939B98976993d8D89D225",
