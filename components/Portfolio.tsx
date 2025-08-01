@@ -3988,6 +3988,24 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     return (
     <>
+      {/* EES Mode Page Glow Effect - Temporarily disabled for performance testing */}
+      {/* {hasMounted && useEESValue && (
+        <>
+          <div 
+            className="fixed top-0 left-0 w-12 h-full pointer-events-none z-0"
+            style={{
+              background: 'linear-gradient(to right, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 50%, transparent 100%)'
+            }}
+          />
+          <div 
+            className="fixed top-0 right-0 w-12 h-full pointer-events-none z-0"
+            style={{
+              background: 'linear-gradient(to left, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 50%, transparent 100%)'
+            }}
+          />
+        </>
+      )} */}
+      
       {/* EES Mode / Time Machine Banner - Centered with Frosted Glass Effect */}
       {hasMounted && (useEESValue || useTimeShift) && (
                  <div className="sticky top-4 w-full flex justify-center py-2 z-50">
@@ -6867,7 +6885,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 
                                 // Determine color and text based on mode and stake status
                                 let colorClass = 'text-gray-400'
-                                let noteText = ''
+                                let noteContent: React.ReactNode = null
                                 
                                 // Check if time shift date is after stake end date (successful completion)
                                 const stakeEndDate = new Date(stake.endDate)
@@ -6877,32 +6895,49 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 const chainType = stake.chain === 'ETH' ? 'ETH' : 'PLS'
                                 const overridePayout = chainType === 'ETH' ? timeMachineEthPayout : timeMachinePlsPayout
                                 const hasOverridePayout = overridePayout && !isNaN(parseFloat(overridePayout)) && parseFloat(overridePayout) > 0
-                                const payoutSuffix = hasOverridePayout ? ` at <span class="underline">${overridePayout} ${hexSymbol}</span> payout` : ''
                                 
                                 if (isAfterStakeEnd) {
                                   // Time shift date is after stake end - successful completion (green)
                                   colorClass = 'text-[#70D668]'
-                                  noteText = `Projected realized value at stake end of <span class="underline">${formattedDate}</span> at <span class="underline">${formattedPrice} ${hexSymbol}</span>${payoutSuffix}`
+                                  noteContent = (
+                                    <>
+                                      Projected realized value at stake end of <span className="underline">{formattedDate}</span> at <span className="underline">{formattedPrice} {hexSymbol}</span>
+                                      {hasOverridePayout && <> at <span className="underline">{overridePayout} {hexSymbol}</span> payout</>}
+                                    </>
+                                  )
                                 } else if (useEESValue && useTimeShift) {
                                   // Both modes active - red for EES
                                   colorClass = 'text-red-400'
-                                  noteText = `Projected EES value on <span class="underline">${formattedDate}</span> at <span class="underline">${formattedPrice} ${hexSymbol}</span>${payoutSuffix}`
+                                  noteContent = (
+                                    <>
+                                      Projected EES value on <span className="underline">{formattedDate}</span> at <span className="underline">{formattedPrice} {hexSymbol}</span>
+                                      {hasOverridePayout && <> at <span className="underline">{overridePayout} {hexSymbol}</span> payout</>}
+                                    </>
+                                  )
                                 } else if (useEESValue) {
                                   // EES mode only - red
                                   colorClass = 'text-red-400'
-                                  noteText = `Projected EES value on <span class="underline">${formattedDate}</span> at <span class="underline">${formattedPrice} ${hexSymbol}</span>${payoutSuffix}`
+                                  noteContent = (
+                                    <>
+                                      Projected EES value on <span className="underline">{formattedDate}</span> at <span className="underline">{formattedPrice} {hexSymbol}</span>
+                                      {hasOverridePayout && <> at <span className="underline">{overridePayout} {hexSymbol}</span> payout</>}
+                                    </>
+                                  )
                                 } else if (useTimeShift) {
                                   // Time Machine mode only - orange, paper value
                                   colorClass = 'text-orange-400'
-                                  noteText = `Projected locked value on <span class="underline">${formattedDate}</span> at <span class="underline">${formattedPrice} ${hexSymbol}</span>${payoutSuffix}`
+                                  noteContent = (
+                                    <>
+                                      Projected locked value on <span className="underline">{formattedDate}</span> at <span className="underline">{formattedPrice} {hexSymbol}</span>
+                                      {hasOverridePayout && <> at <span className="underline">{overridePayout} {hexSymbol}</span> payout</>}
+                                    </>
+                                  )
                                 }
                                 
                                 return (
-                                  <div 
-                                    className={`text-xs font-medium ${colorClass} text-right whitespace-nowrap`}
-                                    title={noteText.replace(/<[^>]*>/g, '')}
-                                    dangerouslySetInnerHTML={{ __html: noteText }}
-                                  />
+                                  <div className={`text-xs font-medium ${colorClass} text-right whitespace-nowrap`}>
+                                    {noteContent}
+                                  </div>
                                 )
                               } else {
                                 // Normal mode - show price change
