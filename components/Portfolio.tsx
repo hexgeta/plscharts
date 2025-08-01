@@ -216,6 +216,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return ''
   })
 
+  // State to track if component has mounted (to avoid hydration mismatch)
+  const [hasMounted, setHasMounted] = useState(false)
+
+  // Set mounted state after hydration
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
+
 
 
   // Add to Portfolio component state
@@ -3979,8 +3987,30 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   }
 
     return (
-    <div className="w-full pb--20 md:pb-0">
-      <Container 
+    <>
+      {/* EES Mode / Time Machine Banner - Centered with Frosted Glass Effect */}
+      {hasMounted && (useEESValue || useTimeShift) && (
+                 <div className="sticky top-4 w-full flex justify-center py-2 z-50">
+          <div className={`w-full max-w-[760px] min-w-[300px] py-2 mx-auto rounded-full text-center text-sm font-medium backdrop-blur-md shadow-lg ${
+            useEESValue && useTimeShift 
+              ? 'border border-red-400 text-red-400 bg-red-400/10' 
+              : useEESValue 
+                ? 'border border-red-400 text-red-400 bg-red-400/10' 
+                : 'border border-orange-400 text-orange-400 bg-orange-400/10'
+          }`}>
+            {useEESValue && useTimeShift && (
+              <>EES Mode & Time Machine Active <span className="underline">{timeShiftDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>
+            )}
+            {useEESValue && !useTimeShift && 'EES Mode Active'}
+            {!useEESValue && useTimeShift && (
+              <>Time Machine Active <span className="underline">{timeShiftDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>
+            )}
+          </div>
+        </div>
+      )}
+      
+      <div className="w-full pb--20 md:pb-0">
+        <Container 
       {...(showMotion ? {
         initial: { opacity: 0, y: 20 },
         animate: { opacity: 1, y: 0 },
@@ -6815,31 +6845,91 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               <span className="sm:hidden">${formatBalanceMobile(totalValue)}</span>
                               <span className="hidden sm:inline">${formatBalance(totalValue)}</span>
                             </div>
-                            <button 
-                              onClick={toggle24hChangeDisplay}
-                              className={`text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity ${
-                                (() => {
-                                  const dollarChange = (priceChange24h / 100) * totalValue
-                                  return showDollarChange 
-                                    ? (Math.abs(dollarChange) < 10 || dollarChange === 0)
-                                      ? 'text-gray-400'
-                                      : dollarChange >= 10
-                                        ? 'text-[#00ff55]'
-                                        : 'text-red-500'
-                                    : priceChange24h <= -1
-                                      ? 'text-red-500'
-                                      : priceChange24h >= 1
-                                        ? 'text-[#00ff55]'
-                                        : 'text-gray-400'
-                                })()
-                              }`}
-                              title={showDollarChange ? "Click to show percentage" : "Click to show dollar amount"}
-                            >
-                              {(() => {
+                            {(() => {
+                              // Show contextual notes in EES or Time Machine mode
+                              if (useEESValue || useTimeShift) {
+                                const targetDate = useTimeShift ? timeShiftDate : (stake.status === 'inactive' ? new Date(stake.actualEndDate || stake.endDate) : new Date(stake.endDate))
+                                const hexSymbol = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
+                                
+                                // Format price without unnecessary decimals
+                                const formatCleanPrice = (price: number): string => {
+                                  if (price === 0) return '$0'
+                                  
+                                  // Convert to string and remove trailing zeros
+                                  const priceStr = price.toString()
+                                  const cleanPrice = priceStr.replace(/\.?0+$/, '')
+                                  
+                                  return `$${cleanPrice}`
+                                }
+                                
+                                const formattedPrice = formatCleanPrice(hexPrice)
+                                const formattedDate = targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                
+                                // Determine color and text based on mode and stake status
+                                let colorClass = 'text-gray-400'
+                                let noteText = ''
+                                
+                                // Check if time shift date is after stake end date (successful completion)
+                                const stakeEndDate = new Date(stake.endDate)
+                                const isAfterStakeEnd = useTimeShift && timeShiftDate && timeShiftDate > stakeEndDate
+                                
+                                // Check for override payout values
+                                const chainType = stake.chain === 'ETH' ? 'ETH' : 'PLS'
+                                const overridePayout = chainType === 'ETH' ? timeMachineEthPayout : timeMachinePlsPayout
+                                const hasOverridePayout = overridePayout && !isNaN(parseFloat(overridePayout)) && parseFloat(overridePayout) > 0
+                                const payoutSuffix = hasOverridePayout ? ` at <span class="underline">${overridePayout} ${hexSymbol}</span> payout` : ''
+                                
+                                if (isAfterStakeEnd) {
+                                  // Time shift date is after stake end - successful completion (green)
+                                  colorClass = 'text-[#70D668]'
+                                  noteText = `Projected realized value at stake end of <span class="underline">${formattedDate}</span> at <span class="underline">${formattedPrice} ${hexSymbol}</span>${payoutSuffix}`
+                                } else if (useEESValue && useTimeShift) {
+                                  // Both modes active - red for EES
+                                  colorClass = 'text-red-400'
+                                  noteText = `Projected EES value on <span class="underline">${formattedDate}</span> at <span class="underline">${formattedPrice} ${hexSymbol}</span>${payoutSuffix}`
+                                } else if (useEESValue) {
+                                  // EES mode only - red
+                                  colorClass = 'text-red-400'
+                                  noteText = `Projected EES value on <span class="underline">${formattedDate}</span> at <span class="underline">${formattedPrice} ${hexSymbol}</span>${payoutSuffix}`
+                                } else if (useTimeShift) {
+                                  // Time Machine mode only - orange, paper value
+                                  colorClass = 'text-orange-400'
+                                  noteText = `Projected locked value on <span class="underline">${formattedDate}</span> at <span class="underline">${formattedPrice} ${hexSymbol}</span>${payoutSuffix}`
+                                }
+                                
+                                return (
+                                  <div 
+                                    className={`text-xs font-medium ${colorClass} text-right whitespace-nowrap`}
+                                    title={noteText.replace(/<[^>]*>/g, '')}
+                                    dangerouslySetInnerHTML={{ __html: noteText }}
+                                  />
+                                )
+                              } else {
+                                // Normal mode - show price change
                                 const dollarChange = (priceChange24h / 100) * totalValue
-                                return format24hChange(priceChange24h, dollarChange)
-                              })()}
-                            </button>
+                                return (
+                                  <button 
+                                    onClick={toggle24hChangeDisplay}
+                                    className={`text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity ${
+                                      showDollarChange 
+                                        ? (Math.abs(dollarChange) < 10 || dollarChange === 0)
+                                          ? 'text-gray-400'
+                                          : dollarChange >= 10
+                                            ? 'text-[#00ff55]'
+                                            : 'text-red-500'
+                                        : priceChange24h <= -1
+                                          ? 'text-red-500'
+                                          : priceChange24h >= 1
+                                            ? 'text-[#00ff55]'
+                                            : 'text-gray-400'
+                                    }`}
+                                    title={showDollarChange ? "Click to show percentage" : "Click to show dollar amount"}
+                                  >
+                                    {format24hChange(priceChange24h, dollarChange)}
+                                  </button>
+                                )
+                              }
+                            })()}
                           </div>
                         )
                       })()}
@@ -7512,7 +7602,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         <div className="flex-1">
                           <div className="font-medium text-white mb-1">Time Machine</div>
                           <div className="text-sm text-gray-400">
-                            Enable future date projection to see your portfolio's potential yield and values.
+                            See your portfolio to a future point in time when your stakes have progresseda and HEX price/payouts have changed.
                             {detectiveMode && <span className="block text-xs text-blue-400 mt-1">Detective mode defaults: OFF</span>}
                           </div>
                         </div>
@@ -8135,6 +8225,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       )}
 
     </Container>
-    </div>
+      </div>
+    </>
   )
 } 
