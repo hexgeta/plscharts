@@ -6935,7 +6935,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 }
                                 
                                 return (
-                                  <div className={`text-xs font-medium ${colorClass} text-right whitespace-nowrap`}>
+                                  <div className={`text-[10px] sm:text-xs font-medium ${colorClass} text-left sm:whitespace-nowrap break-words max-w-[200px] sm:max-w-none`}>
                                     {noteContent}
                                   </div>
                                 )
