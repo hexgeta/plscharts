@@ -6866,7 +6866,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             {(() => {
                               // Show contextual notes in EES or Time Machine mode
                               if (useEESValue || useTimeShift) {
-                                const targetDate = useTimeShift ? timeShiftDate : (stake.status === 'inactive' ? new Date(stake.actualEndDate || stake.endDate) : new Date(stake.endDate))
+                                const targetDate = useTimeShift ? timeShiftDate : (useEESValue ? new Date() : (stake.status === 'inactive' ? new Date(stake.actualEndDate || stake.endDate) : new Date(stake.endDate)))
                                 const hexSymbol = stake.chain === 'ETH' ? 'eHEX' : 'HEX'
                                 
                                 // Format price without unnecessary decimals
