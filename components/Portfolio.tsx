@@ -3264,8 +3264,21 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       })
     }
 
+    // Add LP tokens value if liquidity positions are enabled
+    if (showLiquidityPositions && lpTokensWithBalances.length > 0) {
+      const lpTokensValue = lpTokensWithBalances.reduce((total, token) => {
+        const tokenPrice = getLPTokenPrice(token.symbol) || 0
+        const tokenValue = token.balanceFormatted * tokenPrice
+        console.log(`[LP Total Value] ${token.symbol}: ${token.balanceFormatted} × $${tokenPrice} = $${tokenValue}`)
+        return total + tokenValue
+      }, 0)
+      
+      console.log(`[LP Total Value] Adding LP tokens value: $${lpTokensValue}`)
+      totalValue += lpTokensValue
+    }
+
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate])
+  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, showLiquidityPositions, lpTokensWithBalances, getLPTokenPrice])
 
   // Calculate 24h portfolio change percentage using weighted average
   const portfolio24hChange = useMemo(() => {
