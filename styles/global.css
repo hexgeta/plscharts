@@ -70,15 +70,18 @@ body {
   /* Prevent mobile browser UI bars from resizing content */
   height: 100vh;
   height: 100svh; /* Small viewport height - static */
-  overflow: hidden;
-  position: fixed;
   width: 100%;
+  /* Enable pull-to-refresh while preventing other overscroll behaviors */
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: contain;
 }
 
 /* Allow scrolling in the main content area */
 body {
   overflow-y: auto;
   position: relative;
+  /* Enable pull-to-refresh on mobile */
+  overscroll-behavior-y: contain;
 }
 
 /* Prevent address bar hiding/showing from affecting layout */
@@ -351,4 +354,19 @@ a {
 /* Remove overflow hidden from body by default */
 body {
   overflow-y: auto;
+}
+
+/* Ensure pull-to-refresh works on mobile */
+@media (max-width: 768px) {
+  body {
+    /* Allow pull-to-refresh while preventing horizontal overscroll */
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  
+  /* Enable pull-to-refresh on main content */
+  main {
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
+  }
 }

@@ -24,6 +24,12 @@ export const PRICE_CACHE_KEYS = {
   realtime: (symbol: string) => getSecondCacheKey(`price-${symbol.toLowerCase()}`, 15)
 }
 
+// LP token price cache keys
+export const LP_PRICE_CACHE_KEYS = {
+  // Real-time LP prices (15-second updates, same as regular tokens)
+  realtime: (addresses: string) => getSecondCacheKey(`lp-prices-${addresses}`, 15)
+}
+
 // Shared fetcher for HEX data
 export const HEX_DATA_URLS = {
   pulsechain: 'https://hexdailystats.com/fulldatapulsechain',

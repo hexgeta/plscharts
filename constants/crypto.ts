@@ -43,18 +43,40 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0xaE8429918FdBF9a5867e3243697637Dc56aa76A1",
   dexs: null,
-  ticker: "DAIWPLS",
+  ticker: "DAI \/ WPLS",
   decimals: 18,
-  name: "DAI / WPLS - PulseX V2 LP",
+  name: "PulseX V2",
   platform: "PLSX V2"
 }, {
   chain: 369,
   a: "0x19bb45a7270177e303dee6eaa6f5ad700812ba98",
   dexs: null,
-  ticker: "HEXWPLS",
+  ticker: "HEX \/ WPLS",
   decimals: 18,
-  name: "HEX / WPLS - PulseX V2 LP"
+  name: "PulseX V2"
 }, {
+  chain: 369,
+  a: "0xE9E1340A2b31d5D2a2dB28FB854a794E106b430a",
+  dexs: null,
+  ticker: "HTT3000",
+  decimals: 8,
+  name: "HEX Time Token - 3k Days"
+}, {
+  chain: 369,
+  a: "0xE2D03779147A32064511dd2b9D37F66f3EeFAd7C",
+  dexs: "0x290e43f97a071f7513f55B534b2C196b9eFa364C",
+  ticker: "HTT5000",
+  decimals: 8,
+  name: "HEX Time Token - 5k Days"
+}, {
+  chain: 369,
+  a: "0x47810bb3ECDc6b080CeB2d39E769F21Ff14AB7E9",
+  dexs: "0x0d37481cD2c2E1a309a159Fd08D9F6eFd0a1F224",
+  ticker: "HTT7000",
+  decimals: 8,
+  name: "HEX Time Token - 7k Days"
+},
+{
   chain: 369,
   a: "0x57fde0a71132198BBeC939B98976993d8D89D225",
   dexs: "0x922723FC4de3122F7DC837E2CD2b82Dce9dA81d2",
@@ -1878,6 +1900,17 @@ export const API_ENDPOINTS = {
   historic_ethereum: 'https://hexdailystats.com/fulldata',
   livedata: 'https://hexdailystats.com/livedata'
 }
+
+// LP Token tickers for easy detection and management
+// To add a new LP token:
+// 1. Add the token to TOKEN_CONSTANTS with platform: "PLSX V2" 
+// 2. Add the ticker to this LP_TOKENS array
+// 3. The Portfolio component will automatically detect and price it
+export const LP_TOKENS = [
+  'DAI / WPLS',
+  'HEX / WPLS'
+  // Add new LP tokens here (e.g., 'USDC / WPLS', 'PLSX / WPLS')
+] as const
 
 const getLogoPath = (ticker: string): string | null => {
   // Remove chain prefixes if they exist

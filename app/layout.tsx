@@ -143,7 +143,8 @@ function FontLoadingOptimizer() {
             html {
               height: 100vh !important;
               height: 100svh !important;
-              overflow: hidden !important;
+              overscroll-behavior-x: none !important;
+              overscroll-behavior-y: contain !important;
             }
             body {
               height: 100vh !important;
@@ -151,6 +152,7 @@ function FontLoadingOptimizer() {
               overflow-y: auto !important;
               position: relative !important;
               -webkit-overflow-scrolling: touch !important;
+              overscroll-behavior-y: contain !important;
             }
           }
           /* iOS Safari specific fixes */

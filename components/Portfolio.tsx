@@ -11,10 +11,11 @@ import { useHsiStakes } from '@/hooks/crypto/useHsiStakes'
 import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
 import { useHexDailyDataCache, calculateYieldForStake } from '@/hooks/crypto/useHexDailyData'
 import { usePulseXLPDataSWR } from '@/hooks/crypto/usePulseXLPData'
+import { useAllDefinedLPTokenPrices } from '@/hooks/crypto/useAllLPTokenPrices'
 import { useAddressTransactions } from '@/hooks/crypto/useAddressTransactions'
 import { useEnrichedTransactions } from '@/hooks/crypto/useEnrichedTransactions'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { TOKEN_CONSTANTS, LP_TOKENS } from '@/constants/crypto'
 import { Icons } from '@/components/ui/icons'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Toggle } from '@/components/ui/toggle'
@@ -117,6 +118,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const [activeTab, setActiveTab] = useState<'addresses' | 'settings'>('addresses')
   // Add state for HEX stakes display pagination
   const [displayedStakesCount, setDisplayedStakesCount] = useState(20)
+  // Add state for LP token expanded sections
+  const [expandedLPTokens, setExpandedLPTokens] = useState<Set<string>>(new Set())
   // Add state for backing price toggle
   const [useBackingPrice, setUseBackingPrice] = useState<boolean>(() => {
     if (detectiveMode) {
@@ -1459,32 +1462,70 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   }, [])
 
   // Get LP token data for PulseX V2 tokens
-  const lpTokens = TOKEN_CONSTANTS.filter(token => token.platform === 'PLSX V2')
-  
-  // Use hooks for each LP token (moved to top level to follow Rules of Hooks)
-  const lpTokenPrices: { [ticker: string]: number } = {}
-  
-  // For DAIWPLS token
-  const daiwplsConfig = TOKEN_CONSTANTS.find(token => token.ticker === 'DAIWPLS')
-  const { pricePerToken: daiwplsPrice, loading: daiwplsLoading, error: daiwplsError } = usePulseXLPDataSWR(
-    daiwplsConfig?.a || ''
+  const lpTokens = TOKEN_CONSTANTS.filter(token => 
+    token.platform === 'PLSX V2' || 
+    (token.name && token.name.includes(' LP')) ||
+    (token.name && token.name.includes(' / '))
   )
   
-  if (daiwplsPrice && daiwplsPrice > 0) {
-    lpTokenPrices['DAIWPLS'] = daiwplsPrice
-    console.log(`[Portfolio] DAIWPLS LP price fetched: $${daiwplsPrice.toFixed(6)}`)
-  } else if (daiwplsError) {
-    console.error(`[Portfolio] Error fetching DAIWPLS LP price:`, daiwplsError)
-  } else if (daiwplsLoading) {
-    console.log(`[Portfolio] Loading DAIWPLS LP price...`)
-  } else {
-    console.log(`[Portfolio] DAIWPLS LP price not available yet`)
+  // Fetch all LP token prices at once using the new batch hook
+  const { lpPrices, loading: allLPLoading, error: allLPError } = useAllDefinedLPTokenPrices(TOKEN_CONSTANTS)
+  
+  // Convert to the format expected by existing code
+  const lpTokenPrices: { [ticker: string]: number } = {}
+  const lpTokenData: { [ticker: string]: any } = {}
+  
+  Object.entries(lpPrices).forEach(([ticker, lpPrice]) => {
+    if (lpPrice.pricePerToken && lpPrice.pricePerToken > 0) {
+      lpTokenPrices[ticker] = lpPrice.pricePerToken
+      console.log(`[Portfolio] ${ticker} LP price fetched: $${lpPrice.pricePerToken.toFixed(6)}`)
+    } else if (lpPrice.error) {
+      console.error(`[Portfolio] Error fetching ${ticker} LP price:`, lpPrice.error)
+    } else if (lpPrice.loading) {
+      console.log(`[Portfolio] Loading ${ticker} LP price...`)
+    } else {
+      console.log(`[Portfolio] ${ticker} LP price not available yet`)
+    }
+    
+    // Store LP data for detailed display (underlying token breakdown)
+    if (lpPrice.data) {
+      lpTokenData[ticker] = lpPrice.data
+    }
+  })
+  
+  if (allLPError) {
+    console.error(`[Portfolio] Batch LP price fetch error:`, allLPError)
   }
 
   // Helper function to get LP token price from PulseX V2
   const getLPTokenPrice = useCallback((symbol: string): number => {
     return lpTokenPrices[symbol] || 0
   }, [lpTokenPrices])
+
+  // Helper function to calculate user's share of underlying tokens in LP
+  const calculateLPUnderlyingTokens = useCallback((lpSymbol: string, userLPBalance: number) => {
+    const lpData = lpTokenData[lpSymbol]
+    if (!lpData || !lpData.totalSupply || userLPBalance <= 0) return null
+
+    const totalSupply = parseFloat(lpData.totalSupply)
+    const userSharePercentage = userLPBalance / totalSupply
+
+    const token0Amount = parseFloat(lpData.reserve0) * userSharePercentage
+    const token1Amount = parseFloat(lpData.reserve1) * userSharePercentage
+
+    return {
+      token0: {
+        symbol: lpData.token0.symbol,
+        amount: token0Amount,
+        decimals: parseInt(lpData.token0.decimals)
+      },
+      token1: {
+        symbol: lpData.token1.symbol,
+        amount: token1Amount,
+        decimals: parseInt(lpData.token1.decimals)
+      }
+    }
+  }, [lpTokenData])
 
   // Get HEX daily data cache for EES calculations
   const { data: hexDailyDataCacheForEES } = useHexDailyDataCache();
@@ -1845,6 +1886,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       }
     }
     
+    // Handle WPLS -> PLS price mapping (WPLS should have same price as PLS)
+    if (symbol === 'WPLS') {
+      const plsPrice = prices['PLS']?.price || 0
+      console.log(`[Token Price] WPLS mapped to PLS: ${plsPrice}`)
+      return plsPrice
+    }
+    
     // Use market price
     return prices[symbol]?.price || 0
   }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken, getLPTokenPrice, useTimeShift, timeMachineHexPrice, timeMachineEHexPrice])
@@ -2100,12 +2148,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const filteredTokens = mainTokensWithBalances.filter(token => {
       const tokenPrice = getTokenPrice(token.symbol)
       
-      // Filter out liquidity positions if setting is off
-      if (!showLiquidityPositions) {
-        const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
-        if (tokenConfig?.platform) {
-          return false // Hide LP tokens when toggle is OFF
-        }
+      // Always filter out LP tokens from main table (they appear in separate LP section when enabled)
+      const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
+      const isLPToken = tokenConfig?.platform === 'PLSX V2' || 
+                       LP_TOKENS.includes(token.symbol as any) ||  // Use LP_TOKENS constant
+                       token.symbol.includes('LP') || 
+                       token.name?.includes(' LP') ||
+                       token.name?.includes(' / ')
+      
+      if (isLPToken) {
+        return false // Always hide LP tokens from main table (they show in LP section)
       }
       
       // Filter by price data availability
@@ -2201,6 +2253,39 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     showDollarChange,
     // Include liquidity positions setting
     showLiquidityPositions
+  ])
+
+  // Memoized LP tokens with balances
+  const lpTokensWithBalances = useMemo(() => {
+    if (!mainTokensWithBalances.length) return []
+    
+    // Filter for LP tokens (tokens with platform info or in LP_TOKENS list)
+    const lpTokens = mainTokensWithBalances.filter(token => {
+      const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
+      return tokenConfig?.platform || 
+             LP_TOKENS.includes(token.symbol as any) ||  // Use LP_TOKENS constant
+             token.symbol.includes('LP') || 
+             token.name?.includes(' LP') ||
+             token.name?.includes(' / ')
+    })
+    
+    console.log(`[LP Detection] Found ${lpTokens.length} LP tokens:`, lpTokens.map(t => t.symbol))
+    
+    // Sort by USD value (highest first)
+    return [...lpTokens].sort((a, b) => {
+      const aPrice = getLPTokenPrice(a.symbol) || 0
+      const bPrice = getLPTokenPrice(b.symbol) || 0
+      const aValue = a.balanceFormatted * aPrice
+      const bValue = b.balanceFormatted * bPrice
+      
+      console.log(`[LP Sorting] ${a.symbol}: ${a.balanceFormatted} × $${aPrice} = $${aValue}`)
+      console.log(`[LP Sorting] ${b.symbol}: ${b.balanceFormatted} × $${bPrice} = $${bValue}`)
+      
+      return bValue - aValue // Higher value first
+    })
+  }, [
+    mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted.toFixed(6)}`).join('|'),
+    lpTokenPrices
   ])
 
   // Format balance for display (token units - can use scientific notation)
@@ -4490,6 +4575,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </label>
                 </div>
                 
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="liquidity-positions"
+                    checked={showLiquidityPositions}
+                    onCheckedChange={(checked) => setShowLiquidityPositions(checked === true)}
+                  />
+                  <label 
+                    htmlFor="liquidity-positions" 
+                    className={`text-sm cursor-pointer ${showLiquidityPositions ? 'text-white' : 'text-gray-400'}`}
+                  >
+                    Include liquidity positions
+                  </label>
+                </div>
+                
 
               </div>
             </div>
@@ -4638,6 +4737,250 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           <div className="text-gray-400">
             No tokens found for tracked addresses
               </div>
+        </Section>
+      )}
+
+      {/* Liquidity Pools Section */}
+      {showLiquidityPositions && isEverythingReady && lpTokensWithBalances.length > 0 && (
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.45,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
+          className="max-w-[860px] w-full"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white">Liquidity Pools</h3>
+            <div className="text-xs text-gray-400">
+              {lpTokensWithBalances.length} pool{lpTokensWithBalances.length !== 1 ? 's' : ''} detected
+            </div>
+          </div>
+          
+          <div className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6">
+            <div className="space-y-3">
+              {lpTokensWithBalances.map((token, tokenIndex) => {
+                const tokenPrice = getLPTokenPrice(token.symbol) || 0
+                const stableKey = `${token.chain}-${token.symbol}-${token.address || 'lp'}`
+                const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
+                const displayAmount = formatBalance(token.balanceFormatted)
+                const usdValue = token.balanceFormatted * tokenPrice
+                
+                const underlyingTokens = calculateLPUnderlyingTokens(token.symbol, token.balanceFormatted)
+                
+                // Calculate pool ownership percentage
+                const lpData = lpTokenData[token.symbol]
+                const poolOwnershipPercentage = lpData && lpData.totalSupply 
+                  ? (token.balanceFormatted / parseFloat(lpData.totalSupply)) * 100
+                  : null
+                
+                if (poolOwnershipPercentage !== null) {
+                  console.log(`[LP Ownership] ${token.symbol}: ${token.balanceFormatted} / ${lpData.totalSupply} = ${poolOwnershipPercentage.toFixed(4)}% of pool`)
+                }
+                
+                return (
+                  <div key={stableKey}>
+                    {/* Main LP Token Row */}
+                    <div className="grid grid-cols-[minmax(20px,auto)_2fr_1fr_2fr_minmax(20px,auto)] xs:grid-cols-[minmax(20px,auto)_1fr_1fr_1fr_minmax(20px,auto)] sm:grid-cols-[minmax(20px,auto)_2fr_1fr_1fr_minmax(60px,auto)_2fr_minmax(40px,auto)] items-center gap-2 sm:gap-4 border-b border-white/10 mx-2 sm:mx-4 py-4 last:border-b-0 overflow-hidden">
+                      
+                      {/* Chain Icon - Furthest Left Column */}
+                      <div className="flex space-x-2 items-center justify-center min-w-[18px]">
+                        <CoinLogo
+                          symbol="PLS-white"
+                          size="sm"
+                          className="grayscale opacity-50"
+                        />
+                      </div>
+                      
+                      {/* Token Info - Left Column */}
+                      <div className="flex items-center space-x-2 sm:space-x-3 min-w-[70px] md:min-w-[140px] overflow-hidden">
+                        <div className="flex-shrink-0">
+                          {(() => {
+                            // Extract token symbols from LP pair name (e.g., "HEX / WPLS" -> ["HEX", "WPLS"])
+                            const tokenSymbols = token.symbol.split(' / ')
+                            const token0Symbol = tokenSymbols[0] || 'PLS'
+                            const token1Symbol = tokenSymbols[1] || 'HEX'
+                            
+                            return (
+                              <div className="relative w-8 h-8">
+                                {/* First token (back) */}
+                                <div className="absolute top-0 left-0 w-6 h-6">
+                                  <CoinLogo
+                                    symbol={token0Symbol}
+                                    size="sm"
+                                    className="w-6 h-6 border border-black/20 rounded-full"
+                                  />
+                                </div>
+                                {/* Second token (front, overlapping) */}
+                                <div className="absolute top-2 left-2.5 w-6 h-6">
+                                  <CoinLogo
+                                    symbol={token1Symbol}
+                                    size="sm"
+                                    className="w-6 h-6 border border-black/20 rounded-full"
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-medium text-sm md:text-md break-words">
+                            {token.symbol}
+                          </div>
+                          <div className="text-gray-400 text-[10px] break-words leading-tight">
+                            <span className="sm:hidden">{displayAmount} tokens</span>
+                            <span className="hidden sm:block">{tokenConfig?.name || `${token.symbol} Liquidity Pool`}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Price Column - Hidden on Mobile */}
+                      <div className="hidden sm:block text-center">
+                        <div className="text-gray-400 text-xs font-medium">
+                          {tokenPrice === 0 ? '--' : `$${tokenPrice.toFixed(2)}`}
+                        </div>
+                      </div>
+
+                      {/* 24h Price Change Column - Pool Ownership on Mobile */}
+                      <div className="text-center">
+                        {poolOwnershipPercentage !== null ? (
+                          <div className="text-purple-400 text-xs font-medium sm:hidden">
+                            {poolOwnershipPercentage.toFixed(2)}%
+                          </div>
+                        ) : (
+                          <div className="text-gray-400 text-xs sm:hidden">--</div>
+                        )}
+                      </div>
+
+                      {/* League Column - Pool Ownership Percentage on Desktop */}
+                      <div className="hidden sm:flex flex-col items-center justify-center min-w-[60px]">
+                        {poolOwnershipPercentage !== null ? (
+                          <div className="text-purple-400 text-xs font-medium">
+                            {poolOwnershipPercentage.toFixed(2)}%
+                          </div>
+                        ) : (
+                          <div className="text-gray-400 text-xs">--</div>
+                        )}
+                      </div>
+                      
+                      {/* Value - Right Column */}
+                      <div className="text-right overflow-hidden">
+                        <div className="text-white font-medium text-sm md:text-lg transition-all duration-200">
+                          ${formatDollarValue(usdValue)}
+                        </div>
+                        <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
+                          {displayAmount} tokens
+                        </div>
+                        {tokenConfig?.platform && (
+                          <div className="text-blue-400 text-[9px] mt-1 text-right">
+                            {tokenConfig.platform}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Chart & Copy Icons - Far Right Column */}
+                      <div className="flex flex-col items-center ml-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const isExpanded = expandedLPTokens.has(token.symbol)
+                            const newExpanded = new Set(expandedLPTokens)
+                            if (isExpanded) {
+                              newExpanded.delete(token.symbol)
+                            } else {
+                              newExpanded.add(token.symbol)
+                            }
+                            setExpandedLPTokens(newExpanded)
+                          }}
+                          className="p-1 text-gray-400 hover:text-white transition-colors"
+                          title={expandedLPTokens.has(token.symbol) ? "Hide underlying tokens" : "Show underlying tokens"}
+                        >
+                          <ChevronDown 
+                            className={`w-4 h-4 transition-transform duration-200 ${
+                              expandedLPTokens.has(token.symbol) ? '' : 'rotate-180'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Underlying Tokens Breakdown */}
+                    <AnimatePresence>
+                      {underlyingTokens && expandedLPTokens.has(token.symbol) && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: "easeInOut" }}
+                          className="px-4 pb-3 border-t border-white/5 overflow-hidden"
+                        >
+                          <div className="text-xs text-gray-400 mb-2 mt-2">Your share of underlying tokens:</div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex items-center space-x-2">
+                            <CoinLogo
+                              symbol={underlyingTokens.token0.symbol}
+                              size="sm"
+                              className="rounded-none"
+                            />
+                            <div>
+                              {(() => {
+                                const token0Price = getTokenPrice(underlyingTokens.token0.symbol)
+                                const token0UsdValue = underlyingTokens.token0.amount * token0Price
+                                console.log(`[LP Token0 Price] ${underlyingTokens.token0.symbol}: price=${token0Price}, amount=${underlyingTokens.token0.amount}, usdValue=${token0UsdValue}`)
+                                return token0Price > 0 ? (
+                                  <div className="text-white text-xs font-medium">
+                                    ${formatDollarValue(token0UsdValue)}
+                                  </div>
+                                ) : (
+                                  <div className="text-red-400 text-xs">
+                                    No price data for {underlyingTokens.token0.symbol}
+                                  </div>
+                                )
+                              })()}
+                              <div className="text-gray-400 text-xs">
+                                {formatBalance(underlyingTokens.token0.amount)} {underlyingTokens.token0.symbol}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <CoinLogo
+                              symbol={underlyingTokens.token1.symbol}
+                              size="sm"
+                              className="rounded-none"
+                            />
+                            <div>
+                              {(() => {
+                                const token1Price = getTokenPrice(underlyingTokens.token1.symbol)
+                                const token1UsdValue = underlyingTokens.token1.amount * token1Price
+                                console.log(`[LP Token1 Price] ${underlyingTokens.token1.symbol}: price=${token1Price}, amount=${underlyingTokens.token1.amount}, usdValue=${token1UsdValue}`)
+                                return token1Price > 0 ? (
+                                  <div className="text-white text-xs font-medium">
+                                    ${formatDollarValue(token1UsdValue)}
+                                  </div>
+                                ) : (
+                                  <div className="text-red-400 text-xs">
+                                    No price data for {underlyingTokens.token1.symbol}
+                                  </div>
+                                )
+                              })()}
+                              <div className="text-gray-400 text-xs">
+                                {formatBalance(underlyingTokens.token1.amount)} {underlyingTokens.token1.symbol}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </Section>
       )}
 
