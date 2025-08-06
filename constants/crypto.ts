@@ -9,6 +9,8 @@ export interface TokenConfig {
   name: string
   origin?: [number, string]
   supply?: number
+  type?: "lp" | "token"
+  platform?: string
 }
 
 export const TOKEN_CONSTANTS = [{
@@ -46,6 +48,7 @@ export const TOKEN_CONSTANTS = [{
   ticker: "DAI \/ WPLS",
   decimals: 18,
   name: "PulseX V2",
+  type: "lp",
   platform: "PLSX V2"
 }, {
   chain: 369,
@@ -53,7 +56,277 @@ export const TOKEN_CONSTANTS = [{
   dexs: null,
   ticker: "HEX \/ WPLS",
   decimals: 18,
-  name: "PulseX V2"
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x149b2c629e652f2e89e11cd57e5d4d77ee166f9f",
+  dexs: null,
+  ticker: "PLSX \/ WPLS",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x29d66D5900Eb0d629E1e6946195520065A6c5aeE",
+  dexs: null,
+  ticker: "WETH \/ WPLS",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x922723FC4de3122F7DC837E2CD2b82Dce9dA81d2",
+  dexs: null,
+  ticker: "HEX \/ weHEX",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x78D58247BE592F3Cb7B87A5650c6B466Ce4a5476",
+  dexs: null,
+  ticker: "pWBTC \/ DAI",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0xC475332e92561CD58f278E4e2eD76c17D5b50f05",
+  dexs: null,
+  ticker: "USDC \/ HEX",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0xF0eA3efE42C11c8819948Ec2D3179F4084863D3F",
+  dexs: null,
+  ticker: "weHEX \/ WPLS",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x31eF9a41500E6BD18524404aC9c5B88D04AA924E",
+  dexs: null,
+  ticker: "WPLS \/ TEDDY",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0xe0e1f83a1c64cf65c1a86d7f3445fc4f58f7dcbf",
+  dexs: null,
+  ticker: "pWBTC \/ WPLS (v2)",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x5B9661276708202DD1A0dD2346A3856b00d3c251",
+  dexs: null,
+  ticker: "INC \/ WPLS",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x9b82FeE4e54011fe7e5352317d6C7fDc5d2c1ACe",
+  dexs: null,
+  ticker: "HEX \/ WPLS (Alt)",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x9b82FeE4e54011fe7e5352317d6C7fDc5d2c1ACe",
+  dexs: null,
+  ticker: "HEX (from pump.tires)  \/ WPLS",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0x6f7736Da2965cC49a1e43a5D449a7bAF7011E524",
+  dexs: null,
+  ticker: "WETH  \/ PLSX",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0xfC64556FAA683e6087F425819C7Ca3C558e13aC1",
+  dexs: null,
+  ticker: "pDAI  \/ weDAI",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0xeC052d46D3115DF7F6058160Cd0b87b272201341",
+  dexs: null,
+  ticker: "WPLS  \/ DAI (from pump.tires)",
+  decimals: 18,
+  name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0xE56043671df55dE5CDf8459710433C10324DE0aE",
+  dexs: null,
+  ticker: "WPLS \/ weDAI",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x42AbdFDB63f3282033C766E72Cc4810738571609",
+  dexs: null,
+  ticker: "WETH \/ WPLS",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x1b45b9148791d3a104184Cd5DFE5CE57193a3ee9",
+  dexs: null,
+  ticker: "PLSX \/ WPLS (V1)",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x6753560538ECa67617A9Ce605178F788bE7E524E",
+  dexs: null,
+  ticker: "weUSDC \/ WPLS",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65",
+  dexs: null,
+  ticker: "HEX \/ WPLS (V1)",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x03250E1f707E9Fb1CD41B8C2696c0e8eab5B42De",
+  dexs: null,
+  ticker: "WPLS \/ PCOCK",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x322Df7921F28F1146Cdf62aFdaC0D6bC0Ab80711",
+  dexs: null,
+  ticker: "weUSDT \/ WPLS",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0xf808Bb6265e9Ca27002c0A04562Bf50d4FE37EAA",
+  dexs: null,
+  ticker: "INC \/ WPLS",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x46E27Ea3A035FfC9e6d6D56702CE3D208FF1e58c",
+  dexs: null,
+  ticker: "pWBTC \/ WPLS (v1)",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x03bb886995f4F699dE817582859686388aCB1D56",
+  dexs: null,
+  ticker: "TFC \/ WPLS",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x947b4633e32E0c7f2c76753B43F008480715416D",
+  dexs: null,
+  ticker: "pDAI \/ WPLS",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x5EF7AaC0DE4F2012CB36730Da140025B113FAdA4",
+  dexs: null,
+  ticker: "pDAI \/ ATROPA",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x6F1747370B1CAcb911ad6D4477b718633DB328c8",
+  dexs: null,
+  ticker: "HEX \/ weDAI",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0xcBBad671CA3A46A565551335C10144e75554B367",
+  dexs: null,
+  ticker: "WPLS \/ ATROPA",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0x6444456960C3f95b5b408f4d9E00220643f06F94",
+  dexs: null,
+  ticker: "pUSDC \/ WPLS",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0xc10A4Ed9b4042222d69ff0B374eddd47ed90fC1F",
+  dexs: "0x03250E1f707E9Fb1CD41B8C2696c0e8eab5B42De",
+  ticker: "PCOCK",
+  decimals: 18,
+  name: "PCOCK"
 }, {
   chain: 369,
   a: "0xE9E1340A2b31d5D2a2dB28FB854a794E106b430a",
@@ -1064,7 +1337,7 @@ export const TOKEN_CONSTANTS = [{
 }, {
   chain: 369,
   a: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-  dexs: "0x6444456960c3f95b5b408f4d9e00220643f06f94",
+  dexs: "0x6444456960C3f95b5b408f4d9E00220643f06F94",
   ticker: "pUSDC",
   decimals: 6,
   name: "USDC on PulseChain"
@@ -1901,16 +2174,10 @@ export const API_ENDPOINTS = {
   livedata: 'https://hexdailystats.com/livedata'
 }
 
-// LP Token tickers for easy detection and management
+// LP Token detection is now handled via the `type: "lp"` field in TOKEN_CONSTANTS
 // To add a new LP token:
-// 1. Add the token to TOKEN_CONSTANTS with platform: "PLSX V2" 
-// 2. Add the ticker to this LP_TOKENS array
-// 3. The Portfolio component will automatically detect and price it
-export const LP_TOKENS = [
-  'DAI / WPLS',
-  'HEX / WPLS'
-  // Add new LP tokens here (e.g., 'USDC / WPLS', 'PLSX / WPLS')
-] as const
+// 1. Add the token to TOKEN_CONSTANTS with type: "lp" and platform: "PLSX V2" 
+// 2. The Portfolio component will automatically detect and price it
 
 const getLogoPath = (ticker: string): string | null => {
   // Remove chain prefixes if they exist

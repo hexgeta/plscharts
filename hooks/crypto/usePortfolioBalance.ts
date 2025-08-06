@@ -76,7 +76,7 @@ async function getNativeBalance(address: string, chainId: number): Promise<Token
       decimals: 18,
       isNative: true
     }
-  } catch (error) {
+  } catch (error: any) {
     return {
       address: '0x0',
       symbol: chainId === 369 ? 'PLS' : 'ETH',
@@ -147,7 +147,7 @@ async function getTokenBalance(
       decimals,
       isNative: false
     }
-  } catch (error) {
+  } catch (error: any) {
     return {
       address: tokenAddress,
       symbol,
@@ -251,7 +251,7 @@ async function getAddressBalances(address: string, chainId: number): Promise<Bal
       nativeBalance,
       tokenBalances
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(`[usePortfolioBalance] Error fetching balances for ${address} on chain ${chainId}:`, error)
     const nativeSymbol = chainId === 369 ? 'PLS' : 'ETH'
     const nativeName = chainId === 369 ? 'PulseChain' : 'Ethereum'

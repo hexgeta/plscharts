@@ -15,7 +15,7 @@ import { useAllDefinedLPTokenPrices } from '@/hooks/crypto/useAllLPTokenPrices'
 import { useAddressTransactions } from '@/hooks/crypto/useAddressTransactions'
 import { useEnrichedTransactions } from '@/hooks/crypto/useEnrichedTransactions'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TOKEN_CONSTANTS, LP_TOKENS } from '@/constants/crypto'
+import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { Icons } from '@/components/ui/icons'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Toggle } from '@/components/ui/toggle'
@@ -353,8 +353,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return 0
   })
 
-  // Dust filter input display state (separate from the actual filter value)
-  const [dustFilterInput, setDustFilterInput] = useState<string>('')
+  // Dust filter input display state (should always reflect the actual filter value)
+  const [dustFilterInput, setDustFilterInput] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioDustFilter')
+      const savedValue = saved ? parseFloat(saved) || 0 : 0
+      return savedValue === 0 ? '' : savedValue.toString()
+    }
+    return ''
+  })
 
   // Hide tokens with no price data state
   const [hideTokensWithoutPrice, setHideTokensWithoutPrice] = useState<boolean>(() => {
@@ -1304,6 +1311,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Fetch prices for all tokens with balances
   const { prices: rawPrices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
 
+  // We need to create a placeholder for LP underlying prices that will be populated later
+  // This prevents the dependency cycle while still allowing the prices to be combined
+  const [lpUnderlyingPricesState, setLpUnderlyingPricesState] = useState<any>({})
+
   // Fetch MAXI token backing data
   const { data: maxiData, isLoading: maxiLoading, error: maxiError, getBackingPerToken } = useMaxiTokenData()
 
@@ -1353,12 +1364,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Stabilize prices reference to prevent unnecessary re-renders
   const prices = useMemo(() => {
+    // Combine main prices with LP underlying token prices
+    const combinedPrices = { ...(rawPrices || {}), ...(lpUnderlyingPricesState || {}) }
+    
     // Add some debugging to see if prices are updating
     if (rawPrices && !isInitialLoad) {
-      console.log('[Portfolio] Prices updated:', Object.keys(rawPrices).length, 'tokens');
+      console.log('[Portfolio] Prices updated:', Object.keys(rawPrices).length, 'main tokens');
     }
-    return rawPrices || {};
-  }, [rawPrices, isInitialLoad])
+    if (lpUnderlyingPricesState && Object.keys(lpUnderlyingPricesState).length > 0) {
+      console.log('[Portfolio] LP underlying prices updated:', Object.keys(lpUnderlyingPricesState).length, 'LP tokens:', Object.keys(lpUnderlyingPricesState));
+    }
+    
+    return combinedPrices;
+  }, [rawPrices, lpUnderlyingPricesState, isInitialLoad])
 
   // Get all tokens with balances combined from all addresses (or filtered by selected address)
   const { filteredBalances, mainTokensWithBalances } = useMemo(() => {
@@ -1513,14 +1531,33 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const token0Amount = parseFloat(lpData.reserve0) * userSharePercentage
     const token1Amount = parseFloat(lpData.reserve1) * userSharePercentage
 
+    // Extract the correct token symbols from the LP ticker instead of using API symbols
+    // e.g. "pUSDC \/ WPLS" -> ["pUSDC", "WPLS"]
+    const lpTokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === lpSymbol)
+    let token0Symbol = lpData.token0.symbol // fallback to API symbol
+    let token1Symbol = lpData.token1.symbol // fallback to API symbol
+    
+    if (lpTokenConfig?.ticker) {
+      // Parse the LP ticker to extract token symbols
+      // Handle formats like "pUSDC \/ WPLS", "pUSDC / WPLS", "pUSDC/WPLS", "pUSDC-WPLS"
+      const tickerMatch = lpTokenConfig.ticker.match(/([A-Za-z0-9]+)\s*\\?\s*[\/\-]\s*([A-Za-z0-9]+)/)
+      if (tickerMatch) {
+        token0Symbol = tickerMatch[1]
+        token1Symbol = tickerMatch[2]
+        console.log(`[LP Override] ${lpSymbol}: API tokens were ${lpData.token0.symbol}/${lpData.token1.symbol}, overriding with ${token0Symbol}/${token1Symbol}`)
+      } else {
+        console.warn(`[LP Override] ${lpSymbol}: Could not parse tokens from ticker "${lpTokenConfig.ticker}", using API symbols`)
+      }
+    }
+
     return {
       token0: {
-        symbol: lpData.token0.symbol,
+        symbol: token0Symbol,
         amount: token0Amount,
         decimals: parseInt(lpData.token0.decimals)
       },
       token1: {
-        symbol: lpData.token1.symbol,
+        symbol: token1Symbol,
         amount: token1Amount,
         decimals: parseInt(lpData.token1.decimals)
       }
@@ -2142,6 +2179,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Memoized sorted tokens to prevent re-sorting on every render
   const sortedTokens = useMemo(() => {
     console.log(`[SORT MEMO] Running sortedTokens memo - sortField: ${tokenSortField}, direction: ${tokenSortDirection}`)
+    console.log(`[SORT MEMO] Settings: dustFilter=${dustFilter}, hideTokensWithoutPrice=${hideTokensWithoutPrice}`)
     if (!mainTokensWithBalances.length || !prices) return []
     
     // First filter by dust threshold and price data availability, then sort
@@ -2150,8 +2188,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       
       // Always filter out LP tokens from main table (they appear in separate LP section when enabled)
       const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
-      const isLPToken = tokenConfig?.platform === 'PLSX V2' || 
-                       LP_TOKENS.includes(token.symbol as any) ||  // Use LP_TOKENS constant
+      const isLPToken = tokenConfig?.type === 'lp' ||
                        token.symbol.includes('LP') || 
                        token.name?.includes(' LP') ||
                        token.name?.includes(' / ')
@@ -2259,11 +2296,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const lpTokensWithBalances = useMemo(() => {
     if (!mainTokensWithBalances.length) return []
     
-    // Filter for LP tokens (tokens with platform info or in LP_TOKENS list)
+    // Filter for LP tokens (tokens with type: "lp")
     const lpTokens = mainTokensWithBalances.filter(token => {
       const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
-      return tokenConfig?.platform || 
-             LP_TOKENS.includes(token.symbol as any) ||  // Use LP_TOKENS constant
+      return tokenConfig?.type === 'lp' ||
              token.symbol.includes('LP') || 
              token.name?.includes(' LP') ||
              token.name?.includes(' / ')
@@ -2287,6 +2323,36 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted.toFixed(6)}`).join('|'),
     lpTokenPrices
   ])
+
+  // Extract underlying token tickers from LP pairs for price fetching
+  const lpUnderlyingTickers = useMemo(() => {
+    const underlyingTokens: string[] = []
+    if (showLiquidityPositions && lpTokensWithBalances) {
+      lpTokensWithBalances.forEach(lpToken => {
+        const lpTokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === lpToken.symbol)
+        if (lpTokenConfig?.ticker) {
+          // Parse LP ticker to extract underlying token symbols
+          const tickerMatch = lpTokenConfig.ticker.match(/([A-Za-z0-9]+)\s*\\?\s*[\/\-]\s*([A-Za-z0-9]+)/)
+          if (tickerMatch) {
+            underlyingTokens.push(tickerMatch[1]) // token0 (e.g. pUSDC)
+            underlyingTokens.push(tickerMatch[2]) // token1 (e.g. WPLS)
+            console.log(`[Price Fetch] Adding LP underlying tokens from ${lpToken.symbol}: ${tickerMatch[1]}, ${tickerMatch[2]}`)
+          }
+        }
+      })
+    }
+    return [...new Set(underlyingTokens)] // Remove duplicates
+  }, [showLiquidityPositions, lpTokensWithBalances])
+
+  // Fetch prices for LP underlying tokens
+  const { prices: lpUnderlyingPrices, isLoading: lpUnderlyingPricesLoading } = useTokenPrices(lpUnderlyingTickers)
+  
+  // Update the state when LP underlying prices change
+  useEffect(() => {
+    if (lpUnderlyingPrices) {
+      setLpUnderlyingPricesState(lpUnderlyingPrices)
+    }
+  }, [lpUnderlyingPrices])
 
   // Format balance for display (token units - can use scientific notation)
   const formatBalance = (balance: number): string => {
@@ -3264,17 +3330,30 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       })
     }
 
-    // Add LP tokens value if liquidity positions are enabled
-    if (showLiquidityPositions && lpTokensWithBalances.length > 0) {
-      const lpTokensValue = lpTokensWithBalances.reduce((total, token) => {
-        const tokenPrice = getLPTokenPrice(token.symbol) || 0
-        const tokenValue = token.balanceFormatted * tokenPrice
-        console.log(`[LP Total Value] ${token.symbol}: ${token.balanceFormatted} × $${tokenPrice} = $${tokenValue}`)
-        return total + tokenValue
-      }, 0)
-      
-      console.log(`[LP Total Value] Adding LP tokens value: $${lpTokensValue}`)
-      totalValue += lpTokensValue
+    // Add LP token values if liquidity positions are enabled
+    if (showLiquidityPositions && lpTokensWithBalances) {
+      lpTokensWithBalances.forEach(lpToken => {
+        const lpPrice = getLPTokenPrice(lpToken.symbol)
+        const lpValue = lpToken.balanceFormatted * lpPrice
+        totalValue += lpValue
+        
+        // Add to address values array (find the address that holds this LP token)
+        const addressData = filteredBalances.find(balance => 
+          balance.tokenBalances?.some(token => token.symbol === lpToken.symbol)
+        )
+        if (addressData) {
+          const existingIndex = addressVals.findIndex(av => av.address === addressData.address)
+          if (existingIndex >= 0) {
+            addressVals[existingIndex].value += lpValue
+          } else {
+            addressVals.push({
+              address: addressData.address,
+              label: effectiveAddresses.find(a => a.address === addressData.address)?.label || '',
+              value: lpValue
+            })
+          }
+        }
+      })
     }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
@@ -4588,19 +4667,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </label>
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="liquidity-positions"
-                    checked={showLiquidityPositions}
-                    onCheckedChange={(checked) => setShowLiquidityPositions(checked === true)}
-                  />
-                  <label 
-                    htmlFor="liquidity-positions" 
-                    className={`text-sm cursor-pointer ${showLiquidityPositions ? 'text-white' : 'text-gray-400'}`}
-                  >
-                    Include liquidity positions
-                  </label>
-                </div>
+                {/* Show liquidity positions checkbox only when the main toggle is enabled */}
+                {showLiquidityPositions && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="liquidity-positions-filter"
+                      checked={showLiquidityPositions}
+                      onCheckedChange={(checked) => setShowLiquidityPositions(checked === true)}
+                    />
+                    <label 
+                      htmlFor="liquidity-positions-filter" 
+                      className={`text-sm cursor-pointer ${showLiquidityPositions ? 'text-white' : 'text-gray-400'}`}
+                    >
+                      Include liquidity positions
+                    </label>
+                  </div>
+                )}
+                
                 
 
               </div>
@@ -4769,9 +4852,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold text-white">Liquidity Pools</h3>
-            <div className="text-xs text-gray-400">
-              {lpTokensWithBalances.length} pool{lpTokensWithBalances.length !== 1 ? 's' : ''} detected
-            </div>
           </div>
           
           <div className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6">
@@ -4854,7 +4934,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       {/* Price Column - Hidden on Mobile */}
                       <div className="hidden sm:block text-center">
                         <div className="text-gray-400 text-xs font-medium">
-                          {tokenPrice === 0 ? '--' : `$${tokenPrice.toFixed(2)}`}
+                          {tokenPrice === 0 ? '--' : `$${formatDollarValue(tokenPrice)}`}
                         </div>
                       </div>
 
@@ -4888,11 +4968,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
                           {displayAmount} tokens
                         </div>
-                        {tokenConfig?.platform && (
-                          <div className="text-blue-400 text-[9px] mt-1 text-right">
-                            {tokenConfig.platform}
-                          </div>
-                        )}
                       </div>
 
                       {/* Chart & Copy Icons - Far Right Column */}
@@ -7987,6 +8062,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </button>
                     </div>
 
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex-1">
+                        <div className="font-medium text-white mb-1">Liquidity Positions</div>
+                        <div className="text-sm text-gray-400">
+                          Show liquidity pool positions in your portfolio. (May increase loading time.)
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowLiquidityPositions(!showLiquidityPositions)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          showLiquidityPositions ? 'bg-white' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                            showLiquidityPositions ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
                     {/* Time-Shift Feature Toggle and Date Picker */}
                     <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex items-center justify-between mb-4">
@@ -8206,10 +8302,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         <input
                           type="text"
                           value={dustFilterInput}
-                          onFocus={() => {
-                            // When focusing, show the current value or empty if 0
-                            setDustFilterInput(dustFilter === 0 ? '' : dustFilter.toString())
-                          }}
                           onChange={(e) => {
                             const value = e.target.value
                             setDustFilterInput(value)
