@@ -348,6 +348,27 @@ export const TOKEN_CONSTANTS = [{
   ticker: "HTT7000",
   decimals: 8,
   name: "HEX Time Token - 7k Days"
+}, {
+  chain: 369,
+  a: "0x5e01BBc8944D3e10141B1Dabc626d9D37bc9Ad41",
+  dexs: "0x7c189232df88431017A471a1333acDA05E25d8f3",
+  ticker: "ALAMO",
+  decimals: 18,
+  name: "Alamo"
+}, {
+  chain: 369,
+  a: "0xA80736067abDc215a3b6B66a57c6e608654d0C9a",
+  dexs: "0xD8836E8975A6BBeafBDe651E4D1fF59Dc99D45c0",
+  ticker: "BRIAH",
+  decimals: 18,
+  name: "Briah"
+}, {
+  chain: 369,
+  a: "0x5e01BBc8944D3e10141B1Dabc626d9D37bc9Ad41",
+  dexs: "0x7c189232df88431017A471a1333acDA05E25d8f3",
+  ticker: "ALAMO",
+  decimals: 8,
+  name: "Alamo"
 },
 {
   chain: 369,
