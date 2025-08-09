@@ -2,6 +2,7 @@
 
 import useSWR from 'swr'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { MORE_COINS } from '@/constants/more-coins'
 
 // RPC endpoints for both chains
 const PULSECHAIN_RPC = 'https://rpc-pulsechain.g4mm4.io'
@@ -31,6 +32,7 @@ interface UsePortfolioBalanceResult {
   balances: BalanceData[]
   isLoading: boolean
   error: any
+  mutate: () => void
 }
 
 // Function to get native balance (PLS or ETH)
@@ -162,20 +164,26 @@ async function getTokenBalance(
 }
 
 // Function to get all balances for an address on a specific chain
-async function getAddressBalances(address: string, chainId: number): Promise<BalanceData> {
+async function getAddressBalances(address: string, chainId: number, enabledCoins?: Set<string>): Promise<BalanceData> {
   try {
     const chainName = chainId === 369 ? 'PulseChain' : 'Ethereum'
     console.log(`[usePortfolioBalance] Fetching balances for ${address} on ${chainName}`)
     
-    // Get native balance (PLS or ETH)
-    const nativeBalance = await getNativeBalance(address, chainId)
+    // Get native balance (PLS or ETH) - check if native tokens are enabled
+    const nativeSymbol = chainId === 369 ? 'PLS' : 'ETH'
+    const shouldIncludeNative = !enabledCoins || enabledCoins.has(nativeSymbol)
+    const nativeBalance = shouldIncludeNative ? await getNativeBalance(address, chainId) : null
 
     // Get relevant tokens for this chain
-    const relevantTokens = TOKEN_CONSTANTS.filter(token => 
+    // In auto-detect mode (no enabledCoins filter), only use TOKEN_CONSTANTS
+    // In manual mode (with enabledCoins filter), use both TOKEN_CONSTANTS and MORE_COINS
+    const allTokens = enabledCoins ? [...TOKEN_CONSTANTS, ...MORE_COINS] : TOKEN_CONSTANTS
+    const relevantTokens = allTokens.filter(token => 
       token.chain === chainId && 
       token.a !== "0x0" && // Skip native tokens
       token.a && 
-      token.a.length === 42 // Valid address format
+      token.a.length === 42 && // Valid address format
+      (!enabledCoins || enabledCoins.has(token.ticker)) // Only include enabled coins if filter is provided
     )
 
     console.log(`[usePortfolioBalance] Checking ${relevantTokens.length} ${chainName} tokens for ${address}`)
@@ -248,7 +256,15 @@ async function getAddressBalances(address: string, chainId: number): Promise<Bal
       address,
       chain: chainId,
       timestamp: new Date().toISOString(),
-      nativeBalance,
+      nativeBalance: nativeBalance || {
+        address: '0x0',
+        symbol: nativeSymbol,
+        name: chainId === 369 ? 'PulseChain' : 'Ethereum',
+        balance: '0',
+        balanceFormatted: 0,
+        decimals: 18,
+        isNative: true
+      },
       tokenBalances
     }
   } catch (error: any) {
@@ -282,7 +298,7 @@ const BALANCE_CACHE_KEYS = {
 }
 
 // Fetcher function for SWR
-async function fetchAllAddressBalances(addresses: string[]): Promise<BalanceData[]> {
+async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<string>): Promise<BalanceData[]> {
   if (!Array.isArray(addresses) || addresses.length === 0) {
     return []
   }
@@ -294,9 +310,9 @@ async function fetchAllAddressBalances(addresses: string[]): Promise<BalanceData
   
   addresses.forEach(address => {
     // Fetch PulseChain balances
-    balancePromises.push(getAddressBalances(address, 369))
+    balancePromises.push(getAddressBalances(address, 369, enabledCoins))
     // Fetch Ethereum balances
-    balancePromises.push(getAddressBalances(address, 1))
+    balancePromises.push(getAddressBalances(address, 1, enabledCoins))
   })
   
   const allBalanceData = await Promise.all(balancePromises)
@@ -317,16 +333,18 @@ async function fetchAllAddressBalances(addresses: string[]): Promise<BalanceData
   return validBalances
 }
 
-export function usePortfolioBalance(walletAddresses: string[]): UsePortfolioBalanceResult {
-  // Create cache key
-  const cacheKey = walletAddresses.length > 0 ? BALANCE_CACHE_KEYS.balances(walletAddresses) : null
+export function usePortfolioBalance(walletAddresses: string[], enabledCoins?: Set<string>): UsePortfolioBalanceResult {
+  // Create cache key that includes enabled coins to invalidate cache when coins change
+  const enabledCoinsArray = enabledCoins ? Array.from(enabledCoins).sort() : []
+  const cacheKey = walletAddresses.length > 0 ? 
+    `${BALANCE_CACHE_KEYS.balances(walletAddresses)}-coins:${enabledCoinsArray.join(',')}` : null
   
   // Debug: Log when this hook is called and with what cache key
-  console.log('[usePortfolioBalance] Hook called with addresses:', walletAddresses.length, 'cacheKey:', cacheKey)
+  console.log('[usePortfolioBalance] Hook called with addresses:', walletAddresses.length, 'enabled coins:', enabledCoinsArray.length, 'enabled tokens:', enabledCoinsArray, 'cacheKey:', cacheKey)
   
-  const { data: balances, error, isLoading } = useSWR(
+  const { data: balances, error, isLoading, mutate } = useSWR(
     cacheKey,
-    () => fetchAllAddressBalances(walletAddresses),
+    () => fetchAllAddressBalances(walletAddresses, enabledCoins),
     {
       // Disable all automatic revalidation - only fetch on mount/reload
       refreshInterval: 0, // No automatic refresh
@@ -343,6 +361,7 @@ export function usePortfolioBalance(walletAddresses: string[]): UsePortfolioBala
   return {
     balances: balances || [],
     isLoading,
-    error
+    error,
+    mutate
   }
 } 
