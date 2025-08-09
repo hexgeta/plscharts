@@ -63,7 +63,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x149b2c629e652f2e89e11cd57e5d4d77ee166f9f",
   dexs: null,
-  ticker: "PLSX \/ WPLS",
+  ticker: "PLSX \/ WPLS (V2)",
   decimals: 18,
   name: "PulseX V2",
   type: "lp",
@@ -135,7 +135,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x5B9661276708202DD1A0dD2346A3856b00d3c251",
   dexs: null,
-  ticker: "INC \/ WPLS",
+  ticker: "INC \/ WPLS (V2)",
   decimals: 18,
   name: "PulseX V2",
   type: "lp",
@@ -183,6 +183,15 @@ export const TOKEN_CONSTANTS = [{
   ticker: "WPLS  \/ DAI (from pump.tires)",
   decimals: 18,
   name: "PulseX V2",
+  type: "lp",
+  platform: "PLSX V2"
+}, {
+  chain: 369,
+  a: "0xE3acFA6C40d53C3faf2aa62D0a715C737071511c",
+  dexs: null,
+  ticker: "USDT  \/ USDC \/ DAI",
+  decimals: 18,
+  name: "PulseX Stable Pool",
   type: "lp",
   platform: "PLSX V2"
 }, {
@@ -252,7 +261,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0xf808Bb6265e9Ca27002c0A04562Bf50d4FE37EAA",
   dexs: null,
-  ticker: "INC \/ WPLS",
+  ticker: "INC \/ WPLS (V1)",
   decimals: 18,
   name: "PulseX V1",
   type: "lp",
@@ -570,13 +579,6 @@ export const TOKEN_CONSTANTS = [{
   name: "Powercity FLEX"
 }, {
   chain: 369,
-  a: "0xb55ee890426341fe45ee6dc788d2d93d25b59063",
-  dexs: "0xeffb56e3402f1993a34887eecaaa3d63da8e3f85",
-  ticker: "LOVE",
-  decimals: 18,
-  name: "Love.io"
-}, {
-  chain: 369,
   a: "0x96e035ae0905efac8f733f133462f971cfa45db1",
   dexs: "0xfe75839c16a6516149d0f7b2208395f54a5e16e8",
   ticker: "PHIAT",
@@ -596,13 +598,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "TSFi",
   decimals: 18,
   name: "T-Share Finance"
-}, {
-  chain: 369,
-  a: "0xc59be55d22cb7967ee95e5be0770e263ee014f78",
-  dexs: "0x2eba3cf4872aa3b6fa88a53de1eb0cb6802f8a2d",
-  ticker: "OPHIR",
-  decimals: 18,
-  name: "Ophir"
 }, {
   chain: 369,
   a: "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b",
@@ -748,20 +743,6 @@ export const TOKEN_CONSTANTS = [{
   name: "Pulse Launch"
 }, {
   chain: 369,
-  a: "0x2460328e89260ddfba4a942a0cfa417f202c04c2",
-  dexs: "0x13d8d27a257da38ba7b705d1f05ebfea5340a90b",
-  ticker: "SUN",
-  decimals: 2,
-  name: "Minimeal (Legacy1)"
-}, {
-  chain: 369,
-  a: "0xbd63fa573a120013804e51b46c56f9b3e490f53c",
-  dexs: "0x4581e25b434c1ced7a93449b229469f03ca4451e",
-  ticker: "SOIL",
-  decimals: 18,
-  name: "SUN Minimeal (New)"
-}, {
-  chain: 369,
   a: "0xcc78a0acdf847a2c1714d2a925bb4477df5d48a6",
   dexs: "0x859b67601353d6b6cfb8f52edf83de9c5b90b0d2",
   ticker: "ATROPA",
@@ -804,61 +785,12 @@ export const TOKEN_CONSTANTS = [{
   name: "Treasury Bill"
 }, {
   chain: 369,
-  a: "0xf8ab3393b1f5cd6184fb6800a1fc802043c4063e",
-  dexs: "0x71423f29f8376ef8efdb9207343a5ff32604c2e3",
-  ticker: "MONAT",
-  decimals: 18,
-  name: "Monat Money"
-}, {
-  chain: 369,
-  a: "0x697fc467720b2a8e1b2f7f665d0e3f28793e65e8",
-  dexs: "0xb2045a428b6661e7e16fa1aecd77ec03912828c7",
-  ticker: "A1A",
-  decimals: 18,
-  name: "TokenA1A"
-}, {
-  chain: 369,
-  a: "0x0b1307dc5d90a0b60be18d2634843343ebc098af",
-  dexs: "0xac73dcc5b4410fad1077d0b0b1459e1e6dbce736",
-  ticker: "LEGAL",
-  decimals: 18,
-  name: "Legal"
-}, {
-  chain: 369,
-  a: "0xdf6a16689a893095c721542e5d3ce55bbcc23ac6",
-  dexs: "0x5383c25d3d86070311946812d022dc0420eed4cb",
-  ticker: "TWO",
-  decimals: 18,
-  name: "2"
-}, {
-  chain: 369,
-  a: "0xde65090088df0b2d80a5ec6a7b56ece36ee83ce8",
-  dexs: "0x8bc1d454542265fc82a23750696f770634e92bf9",
-  ticker: "POPPY",
-  decimals: 18,
-  name: "Poppy"
-}, {
-  chain: 369,
   a: "0xde4ef7ea464c7771803b9838aea07ce41089b054",
   dexs: "0x070f760b51285cb775e2e2353927c4bfacc8b6aa",
   ticker: "PNS",
   decimals: 18,
   name: "Greenland"
-}, {
-  chain: 369,
-  a: "0xc91562626b9a697af683555da9946986278ac9a5",
-  dexs: "0x2eff73dca3edb60019834a21758a468cbb22eb4c",
-  ticker: "TYRH",
-  decimals: 18,
-  name: "TYRH"
-}, {
-  chain: 369,
-  a: "0xa685c45fd071df23278069db9137e124564897d0",
-  dexs: "0x39211d8120de9fb5d56e2e8cbeed726edd252eff",
-  ticker: "PLN",
-  decimals: 18,
-  name: "PulseLN Founder Token"
-}, {
+},  {
   chain: 369,
   a: "0x2a06a971fe6ffa002fd242d437e3db2b5cc5b433",
   dexs: "0xe98250bb335f5662edca64c76c37c95a3334f358",
@@ -935,20 +867,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "IMPLS",
   decimals: 18,
   name: "IMPLS Token"
-}, {
-  chain: 369,
-  a: "0xeb2ceed77147893ba8b250c796c2d4ef02a72b68",
-  dexs: "0x25d240831a9c0cb981506538e810d32487d291af",
-  ticker: "PDRIP",
-  decimals: 18,
-  name: "Pulse Drip"
-}, {
-  chain: 369,
-  a: "0xc589905ef2c8892af8ecef36b1190cd0141e3199",
-  dexs: "0x9030a2cb6e52f523c91d3ae8fbd7ffa23b8737ba",
-  ticker: "H2O",
-  decimals: 18,
-  name: "Pulse Drip H2O"
 }, {
   chain: 369,
   a: "0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e",

@@ -16,8 +16,9 @@ import { useAddressTransactions } from '@/hooks/crypto/useAddressTransactions'
 import { useEnrichedTransactions } from '@/hooks/crypto/useEnrichedTransactions'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { MORE_COINS } from '@/constants/more-coins'
 import { Icons } from '@/components/ui/icons'
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Toggle } from '@/components/ui/toggle'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -115,7 +116,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     duplicates: string[]
   } | null>(null)
   // Add state for modal tabs
-  const [activeTab, setActiveTab] = useState<'addresses' | 'settings'>('addresses')
+  const [activeTab, setActiveTab] = useState<'addresses' | 'settings' | 'coins'>('addresses')
   // Add state for HEX stakes display pagination
   const [displayedStakesCount, setDisplayedStakesCount] = useState(20)
   // Add state for LP token expanded sections
@@ -144,6 +145,182 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
     return false
   })
+
+  // Add state for coin detection mode
+  const [coinDetectionMode, setCoinDetectionMode] = useState<'auto-detect' | 'manual'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioCoinDetectionMode')
+      if (saved && ['auto-detect', 'manual'].includes(saved)) {
+        return saved as 'auto-detect' | 'manual'
+      }
+    }
+    // Default to auto-detect for new users
+    return 'auto-detect'
+  })
+
+  // Add state for coin toggles (which coins to include in balance checks)
+  const [enabledCoins, setEnabledCoins] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioEnabledCoins')
+      if (saved) {
+        try {
+          return new Set(JSON.parse(saved))
+        } catch (e) {
+          console.warn('Failed to parse saved enabled coins:', e)
+        }
+      }
+    }
+    // Default to empty set for new users (auto-detect will handle this)
+    return new Set()
+  })
+
+  // Add pending state for coin toggles (to prevent immediate portfolio reload)
+  const [pendingEnabledCoins, setPendingEnabledCoins] = useState<Set<string> | null>(null)
+  
+  // Track if user has made manual changes to avoid overriding their choices
+  const [hasUserMadeManualChanges, setHasUserMadeManualChanges] = useState<boolean>(false)
+
+  // Add state for active chain in coins tab
+  const [activeChainTab, setActiveChainTab] = useState<number>(369) // Default to PulseChain
+
+  // MORE_COINS already has the correct structure, no normalization needed
+
+  // Add search state for manual mode
+  const [tokenSearchTerm, setTokenSearchTerm] = useState('')
+
+  // Add state for custom token balances (overrides)
+  const [customBalances, setCustomBalances] = useState<Map<string, string>>(new Map())
+
+  // Add state for reset confirmation dialog
+  const [showResetConfirmDialog, setShowResetConfirmDialog] = useState(false)
+
+  // Format balance for input placeholder
+  const formatBalanceForPlaceholder = (balance: number | null): string => {
+    if (balance === null) return '?'
+    if (balance < 0.01) return '0'
+    if (balance >= 100) {
+      const wholeNumber = Math.floor(balance)
+      return wholeNumber >= 10000 ? wholeNumber.toLocaleString() : wholeNumber.toString()
+    }
+    return balance.toFixed(2)
+  }
+
+  // Function to get current balance for a token (returns null if data not loaded yet)
+  const getCurrentBalance = (tokenSymbol: string): number | null => {
+    if (!rawBalances || rawBalances.length === 0) return null
+    
+    let totalBalance = 0
+    let foundToken = false
+    let hasPlaceholder = false
+    
+    rawBalances.forEach(balanceData => {
+      // Check native balance
+      if (balanceData.nativeBalance && balanceData.nativeBalance.symbol === tokenSymbol) {
+        if (balanceData.nativeBalance.balanceFormatted === null) {
+          hasPlaceholder = true
+        } else {
+          totalBalance += balanceData.nativeBalance.balanceFormatted
+        }
+        foundToken = true
+      }
+      
+      // Check token balances
+      balanceData.tokenBalances?.forEach(token => {
+        if (token.symbol === tokenSymbol) {
+          if (token.balanceFormatted === null) {
+            hasPlaceholder = true
+          } else {
+            totalBalance += token.balanceFormatted
+          }
+          foundToken = true
+        }
+      })
+    })
+    
+    // If we found placeholder data (null balance), return null to show "?"
+    // If we found real token data, return the balance (even if 0)
+    // If we didn't find the token at all, return 0
+    if (foundToken && hasPlaceholder) return null
+    return foundToken ? totalBalance : 0
+  }
+
+
+
+  // Group tokens by chain for the coins tab (combine TOKEN_CONSTANTS + MORE_COINS in manual mode)
+  const tokensByChain = useMemo(() => {
+    const grouped: Record<number, typeof TOKEN_CONSTANTS> = {}
+    
+    // Determine which token list to use based on mode
+    const tokensToUse = coinDetectionMode === 'manual' 
+      ? [...TOKEN_CONSTANTS, ...MORE_COINS]  // Combine both lists in manual mode
+      : TOKEN_CONSTANTS  // Only main list in auto-detect mode
+    
+    tokensToUse.forEach(token => {
+      if (!grouped[token.chain]) {
+        grouped[token.chain] = []
+      }
+      grouped[token.chain].push(token)
+    })
+    
+    // Sort tokens within each chain by name A-Z
+    Object.keys(grouped).forEach(chain => {
+      grouped[parseInt(chain)].sort((a, b) => a.name.localeCompare(b.name))
+    })
+    return grouped
+  }, [coinDetectionMode])
+
+  // Filter and sort tokens based on search term and enabled status
+  const filteredTokensByChain = useMemo(() => {
+    const currentEnabled = pendingEnabledCoins || enabledCoins
+    
+    const sortTokens = (tokens: typeof TOKEN_CONSTANTS) => {
+      return tokens.sort((a, b) => {
+        const aEnabled = currentEnabled.has(a.ticker)
+        const bEnabled = currentEnabled.has(b.ticker)
+        
+        // Primary sort: enabled tokens first
+        if (aEnabled !== bEnabled) {
+          return bEnabled ? 1 : -1 // enabled tokens come first
+        }
+        
+        // Secondary sort: alphabetical by ticker
+        return a.ticker.localeCompare(b.ticker)
+      })
+    }
+    
+    if (!tokenSearchTerm.trim()) {
+      // No search term: just sort all tokens
+      const sorted: Record<number, typeof TOKEN_CONSTANTS> = {}
+      Object.entries(tokensByChain).forEach(([chain, tokens]) => {
+        sorted[parseInt(chain)] = sortTokens([...tokens])
+      })
+      return sorted
+    }
+    
+    // With search term: filter then sort
+    const filtered: Record<number, typeof TOKEN_CONSTANTS> = {}
+    
+    Object.entries(tokensByChain).forEach(([chain, tokens]) => {
+      const searchLower = tokenSearchTerm.toLowerCase()
+      const filteredTokens = tokens.filter(token => 
+        token.name.toLowerCase().includes(searchLower) ||
+        token.ticker.toLowerCase().includes(searchLower)
+      )
+      
+      if (filteredTokens.length > 0) {
+        filtered[parseInt(chain)] = sortTokens(filteredTokens)
+      }
+    })
+    
+    return filtered
+  }, [tokensByChain, tokenSearchTerm, enabledCoins, pendingEnabledCoins])
+
+  // Get available chains for the coins tab
+  const availableChains = useMemo(() => {
+    return Object.keys(tokensByChain).map(Number).sort()
+  }, [tokensByChain])
+
+
 
   // Add state for Time-Shift feature toggle
   const [useTimeShift, setUseTimeShift] = useState<boolean>(() => {
@@ -619,6 +796,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
   }, [includePooledStakes, detectiveMode])
 
+  // Save enabled coins to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioEnabledCoins', JSON.stringify(Array.from(enabledCoins)))
+    }
+  }, [enabledCoins])
+
+  // Save coin detection mode to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioCoinDetectionMode', coinDetectionMode)
+    }
+  }, [coinDetectionMode])
+
   // Save validator count to localStorage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1065,9 +1256,92 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
   }
 
+  // Handle reset to auto-detect confirmation
+  const handleResetToAutoDetect = () => {
+    // Reset to auto-detect mode: only enable tokens with balances from crypto.ts
+    const tokensWithBalances = new Set<string>()
+    if (rawBalances && rawBalances.length > 0) {
+      rawBalances.forEach(balanceData => {
+        if (balanceData.nativeBalance && balanceData.nativeBalance.balanceFormatted > 0) {
+          tokensWithBalances.add(balanceData.nativeBalance.symbol)
+        }
+        balanceData.tokenBalances.forEach(token => {
+          if (token.balanceFormatted > 0) {
+            const isFromCrypto = TOKEN_CONSTANTS.some(t => t.ticker === token.symbol)
+            if (isFromCrypto) {
+              tokensWithBalances.add(token.symbol)
+            }
+          }
+        })
+      })
+    }
+    console.log('[Portfolio] Reset to auto-detect - tokens with balances:', Array.from(tokensWithBalances))
+    setPendingEnabledCoins(tokensWithBalances)
+    setCustomBalances(new Map()) // Clear all custom balances
+    setHasUserMadeManualChanges(true)
+    setShowResetConfirmDialog(false) // Close the dialog
+  }
+
+  // Handle mode switching with smart token preservation
+  const handleModeSwitch = (newMode: 'auto-detect' | 'manual') => {
+    console.log('[Portfolio] Mode switch:', coinDetectionMode, '->', newMode)
+    
+    if (coinDetectionMode === newMode) {
+      return // No change needed
+    }
+    
+    if (newMode === 'manual' && coinDetectionMode === 'auto-detect') {
+      // Switching from auto-detect to manual: preserve auto-detected tokens
+      console.log('[Portfolio] Preserving auto-detected tokens:', Array.from(autoDetectedCoins))
+      
+      // If we're in a pending state, update pending; otherwise update the main state
+      if (pendingEnabledCoins !== null) {
+        setPendingEnabledCoins(new Set([...pendingEnabledCoins, ...autoDetectedCoins]))
+      } else {
+        setEnabledCoins(new Set([...enabledCoins, ...autoDetectedCoins]))
+      }
+      
+      setHasUserMadeManualChanges(true) // Mark that user has made manual changes
+    } else if (newMode === 'auto-detect' && coinDetectionMode === 'manual') {
+      // Switching from manual to auto-detect: clear manual selections
+      console.log('[Portfolio] Clearing manual selections for auto-detect mode')
+      
+      if (pendingEnabledCoins !== null) {
+        setPendingEnabledCoins(new Set())
+      } else {
+        setEnabledCoins(new Set())
+      }
+      
+      setCustomBalances(new Map()) // Clear custom balances too
+      setHasUserMadeManualChanges(false) // Reset manual changes flag
+    }
+    
+    setCoinDetectionMode(newMode)
+  }
+
   // Handle modal close - commit any pending addresses and removals
   const handleModalClose = () => {
+    console.log('[Portfolio] handleModalClose called')
     commitPendingAddresses()
+    
+    // Commit pending coin changes and always reload to ensure everything stays in sync
+    if (pendingEnabledCoins !== null) {
+      console.log('[Portfolio] Committing pending coin changes:', {
+        currentEnabled: Array.from(enabledCoins),
+        pendingEnabled: Array.from(pendingEnabledCoins),
+        coinDetectionMode
+      })
+      
+      setEnabledCoins(pendingEnabledCoins)
+      setPendingEnabledCoins(null)
+      
+      // Always force a reload when coin settings change to ensure everything stays in sync
+      console.log('[Portfolio] Coin settings changed, forcing full reload')
+      mutateBalances()
+    } else {
+      console.log('[Portfolio] No pending coin changes to commit')
+    }
+    
     setShowEditModal(false)
     // Clear removed address IDs filter since we're done editing
     setRemovedAddressIds(new Set())
@@ -1197,9 +1471,175 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   
   console.log('Portfolio Debug - Using address strings:', allAddressStrings)
 
-  // Fetch balances for ALL addresses using the updated hook
-  const { balances: rawBalances, isLoading: balancesLoading, error: balancesError } = usePortfolioBalance(allAddressStrings)
+  // Always fetch all tokens to avoid cache invalidation when switching modes
+  // We'll filter client-side in the rawBalances memo instead
+  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings)
+  
+  // Filter the raw balances client-side based on enabled coins and apply custom balance overrides
+  const rawBalances = useMemo(() => {
+    if (!allRawBalances) return allRawBalances
+    
+    const applyCustomBalances = (balances: any[]) => {
+      // First apply custom balances to existing tokens
+      const updatedBalances = balances.map(addressData => ({
+        ...addressData,
+        // Apply custom balances to native balance
+        nativeBalance: addressData.nativeBalance ? {
+          ...addressData.nativeBalance,
+          balanceFormatted: customBalances.has(addressData.nativeBalance.symbol) 
+            ? parseFloat(customBalances.get(addressData.nativeBalance.symbol) || '0') 
+            : addressData.nativeBalance.balanceFormatted
+        } : null,
+        // Apply custom balances to token balances
+        tokenBalances: addressData.tokenBalances?.map((token: any) => ({
+          ...token,
+          balanceFormatted: customBalances.has(token.symbol)
+            ? parseFloat(customBalances.get(token.symbol) || '0')
+            : token.balanceFormatted
+        })) || []
+      }))
+      
+      // Add tokens that are enabled but don't exist in the original data
+      if ((customBalances.size > 0 || enabledCoins.size > 0) && updatedBalances.length > 0) {
+        // Check ALL addresses for existing tokens, not just the first one
+        const existingTokenSymbols = new Set<string>()
+        updatedBalances.forEach(addressData => {
+          if (addressData.nativeBalance) {
+            existingTokenSymbols.add(addressData.nativeBalance.symbol)
+          }
+          addressData.tokenBalances?.forEach((token: any) => {
+            existingTokenSymbols.add(token.symbol)
+          })
+        })
+        
+        const tokensToAdd: any[] = []
+        
+        // Add tokens with custom balances
+        customBalances.forEach((balance, symbol) => {
+          if (!existingTokenSymbols.has(symbol) && parseFloat(balance) > 0) {
+            // Find token config to get proper details
+            const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS]
+            const tokenConfig = allTokens.find(t => t.ticker === symbol)
+            
+            if (tokenConfig) {
+              tokensToAdd.push({
+                symbol: symbol,
+                name: tokenConfig.name,
+                balanceFormatted: parseFloat(balance),
+                balance: parseFloat(balance).toString(),
+                contractAddress: tokenConfig.a,
+                decimals: tokenConfig.decimals || 18
+              })
+            }
+          }
+        })
+        
+        // Add enabled tokens that don't have balance data yet (in manual mode)
+        if (coinDetectionMode === 'manual') {
+          enabledCoins.forEach(symbol => {
+            if (!existingTokenSymbols.has(symbol) && !customBalances.has(symbol)) {
+              // Find token config to get proper details
+              const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS]
+              const tokenConfig = allTokens.find(t => t.ticker === symbol)
+              
+              if (tokenConfig) {
+                tokensToAdd.push({
+                  symbol: symbol,
+                  name: tokenConfig.name,
+                  balanceFormatted: null, // Use null to indicate unknown balance
+                  balance: null,
+                  contractAddress: tokenConfig.a,
+                  decimals: tokenConfig.decimals || 18,
+                  isPlaceholder: true // Flag to indicate this is a placeholder
+                })
+              }
+            }
+          })
+        }
+        
+        if (tokensToAdd.length > 0) {
+          updatedBalances[0] = {
+            ...updatedBalances[0],
+            tokenBalances: [...(updatedBalances[0].tokenBalances || []), ...tokensToAdd]
+          }
+        }
+      }
+      
+      return updatedBalances
+    }
+    
+    // In auto-detect mode, show all fetched tokens with custom balances applied
+    if (coinDetectionMode === 'auto-detect') {
+      return applyCustomBalances(allRawBalances)
+    }
+    
+    // In manual mode, filter based on enabled coins and apply custom balances
+    const filteredBalances = allRawBalances.map(addressData => ({
+      ...addressData,
+      // Keep native balance if it's enabled
+      nativeBalance: (addressData.nativeBalance && enabledCoins.has(addressData.nativeBalance.symbol)) 
+        ? addressData.nativeBalance 
+        : null,
+      // Filter token balances to only enabled tokens
+      tokenBalances: addressData.tokenBalances?.filter(token => enabledCoins.has(token.symbol)) || []
+    }))
+    
+    return applyCustomBalances(filteredBalances)
+  }, [allRawBalances, coinDetectionMode, enabledCoins, customBalances])
   console.log('Portfolio Debug - Balance hook result:', { balances: rawBalances, balancesLoading, balancesError })
+
+  // Auto-set enabled coins based on balances (only on initial load, don't override user choices)
+  useEffect(() => {
+    if (coinDetectionMode === 'manual' && rawBalances && rawBalances.length > 0 && !hasUserMadeManualChanges) {
+      const tokensWithBalances = new Set<string>()
+      
+      rawBalances.forEach(balanceData => {
+        // Add native token if it has balance
+        if (balanceData.nativeBalance && balanceData.nativeBalance.balanceFormatted > 0) {
+          tokensWithBalances.add(balanceData.nativeBalance.symbol)
+        }
+        
+        // Add ERC-20 tokens if they have balance
+        balanceData.tokenBalances.forEach(token => {
+          if (token.balanceFormatted > 0) {
+            tokensWithBalances.add(token.symbol)
+          }
+        })
+      })
+      
+      // Only update if this is the initial auto-population and we have tokens with balances
+      if (tokensWithBalances.size > 0 && enabledCoins.size === 0) {
+        console.log('[Portfolio] Initial auto-population of enabled coins based on balances:', Array.from(tokensWithBalances))
+        setEnabledCoins(tokensWithBalances)
+      }
+    }
+  }, [coinDetectionMode, rawBalances, hasUserMadeManualChanges, enabledCoins.size])
+
+  // Auto-detect coins based on existing balances
+  const autoDetectedCoins = useMemo(() => {
+    if (coinDetectionMode !== 'auto-detect' || !rawBalances || rawBalances.length === 0) {
+      return new Set<string>()
+    }
+
+    const detectedCoins = new Set<string>()
+    
+    // Add native tokens that have non-zero balance
+    rawBalances.forEach(balanceData => {
+      if (balanceData.nativeBalance && balanceData.nativeBalance.balanceFormatted > 0) {
+        detectedCoins.add(balanceData.nativeBalance.symbol)
+      }
+      
+      // Add ERC-20 tokens that have non-zero balance
+      balanceData.tokenBalances.forEach(token => {
+        if (token.balanceFormatted > 0) {
+          detectedCoins.add(token.symbol)
+        }
+      })
+    })
+
+    console.log('[Portfolio] Auto-detected coins:', Array.from(detectedCoins))
+    return detectedCoins
+  }, [coinDetectionMode, rawBalances])
 
   // Fetch transactions for detective mode (only first address)
   const { transactions: transactionData, isLoading: transactionsLoading, error: transactionsError } = useAddressTransactions(
@@ -2270,7 +2710,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     })
   }, [
     // Only depend on the actual balance values and symbol list, not the full objects
-    mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted.toFixed(6)}-${t.chain}`).join('|'),
+    mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted ? t.balanceFormatted.toFixed(6) : '0'}-${t.chain}`).join('|'),
     // Only recalculate when prices change significantly (rounded to avoid micro-changes)
     prices && Object.keys(prices).map(key => 
       `${key}-${prices[key]?.price ? Math.round(prices[key].price * 1000000) / 1000000 : 0}`
@@ -2625,8 +3065,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const stableKey = `${token.chain}-${token.symbol}-${token.address || 'native'}`
     const isDialogOpen = openDialogToken === stableKey
     const setIsDialogOpen = (open: boolean) => setOpenDialogToken(open ? stableKey : null)
-    const usdValue = token.balanceFormatted * tokenPrice
-    const displayAmount = formatBalance(token.balanceFormatted)
+    const usdValue = token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
+    const displayAmount = token.balanceFormatted ? formatBalance(token.balanceFormatted) : '?'
     
     // Helper function to get the base token name (remove 'e' or 'we' prefix)
     const getBaseTokenName = (symbol: string): string => {
@@ -4667,22 +5107,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </label>
                 </div>
                 
-                {/* Show liquidity positions checkbox only when the main toggle is enabled */}
-                {showLiquidityPositions && (
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="liquidity-positions-filter"
-                      checked={showLiquidityPositions}
-                      onCheckedChange={(checked) => setShowLiquidityPositions(checked === true)}
-                    />
-                    <label 
-                      htmlFor="liquidity-positions-filter" 
-                      className={`text-sm cursor-pointer ${showLiquidityPositions ? 'text-white' : 'text-gray-400'}`}
-                    >
-                      Include liquidity positions
-                    </label>
-                  </div>
-                )}
+                {/* Always show liquidity positions checkbox in advanced filters */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="liquidity-positions-filter"
+                    checked={showLiquidityPositions}
+                    onCheckedChange={(checked) => setShowLiquidityPositions(checked === true)}
+                  />
+                  <label 
+                    htmlFor="liquidity-positions-filter" 
+                    className={`text-sm cursor-pointer ${showLiquidityPositions ? 'text-white' : 'text-gray-400'}`}
+                  >
+                    Include liquidity positions
+                  </label>
+                </div>
                 
                 
 
@@ -4860,14 +5298,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 const tokenPrice = getLPTokenPrice(token.symbol) || 0
                 const stableKey = `${token.chain}-${token.symbol}-${token.address || 'lp'}`
                 const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
-                const displayAmount = formatBalance(token.balanceFormatted)
-                const usdValue = token.balanceFormatted * tokenPrice
+                const displayAmount = token.balanceFormatted ? formatBalance(token.balanceFormatted) : '?'
+                const usdValue = token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
                 
-                const underlyingTokens = calculateLPUnderlyingTokens(token.symbol, token.balanceFormatted)
+                const underlyingTokens = calculateLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0)
                 
                 // Calculate pool ownership percentage
                 const lpData = lpTokenData[token.symbol]
-                const poolOwnershipPercentage = lpData && lpData.totalSupply 
+                const poolOwnershipPercentage = lpData && lpData.totalSupply && token.balanceFormatted
                   ? (token.balanceFormatted / parseFloat(lpData.totalSupply)) * 100
                   : null
                 
@@ -7909,6 +8347,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   >
                     Settings
                   </button>
+                  <button
+                    onClick={() => setActiveTab('coins')}
+                    className={`px-6 py-1.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
+                      activeTab === 'coins' 
+                        ? 'bg-white text-black shadow-lg' 
+                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    Coins
+                  </button>
                 </div>
                 <button
                   onClick={handleModalClose}
@@ -8357,6 +8805,248 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </div>
                 </div>
               )}
+
+              {/* Coins Tab */}
+              {activeTab === 'coins' && (
+                <div className="space-y-6">
+                  {/* Mode Selection */}
+                  <div className="space-y-4">
+                    <div className="flex bg-white/5 border border-white/10 rounded-full p-1">
+                      <button
+                        onClick={() => handleModeSwitch('auto-detect')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                          coinDetectionMode === 'auto-detect'
+                            ? 'bg-white text-black shadow-sm'
+                            : 'text-gray-300 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        Auto-Detect
+                      </button>
+                      <button
+                        onClick={() => handleModeSwitch('manual')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                          coinDetectionMode === 'manual'
+                            ? 'bg-white text-black shadow-sm'
+                            : 'text-gray-300 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        Manual Mode
+                      </button>
+                    </div>
+                    
+                    {/* Mode Description */}
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                      <div className="text-sm text-blue-300">
+                        {coinDetectionMode === 'auto-detect' ? (
+                          <div>
+                            <div className="font-medium mb-1">🔍 Auto-Detect Mode</div>
+                            <div>
+                              Automatically detects and tracks tokens that exist in your wallets. No manual configuration needed.
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                              Manually add up to 500+ extra tokens to your portfolio and edit their balances. (The more you add the longer it takes to load.)
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chain Selection - Only show in Manual Mode */}
+                  {coinDetectionMode === 'manual' && (
+                    <div className="flex bg-white/5 border border-white/10 rounded-full p-1">
+                    {availableChains.map(chainId => {
+                      const chainName = chainId === 369 ? 'PulseChain' : 
+                                       chainId === 1 ? 'Ethereum' : 
+                                       `Chain ${chainId}`
+                      const tokenCount = tokensByChain[chainId]?.length || 0
+                      
+                      return (
+                        <button
+                          key={chainId}
+                          onClick={() => setActiveChainTab(chainId)}
+                          className={`flex-1 px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                            activeChainTab === chainId
+                              ? 'bg-white text-black shadow-sm'
+                              : 'text-gray-300 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          {chainName} ({tokenCount})
+                        </button>
+                      )
+                    })}
+                    </div>
+                  )}
+
+                  {/* Coins List for Selected Chain - Only show in Manual Mode */}
+                  {coinDetectionMode === 'manual' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-white">
+                          {activeChainTab === 369 ? 'PulseChain' : 
+                           activeChainTab === 1 ? 'Ethereum' : 
+                           `Chain ${activeChainTab}`} Tokens
+                        </h3>
+                        <div className="text-sm text-gray-400">
+                          {(() => {
+                            const currentEnabled = pendingEnabledCoins || enabledCoins
+                            return `${filteredTokensByChain[activeChainTab]?.filter(token => currentEnabled.has(token.ticker)).length || 0} / ${filteredTokensByChain[activeChainTab]?.length || 0} ${tokenSearchTerm ? 'filtered' : 'enabled'}`
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Search Bar */}
+                      <div className="mb-4">
+                        <input
+                          type="text"
+                          placeholder="Search tokens by name or symbol..."
+                          value={tokenSearchTerm}
+                          onChange={(e) => setTokenSearchTerm(e.target.value)}
+                          className="w-full px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none text-sm"
+                        />
+                      </div>
+
+                      {/* Bulk Actions */}
+                      <div className="flex gap-2 mb-4">
+                        <button
+                          onClick={() => {
+                            const chainTokens = filteredTokensByChain[activeChainTab] || []
+                            const currentEnabled = pendingEnabledCoins || enabledCoins
+                            const newEnabled = new Set(currentEnabled)
+                            chainTokens.forEach(token => newEnabled.add(token.ticker))
+                            setPendingEnabledCoins(newEnabled)
+                            setHasUserMadeManualChanges(true)
+                          }}
+                          className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 text-white rounded transition-colors"
+                        >
+                          Enable All {tokenSearchTerm ? 'Filtered' : ''}
+                        </button>
+                        <button
+                          onClick={() => {
+                            const chainTokens = filteredTokensByChain[activeChainTab] || []
+                            const currentEnabled = pendingEnabledCoins || enabledCoins
+                            const newEnabled = new Set(currentEnabled)
+                            chainTokens.forEach(token => newEnabled.delete(token.ticker))
+                            setPendingEnabledCoins(newEnabled)
+                            setHasUserMadeManualChanges(true)
+                          }}
+                          className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 text-white rounded transition-colors"
+                        >
+                          Disable All {tokenSearchTerm ? 'Filtered' : ''}
+                        </button>
+                        <button
+                          onClick={() => setShowResetConfirmDialog(true)}
+                          className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                          title="Reset selection to match auto-detect mode (only tokens with balances from the curated list)"
+                        >
+                          Reset to Auto-Detect
+                        </button>
+                      </div>
+
+                      {/* Token List */}
+                      <div className="space-y-2">
+                        {/* Manual mode: Show all tokens with toggles */}
+                        {filteredTokensByChain[activeChainTab]?.length > 0 ? (
+                          filteredTokensByChain[activeChainTab]?.map(token => {
+                          const currentEnabled = pendingEnabledCoins || enabledCoins
+                          const isEnabled = currentEnabled.has(token.ticker)
+                          const isLP = token.type === 'lp'
+                          
+                          return (
+                            <div
+                              key={`${token.chain}-${token.a}-${token.ticker}`}
+                              className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <CoinLogo symbol={token.ticker} size="sm" />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-white">{token.ticker}</span>
+                                    {isLP && (
+                                      <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded">
+                                        LP
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-sm text-gray-400 truncate">
+                                    {token.name}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Balance input field - only show for enabled tokens */}
+                              {isEnabled && (
+                                <div className="mx-4 w-32">
+                                  <input
+                                    type="text"
+                                    placeholder={formatBalanceForPlaceholder(getCurrentBalance(token.ticker))}
+                                    value={customBalances.get(token.ticker) || ''}
+                                    onChange={(e) => {
+                                      const newCustomBalances = new Map(customBalances)
+                                      if (e.target.value === '') {
+                                        newCustomBalances.delete(token.ticker)
+                                      } else {
+                                        newCustomBalances.set(token.ticker, e.target.value)
+                                      }
+                                      setCustomBalances(newCustomBalances)
+                                    }}
+                                    className="w-full px-3 py-2 bg-black/50 border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none text-sm text-right"
+                                  />
+                                </div>
+                              )}
+                              
+                              <button
+                                onClick={() => {
+                                  const currentEnabled = pendingEnabledCoins || enabledCoins
+                                  const newEnabled = new Set(currentEnabled)
+                                  if (isEnabled) {
+                                    newEnabled.delete(token.ticker)
+                                    console.log('[Portfolio] Toggled OFF:', token.ticker, 'pending enabled:', Array.from(newEnabled))
+                                  } else {
+                                    newEnabled.add(token.ticker)
+                                    console.log('[Portfolio] Toggled ON:', token.ticker, 'pending enabled:', Array.from(newEnabled))
+                                  }
+                                  setPendingEnabledCoins(newEnabled)
+                                  setHasUserMadeManualChanges(true)
+                                }}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                                  isEnabled ? 'bg-white' : 'bg-gray-600'
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                                    isEnabled ? 'translate-x-6' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          )
+                        })
+                        ) : (
+                          // No tokens found (either no tokens on this chain or search returned no results)
+                          <div className="text-center py-8 text-gray-400">
+                            <div className="text-lg mb-2">🔍</div>
+                            <div className="text-sm">
+                              {tokenSearchTerm 
+                                ? `No tokens found matching "${tokenSearchTerm}"`
+                                : `No tokens available on ${activeChainTab === 369 ? 'PulseChain' : activeChainTab === 1 ? 'Ethereum' : `Chain ${activeChainTab}`}`
+                              }
+                            </div>
+                            {tokenSearchTerm && (
+                              <div className="text-xs mt-1 text-gray-500">
+                                Try searching for a different term
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+
+                    </div>
+                  )}
+                </div>
+              )}
               </div>
 
               {/* Fixed Footer - Add New Address (only for addresses tab) */}
@@ -8422,6 +9112,42 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </div>
                 </div>
               )}
+
+              {/* Reset Confirmation Overlay - Inside the settings modal */}
+              {showResetConfirmDialog && (
+                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10">
+                  <div className="bg-black border-2 border-white/10 rounded-lg p-6 max-w-md mx-4">
+                    <div className="text-yellow-400 flex items-center gap-2 text-lg font-semibold mb-4">
+                      <span>⚠️</span>
+                      Reset to Auto-Detect?
+                    </div>
+                    <div className="text-gray-300 space-y-3 mb-6">
+                      <p>This will:</p>
+                      <ul className="space-y-1 ml-4 text-sm">
+                        <li>• Remove all manually enabled tokens</li>
+                        <li>• Clear all custom balance overrides</li>
+                        <li>• Reset manual mode to look the same as auto-mode</li>
+                      </ul>
+                      <p className="font-medium">Are you sure you want to continue?</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowResetConfirmDialog(false)}
+                        className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleResetToAutoDetect}
+                        className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      >
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </motion.div>
           </motion.div>
         )}
@@ -8708,6 +9434,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       )}
 
     </Container>
+
+
+
       </div>
     </>
   )
