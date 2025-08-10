@@ -176,6 +176,13 @@ export const MORE_COINS = [
     name: "Pulse Inu"
   }, {
     chain: 369,
+    a: "0x43eaba2E2d2F32f1207A11a18679287Dc7700015",
+    dexs: "",
+    ticker: "RBC",
+    decimals: 18,
+    name: "Real BIG Coin"
+  }, {
+    chain: 369,
     a: "0xe83034a7a78fc148c69defebd6d4c80f8bb4f710",
     dexs: "0x709fc9d014ae3e6387e2856762f64ae341063065",
     ticker: "PINU2",
@@ -232,6 +239,13 @@ export const MORE_COINS = [
     name: "TFC"
   }, {
     chain: 369,
+    a: "0x3D7eaf3a2406DFaD68be0dA504eCD690B80AAE48",
+    dexs: null,
+    ticker: "PLSCX",
+    decimals: 18,
+    name: "PLSCX"
+  }, {
+    chain: 369,
     a: "eee",
     dexs: "0x5137a308dbf822aae9fb34467633baaa516ed099",
     ticker: "stpCOM",
@@ -244,6 +258,13 @@ export const MORE_COINS = [
     ticker: "stpLOAN",
     decimals: 18,
     name: "Staked LOAN on Pls"
+  }, {
+    chain: 369,
+    a: "0xsss",
+    dexs: "0x5f2d8624e6abea8f679a1095182f4bc84fe148e0",
+    ticker: "stMINT",
+    decimals: 18,
+    name: "Staked Mintra"
   }, {
     chain: 1,
     a: "",

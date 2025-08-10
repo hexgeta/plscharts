@@ -32,211 +32,11 @@ export const TOKEN_CONSTANTS = [
   },
   {
     "chainId": 369,
-    "name": "PLSCX",
-    "address": "0x3D7eaf3a2406DFaD68be0dA504eCD690B80AAE48",
-    "symbol": "PLSCX",
-    "decimals": 18,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x3D7eaf3a2406DFaD68be0dA504eCD690B80AAE48.png"
-  },
-  {
-    "chainId": 369,
-    "name": "HEX",
-    "address": "0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39",
-    "symbol": "HEX",
-    "decimals": 8,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39.png"
-  },
-  {
-    "chainId": 369,
-    "name": "HEX from Ethereum",
-    "address": "0x57fde0a71132198BBeC939B98976993d8D89D225",
-    "symbol": "eHEX",
-    "decimals": 8,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x57fde0a71132198BBeC939B98976993d8D89D225.png"
-  },
-  {
-    "chainId": 369,
-    "name": "PulseX",
-    "address": "0x95B303987A60C71504D99Aa1b13B4DA07b0790ab",
-    "symbol": "PLSX",
-    "decimals": 18,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x95B303987A60C71504D99Aa1b13B4DA07b0790ab.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Incentive",
-    "address": "0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d",
-    "symbol": "INC",
-    "decimals": 18,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d.png"
-  },
-  {
-    "chainId": 369,
-    "address": "0x655cdd69442912076a05975c26ea59bad179244d",
-    "name": "Pulse Inu",
-    "symbol": "PINU",
-    "decimals": 9,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x655cdd69442912076a05975c26ea59bad179244d.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Dai from Ethereum",
-    "address": "0xefD766cCb38EaF1dfd701853BFCe31359239F305",
-    "symbol": "DAI",
-    "decimals": 18,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xefD766cCb38EaF1dfd701853BFCe31359239F305.png"
-  },
-  {
-    "chainId": 369,
-    "address": "0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07",
-    "name": "USD Coin from Ethereum",
-    "symbol": "USDC",
-    "decimals": 6,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Tether USD from Ethereum",
-    "address": "0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f",
-    "symbol": "USDT",
-    "decimals": 6,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Wrapped Ether from Ethereum",
-    "address": "0x02DcdD04e3F455D838cd1249292C58f3B79e3C3C",
-    "symbol": "WETH",
-    "decimals": 18,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x02DcdD04e3F455D838cd1249292C58f3B79e3C3C.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Wrapped BTC from Ethereum",
-    "address": "0xb17D901469B9208B17d916112988A3FeD19b5cA1",
-    "symbol": "WBTC",
-    "decimals": 8,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xb17D901469B9208B17d916112988A3FeD19b5cA1.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Wrapped BTC",
-    "address": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-    "symbol": "pWBTC",
-    "decimals": 8,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Piteas Token",
-    "address": "0x2A06a971fE6ffa002fd242d437E3db2b5cC5B433",
-    "symbol": "PTS",
-    "decimals": 18,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x2A06a971fE6ffa002fd242d437E3db2b5cC5B433.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Dai Stablecoin",
-    "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
-    "symbol": "pDAI",
-    "decimals": 18,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x6B175474E89094C44Da98b954EedeAC495271d0F.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Tether USD",
-    "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-    "symbol": "pUSDT",
-    "decimals": 6,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xdAC17F958D2ee523a2206206994597C13D831ec7.png"
-  },
-  {
-    "chainId": 369,
-    "name": "USD Coin",
-    "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    "symbol": "pUSDC",
-    "decimals": 6,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Hedron",
-    "address": "0x3819f64f282bf135d62168C1e513280dAF905e06",
-    "symbol": "HDRN",
-    "decimals": 9,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x3819f64f282bf135d62168C1e513280dAF905e06.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Hedron from Ethereum",
-    "address": "0xAbF663531FA10ab8116cbf7d5c6229B018A26Ff9",
-    "symbol": "eHDRN",
-    "decimals": 9,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xAbF663531FA10ab8116cbf7d5c6229B018A26Ff9.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Icosa",
-    "address": "0xfc4913214444aF5c715cc9F7b52655e788A569ed",
-    "symbol": "ICSA",
-    "decimals": 9,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xfc4913214444aF5c715cc9F7b52655e788A569ed.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Icosa from Ethereum",
-    "address": "0xb4d363D5dF85f0fBc746c236Fd410d82BF856f78",
-    "symbol": "ICSA",
-    "decimals": 9,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xb4d363D5dF85f0fBc746c236Fd410d82BF856f78.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Maximus Lucky",
-    "address": "0x6B0956258fF7bd7645aa35369B55B61b8e6d6140",
-    "symbol": "LUCKY",
-    "decimals": 8,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x6B0956258fF7bd7645aa35369B55B61b8e6d6140.png"
-  },
-  {
-    "chainId": 369,
     "name": "PulseBitcoin",
     "address": "0x5EE84583f67D5EcEa5420dBb42b462896E7f8D06",
     "symbol": "PLSB",
     "decimals": 12,
     "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x5EE84583f67D5EcEa5420dBb42b462896E7f8D06.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Maximus Trio",
-    "address": "0xF55cD1e399e1cc3D95303048897a680be3313308",
-    "symbol": "TRIO",
-    "decimals": 8,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xF55cD1e399e1cc3D95303048897a680be3313308.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Maximus from Ethereum",
-    "address": "0x352511c9bC5D47DBC122883Ed9353E987d10A3BA",
-    "symbol": "eMAXI",
-    "decimals": 8,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x352511c9bC5D47DBC122883Ed9353E987d10A3BA.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Maximus Decimus from Ethereum",
-    "address": "0x189a3CA3cC1337e85c7bC0a43b8d3457FD5AaE89",
-    "symbol": "eDECI",
-    "decimals": 8,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x189a3CA3cC1337e85c7bC0a43b8d3457FD5AaE89.png"
-  },
-  {
-    "chainId": 369,
-    "name": "ASIC Token",
-    "address": "0x347a96a5BD06D2E15199b032F46fB724d6c73047",
-    "symbol": "ASIC",
-    "decimals": 12,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x347a96a5BD06D2E15199b032F46fB724d6c73047.png"
   },
   {
     "chainId": 369,
@@ -304,14 +104,6 @@ export const TOKEN_CONSTANTS = [
   },
   {
     "chainId": 369,
-    "name": "Maximus BASE",
-    "address": "0xe9f84d418B008888A992Ff8c6D22389C2C3504e0",
-    "symbol": "BASE",
-    "decimals": 8,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xe9f84d418B008888A992Ff8c6D22389C2C3504e0.png"
-  },
-  {
-    "chainId": 369,
     "name": "T.I.M.E. Dividend",
     "address": "0xCA35638A3fdDD02fEC597D8c1681198C06b23F58",
     "symbol": "TIME",
@@ -341,14 +133,6 @@ export const TOKEN_CONSTANTS = [
     "symbol": "pTUSD",
     "decimals": 18,
     "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x0000000000085d4780B73119b644AE5ecd22b376.png"
-  },
-  {
-    "chainId": 369,
-    "name": "9INCH",
-    "address": "0x3ca80d83277e721171284667829c686527B8b3c5",
-    "symbol": "9INCH",
-    "decimals": 18,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x3ca80d83277e721171284667829c686527B8b3c5.png"
   },
   {
     "chainId": 369,
@@ -645,14 +429,6 @@ export const TOKEN_CONSTANTS = [
     "symbol": "APC",
     "decimals": 18,
     "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0xBb101431d43b0E1fc31f000bf96826794806e0b4.png"
-  },
-  {
-    "chainId": 369,
-    "name": "Real BIG Coin",
-    "address": "0x43eaba2E2d2F32f1207A11a18679287Dc7700015",
-    "symbol": "RBC",
-    "decimals": 18,
-    "logoURI": "https://raw.githubusercontent.com/9mm-exchange/app-tokens/main/token-logo/0x43eaba2E2d2F32f1207A11a18679287Dc7700015.png"
   },
   {
     "chainId": 369,

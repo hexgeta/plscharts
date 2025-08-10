@@ -189,10 +189,36 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const [tokenSearchTerm, setTokenSearchTerm] = useState('')
 
   // Add state for custom token balances (overrides)
-  const [customBalances, setCustomBalances] = useState<Map<string, string>>(new Map())
+  const [customBalances, setCustomBalances] = useState<Map<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioCustomBalances')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          return new Map(Object.entries(parsed))
+        } catch (e) {
+          console.warn('Failed to parse saved custom balances:', e)
+        }
+      }
+    }
+    return new Map()
+  })
 
   // Add state for reset confirmation dialog
   const [showResetConfirmDialog, setShowResetConfirmDialog] = useState(false)
+
+  // Track newly enabled tokens (show ? until portfolio reloads)
+  const [newlyEnabledTokens, setNewlyEnabledTokens] = useState<Set<string>>(new Set())
+
+  // State for import all tokens functionality
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
+  const [importTotal, setImportTotal] = useState(0)
+  const [importCurrentToken, setImportCurrentToken] = useState('')
+  const [isImporting, setIsImporting] = useState(false)
+  const [importResults, setImportResults] = useState<{found: string[], notFound: string[]}>(
+    {found: [], notFound: []}
+  )
 
   // Format balance for input placeholder
   const formatBalanceForPlaceholder = (balance: number | null): string => {
@@ -236,11 +262,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Function to get current balance for a token (returns null if data not loaded yet)
   const getCurrentBalance = (tokenSymbol: string): number | null => {
+    // First check if this token was just toggled on (should show "?" immediately)
+    if (newlyEnabledTokens.has(tokenSymbol)) {
+      return null
+    }
+    
+    // If no balance data at all, show loading
     if (!rawBalances || rawBalances.length === 0) return null
     
     let totalBalance = 0
     let foundToken = false
     let hasValidData = false
+    let hasPlaceholder = false
     
     rawBalances.forEach(balanceData => {
       // Check native balance
@@ -259,17 +292,30 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           if (token.balanceFormatted !== null) {
             totalBalance += token.balanceFormatted
             hasValidData = true
+          } else if (token.isPlaceholder) {
+            // This is a placeholder token (just toggled on, no balance data yet)
+            hasPlaceholder = true
           }
         }
       })
     })
     
-    // If we found the token and have at least some valid data, return the balance (even if 0)
-    // If we found the token but have no valid data (all null), return null to show "?"
-    // If we didn't find the token at all, return 0
-    if (foundToken) {
-      return hasValidData ? totalBalance : null
+    // If we found the token and have actual balance data, return it (even if 0)
+    if (foundToken && hasValidData) {
+      return totalBalance
     }
+    
+    // If we found a placeholder, it means confirmed zero balance after portfolio reload
+    if (foundToken && hasPlaceholder) {
+      return 0
+    }
+    
+    // If we found the token but no data, show loading (shouldn't happen much)
+    if (foundToken) {
+      return null
+    }
+    
+    // If token not found at all, return 0 (confirmed zero balance)
     return 0
   }
 
@@ -389,6 +435,133 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       localStorage.setItem('portfolio-time-shift-date', timeShiftDate.toISOString().split('T')[0])
     }
   }, [timeShiftDate])
+
+  // Save custom balances to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const balancesObject = Object.fromEntries(customBalances)
+      localStorage.setItem('portfolioCustomBalances', JSON.stringify(balancesObject))
+    }
+  }, [customBalances])
+
+
+
+  // Function to check balance for a single token
+  const checkTokenBalance = async (tokenAddress: string, walletAddress: string, decimals: number): Promise<number> => {
+    try {
+      const rpcUrl = 'https://rpc-pulsechain.g4mm4.io'
+      
+      // ERC-20 balanceOf(address) function signature + padded wallet address
+      const data = '0x70a08231' + walletAddress.slice(2).padStart(64, '0')
+      
+      const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_call',
+          params: [
+            {
+              to: tokenAddress,
+              data: data
+            },
+            'latest'
+          ],
+          id: 1
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      
+      if (result.error) {
+        throw new Error(`RPC error: ${result.error.message}`)
+      }
+
+      const hexBalance = result.result
+      const balance = hexBalance && hexBalance !== '0x' ? BigInt(hexBalance).toString() : '0'
+      const balanceFormatted = balance !== '0' ? Number(balance) / Math.pow(10, decimals) : 0
+
+      return balanceFormatted
+    } catch (error) {
+      console.error(`Error fetching balance for ${tokenAddress}:`, error)
+      return 0
+    }
+  }
+
+  // Function to import all tokens from MORE_COINS
+  const importAllTokens = async () => {
+    setIsImporting(true)
+    setImportProgress(0)
+    setImportResults({found: [], notFound: []})
+    
+    // Get all valid tokens from MORE_COINS (PulseChain only, with valid addresses)
+    const validTokens = MORE_COINS.filter(token => 
+      token.chain === 369 && 
+      token.a && 
+      token.a.length === 42 && 
+      token.a !== "0x0" &&
+      !token.a.includes('xxx') && // Skip placeholder addresses
+      !token.a.includes('eee') &&
+      !token.a.includes('sss')
+    )
+    
+    setImportTotal(validTokens.length)
+    
+    const tokensWithBalance: string[] = []
+    const tokensWithoutBalance: string[] = []
+    
+    // Check each address's balance for each token
+    for (let i = 0; i < validTokens.length; i++) {
+      const token = validTokens[i]
+      setImportCurrentToken(token.ticker)
+      setImportProgress(i + 1)
+      
+      let hasBalance = false
+      
+      // Check balance for each of the user's addresses
+      for (const addressObj of addresses) {
+        try {
+          const balance = await checkTokenBalance(token.a, addressObj.address, token.decimals)
+          if (balance > 0) {
+            hasBalance = true
+            break // Found balance, no need to check other addresses
+          }
+        } catch (error) {
+          console.error(`Error checking ${token.ticker} for ${addressObj.address}:`, error)
+        }
+      }
+      
+      if (hasBalance) {
+        tokensWithBalance.push(token.ticker)
+      } else {
+        tokensWithoutBalance.push(token.ticker)
+      }
+      
+      // Small delay to prevent overwhelming the RPC
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    
+    setImportResults({
+      found: tokensWithBalance,
+      notFound: tokensWithoutBalance
+    })
+    
+    // Enable all tokens that have balances
+    if (tokensWithBalance.length > 0) {
+      const currentEnabled = pendingEnabledCoins || enabledCoins
+      const newEnabled = new Set([...currentEnabled, ...tokensWithBalance])
+      setPendingEnabledCoins(newEnabled)
+      setHasUserMadeManualChanges(true)
+    }
+    
+    setIsImporting(false)
+  }
 
   // Helper to convert timeShiftDate to string format for calculations
   const timeShiftDateString = useMemo(() => {
@@ -1616,6 +1789,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return applyCustomBalances(filteredBalances)
   }, [allRawBalances, coinDetectionMode, enabledCoins, customBalances])
   console.log('Portfolio Debug - Balance hook result:', { balances: rawBalances, balancesLoading, balancesError })
+
+  // Clear newly enabled tokens when balance data changes (portfolio reload completed)
+  useEffect(() => {
+    if (rawBalances && rawBalances.length > 0) {
+      setNewlyEnabledTokens(new Set()) // Clear the newly enabled tokens after reload
+    }
+  }, [rawBalances])
 
   // Auto-set enabled coins based on balances (only on initial load, don't override user choices)
   useEffect(() => {
@@ -3095,7 +3275,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const isDialogOpen = openDialogToken === stableKey
     const setIsDialogOpen = (open: boolean) => setOpenDialogToken(open ? stableKey : null)
     const usdValue = token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
-    const displayAmount = token.balanceFormatted !== null ? formatBalance(token.balanceFormatted) : '?'
+    const displayAmount = (() => {
+      const currentBalance = getCurrentBalance(token.symbol)
+      return currentBalance !== null ? formatBalance(currentBalance) : '?'
+    })()
     
     // Helper function to get the base token name (remove 'e' or 'we' prefix)
     const getBaseTokenName = (symbol: string): string => {
@@ -8849,7 +9032,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                        Simple Mode (~200 coins)
+                        Simple Mode
                       </button>
                       <button
                         onClick={() => handleModeSwitch('manual')}
@@ -8859,7 +9042,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                        Advanced Mode (500+ coins)
+                        Advanced Mode
                       </button>
                     </div>
                     
@@ -8868,14 +9051,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       <div className="text-sm text-blue-300">
                         {coinDetectionMode === 'auto-detect' ? (
                           <div>
-                            <div className="font-medium mb-1">💡 Simple Mode</div>
                             <div>
-                              Automatically detects main PulseChain coins only.
+                            💡 Automatically detects the top 200 main PulseChain coins only. (Faster & simpler)
                             </div>
                           </div>
                         ) : (
                           <div>
-                              Manually track up to 500+ extra tokens, control which ones you see, and edit their balances. (This mode can slow down your portfolio loading if you activate more than 200 tokens, or speed it up if you have less than 200 toggled on!.)
+                              Manually track up to 500+ extra tokens, control which ones you see, and edit their balances. (This mode can slow down your portfolio loading if you activate more than 200 tokens, or speed it up if you have less than 200 toggled on.)
                           </div>
                         )}
                       </div>
@@ -8901,7 +9083,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               : 'text-gray-300 hover:text-white hover:bg-white/10'
                           }`}
                         >
-                          {chainName} ({tokenCount})
+                          {chainName}
                         </button>
                       )
                     })}
@@ -8939,37 +9121,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       {/* Bulk Actions */}
                       <div className="flex gap-2 mb-4">
                         <button
-                          onClick={() => {
-                            const chainTokens = filteredTokensByChain[activeChainTab] || []
-                            const currentEnabled = pendingEnabledCoins || enabledCoins
-                            const newEnabled = new Set(currentEnabled)
-                            chainTokens.forEach(token => newEnabled.add(token.ticker))
-                            setPendingEnabledCoins(newEnabled)
-                            setHasUserMadeManualChanges(true)
-                          }}
-                          className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 text-white rounded transition-colors"
+                          onClick={() => setShowImportDialog(true)}
+                          className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                          title="Check balances for all 500+ tokens from MORE_COINS"
                         >
-                          Enable All {tokenSearchTerm ? 'Filtered' : ''}
-                        </button>
-                        <button
-                          onClick={() => {
-                            const chainTokens = filteredTokensByChain[activeChainTab] || []
-                            const currentEnabled = pendingEnabledCoins || enabledCoins
-                            const newEnabled = new Set(currentEnabled)
-                            chainTokens.forEach(token => newEnabled.delete(token.ticker))
-                            setPendingEnabledCoins(newEnabled)
-                            setHasUserMadeManualChanges(true)
-                          }}
-                          className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 text-white rounded transition-colors"
-                        >
-                          Disable All {tokenSearchTerm ? 'Filtered' : ''}
+                          Scan for & import tokens from extended 500+ token list (Slower)
                         </button>
                         <button
                           onClick={() => setShowResetConfirmDialog(true)}
                           className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
                           title="Reset selection to match auto-detect mode (only tokens with balances from the curated list)"
                         >
-                          Reset to Auto-Detect
+                          Reset to match Simple Mode's 200 token list (Faster)
                         </button>
                       </div>
 
@@ -9040,7 +9203,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               
                               {/* Balance input field - only show for enabled tokens */}
                               {isEnabled && (
-                                <div className="mx-4 w-32">
+                                <div className="mx-4 w-32 md:w-64">
                                   <input
                                     type="text"
                                     placeholder={formatBalanceForPlaceholder(getCurrentBalance(token.ticker))}
@@ -9070,6 +9233,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     console.log('[Portfolio] Toggled OFF:', token.ticker, 'pending enabled:', Array.from(newEnabled))
                                   } else {
                                     newEnabled.add(token.ticker)
+                                    // Track that this token was just toggled on
+                                    setNewlyEnabledTokens(prev => new Set([...prev, token.ticker]))
                                     console.log('[Portfolio] Toggled ON:', token.ticker, 'pending enabled:', Array.from(newEnabled))
                                   }
                                   setPendingEnabledCoins(newEnabled)
@@ -9213,6 +9378,114 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 </div>
               )}
 
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Import All Tokens Dialog */}
+      <AnimatePresence>
+        {showImportDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => !isImporting && setShowImportDialog(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-zinc-900 border border-white/20 rounded-xl p-6 max-w-md w-full"
+            >
+              <div className="text-center space-y-4">
+                <h3 className="text-lg font-semibold text-white">
+                  {isImporting ? 'Importing Tokens...' : 'Import extra tokens from 500+ token list (Slower)'}
+                </h3>
+                
+                {!isImporting && importResults.found.length === 0 && importResults.notFound.length === 0 ? (
+                  <div className="space-y-4">
+                    <p className="text-gray-300 text-sm">
+                      This will check your wallet balances for all {MORE_COINS.length} additional tokens from the extended token list.
+                      Only tokens with non-zero balances will be enabled.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowImportDialog(false)}
+                        className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={importAllTokens}
+                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                      >
+                        Start Import
+                      </button>
+                    </div>
+                  </div>
+                ) : !isImporting && (importResults.found.length > 0 || importResults.notFound.length > 0) ? (
+                  <div className="space-y-4">
+                    <div className="text-green-400 font-medium">
+                      Import Complete!
+                    </div>
+                    <div className="text-sm text-gray-300 space-y-2">
+                      <div>
+                        <span className="text-green-400">✓ Found {importResults.found.length} tokens with balances</span>
+                        {importResults.found.length > 0 && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            {importResults.found.slice(0, 5).join(', ')}
+                            {importResults.found.length > 5 && ` and ${importResults.found.length - 5} more...`}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-gray-400">• Checked {importResults.notFound.length} tokens with zero balance</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowImportDialog(false)
+                        setImportResults({found: [], notFound: []})
+                      }}
+                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-300">
+                      Checking: <span className="text-white font-medium">{importCurrentToken}</span>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${importTotal > 0 ? (importProgress / importTotal) * 100 : 0}%` }}
+                      />
+                    </div>
+                    
+                    <div className="text-xs text-gray-400">
+                      {importProgress} / {importTotal} tokens checked
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        setIsImporting(false)
+                        setShowImportDialog(false)
+                        // TODO: Cancel import process
+                      }}
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}
