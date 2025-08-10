@@ -727,21 +727,7 @@ export const TOKEN_CONSTANTS = [{
   ticker: "PLSP",
   decimals: 18,
   name: "PulsePot"
-}, {
-  chain: 369,
-  a: "0x444444444444c1a66f394025ac839a535246fcc8",
-  dexs: "0xe1ef8b1bfe5a1dbb3fc2f0c3405f54a9e6f32840",
-  ticker: "GENI",
-  decimals: 9,
-  name: "Genius"
-}, {
-  chain: 369,
-  a: "0xe101c848620e762ecb942356962dd415342b4feb",
-  dexs: "0x6c4f0bd9eb4328490a5bb8e0b682e28db52df2b3",
-  ticker: "LAUNCH",
-  decimals: 18,
-  name: "Pulse Launch"
-}, {
+},  {
   chain: 369,
   a: "0xcc78a0acdf847a2c1714d2a925bb4477df5d48a6",
   dexs: "0x859b67601353d6b6cfb8f52edf83de9c5b90b0d2",
@@ -832,13 +818,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "DAIX",
   decimals: 18,
   name: "DaiX"
-}, {
-  chain: 369,
-  a: "0x8c5eb0f7007c374d6fe14627259b99a5e9613c84",
-  dexs: "0x1aa434f653232a35b0559d5c4b33ab7fbaad80d6",
-  ticker: "CAVIAR",
-  decimals: 18,
-  name: "Caviar"
 }, {
   chain: 369,
   a: "0xaec4c07537b03e3e62fc066ec62401aed5fdd361",
@@ -1114,27 +1093,6 @@ export const TOKEN_CONSTANTS = [{
   name: "DickWifButt"
 }, {
   chain: 369,
-  a: "0xb6bad00525221eb28eb911a0b1162a0709b4ce57",
-  dexs: "0x3dceaf41a2f1d50adf09fc8adabaf37491d5f718",
-  ticker: "HARD",
-  decimals: 9,
-  name: "DaiHard"
-}, {
-  chain: 369,
-  a: "0x8c4a50c87e348f602ac6a59f4da857ee23307a42",
-  dexs: "0xe7726e023ae722ac180e7fcbd4bf028950fefa4e",
-  ticker: "ICARUS",
-  decimals: 18,
-  name: "Icarus"
-}, {
-  chain: 369,
-  a: "0x401464296a7e0cd14d85ab6baf0dc91b5ad5ad1b",
-  dexs: "0x5ce2e1b0d987e17ceec95363bd2097855b1940c1",
-  ticker: "BRO",
-  decimals: 18,
-  name: "BROmance"
-}, {
-  chain: 369,
   a: "0xec4252e62c6de3d655ca9ce3afc12e553ebba274",
   dexs: "0x96fefb743b1d180363404747bf09bd32657d8b78",
   ticker: "PUMP",
@@ -1168,77 +1126,7 @@ export const TOKEN_CONSTANTS = [{
   ticker: "LHEX",
   decimals: 8,
   name: "Liquid HEX"
-}, {
-  chain: 369,
-  a: "0xa5beb85e5f82419ab6bd0c13f6c3f66bb95c79da",
-  dexs: "0x5ac9ce15e67ac2c76c030b149eee4cc73e3238ae",
-  ticker: "PEAR",
-  decimals: 18,
-  name: "Rick Ross Pear"
-}, {
-  chain: 369,
-  a: "0xabeb72f153e050b3f8cca3dd93fe1eead51123db",
-  dexs: "0x7462c049c531e46530d66bb527b1865143100385",
-  ticker: "CHIITAN",
-  decimals: 18,
-  name: "Chiitan"
-}, {
-  chain: 369,
-  a: "0x7e461d9b06e8b7a4806beb6b9c5c5cb44da3e555",
-  dexs: "0xe2ad430832b86bbbf99c1a83a75b0b48dcf39af3",
-  ticker: "COOKIES",
-  decimals: 18,
-  name: "Cookies"
-}, {
-  chain: 369,
-  a: "0x3cc6704b0902475587363defbd6dab2ec0581628",
-  dexs: "0xec1415fdc0a7f2b8cbce45d183eb02b487db00f2",
-  ticker: "PEACH",
-  decimals: 18,
-  name: "Freedom of Peach"
-}, {
-  chain: 369,
-  a: "0xa12e2661ec6603cbbb891072b2ad5b3d5edb48bd",
-  dexs: "0x7c670cee36baf10ad0d547ec4c3c6b5aa32c1fd7",
-  ticker: "PINU",
-  decimals: 12,
-  name: "Pulse Inu"
-}, {
-  chain: 369,
-  a: "0xe83034a7a78fc148c69defebd6d4c80f8bb4f710",
-  dexs: "0x709fc9d014ae3e6387e2856762f64ae341063065",
-  ticker: "PINU2",
-  decimals: 18,
-  name: "Pulse Inu Puppy"
-}, {
-  chain: 369,
-  a: "0x9cc7437978255e2c38b0d3d4671fb9ac411a68ac",
-  dexs: "0xf30034233d8da99aa61758b8acde1eedee8fb1f1",
-  ticker: "DOGE",
-  decimals: 18,
-  name: "DOGE on Pulse"
-}, {
-  chain: 369,
-  a: "0x34f0915a5f15a66eba86f6a58be1a471fb7836a7",
-  dexs: "0x8534edb4061c69317425ab3d93caea4d3cea4b15",
-  ticker: "PLSD",
-  decimals: 12,
-  name: "PLSD on PulseChain"
-}, {
-  chain: 369,
-  a: "0x5ee84583f67d5ecea5420dbb42b462896e7f8d06",
-  dexs: "0x894167362577ea6ec0ac01ab56a7b2d3946ead55",
-  ticker: "PLSB",
-  decimals: 12,
-  name: "PLSB on PulseChain"
-}, {
-  chain: 369,
-  a: "0x347a96a5bd06d2e15199b032f46fb724d6c73047",
-  dexs: "0xf6dbd79f24fa1c9c44999b707f0e0c3ff2e6e361",
-  ticker: "ASIC",
-  decimals: 12,
-  name: "ASIC on PulseChain"
-}, {
+},  {
   chain: 369,
   a: "0xca35638a3fddd02fec597d8c1681198c06b23f58",
   dexs: "0xefab2c9c33c42960f2ff653adb39dc5c4c10630e",
@@ -1504,13 +1392,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "pBTT",
   decimals: 18,
   name: "BitTorrent on PulseChain"
-}, {
-  chain: 369,
-  a: "0x99F58b6979756fc129a33797eF796a6178D8A5De",
-  dexs: "0x03bb886995f4F699dE817582859686388aCB1D56",
-  ticker: "TFC",
-  decimals: 18,
-  name: "TFC"
 }, {
   chain: 369,
   a: "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",

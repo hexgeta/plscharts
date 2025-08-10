@@ -197,12 +197,41 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Format balance for input placeholder
   const formatBalanceForPlaceholder = (balance: number | null): string => {
     if (balance === null) return '?'
-    if (balance < 0.01) return '0'
+    if (balance === 0) return '0'
+    // For very small balances, use scientific notation
+    if (balance > 0 && balance < 0.01) {
+      return balance.toExponential(2)
+    }
     if (balance >= 100) {
       const wholeNumber = Math.floor(balance)
       return wholeNumber >= 10000 ? wholeNumber.toLocaleString() : wholeNumber.toString()
     }
     return balance.toFixed(2)
+  }
+
+  // Format input value with commas for large numbers
+  const formatInputValue = (value: string): string => {
+    // Remove existing commas and non-numeric characters except decimal point
+    const numericValue = value.replace(/[^\d.]/g, '')
+    
+    // Split into integer and decimal parts
+    const parts = numericValue.split('.')
+    const integerPart = parts[0]
+    const decimalPart = parts[1]
+    
+    // Add commas to integer part if >= 10000
+    let formattedInteger = integerPart
+    if (parseInt(integerPart, 10) >= 10000) {
+      formattedInteger = parseInt(integerPart, 10).toLocaleString()
+    }
+    
+    // Reconstruct with decimal part if it exists
+    return decimalPart !== undefined ? `${formattedInteger}.${decimalPart}` : formattedInteger
+  }
+
+  // Parse input value removing commas for storage
+  const parseInputValue = (value: string): string => {
+    return value.replace(/,/g, '')
   }
 
   // Function to get current balance for a token (returns null if data not loaded yet)
@@ -2932,26 +2961,26 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return percentage.toPrecision(2) + '%'
   }
 
-  // Helper function to format price to 3 significant figures
+  // Helper function to format price appropriately
   const formatPrice = (price: number): string => {
     if (price === 0) return '$0.00'
     
-    // Convert to string to count significant figures
-    const str = price.toString()
-    const exp = Math.floor(Math.log10(Math.abs(price)))
-    const mantissa = price / Math.pow(10, exp)
+    // For very small prices, use scientific notation
+    if (price > 0 && price < 0.01) {
+      return `$${price.toExponential(2)}`
+    }
     
-    // Round to 3 significant figures
-    const rounded = Math.round(mantissa * 100) / 100
-    const result = rounded * Math.pow(10, exp)
+    // For large prices (≥ 10,000), use comma formatting
+    if (price >= 10000) {
+      return `$${Math.round(price).toLocaleString()}`
+    }
     
-    // Format based on the magnitude
-    if (result >= 1) {
-      return `$${result.toPrecision(3)}`
+    // For moderate prices (0.01 to 9,999), use regular decimal formatting
+    if (price >= 1) {
+      return `$${price.toFixed(2)}`
     } else {
-      // For numbers less than 1, we need to handle decimal places carefully
-      const decimals = Math.max(0, 2 - exp)
-      return `$${result.toPrecision(3)}`
+      // For prices between 0.01 and 1, show appropriate decimal places
+      return `$${price.toFixed(4)}`
     }
   }
 
@@ -3066,7 +3095,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const isDialogOpen = openDialogToken === stableKey
     const setIsDialogOpen = (open: boolean) => setOpenDialogToken(open ? stableKey : null)
     const usdValue = token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
-    const displayAmount = token.balanceFormatted ? formatBalance(token.balanceFormatted) : '?'
+    const displayAmount = token.balanceFormatted !== null ? formatBalance(token.balanceFormatted) : '?'
     
     // Helper function to get the base token name (remove 'e' or 'we' prefix)
     const getBaseTokenName = (symbol: string): string => {
@@ -5298,7 +5327,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 const tokenPrice = getLPTokenPrice(token.symbol) || 0
                 const stableKey = `${token.chain}-${token.symbol}-${token.address || 'lp'}`
                 const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
-                const displayAmount = token.balanceFormatted ? formatBalance(token.balanceFormatted) : '?'
+                const displayAmount = token.balanceFormatted !== null ? formatBalance(token.balanceFormatted) : '?'
                 const usdValue = token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
                 
                 const underlyingTokens = calculateLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0)
@@ -8820,7 +8849,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                        Auto-Detect
+                        Simple Mode (~200 coins)
                       </button>
                       <button
                         onClick={() => handleModeSwitch('manual')}
@@ -8830,7 +8859,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                        Manual Mode
+                        Advanced Mode (500+ coins)
                       </button>
                     </div>
                     
@@ -8839,14 +8868,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       <div className="text-sm text-blue-300">
                         {coinDetectionMode === 'auto-detect' ? (
                           <div>
-                            <div className="font-medium mb-1">🔍 Auto-Detect Mode</div>
+                            <div className="font-medium mb-1">💡 Simple Mode</div>
                             <div>
-                              Automatically detects main PulseChain tokens. No manual configuration needed. Might miss some smaller alts.
+                              Automatically detects main PulseChain coins only.
                             </div>
                           </div>
                         ) : (
                           <div>
-                              Manually add up to 500+ extra tokens to your portfolio and edit their balances. (The more you add the longer it takes to load.)
+                              Manually track up to 500+ extra tokens, control which ones you see, and edit their balances. (This mode can slow down your portfolio loading if you activate more than 200 tokens, or speed it up if you have less than 200 toggled on!.)
                           </div>
                         )}
                       </div>
@@ -8990,7 +9019,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     })()}
                                   </div>
                                 ) : (
-                                  <CoinLogo symbol={token.ticker} size="sm" />
+                                  <div className="w-8 h-8 flex items-center justify-center">
+                                    <CoinLogo symbol={token.ticker} size="md" />
+                                  </div>
                                 )}
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
@@ -9013,13 +9044,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   <input
                                     type="text"
                                     placeholder={formatBalanceForPlaceholder(getCurrentBalance(token.ticker))}
-                                    value={customBalances.get(token.ticker) || ''}
+                                    value={formatInputValue(customBalances.get(token.ticker) || '')}
                                     onChange={(e) => {
                                       const newCustomBalances = new Map(customBalances)
                                       if (e.target.value === '') {
                                         newCustomBalances.delete(token.ticker)
                                       } else {
-                                        newCustomBalances.set(token.ticker, e.target.value)
+                                        // Store the parsed value (without commas) for calculations
+                                        const parsedValue = parseInputValue(e.target.value)
+                                        newCustomBalances.set(token.ticker, parsedValue)
                                       }
                                       setCustomBalances(newCustomBalances)
                                     }}
