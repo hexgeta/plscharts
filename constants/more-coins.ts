@@ -439,14 +439,6 @@ export const MORE_COINS = [
     },
 {
       "chain": 369,
-      "a": "0x7b39712Ef45F7dcED2bBDF11F3D5046bA61dA719",
-      "dexs": "0xA2b8f577AB43bc7D01ba96B743e8641748D6DB3c",
-      "ticker": "9MM",
-      "decimals": 18,
-      "name": "9MM on Pulsechain"
-    },
-{
-      "chain": 369,
       "a": "0x9F8182aD65c53Fd78bd07648a1b3DDcB675c6772",
       "dexs": "0x10A639e1860410B075b877e0beBE163F26377A40",
       "ticker": "TONI",
@@ -2769,15 +2761,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0x78Ad9dA5d80a08AeDE9B0876B7A8807320DbDc9A",
       "dexs": "",
-      "ticker": "PUMP",
-      "decimals": 18,
-      "name": "GOPUMPME"
-    },
-{
-      "chain": 369,
-      "a": "0x78Ad9dA5d80a08AeDE9B0876B7A8807320DbDc9A",
-      "dexs": "",
-      "ticker": "PUMP",
+      "ticker": "GOPUMPME",
       "decimals": 18,
       "name": "GOPUMPME"
     },
@@ -2977,7 +2961,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0x55C50875e890c7eE5621480baB02511C380E12C6",
       "dexs": "0x9b82FeE4e54011fe7e5352317d6C7fDc5d2c1ACe",
-      "ticker": "HEX",
+      "ticker": "HEX (from pump.tires)",
       "decimals": 18,
       "name": "HEX from pump.tires"
     },
