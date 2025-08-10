@@ -5108,19 +5108,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 </div>
                 
                 {/* Always show liquidity positions checkbox in advanced filters */}
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="liquidity-positions-filter"
-                    checked={showLiquidityPositions}
-                    onCheckedChange={(checked) => setShowLiquidityPositions(checked === true)}
-                  />
-                  <label 
-                    htmlFor="liquidity-positions-filter" 
-                    className={`text-sm cursor-pointer ${showLiquidityPositions ? 'text-white' : 'text-gray-400'}`}
-                  >
-                    Include liquidity positions
-                  </label>
-                </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="liquidity-positions-filter"
+                      checked={showLiquidityPositions}
+                      onCheckedChange={(checked) => setShowLiquidityPositions(checked === true)}
+                    />
+                    <label 
+                      htmlFor="liquidity-positions-filter" 
+                      className={`text-sm cursor-pointer ${showLiquidityPositions ? 'text-white' : 'text-gray-400'}`}
+                    >
+                      Include liquidity positions
+                    </label>
+                  </div>
                 
                 
 
@@ -8841,7 +8841,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           <div>
                             <div className="font-medium mb-1">🔍 Auto-Detect Mode</div>
                             <div>
-                              Automatically detects and tracks tokens that exist in your wallets. No manual configuration needed.
+                              Automatically detects main PulseChain tokens. No manual configuration needed. Might miss some smaller alts.
                             </div>
                           </div>
                         ) : (

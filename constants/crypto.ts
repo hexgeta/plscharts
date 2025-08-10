@@ -363,7 +363,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0x7c189232df88431017A471a1333acDA05E25d8f3",
   ticker: "ALAMO",
   decimals: 18,
-  name: "Alamo"
+  name: "The Alamo"
 }, {
   chain: 369,
   a: "0xA80736067abDc215a3b6B66a57c6e608654d0C9a",
@@ -371,14 +371,7 @@ export const TOKEN_CONSTANTS = [{
   ticker: "BRIAH",
   decimals: 18,
   name: "Briah"
-}, {
-  chain: 369,
-  a: "0x5e01BBc8944D3e10141B1Dabc626d9D37bc9Ad41",
-  dexs: "0x7c189232df88431017A471a1333acDA05E25d8f3",
-  ticker: "ALAMO",
-  decimals: 8,
-  name: "Alamo"
-},
+}, 
 {
   chain: 369,
   a: "0x57fde0a71132198BBeC939B98976993d8D89D225",
