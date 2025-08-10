@@ -211,37 +211,37 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     let totalBalance = 0
     let foundToken = false
-    let hasPlaceholder = false
+    let hasValidData = false
     
     rawBalances.forEach(balanceData => {
       // Check native balance
       if (balanceData.nativeBalance && balanceData.nativeBalance.symbol === tokenSymbol) {
-        if (balanceData.nativeBalance.balanceFormatted === null) {
-          hasPlaceholder = true
-        } else {
-          totalBalance += balanceData.nativeBalance.balanceFormatted
-        }
         foundToken = true
+        if (balanceData.nativeBalance.balanceFormatted !== null) {
+          totalBalance += balanceData.nativeBalance.balanceFormatted
+          hasValidData = true
+        }
       }
       
       // Check token balances
       balanceData.tokenBalances?.forEach(token => {
         if (token.symbol === tokenSymbol) {
-          if (token.balanceFormatted === null) {
-            hasPlaceholder = true
-          } else {
-            totalBalance += token.balanceFormatted
-          }
           foundToken = true
+          if (token.balanceFormatted !== null) {
+            totalBalance += token.balanceFormatted
+            hasValidData = true
+          }
         }
       })
     })
     
-    // If we found placeholder data (null balance), return null to show "?"
-    // If we found real token data, return the balance (even if 0)
+    // If we found the token and have at least some valid data, return the balance (even if 0)
+    // If we found the token but have no valid data (all null), return null to show "?"
     // If we didn't find the token at all, return 0
-    if (foundToken && hasPlaceholder) return null
-    return foundToken ? totalBalance : 0
+    if (foundToken) {
+      return hasValidData ? totalBalance : null
+    }
+    return 0
   }
 
 
@@ -2760,7 +2760,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       return bValue - aValue // Higher value first
     })
   }, [
-    mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted.toFixed(6)}`).join('|'),
+    mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted?.toFixed(6) || '0'}`).join('|'),
     lpTokenPrices
   ])
 
@@ -8959,7 +8959,39 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors"
                             >
                               <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <CoinLogo symbol={token.ticker} size="sm" />
+                                {isLP ? (
+                                  <div className="relative w-8 h-8 flex-shrink-0">
+                                    {(() => {
+                                      // Extract token symbols from LP pair name (e.g., "HEX / WPLS" -> ["HEX", "WPLS"])
+                                      const tokenSymbols = token.ticker.split(' / ')
+                                      const token0Symbol = tokenSymbols[0] || 'PLS'
+                                      const token1Symbol = tokenSymbols[1] || 'HEX'
+                                      
+                                      return (
+                                        <>
+                                          {/* First token (back) */}
+                                          <div className="absolute top-0 left-0 w-6 h-6">
+                                            <CoinLogo
+                                              symbol={token0Symbol}
+                                              size="sm"
+                                              className="w-6 h-6 border border-black/20 rounded-full"
+                                            />
+                                          </div>
+                                          {/* Second token (front, overlapping) */}
+                                          <div className="absolute top-2 left-2.5 w-6 h-6">
+                                            <CoinLogo
+                                              symbol={token1Symbol}
+                                              size="sm"
+                                              className="w-6 h-6 border border-black/20 rounded-full"
+                                            />
+                                          </div>
+                                        </>
+                                      )
+                                    })()}
+                                  </div>
+                                ) : (
+                                  <CoinLogo symbol={token.ticker} size="sm" />
+                                )}
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
                                     <span className="font-medium text-white">{token.ticker}</span>

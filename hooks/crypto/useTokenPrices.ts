@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
-import { TOKEN_CONSTANTS } from '@/constants/crypto';
+import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { MORE_COINS } from '@/constants/more-coins';
 import { PRICE_CACHE_KEYS } from './utils/cache-keys';
 
 export interface TokenPriceData {
@@ -111,7 +112,9 @@ async function fetchTokenPrices(tickers: string[]): Promise<TokenPrices> {
   const tokensByChain: { [chain: string]: { ticker: string; pairAddress: string }[] } = {};
   
   for (const ticker of tickers) {
-  const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === ticker);
+  // Look for token in both TOKEN_CONSTANTS and MORE_COINS
+  const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS];
+  const tokenConfig = allTokens.find(token => token.ticker === ticker);
   
   if (!tokenConfig) {
       console.warn(`[Price Fetch] No token config found for ticker ${ticker}`);
@@ -186,7 +189,14 @@ async function fetchTokenPrices(tickers: string[]): Promise<TokenPrices> {
         } else {
           failedTokens.push(token.ticker);
           console.warn(`❌ ${token.ticker}: No price data found (pair: ${token.pairAddress})`);
-          results[token.ticker] = DEFAULT_PRICE_DATA;
+          
+          // Special case: if stpCOM fails to get price, try to use COM price as fallback
+          if (token.ticker === 'stpCOM' && results['COM']) {
+            console.log(`🔄 Using COM price as fallback for stpCOM`);
+            results[token.ticker] = { ...results['COM'] };
+          } else {
+            results[token.ticker] = DEFAULT_PRICE_DATA;
+          }
         }
       });
   } catch (error) {
@@ -212,6 +222,17 @@ async function fetchTokenPrices(tickers: string[]): Promise<TokenPrices> {
       const data = results[ticker];
       console.log(`   ${ticker}: $${data.price.toFixed(6)} (${data.priceChange.h24 || 0}%)`);
     });
+  }
+  
+  // Post-processing: Handle special price relationships
+  // If COM has a price but stpCOM doesn't, use COM's price for stpCOM
+  if (results['COM'] && results['COM'].price > 0 && (!results['stpCOM'] || results['stpCOM'].price === 0)) {
+    console.log(`🔄 Post-processing: Using COM price for stpCOM`);
+    results['stpCOM'] = { ...results['COM'] };
+    if (failedTokens.includes('stpCOM')) {
+      failedTokens.splice(failedTokens.indexOf('stpCOM'), 1);
+      successfulTokens.push('stpCOM');
+    }
   }
   
   if (failedTokens.length > 0) {
