@@ -3212,6 +3212,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
   }, [showDollarChange, tokenSortField])
 
+
+
   // Helper function to format 24h change (percentage or dollar)
   const format24hChange = useCallback((percentChange: number | undefined, dollarChange: number, showDollar: boolean = showDollarChange) => {
     if (showDollar) {
@@ -8517,6 +8519,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         </Section>
       )}
 
+
+
       {/* Edit Addresses Popup modal*/}
       <AnimatePresence>
         {showEditModal && (
@@ -9057,7 +9061,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           </div>
                         ) : (
                           <div>
-                              Manually track up to 500+ extra tokens, control which ones you see, and edit their balances. (This mode can slow down your portfolio loading if you activate more than 200 tokens, or speed it up if you have less than 200 toggled on.)
+                              Manually track up to 400+ extra tokens, control which ones you see, and edit their balances. (This mode can slow down your portfolio loading if you activate more than 200 tokens, or speed it up if you have less than 200 toggled on.)
                           </div>
                         )}
                       </div>
@@ -9123,9 +9127,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         <button
                           onClick={() => setShowImportDialog(true)}
                           className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
-                          title="Check balances for all 500+ tokens from MORE_COINS"
+                          title="Check balances for all 400+ tokens from MORE_COINS"
                         >
-                          Scan for & import tokens from extended 500+ token list (Slower)
+                          Scan for & import tokens from an extended 400+ token list (Slower)
                         </button>
                         <button
                           onClick={() => setShowResetConfirmDialog(true)}
@@ -9148,7 +9152,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           return (
                             <div
                               key={`${token.chain}-${token.a}-${token.ticker}`}
-                              className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors"
+                              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                                newlyEnabledTokens.has(token.ticker) 
+                                  ? 'bg-green-500/10 border-green-500/30 hover:bg-green-500/15' 
+                                  : 'bg-white/5 border-white/10 hover:bg-white/10'
+                              }`}
                             >
                               <div className="flex items-center gap-3 min-w-0 flex-1">
                                 {isLP ? (
@@ -9402,7 +9410,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             >
               <div className="text-center space-y-4">
                 <h3 className="text-lg font-semibold text-white">
-                  {isImporting ? 'Importing Tokens...' : 'Import extra tokens from 500+ token list (Slower)'}
+                  {isImporting ? 'Importing Tokens...' : 'Import extra tokens from 400+ token list (Slower)'}
                 </h3>
                 
                 {!isImporting && importResults.found.length === 0 && importResults.notFound.length === 0 ? (

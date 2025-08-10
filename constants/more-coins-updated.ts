@@ -14,7 +14,7 @@ export interface TokenConfig {
 }
 
 export const MORE_COINS = [
-  {
+{
     "chain": 369,
     "a": "0x6Afd30110e9fF1b29dB3c4DAf31EF0045a6552cB",
     "dexs": "0x814063B35C06897ADDBb71E27f282A193560E99b",
@@ -3365,30 +3365,6 @@ export const MORE_COINS = [
       "decimals": 18,
       "name": "KISHKA"
     }
-];
-
-export const API_ENDPOINTS = {
-  historic_pulsechain: 'https://hexdailystats.com/fulldatapulsechain',
-  historic_ethereum: 'https://hexdailystats.com/fulldata',
-  livedata: 'https://hexdailystats.com/livedata'
-}
-
-// LP Token detection is now handled via the `type: "lp"` field in TOKEN_CONSTANTS
-// To add a new LP token:
-// 1. Add the token to TOKEN_CONSTANTS with type: "lp" and platform: "PLSX V2" 
-// 2. The Portfolio component will automatically detect and price it
-
-const getLogoPath = (ticker: string): string | null => {
-  // Remove chain prefixes if they exist
-  const cleanTicker = ticker.replace(/^[ep]/, '');
-  
-  // Try different paths
-  const paths = [
-    `/coin-logos/${cleanTicker}.svg`,
-    `/coin-logos/${ticker}.svg`
-  ];
-  
-  // Return the first path that exists
-  return paths[0]; // For now return first path, we'll validate existence later
+]; // For now return first path, we'll validate existence later
 }
 

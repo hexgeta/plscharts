@@ -834,48 +834,6 @@ export const TOKEN_CONSTANTS = [{
   name: "9mm"
 }, {
   chain: 369,
-  a: "0xd22e78c22d7e77229d60cc9fc57b0e294f54488e",
-  dexs: "0x7f2de21b3f45cef665f97eb928e16dfbd8ecef6f",
-  ticker: "HOC",
-  decimals: 18,
-  name: "Hocus Pocus"
-}, {
-  chain: 369,
-  a: "0x5f63bc3d5bd234946f18d24e98c324f629d9d60e",
-  dexs: "0xf121e6e093e2c070f2d982f85726084a776a963f",
-  ticker: "IMPLS",
-  decimals: 18,
-  name: "IMPLS Token"
-}, {
-  chain: 369,
-  a: "0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e",
-  dexs: "0x9977e170c9b6e544302e8db0cf01d12d55555289",
-  ticker: "pSSH",
-  decimals: 9,
-  name: "SuperStake"
-}, {
-  chain: 369,
-  a: "0x17637e738d095f4e480cabbf55038e4e9e2b235e",
-  dexs: "0x6eb99c82e081dab9c58a2d995bb27cbab23ae6a7",
-  ticker: "DRS",
-  decimals: 9,
-  name: "DAI Reflections"
-}, {
-  chain: 369,
-  a: "0xf876bdf9d6403aa7d5bf7f523e8f440a841cc596",
-  dexs: "0x6292f579606108a285ff7b75efad54dc12576385",
-  ticker: "RFX",
-  decimals: 18,
-  name: "Reflux"
-}, {
-  chain: 369,
-  a: "0x73d8a4d01d658e565cf83068397fd39baf386c48",
-  dexs: "0xea693bcd6ea8dd3ce1d6df683be302027ea0e6db",
-  ticker: "VRX",
-  decimals: 18,
-  name: "Vortex"
-}, {
-  chain: 369,
   a: "0x319e55be473c77c35316651995c048a415219604",
   dexs: "0x2e109c85ca018d14f86e81e28063446cc1500203",
   ticker: "ZKZX",
@@ -902,13 +860,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "iBURN",
   decimals: 9,
   name: "Icosa Burn"
-}, {
-  chain: 369,
-  a: "0x54f667db585b7b10347429c72c36c8b59ab441cb",
-  dexs: "0xe34c1a936aa844da23fb6e70aa143e97135691d5",
-  ticker: "GOFURS",
-  decimals: 18,
-  name: "GOFURS on PulseChain"
 }, {
   chain: 369,
   a: "0x880dd541e00b966d829968c3198f11c8ca38a877",
@@ -1133,13 +1084,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "TIME",
   decimals: 18,
   name: "TIME on PulseChain"
-}, {
-  chain: 369,
-  a: "0xcfcffe432a48db53f59c301422d2edd77b2a88d7",
-  dexs: "0x53bf2cc26381ea7ebb927e220008bbff3447a2ec",
-  ticker: "TEXAN",
-  decimals: 18,
-  name: "Texan on PulseChain"
 }, {
   chain: 369,
   a: "0x9565c2036963697786705120fc59310f747bcfd0",
