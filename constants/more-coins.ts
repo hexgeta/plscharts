@@ -329,9 +329,66 @@ export const MORE_COINS = [
     chain: 369,
     a: "0xxx",
     dexs: "0x6d69654390c70d9e8814b04c69a542632dc93161",
-    ticker: "stpLOAN",
+    ticker: "stLOAN",
     decimals: 18,
-    name: "Staked LOAN on Pls"
+    name: "Staked LOAN (Liquid Loans)"
+  }, {
+    chain: 369,
+    a: "0x0deed1486bc52aa0d3e6f8849cec5add6598a162",
+    dexs: "0x27557d148293d1c8e8f8c5deeab93545b1eb8410",
+    ticker: "stUSDL",
+    decimals: 18,
+    name: "Staked USDL (Liquid Loans)"
+  },
+  {
+    chain: 369,
+    a: "0x0deed1486bc52aa0d3e6f8849cec5add6598a162",
+    dexs: "0x27557d148293d1c8e8f8c5deeab93545b1eb8410",
+    ticker: "stPLS LL",
+    decimals: 18,
+    name: "Deposited PLS (Liquid Loans)"
+  }, {
+    chain: 369,
+    a: "0x95b303987a60c71504d99aa1b13b4da07b0790ab",
+    dexs: "0x1b45b9148791d3a104184cd5dfe5ce57193a3ee9",
+    ticker: "stPLSX EARN",
+    decimals: 18,
+    name: "Staked PulseX EARN"
+  }, {
+    chain: 369,
+    a: "0xb513038bbfdf9d40b676f41606f4f61d4b02c4a2",
+    dexs: "0xed77cbbb80e5a5c3a1fe664419d6f690766b5913",
+    ticker: "stEARN EARN",
+    decimals: 18,
+    name: "Staked EARN (PowerCity's EARN)"
+  }, {
+    chain: 369,
+    a: "0xeb6b7932da20c6d7b3a899d5887d86dfb09a6408",
+    dexs: "0xabb36512813194b12a82a319783dbb455652440a",
+    ticker: "stPXDC EARN",
+    decimals: 18,
+    name: "Staked PXDC (PowerCity's EARN)"
+  }, {
+    chain: 369,
+    a: "0x95b303987a60c71504d99aa1b13b4da07b0790ab",
+    dexs: "0x1b45b9148791d3a104184cd5dfe5ce57193a3ee9",
+    ticker: "stHEX FLEX",
+    decimals: 18,
+    name: "Staked HEX FLEX"
+  }, {
+    chain: 369,
+    a: "0xb513038bbfdf9d40b676f41606f4f61d4b02c4a2",
+    dexs: "0xed77cbbb80e5a5c3a1fe664419d6f690766b5913",
+    ticker: "stFLEX FLEX",
+    decimals: 18,
+    name: "Staked FLEX (PowerCity's FLEX)"
+  }, {
+    chain: 369,
+    a: "0xeb6b7932da20c6d7b3a899d5887d86dfb09a6408",
+    dexs: "0xabb36512813194b12a82a319783dbb455652440a",
+    ticker: "stHEXDC FLEX",
+    decimals: 18,
+    name: "Staked HEXDC (PowerCity's FLEX)"
   },
 {
     chain: 369,
@@ -372,6 +429,13 @@ export const MORE_COINS = [
       "ticker": "PHIAT",
       "decimals": 18,
       "name": "Phiat Token"
+    }, {
+      "chain": 369,
+      "a": "0x96E035ae0905EFaC8F733f133462f971Cfa45dB1",
+      "dexs": "0xfe75839c16a6516149D0F7B2208395F54A5e16e8",
+      "ticker": "stPHIAT",
+      "decimals": 18,
+      "name": "StakedPhiat Token"
     },
 {
       "chain": 369,
@@ -420,14 +484,6 @@ export const MORE_COINS = [
       "ticker": "pTUSD",
       "decimals": 18,
       "name": "TrueUSD on Pulsechain"
-    },
-{
-      "chain": 369,
-      "a": "0x0dEEd1486bc52aA0d3E6f8849cEC5adD6598A162",
-      "dexs": "0xC2E13C31Fa3B87Bb5b59f98F1D2E6b4eD3eD855e",
-      "ticker": "USDL",
-      "decimals": 18,
-      "name": "USDL Stablecoin"
     },
 {
       "chain": 369,
@@ -3133,7 +3189,168 @@ export const MORE_COINS = [
       ticker: "PLSC",
       decimals: 18,
       name: "PulseCoin"
-    }
+    },  {
+      chain: 369,
+      a: "0x0",
+      dexs: "0xe56043671df55de5cdf8459710433c10324de0ae",
+      ticker: "PLS (PHIAT deposit)",
+      decimals: 18,
+      name: "PLS (PHIAT deposit)"
+    },  {
+      chain: 369,
+      a: "0x95b303987a60c71504d99aa1b13b4da07b0790ab",
+      dexs: "0x1b45b9148791d3a104184cd5dfe5ce57193a3ee9",
+      ticker: "PLSX (PHIAT deposit)",
+      decimals: 18,
+      name: "PLSX (PHIAT deposit)"
+    },  {
+      chain: 369,
+      a: "0x2b591e99afe9f32eaa6214f7b7629768c40eeb39",
+      dexs: "0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65",
+      ticker: "HEX (PHIAT deposit)",
+      decimals: 8,
+      name: "HEX (PHIAT deposit)"
+    },  {
+      chain: 369,
+      a: "0x2fa878ab3f87cc1c9737fc071108f904c0b0c95d",
+      dexs: "0xf808bb6265e9ca27002c0a04562bf50d4fe37eaa",
+      ticker: "Incentive (PHIAT deposit)",
+      decimals: 18,
+      name: "Incentive (PHIAT deposit)"
+    },   {
+      chain: 369,
+      a: "0xefd766ccb38eaf1dfd701853bfce31359239f305",
+      dexs: "",
+      ticker: "DAI from ETH (PHIAT deposit)",
+      decimals: 18,
+      name: "DAI from ETH (PHIAT deposit)"
+    },   {
+      chain: 369,
+      a: "0x15d38573d2feeb82e7ad5187ab8c1d52810b1f07",
+      dexs: "0x52ca8c5c6a5c7c56cf5e01bde9473b3b7f7c0b1e",
+      ticker: "USDC from ETH (PHIAT deposit)",
+      decimals: 6,
+      name: "USDC from ETH (PHIAT deposit)"
+    },   {
+      chain: 369,
+      a: "0x0cb6f5a34ad42ec934882a05265a7d5f59b51a2f",
+      dexs: "0xc8bbdb5a0652877eb1f774cba684eb8fbdd7bbb7",
+      ticker: "USDT from ETH (PHIAT deposit)",
+      decimals: 6,
+      name: "USDT from ETH (PHIAT deposit)"
+    },   {
+      chain: 369,
+      a: "0x0deed1486bc52aa0d3e6f8849cec5add6598a162",
+      dexs: "0x27557d148293d1c8e8f8c5deeab93545b1eb8410",
+      ticker: "USDL from ETH (PHIAT deposit)",
+      decimals: 18,
+      name: "USDL from ETH (PHIAT deposit)"
+    },   {
+      chain: 369,
+      a: "0xeb6b7932da20c6d7b3a899d5887d86dfb09a6408",
+      dexs: "0xabb36512813194b12a82a319783dbb455652440a",
+      ticker: "PXDC from ETH (PHIAT deposit)",
+      decimals: 18,
+      name: "PXDC from ETH (PHIAT deposit)"
+    },   {
+      chain: 369,
+      a: "0x1fe0319440a672526916c232eaee4808254bdb00",
+      dexs: "0x9756f095dfa27d4c2eae0937a7b8a6603d99affb",
+      ticker: "HEXDC from ETH (PHIAT deposit)",
+      decimals: 8,
+      name: "HEXDC from ETH (PHIAT deposit)"
+    },   {
+      chain: 369,
+      a: "0x02dcdd04e3f455d838cd1249292c58f3b79e3c3c",
+      dexs: "0x29d66D5900Eb0d629E1e6946195520065A6c5aeE",
+      ticker: "WETH from ETH (PHIAT deposit)",
+      decimals: 18,
+      name: "WETH from ETH (PHIAT deposit)"
+    },   {
+      chain: 369,
+      a: "0xb17d901469b9208b17d916112988a3fed19b5ca1",
+      dexs: "0x8c52470a05eEB2fCe4905688Ec59bFDd32E71D07",
+      ticker: "WBTC Coin from ETH (PHIAT deposit)",
+      decimals: 8,
+      name: "WBTC Coin from ETH (PHIAT deposit)"
+    },   {
+      chain: 369,
+      a: "0x0",
+      dexs: "0xe56043671df55de5cdf8459710433c10324de0ae",
+      ticker: "PLS (PHAME deposit)",
+      decimals: 18,
+      name: "PLS (PHAME deposit)"
+    },  {
+      chain: 369,
+      a: "0x95b303987a60c71504d99aa1b13b4da07b0790ab",
+      dexs: "0x1b45b9148791d3a104184cd5dfe5ce57193a3ee9",
+      ticker: "PLSX (PHAME deposit)",
+      decimals: 18,
+      name: "PLSX (PHAME deposit)"
+    },  {
+      chain: 369,
+      a: "0x2b591e99afe9f32eaa6214f7b7629768c40eeb39",
+      dexs: "0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65",
+      ticker: "HEX (PHAME deposit)",
+      decimals: 8,
+      name: "HEX (PHAME deposit)"
+    },  {
+      chain: 369,
+      a: "0x2fa878ab3f87cc1c9737fc071108f904c0b0c95d",
+      dexs: "0xf808bb6265e9ca27002c0a04562bf50d4fe37eaa",
+      ticker: "Incentive (PHAME deposit)",
+      decimals: 18,
+      name: "Incentive (PHAME deposit)"
+    },     {
+      chain: 369,
+      a: "0xefd766ccb38eaf1dfd701853bfce31359239f305",
+      dexs: "",
+      ticker: "DAI from ETH (PHAME deposit)",
+      decimals: 18,
+      name: "DAI from ETH (PHAME deposit)"
+    }, {
+      chain: 369,
+      a: "0x02dcdd04e3f455d838cd1249292c58f3b79e3c3c",
+      dexs: "0x29d66D5900Eb0d629E1e6946195520065A6c5aeE",
+      ticker: "WETH from ETH (PHAME deposit)",
+      decimals: 18,
+      name: "WETH from ETH (PHAME deposit)"
+    }, {
+      chain: 369,
+      a: "0xb17d901469b9208b17d916112988a3fed19b5ca1",
+      dexs: "0x8c52470a05eEB2fCe4905688Ec59bFDd32E71D07",
+      ticker: "WBTC Coin from ETH (PHAME deposit)",
+      decimals: 8,
+      name: "WBTC Coin from ETH (PHAME deposit)"
+    }, {
+      chain: 369,
+      a: "0x1c3C50bd18E3f0C7c23666b8e8a843238A359386",
+      dexs: "",
+      ticker: "wSOL from Ethereum (PHAME deposit)",
+      decimals: 9,
+      name: "wSOL from Ethereum (PHAME deposit)"
+    }, {
+      chain: 369,
+      a: "0x15d38573d2feeb82e7ad5187ab8c1d52810b1f07",
+      dexs: "0x52ca8c5c6a5c7c56cf5e01bde9473b3b7f7c0b1e",
+      ticker: "USDC from ETH (PHAME deposit)",
+      decimals: 6,
+      name: "USDC from ETH (PHAME deposit)"
+    }, {
+      chain: 369,
+      a: "0x0cb6f5a34ad42ec934882a05265a7d5f59b51a2f",
+      dexs: "0xc8bbdb5a0652877eb1f774cba684eb8fbdd7bbb7",
+      ticker: "USDT from ETH (PHAME deposit)",
+      decimals: 6,
+      name: "USDT from ETH (PHAME deposit)"
+    }, {
+      chain: 369,
+      a: "0x8854bc985fb5725f872c8856bea11b917caeb2fe",
+      dexs: "0xf64602fd08245d1d27f7d9452814bea1451bd502",
+      ticker: "stPHAME",
+      decimals: 18,
+      name: "Staked Phamous"
+    },
 ];
 
 export const API_ENDPOINTS = {
