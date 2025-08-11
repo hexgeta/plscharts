@@ -4951,10 +4951,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         </div>
 
       </div>
-    );
+    )
   }
 
-  return (
+    return (
     <>
       {/* EES Mode Page Glow Effect - Temporarily disabled for performance testing */}
       {/* {hasMounted && useEESValue && (
@@ -9610,8 +9610,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 </div>
               )}
 
-              {/* Reset Confirmation Overlay - Inside the 
-               modal */}
+              {/* Reset Confirmation Overlay - Inside the  modal */}
               {showResetConfirmDialog && (
                 <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10">
                   <div className="bg-black border-2 border-white/10 rounded-lg p-6 max-w-md mx-4">
