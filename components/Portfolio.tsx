@@ -4954,7 +4954,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     )
   }
 
-    return (
+  return (
     <>
       {/* EES Mode Page Glow Effect - Temporarily disabled for performance testing */}
       {/* {hasMounted && useEESValue && (
