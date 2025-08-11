@@ -1073,16 +1073,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     setCustomTokens(prev => [...prev, customToken])
     
-    // Auto-enable the new token if in manual mode (keep existing tokens enabled)
+    // Auto-enable the new token and mark as newly enabled for proper styling and ? placeholder
     if (coinDetectionMode === 'manual') {
       // Only update pending state - don't directly update enabledCoins to avoid immediate reload
       setPendingEnabledCoins(prev => {
         const current = prev || enabledCoins
         return new Set([...current, customToken.ticker])
       })
-      // Mark it as newly enabled to show green styling
-      setNewlyEnabledTokens(prev => new Set([...prev, customToken.ticker]))
+    } else {
+      // In auto-detect mode, directly enable since it should auto-detect
+      setEnabledCoins(prev => new Set([...prev, customToken.ticker]))
     }
+    
+    // Always mark as newly enabled to show green styling and ? placeholder
+    setNewlyEnabledTokens(prev => new Set([...prev, customToken.ticker]))
 
     // Reset form
     setNewTokenForm({
@@ -1094,8 +1098,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       chain: 369
     })
     
-    // Close the custom token section after adding
-    setIsCustomTokenSectionOpen(false)
+    // Close the custom token section after adding with a small delay to prevent flicker
+    setTimeout(() => {
+      setIsCustomTokenSectionOpen(false)
+    }, 50)
   }
 
   const deleteCustomToken = (tokenId: string) => {
