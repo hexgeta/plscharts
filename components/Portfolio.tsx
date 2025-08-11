@@ -3813,10 +3813,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         
         // Add native token value
         if (addressData.nativeBalance) {
-          const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
-          const nativeValue = addressData.nativeBalance.balanceFormatted * nativePrice
-          addressValue += nativeValue
-          console.log(`[Portfolio] ${addressData.address.slice(0, 8)}... native ${addressData.nativeBalance.symbol}: ${addressData.nativeBalance.balanceFormatted.toFixed(4)} @ $${nativePrice.toFixed(4)} = $${nativeValue.toFixed(2)}`)
+        const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
+        const nativeValue = addressData.nativeBalance.balanceFormatted * nativePrice
+        addressValue += nativeValue
+        console.log(`[Portfolio] ${addressData.address.slice(0, 8)}... native ${addressData.nativeBalance.symbol}: ${addressData.nativeBalance.balanceFormatted.toFixed(4)} @ $${nativePrice.toFixed(4)} = $${nativeValue.toFixed(2)}`)
         }
         
         // Add token values
@@ -3909,8 +3909,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         
         // Add native PLS value
         if (addressData.nativeBalance) {
-          const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
-          addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+        const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
+        addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
         }
         
         // Add token values, but exclude pooled tokens if they're included as stakes to avoid double counting
@@ -4151,15 +4151,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     filteredBalances.forEach(addressData => {
       // Native token (PLS/ETH)
       if (addressData.nativeBalance) {
-        const nativeSymbol = addressData.nativeBalance.symbol
-        const nativeBalance = addressData.nativeBalance.balanceFormatted
-        const nativePriceData = prices[nativeSymbol]
-        const nativeCurrentPrice = nativePriceData?.price || 0
-        const native24hChange = nativePriceData?.priceChange?.h24 || 0
-        
-        const nativeValue = nativeBalance * nativeCurrentPrice
-        totalValue += nativeValue
-        weightedPriceChange += native24hChange * nativeValue
+      const nativeSymbol = addressData.nativeBalance.symbol
+      const nativeBalance = addressData.nativeBalance.balanceFormatted
+      const nativePriceData = prices[nativeSymbol]
+      const nativeCurrentPrice = nativePriceData?.price || 0
+      const native24hChange = nativePriceData?.priceChange?.h24 || 0
+      
+      const nativeValue = nativeBalance * nativeCurrentPrice
+      totalValue += nativeValue
+      weightedPriceChange += native24hChange * nativeValue
       }
 
       // Token balances - exclude pooled tokens if they're included as stakes
@@ -4384,10 +4384,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     if (showLiquidBalances && filteredBalances && Array.isArray(filteredBalances)) {
       filteredBalances.forEach(addressData => {
         // Native token
+        if (addressData.nativeBalance) {
         const nativeSymbol = addressData.nativeBalance.symbol
         const nativeBalance = addressData.nativeBalance.balanceFormatted
         const nativeCurrentPrice = getTokenPrice(nativeSymbol)
         currentTotalValue += nativeBalance * nativeCurrentPrice
+        }
         
         // Token balances - exclude pooled tokens if they're included as stakes
         addressData.tokenBalances?.forEach(token => {
@@ -4943,7 +4945,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     );
   }
 
-  return (
+    return (
     <>
       {/* EES Mode Page Glow Effect - Temporarily disabled for performance testing */}
       {/* {hasMounted && useEESValue && (
@@ -9174,7 +9176,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       >
                         Advanced Mode
                       </button>
-                    </div>
+              </div>
                     
                     {/* Mode Description */}
                     <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
