@@ -388,6 +388,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const filteredTokensByChain = useMemo(() => {
     const currentEnabled = pendingEnabledCoins || enabledCoins
     
+    console.log('[Portfolio] filteredTokensByChain - current enabled:', Array.from(currentEnabled))
+    
     const sortTokens = (tokens: typeof TOKEN_CONSTANTS) => {
       return tokens.sort((a, b) => {
         const aEnabled = currentEnabled.has(a.ticker)
@@ -1073,7 +1075,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // Auto-enable the new token if in manual mode (keep existing tokens enabled)
     if (coinDetectionMode === 'manual') {
-      setEnabledCoins(prev => new Set([...prev, customToken.ticker]))
+      // Only update pending state - don't directly update enabledCoins to avoid immediate reload
       setPendingEnabledCoins(prev => {
         const current = prev || enabledCoins
         return new Set([...current, customToken.ticker])
