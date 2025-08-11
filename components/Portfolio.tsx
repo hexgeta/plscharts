@@ -1070,10 +1070,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     setCustomTokens(prev => [...prev, customToken])
     
-    // Auto-enable the new token if in manual mode
+    // Auto-enable the new token if in manual mode (keep existing tokens enabled)
     if (coinDetectionMode === 'manual') {
       setEnabledCoins(prev => new Set([...prev, customToken.ticker]))
-      setPendingEnabledCoins(prev => prev ? new Set([...prev, customToken.ticker]) : new Set([customToken.ticker]))
+      setPendingEnabledCoins(prev => {
+        const current = prev || enabledCoins
+        return new Set([...current, customToken.ticker])
+      })
+      // Mark it as newly enabled to show green styling
+      setNewlyEnabledTokens(prev => new Set([...prev, customToken.ticker]))
     }
 
     // Reset form
@@ -1085,6 +1090,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       decimals: 18,
       chain: 369
     })
+    
+    // Close the custom token section after adding
+    setIsCustomTokenSectionOpen(false)
   }
 
   const deleteCustomToken = (tokenId: string) => {
