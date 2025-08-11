@@ -4142,15 +4142,17 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     if (showLiquidBalances && filteredBalances && Array.isArray(filteredBalances)) {
     filteredBalances.forEach(addressData => {
       // Native token (PLS/ETH)
-      const nativeSymbol = addressData.nativeBalance.symbol
-      const nativeBalance = addressData.nativeBalance.balanceFormatted
-      const nativePriceData = prices[nativeSymbol]
-      const nativeCurrentPrice = nativePriceData?.price || 0
-      const native24hChange = nativePriceData?.priceChange?.h24 || 0
-      
-      const nativeValue = nativeBalance * nativeCurrentPrice
-      totalValue += nativeValue
-      weightedPriceChange += native24hChange * nativeValue
+      if (addressData.nativeBalance) {
+        const nativeSymbol = addressData.nativeBalance.symbol
+        const nativeBalance = addressData.nativeBalance.balanceFormatted
+        const nativePriceData = prices[nativeSymbol]
+        const nativeCurrentPrice = nativePriceData?.price || 0
+        const native24hChange = nativePriceData?.priceChange?.h24 || 0
+        
+        const nativeValue = nativeBalance * nativeCurrentPrice
+        totalValue += nativeValue
+        weightedPriceChange += native24hChange * nativeValue
+      }
 
       // Token balances - exclude pooled tokens if they're included as stakes
       addressData.tokenBalances?.forEach(token => {
