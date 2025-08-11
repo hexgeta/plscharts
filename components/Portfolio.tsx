@@ -23,6 +23,7 @@ import { Toggle } from '@/components/ui/toggle'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/ui/date-range-picker'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 import { 
   DropdownMenu, 
@@ -9532,25 +9533,33 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
 
                                               <div className="flex gap-2">
-                          <select
-                            value={newTokenForm.decimals}
-                            onChange={(e) => setNewTokenForm(prev => ({ ...prev, decimals: parseInt(e.target.value) }))}
-                            className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded text-white"
+                          <Select
+                            value={newTokenForm.decimals.toString()}
+                            onValueChange={(value) => setNewTokenForm(prev => ({ ...prev, decimals: parseInt(value) }))}
                           >
-                            <option value={18}>18 decimals</option>
-                            <option value={8}>8 decimals</option>
-                            <option value={9}>9 decimals</option>
-                            <option value={6}>6 decimals</option>
-                            <option value={12}>12 decimals</option>
-                          </select>
-                          <select
-                            value={newTokenForm.chain}
-                            onChange={(e) => setNewTokenForm(prev => ({ ...prev, chain: parseInt(e.target.value) }))}
-                            className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white"
+                            <SelectTrigger className="flex-1 bg-white/10 border-white/20 text-white">
+                              <SelectValue placeholder="Select decimals" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="18">18 decimals</SelectItem>
+                              <SelectItem value="8">8 decimals</SelectItem>
+                              <SelectItem value="9">9 decimals</SelectItem>
+                              <SelectItem value="6">6 decimals</SelectItem>
+                              <SelectItem value="12">12 decimals</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={newTokenForm.chain.toString()}
+                            onValueChange={(value) => setNewTokenForm(prev => ({ ...prev, chain: parseInt(value) }))}
                           >
-                            <option value={369}>PulseChain</option>
-                            <option value={1}>Ethereum</option>
-                          </select>
+                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                              <SelectValue placeholder="Select chain" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="369">PulseChain</SelectItem>
+                              <SelectItem value="1">Ethereum</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       <button
                         onClick={addCustomToken}
