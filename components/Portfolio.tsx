@@ -45,6 +45,17 @@ interface StoredAddress {
   id: string
 }
 
+interface CustomToken {
+  id: string
+  chain: number
+  a: string
+  dexs: string
+  ticker: string
+  decimals: number
+  name: string
+  createdAt: number
+}
+
 interface PortfolioProps {
   detectiveMode?: boolean
   detectiveAddress?: string
@@ -157,6 +168,34 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     // Default to auto-detect for new users
     return 'auto-detect'
   })
+
+  // Custom tokens state
+  const [customTokens, setCustomTokens] = useState<CustomToken[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioCustomTokens')
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch (e) {
+          console.error('Failed to parse custom tokens from localStorage:', e)
+        }
+      }
+    }
+    return []
+  })
+
+  // Custom token form state
+  const [newTokenForm, setNewTokenForm] = useState({
+    contractAddress: '',
+    dexPairAddress: '',
+    name: '',
+    ticker: '',
+    decimals: 18,
+    chain: 369
+  })
+
+  // Custom token section toggle state
+  const [isCustomTokenSectionOpen, setIsCustomTokenSectionOpen] = useState(false)
 
   // Add state for coin toggles (which coins to include in balance checks)
   const [enabledCoins, setEnabledCoins] = useState<Set<string>>(() => {
@@ -321,14 +360,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
 
 
-  // Group tokens by chain for the coins tab (combine TOKEN_CONSTANTS + MORE_COINS in manual mode)
+  // Group tokens by chain for the coins tab (combine TOKEN_CONSTANTS + MORE_COINS + CUSTOM_TOKENS in manual mode)
   const tokensByChain = useMemo(() => {
     const grouped: Record<number, typeof TOKEN_CONSTANTS> = {}
     
     // Determine which token list to use based on mode
     const tokensToUse = coinDetectionMode === 'manual' 
-      ? [...TOKEN_CONSTANTS, ...MORE_COINS]  // Combine both lists in manual mode
-      : TOKEN_CONSTANTS  // Only main list in auto-detect mode
+      ? [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]  // Combine all lists in manual mode
+      : [...TOKEN_CONSTANTS, ...customTokens]  // Main list + custom tokens in auto-detect mode
     
     tokensToUse.forEach(token => {
       if (!grouped[token.chain]) {
@@ -342,7 +381,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       grouped[parseInt(chain)].sort((a, b) => a.name.localeCompare(b.name))
     })
     return grouped
-  }, [coinDetectionMode])
+  }, [coinDetectionMode, customTokens])
 
   // Filter and sort tokens based on search term and enabled status
   const filteredTokensByChain = useMemo(() => {
@@ -1004,6 +1043,79 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       localStorage.setItem('portfolioEnabledCoins', JSON.stringify(Array.from(enabledCoins)))
     }
   }, [enabledCoins])
+
+  // Save custom tokens to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioCustomTokens', JSON.stringify(customTokens))
+    }
+  }, [customTokens])
+
+  // Custom token management functions
+  const addCustomToken = () => {
+    if (!newTokenForm.contractAddress || !newTokenForm.name || !newTokenForm.ticker) {
+      return // Validation failed
+    }
+
+    const customToken: CustomToken = {
+      id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      chain: newTokenForm.chain,
+      a: newTokenForm.contractAddress.toLowerCase(),
+      dexs: newTokenForm.dexPairAddress || '',
+      ticker: newTokenForm.ticker.toUpperCase(),
+      decimals: newTokenForm.decimals,
+      name: newTokenForm.name,
+      createdAt: Date.now()
+    }
+
+    setCustomTokens(prev => [...prev, customToken])
+    
+    // Auto-enable the new token if in manual mode
+    if (coinDetectionMode === 'manual') {
+      setEnabledCoins(prev => new Set([...prev, customToken.ticker]))
+      setPendingEnabledCoins(prev => prev ? new Set([...prev, customToken.ticker]) : new Set([customToken.ticker]))
+    }
+
+    // Reset form
+    setNewTokenForm({
+      contractAddress: '',
+      dexPairAddress: '',
+      name: '',
+      ticker: '',
+      decimals: 18,
+      chain: 369
+    })
+  }
+
+  const deleteCustomToken = (tokenId: string) => {
+    const tokenToDelete = customTokens.find(t => t.id === tokenId)
+    if (tokenToDelete) {
+      // Remove from custom tokens
+      setCustomTokens(prev => prev.filter(t => t.id !== tokenId))
+      
+      // Remove from enabled coins if it was enabled
+      setEnabledCoins(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(tokenToDelete.ticker)
+        return newSet
+      })
+      
+      // Remove from pending enabled coins if it was pending
+      setPendingEnabledCoins(prev => {
+        if (!prev) return prev
+        const newSet = new Set(prev)
+        newSet.delete(tokenToDelete.ticker)
+        return newSet
+      })
+      
+      // Remove custom balance if set
+      setCustomBalances(prev => {
+        const newMap = new Map(prev)
+        newMap.delete(tokenToDelete.ticker)
+        return newMap
+      })
+    }
+  }
 
   // Save coin detection mode to localStorage whenever it changes
   useEffect(() => {
@@ -1675,7 +1787,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Always fetch all tokens to avoid cache invalidation when switching modes
   // We'll filter client-side in the rawBalances memo instead
-  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings)
+  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoins, customTokens)
   
   // Filter the raw balances client-side based on enabled coins and apply custom balance overrides
   const rawBalances = useMemo(() => {
@@ -1947,7 +2059,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   }, [
     // Only depend on the actual token symbols, not the balance objects
     balances && balances.map(b => [
-      b.nativeBalance.symbol,
+      b.nativeBalance?.symbol || '',
       ...(b.tokenBalances?.map(t => t.symbol) || [])
     ].join(',')).sort().join('|'),
     // Also depend on HEX stakes to include their tokens in price fetching
@@ -4817,7 +4929,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     );
   }
 
-    return (
+  return (
     <>
       {/* EES Mode Page Glow Effect - Temporarily disabled for performance testing */}
       {/* {hasMounted && useEESValue && (
@@ -9287,6 +9399,153 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               )}
               </div>
 
+              {/* Fixed Footer - Add Custom Token (only for coins tab) */}
+              {activeTab === 'coins' && coinDetectionMode === 'manual' && (
+                <div className="border-t border-white/10 bg-black">
+                  <div className="p-4 sm:p-6">
+                    {/* Toggle Header */}
+                    <button
+                      onClick={() => setIsCustomTokenSectionOpen(!isCustomTokenSectionOpen)}
+                      className="flex items-center justify-between w-full text-left"
+                    >
+                      <h3 className="text-lg font-semibold text-white">Add Custom Token</h3>
+                      <ChevronDown 
+                        className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
+                          isCustomTokenSectionOpen ? 'rotate-180' : ''
+                        }`} 
+                      />
+                    </button>
+
+                    {/* Collapsible Content */}
+                    {isCustomTokenSectionOpen && (
+                      <div className="space-y-4 mt-4">
+                    
+                    {/* Custom tokens list */}
+                    {customTokens.length > 0 && (
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        <h4 className="text-sm font-medium text-gray-300">Your Custom Tokens:</h4>
+                        {customTokens.map(token => {
+                          const currentEnabled = pendingEnabledCoins || enabledCoins
+                          const isEnabled = currentEnabled.has(token.ticker)
+                          const currentBalance = getCurrentBalance(token.ticker)
+                          
+                          return (
+                            <div key={token.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/10">
+                              <div className="flex items-center gap-3">
+                                <Checkbox
+                                  checked={isEnabled}
+                                  onCheckedChange={(checked) => {
+                                    const newPendingCoins = new Set(pendingEnabledCoins || enabledCoins)
+                                    if (checked) {
+                                      newPendingCoins.add(token.ticker)
+                                    } else {
+                                      newPendingCoins.delete(token.ticker)
+                                    }
+                                    setPendingEnabledCoins(newPendingCoins)
+                                  }}
+                                  className="data-[state=checked]:bg-white data-[state=checked]:text-black"
+                                />
+                                <div>
+                                  <div className="text-sm font-medium text-white">{token.ticker}</div>
+                                  <div className="text-xs text-gray-400">{token.name}</div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                {isEnabled && (
+                                  <input
+                                    type="text"
+                                    placeholder={currentBalance ? formatBalanceForPlaceholder(currentBalance) : "?"}
+                                    value={customBalances.get(token.ticker) || ''}
+                                    onChange={(e) => {
+                                      const newBalances = new Map(customBalances)
+                                      if (e.target.value) {
+                                        newBalances.set(token.ticker, e.target.value)
+                                      } else {
+                                        newBalances.delete(token.ticker)
+                                      }
+                                      setCustomBalances(newBalances)
+                                    }}
+                                    className="w-20 px-2 py-1 text-xs bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                                  />
+                                )}
+                                <button
+                                  onClick={() => deleteCustomToken(token.id)}
+                                  className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
+                                  title="Delete token"
+                                >
+                                  <Icons.trash className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Add new token form */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        placeholder="Contract Address (0x...)"
+                        value={newTokenForm.contractAddress}
+                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, contractAddress: e.target.value }))}
+                        className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Dex Pair Address (optional)"
+                        value={newTokenForm.dexPairAddress}
+                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, dexPairAddress: e.target.value }))}
+                        className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Token Name"
+                        value={newTokenForm.name}
+                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, name: e.target.value }))}
+                        className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Ticker (e.g., MYTOKEN)"
+                        value={newTokenForm.ticker}
+                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, ticker: e.target.value.toUpperCase() }))}
+                        className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Decimals"
+                          value={newTokenForm.decimals}
+                          onChange={(e) => setNewTokenForm(prev => ({ ...prev, decimals: parseInt(e.target.value) || 18 }))}
+                          className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                          min="0"
+                          max="18"
+                        />
+                        <select
+                          value={newTokenForm.chain}
+                          onChange={(e) => setNewTokenForm(prev => ({ ...prev, chain: parseInt(e.target.value) }))}
+                          className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white"
+                        >
+                          <option value={369}>PulseChain</option>
+                          <option value={1}>Ethereum</option>
+                        </select>
+                      </div>
+                      <button
+                        onClick={addCustomToken}
+                        disabled={!newTokenForm.contractAddress || !newTokenForm.name || !newTokenForm.ticker}
+                        className="px-4 py-2 bg-white text-black rounded font-medium hover:bg-gray-200 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                      >
+                        + Add Token
+                      </button>
+                    </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Fixed Footer - Add New Address (only for addresses tab) */}
               {activeTab === 'addresses' && (
                 <div className="border-t border-white/10 p-4 sm:p-6 bg-black">
@@ -9410,7 +9669,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             >
               <div className="text-center space-y-4">
                 <h3 className="text-lg font-semibold text-white">
-                  {isImporting ? 'Importing Tokens...' : 'Import extra tokens from 400+ token list (Slower)'}
+                  {isImporting ? 'Importing Tokens...' : 'Import extra tokens from 400+ token list'}
                 </h3>
                 
                 {!isImporting && importResults.found.length === 0 && importResults.notFound.length === 0 ? (
@@ -9418,6 +9677,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     <p className="text-gray-300 text-sm">
                       This will check your wallet balances for all {MORE_COINS.length} additional tokens from the extended token list.
                       Only tokens with non-zero balances will be enabled.
+                      You only have to do this process once and it's done forever. It will take 5-10 mins.
+                      <br />
+                      <br />
+                      ⚠️ WARNING:
+                      <br />
+                      • If you hold lots of tokens, this may make your portfolio load times much longer
+                      <br />
+                      • This will override your current manual token entries & balances
+                      <br />
                     </p>
                     <div className="flex gap-3">
                       <button
@@ -9428,7 +9696,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </button>
                       <button
                         onClick={importAllTokens}
-                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                        className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                       >
                         Start Import
                       </button>

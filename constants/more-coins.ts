@@ -231,14 +231,6 @@ export const MORE_COINS = [
   },
 {
     chain: 369,
-    a: "0x545998ABCbf0633C83bA20Cb94f384925BE75dd5",
-    dexs: null,
-    ticker: "PrimePHUX",
-    decimals: 18,
-    name: "Prime PHUX"
-  },
-{
-    chain: 369,
     a: "0xF8bba8B1B1A05992B18051E4e79415364Cbf4539", 
     dexs: null,
     ticker: "PHLP",
@@ -272,7 +264,7 @@ export const MORE_COINS = [
 {
     chain: 369,
     a: "0xDe0220b69CE3e855a0124433A8E8D093f53A6bE4",
-    dexs: null,
+    dexs: "0x828cc8423fc97817CaD78C8bFBbA26923444dF60",
     ticker: "WHETH",
     decimals: 18,
     name: "Where Did The ETH Go"
@@ -280,7 +272,7 @@ export const MORE_COINS = [
 {
     chain: 369,
     a: "0xe11a9e0298fBB1248611956db3C8FF556DC1DdbD", 
-    dexs: null,
+    dexs: "0xB1F70949675c7E7705FA7cdD15D8476104AadAc5",
     ticker: "TWERK",
     decimals: 18,
     name: "Twerk"
@@ -288,7 +280,7 @@ export const MORE_COINS = [
 {
     chain: 369,
     a: "0x6de1bb62c13394B7Db57a25477DBedD76B3e9a90",
-    dexs: null,
+    dexs: "0x3ef52B65223Af427B4C5CE6E7ba4f0ed2Ba41f40",
     ticker: "CEREAL",
     decimals: 9,
     name: "Pulse Cereal"
@@ -296,7 +288,7 @@ export const MORE_COINS = [
 {
     chain: 369,
     a: "0x924DD489c99614B47385245Df0b5250538c71406",
-    dexs: null,
+    dexs: "0xc16E4718Cc076bE0a9c0720eb1d03AAb95Aac460",
     ticker: "PEGD",
     decimals: 18,
     name: "Peg Me pDAI"
@@ -304,7 +296,7 @@ export const MORE_COINS = [
 {
     chain: 369,
     a: "0xdB8E20f794Fa48d36Ae4988dC3D5Ba327df625f8",
-    dexs: null,
+    dexs: "0x8fB6D4E2284a1F100f802eFEF2507a1A3158e0b1",
     ticker: "YACHT",
     decimals: 18,
     name: "TANGent Golden Yacht"
@@ -312,7 +304,7 @@ export const MORE_COINS = [
 {
     chain: 369,
     a: "0xc9f523Fce37A28893A83Da68BbA03835D97Ae059",
-    dexs: null,
+    dexs: "0x7ce5e2689cdaF9A3d079A320430C273fAAc7e125",
     ticker: "NBC",
     decimals: 18,
     name: "NeckBeard Coin"
@@ -323,7 +315,7 @@ export const MORE_COINS = [
     dexs: "0x5137a308dbf822aae9fb34467633baaa516ed099",
     ticker: "stpCOM",
     decimals: 12,
-    name: "Staked Communis on Pls"
+    name: "Staked Communis on PulseChain"
   },
 {
     chain: 369,
@@ -370,10 +362,10 @@ export const MORE_COINS = [
     name: "Staked PXDC (PowerCity's EARN)"
   }, {
     chain: 369,
-    a: "0x95b303987a60c71504d99aa1b13b4da07b0790ab",
-    dexs: "0x1b45b9148791d3a104184cd5dfe5ce57193a3ee9",
+    a: "0x9c6fa17d92898b684676993828143596894aa2a6",
+    dexs: "0x476d63ab94b4e86614df0c3d5a27e9e22631d062",
     ticker: "stHEX FLEX",
-    decimals: 18,
+    decimals: 8,
     name: "Staked HEX FLEX"
   }, {
     chain: 369,
@@ -384,10 +376,10 @@ export const MORE_COINS = [
     name: "Staked FLEX (PowerCity's FLEX)"
   }, {
     chain: 369,
-    a: "0xeb6b7932da20c6d7b3a899d5887d86dfb09a6408",
-    dexs: "0xabb36512813194b12a82a319783dbb455652440a",
+    a: "0x1fe0319440a672526916c232eaee4808254bdb00",
+    dexs: "0x9756f095dfa27d4c2eae0937a7b8a6603d99affb",
     ticker: "stHEXDC FLEX",
-    decimals: 18,
+    decimals: 8,
     name: "Staked HEXDC (PowerCity's FLEX)"
   },
 {
@@ -440,7 +432,7 @@ export const MORE_COINS = [
 {
       "chain": 369,
       "a": "0xfE39FDc0012DCf10C9f674ea7e74889e4d71a226",
-      "dexs": "",
+      "dexs": null,
       "ticker": "ePhiat",
       "decimals": 18,
       "name": "ePhiat from Ethereum"
@@ -472,7 +464,7 @@ export const MORE_COINS = [
 {
       "chain": 369,
       "a": "0xeDA0073B4Aa1b1B6f9c718c3036551ab46E5Ec32",
-      "dexs": "",
+      "dexs": null,
       "ticker": "BEET",
       "decimals": 18,
       "name": "BEET"
@@ -855,14 +847,6 @@ export const MORE_COINS = [
     },
 {
       "chain": 369,
-      "a": "0x35F525BEe58624b89879CDAfAdA040F5840D4460",
-      "dexs": "0x5Aa1A2044d3FF041c6D97B939f183f989c511F10",
-      "ticker": "NBA",
-      "decimals": 18,
-      "name": "Basketball"
-    },
-{
-      "chain": 369,
       "a": "0x9CC7437978255e2c38B0d3D4671fb9AC411a68aC",
       "dexs": "0xF30034233D8Da99AA61758B8aCde1eEDee8fb1F1",
       "ticker": "DOGE",
@@ -952,8 +936,8 @@ export const MORE_COINS = [
 {
       "chain": 369,
       "a": "0x93Ad3C61f5e39c0DA07fCEbAe0261eAA2d3A9314",
-      "dexs": "",
-      "ticker": "NBA",
+      "dexs": "0x63A1A0C5f246cf3a25eF3f37d0d7F87935f6308A",
+      "ticker": "Never Brok Again",
       "decimals": 18,
       "name": "Never Broke Again"
     },
@@ -3221,56 +3205,56 @@ export const MORE_COINS = [
       chain: 369,
       a: "0xefd766ccb38eaf1dfd701853bfce31359239f305",
       dexs: "",
-      ticker: "DAI from ETH (PHIAT deposit)",
+      ticker: "weDAI (PHIAT deposit)",
       decimals: 18,
       name: "DAI from ETH (PHIAT deposit)"
     },   {
       chain: 369,
       a: "0x15d38573d2feeb82e7ad5187ab8c1d52810b1f07",
       dexs: "0x52ca8c5c6a5c7c56cf5e01bde9473b3b7f7c0b1e",
-      ticker: "USDC from ETH (PHIAT deposit)",
+      ticker: "weUSDC (PHIAT deposit)",
       decimals: 6,
       name: "USDC from ETH (PHIAT deposit)"
     },   {
       chain: 369,
       a: "0x0cb6f5a34ad42ec934882a05265a7d5f59b51a2f",
       dexs: "0xc8bbdb5a0652877eb1f774cba684eb8fbdd7bbb7",
-      ticker: "USDT from ETH (PHIAT deposit)",
+      ticker: "weUSDT (PHIAT deposit)",
       decimals: 6,
       name: "USDT from ETH (PHIAT deposit)"
     },   {
       chain: 369,
       a: "0x0deed1486bc52aa0d3e6f8849cec5add6598a162",
       dexs: "0x27557d148293d1c8e8f8c5deeab93545b1eb8410",
-      ticker: "USDL from ETH (PHIAT deposit)",
+      ticker: "USDL (PHIAT deposit)",
       decimals: 18,
-      name: "USDL from ETH (PHIAT deposit)"
+      name: "USDL (PHIAT deposit)"
     },   {
       chain: 369,
       a: "0xeb6b7932da20c6d7b3a899d5887d86dfb09a6408",
       dexs: "0xabb36512813194b12a82a319783dbb455652440a",
-      ticker: "PXDC from ETH (PHIAT deposit)",
+      ticker: "PXDC (PHIAT deposit)",
       decimals: 18,
-      name: "PXDC from ETH (PHIAT deposit)"
+      name: "PXDC (PHIAT deposit)"
     },   {
       chain: 369,
       a: "0x1fe0319440a672526916c232eaee4808254bdb00",
       dexs: "0x9756f095dfa27d4c2eae0937a7b8a6603d99affb",
-      ticker: "HEXDC from ETH (PHIAT deposit)",
+      ticker: "HEXDC (PHIAT deposit)",
       decimals: 8,
-      name: "HEXDC from ETH (PHIAT deposit)"
+      name: "HEXDC (PHIAT deposit)"
     },   {
       chain: 369,
       a: "0x02dcdd04e3f455d838cd1249292c58f3b79e3c3c",
       dexs: "0x29d66D5900Eb0d629E1e6946195520065A6c5aeE",
-      ticker: "WETH from ETH (PHIAT deposit)",
+      ticker: "weWETH (PHIAT deposit)",
       decimals: 18,
       name: "WETH from ETH (PHIAT deposit)"
     },   {
       chain: 369,
       a: "0xb17d901469b9208b17d916112988a3fed19b5ca1",
       dexs: "0x8c52470a05eEB2fCe4905688Ec59bFDd32E71D07",
-      ticker: "WBTC Coin from ETH (PHIAT deposit)",
+      ticker: "weWBTC Coin (PHIAT deposit)",
       decimals: 8,
       name: "WBTC Coin from ETH (PHIAT deposit)"
     },   {
@@ -3350,6 +3334,27 @@ export const MORE_COINS = [
       ticker: "stPHAME",
       decimals: 18,
       name: "Staked Phamous"
+    }, {
+      chain: 369,
+      a: "0x545998ABCbf0633C83bA20Cb94f384925BE75dd5",
+      dexs: null,
+      ticker: "PrimePHUX PHUX LP",
+      decimals: 18,
+      name: "Prime (PHUX)"
+    }, {
+      chain: 369,
+      a: "0xF96d60e9444f19Fe5126888BD53BdE80e58c2851",
+      dexs: null,
+      ticker: "Bridged Stable Pool PHUX LP",
+      decimals: 18,
+      name: "Bridged Stable Pool (PHUX)"
+    }, {
+      chain: 369,
+      a: "0xcE3181167c03AB5a6D84c1a93716521E83A6300b",
+      dexs: null,
+      ticker: "RH Maxi PHUX LP",
+      decimals: 18,
+      name: "RH Maxi (PHUX)"
     },
 ];
 
