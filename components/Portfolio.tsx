@@ -9525,11 +9525,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             onChange={(e) => setNewTokenForm(prev => ({ ...prev, decimals: parseInt(e.target.value) }))}
                             className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded text-white"
                           >
-                            <option value={18}>18 decimals (default - 169 tokens)</option>
-                            <option value={8}>8 decimals (HEX style - 29 tokens)</option>
-                            <option value={9}>9 decimals (Hedron style - 12 tokens)</option>
-                            <option value={6}>6 decimals (stablecoins - 9 tokens)</option>
-                            <option value={12}>12 decimals (3 tokens)</option>
+                            <option value={18}>18 decimals</option>
+                            <option value={8}>8 decimals</option>
+                            <option value={9}>9 decimals</option>
+                            <option value={6}>6 decimals</option>
+                            <option value={12}>12 decimals</option>
                           </select>
                           <select
                             value={newTokenForm.chain}
