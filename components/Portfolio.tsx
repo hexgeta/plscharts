@@ -9449,59 +9449,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     {customTokens.length > 0 && (
                       <div className="space-y-2 max-h-40 overflow-y-auto">
                         <h4 className="text-sm font-medium text-gray-300">Your Custom Tokens:</h4>
-                        {customTokens.map(token => {
-                          const currentEnabled = pendingEnabledCoins || enabledCoins
-                          const isEnabled = currentEnabled.has(token.ticker)
-                          const currentBalance = getCurrentBalance(token.ticker)
-                          
-                          return (
+                        {customTokens.map(token => (
                             <div key={token.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/10">
                               <div className="flex items-center gap-3">
-                                <Checkbox
-                                  checked={isEnabled}
-                                  onCheckedChange={(checked) => {
-                                    const newPendingCoins = new Set(pendingEnabledCoins || enabledCoins)
-                                    if (checked) {
-                                      newPendingCoins.add(token.ticker)
-                                    } else {
-                                      newPendingCoins.delete(token.ticker)
-                                    }
-                                    setPendingEnabledCoins(newPendingCoins)
-                                  }}
-                                  className="data-[state=checked]:bg-white data-[state=checked]:text-black"
-                                />
                                 <div>
                                   <div className="text-sm font-medium text-white">{token.ticker}</div>
                                   <div className="text-xs text-gray-400">{token.name}</div>
                                 </div>
                               </div>
                               
-                              <div className="flex items-center gap-2">
-                                {isEnabled && (
-                                  <input
-                                    type="text"
-                                    placeholder={currentBalance ? formatBalanceForPlaceholder(currentBalance) : "?"}
-                                    value={customBalances.get(token.ticker) || ''}
-                                    onChange={(e) => {
-                                      const newBalances = new Map(customBalances)
-                                      if (e.target.value) {
-                                        newBalances.set(token.ticker, e.target.value)
-                                      } else {
-                                        newBalances.delete(token.ticker)
-                                      }
-                                      setCustomBalances(newBalances)
-                                    }}
-                                    className="w-20 px-2 py-1 text-xs bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
-                                  />
-                                )}
-                                <button
-                                  onClick={() => deleteCustomToken(token.id)}
-                                  className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
-                                  title="Delete token"
-                                >
-                                  <Icons.trash className="w-3 h-3" />
-                                </button>
-                              </div>
+                              <button
+                                onClick={() => deleteCustomToken(token.id)}
+                                className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
+                                title="Delete token"
+                              >
+                                <Icons.trash className="w-3 h-3" />
+                              </button>
                             </div>
                           )
                         })}
