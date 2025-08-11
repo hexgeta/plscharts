@@ -2032,7 +2032,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     if (!balances || !Array.isArray(balances)) return []
     
     const tokens = balances.flatMap(addressData => {
-      const chainTokens = [addressData.nativeBalance.symbol]
+      const chainTokens = addressData.nativeBalance?.symbol ? [addressData.nativeBalance.symbol] : []
       addressData.tokenBalances?.forEach(token => chainTokens.push(token.symbol))
       return chainTokens
     })
@@ -2173,7 +2173,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     filtered.forEach(addressData => {
       // Handle native balances
-      if (addressData.nativeBalance.balanceFormatted > 0) {
+      if (addressData.nativeBalance && addressData.nativeBalance.balanceFormatted > 0) {
         // Use different keys based on chain filter
         const key = chainFilter === 'both' 
           ? addressData.nativeBalance.symbol 
