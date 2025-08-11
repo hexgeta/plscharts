@@ -3804,10 +3804,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         let addressValue = 0
         
         // Add native token value
-        const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
-        const nativeValue = addressData.nativeBalance.balanceFormatted * nativePrice
-        addressValue += nativeValue
-        console.log(`[Portfolio] ${addressData.address.slice(0, 8)}... native ${addressData.nativeBalance.symbol}: ${addressData.nativeBalance.balanceFormatted.toFixed(4)} @ $${nativePrice.toFixed(4)} = $${nativeValue.toFixed(2)}`)
+        if (addressData.nativeBalance) {
+          const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
+          const nativeValue = addressData.nativeBalance.balanceFormatted * nativePrice
+          addressValue += nativeValue
+          console.log(`[Portfolio] ${addressData.address.slice(0, 8)}... native ${addressData.nativeBalance.symbol}: ${addressData.nativeBalance.balanceFormatted.toFixed(4)} @ $${nativePrice.toFixed(4)} = $${nativeValue.toFixed(2)}`)
+        }
         
         // Add token values
         addressData.tokenBalances?.forEach(token => {
