@@ -1831,8 +1831,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         // Add tokens with custom balances
         customBalances.forEach((balance, symbol) => {
           if (!existingTokenSymbols.has(symbol) && parseFloat(balance) > 0) {
-            // Find token config to get proper details
-            const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS]
+            // Find token config to get proper details - include custom tokens
+            const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]
             const tokenConfig = allTokens.find(t => t.ticker === symbol)
             
             if (tokenConfig) {
@@ -1852,8 +1852,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         if (coinDetectionMode === 'manual') {
           enabledCoins.forEach(symbol => {
             if (!existingTokenSymbols.has(symbol) && !customBalances.has(symbol)) {
-              // Find token config to get proper details
-              const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS]
+              // Find token config to get proper details - include custom tokens
+              const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]
               const tokenConfig = allTokens.find(t => t.ticker === symbol)
               
               if (tokenConfig) {
