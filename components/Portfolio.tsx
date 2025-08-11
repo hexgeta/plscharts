@@ -3900,8 +3900,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         let addressValue = 0
         
         // Add native PLS value
-        const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
-        addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+        if (addressData.nativeBalance) {
+          const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
+          addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+        }
         
         // Add token values, but exclude pooled tokens if they're included as stakes to avoid double counting
         addressData.tokenBalances?.forEach(token => {
@@ -9487,6 +9489,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     
                     {/* Add new token form */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input
+                        type="text"
+                        placeholder="Ticker (e.g., MYTOKEN)"
+                        value={newTokenForm.ticker}
+                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, ticker: e.target.value.toUpperCase() }))}
+                        className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                      />
+                                            <input
+                        type="text"
+                        placeholder="Token Name"
+                        value={newTokenForm.name}
+                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, name: e.target.value }))}
+                        className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                      />
                       <input
                         type="text"
                         placeholder="Contract Address (0x...)"
@@ -9496,25 +9512,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       />
                       <input
                         type="text"
-                        placeholder="Dex Pair Address (optional)"
+                        placeholder="Dexscreener Pair Address"
                         value={newTokenForm.dexPairAddress}
                         onChange={(e) => setNewTokenForm(prev => ({ ...prev, dexPairAddress: e.target.value }))}
                         className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
                       />
-                      <input
-                        type="text"
-                        placeholder="Token Name"
-                        value={newTokenForm.name}
-                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, name: e.target.value }))}
-                        className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Ticker (e.g., MYTOKEN)"
-                        value={newTokenForm.ticker}
-                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, ticker: e.target.value.toUpperCase() }))}
-                        className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
-                      />
+
+
                       <div className="flex gap-2">
                         <input
                           type="number"
@@ -9539,7 +9543,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         disabled={!newTokenForm.contractAddress || !newTokenForm.name || !newTokenForm.ticker}
                         className="px-4 py-2 bg-white text-black rounded font-medium hover:bg-gray-200 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
                       >
-                        + Add Token
+                        Add +
                       </button>
                     </div>
                       </div>
