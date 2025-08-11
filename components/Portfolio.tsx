@@ -1053,14 +1053,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Custom token management functions
   const addCustomToken = () => {
-    if (!newTokenForm.contractAddress || !newTokenForm.name || !newTokenForm.ticker) {
-      return // Validation failed
+    if (!newTokenForm.name || !newTokenForm.ticker) {
+      return // Validation failed - only name and ticker are required
     }
 
     const customToken: CustomToken = {
       id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       chain: newTokenForm.chain,
-      a: newTokenForm.contractAddress.toLowerCase(),
+      a: newTokenForm.contractAddress ? newTokenForm.contractAddress.toLowerCase() : '',
       dexs: newTokenForm.dexPairAddress || '',
       ticker: newTokenForm.ticker.toUpperCase(),
       decimals: newTokenForm.decimals,
@@ -9503,13 +9503,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         onChange={(e) => setNewTokenForm(prev => ({ ...prev, name: e.target.value }))}
                         className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
                       />
-                      <input
-                        type="text"
-                        placeholder="Contract Address (0x...)"
-                        value={newTokenForm.contractAddress}
-                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, contractAddress: e.target.value }))}
-                        className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
-                      />
+                                              <input
+                          type="text"
+                          placeholder="Contract Address (optional)"
+                          value={newTokenForm.contractAddress}
+                          onChange={(e) => setNewTokenForm(prev => ({ ...prev, contractAddress: e.target.value }))}
+                          className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                        />
                       <input
                         type="text"
                         placeholder="Dexscreener Pair Address"
@@ -9519,28 +9519,30 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       />
 
 
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          placeholder="Decimals"
-                          value={newTokenForm.decimals}
-                          onChange={(e) => setNewTokenForm(prev => ({ ...prev, decimals: parseInt(e.target.value) || 18 }))}
-                          className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
-                          min="0"
-                          max="18"
-                        />
-                        <select
-                          value={newTokenForm.chain}
-                          onChange={(e) => setNewTokenForm(prev => ({ ...prev, chain: parseInt(e.target.value) }))}
-                          className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white"
-                        >
-                          <option value={369}>PulseChain</option>
-                          <option value={1}>Ethereum</option>
-                        </select>
-                      </div>
+                                              <div className="flex gap-2">
+                          <select
+                            value={newTokenForm.decimals}
+                            onChange={(e) => setNewTokenForm(prev => ({ ...prev, decimals: parseInt(e.target.value) }))}
+                            className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded text-white"
+                          >
+                            <option value={18}>18 decimals (default - 169 tokens)</option>
+                            <option value={8}>8 decimals (HEX style - 29 tokens)</option>
+                            <option value={9}>9 decimals (Hedron style - 12 tokens)</option>
+                            <option value={6}>6 decimals (stablecoins - 9 tokens)</option>
+                            <option value={12}>12 decimals (3 tokens)</option>
+                          </select>
+                          <select
+                            value={newTokenForm.chain}
+                            onChange={(e) => setNewTokenForm(prev => ({ ...prev, chain: parseInt(e.target.value) }))}
+                            className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white"
+                          >
+                            <option value={369}>PulseChain</option>
+                            <option value={1}>Ethereum</option>
+                          </select>
+                        </div>
                       <button
                         onClick={addCustomToken}
-                        disabled={!newTokenForm.contractAddress || !newTokenForm.name || !newTokenForm.ticker}
+                        disabled={!newTokenForm.name || !newTokenForm.ticker}
                         className="px-4 py-2 bg-white text-black rounded font-medium hover:bg-gray-200 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
                       >
                         Add +

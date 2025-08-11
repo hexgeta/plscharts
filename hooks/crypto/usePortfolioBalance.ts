@@ -184,6 +184,7 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
       token.a !== "0x0" && // Skip native tokens
       token.a && 
       token.a.length === 42 && // Valid address format
+      token.a.startsWith('0x') && // Must be a valid hex address
       (!enabledCoins || enabledCoins.has(token.ticker)) // Only include enabled coins if filter is provided
     )
 
