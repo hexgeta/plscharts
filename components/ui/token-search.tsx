@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { MORE_COINS } from '@/constants/more-coins'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import { useRouter } from 'next/navigation'
@@ -22,6 +23,35 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
   const router = useRouter()
 
   console.log('TokenSearch render - open:', open);
+
+  // Combine all available tokens from both constants files
+  const ALL_TOKENS = useMemo(() => [...TOKEN_CONSTANTS, ...MORE_COINS], [])
+  
+  console.log('Total TOKEN_CONSTANTS:', TOKEN_CONSTANTS.length)
+  console.log('Total MORE_COINS:', MORE_COINS.length)
+  console.log('Total ALL_TOKENS:', ALL_TOKENS.length)
+  
+  // Debug: Check if specific tokens are in the array
+  const extractorToken = ALL_TOKENS.find(token => token.ticker === 'Extractor')
+  const stmToken = ALL_TOKENS.find(token => token.ticker === 'STM')
+  console.log('Extractor token found:', extractorToken)
+  console.log('STM token found:', stmToken)
+  
+  // Debug: Check for the specific contract addresses
+  const contractSearch1 = ALL_TOKENS.find(token => token.a.toLowerCase() === '0xb6a3af5d5198e19abf5eaba0fa074c881fdc970a')
+  const contractSearch2 = ALL_TOKENS.find(token => token.a.toLowerCase() === '0x62bd78d40a9fcb4d29f6ff183cfbcaf2f5ca9b52')
+  console.log('Contract 0xB6a3... found:', contractSearch1)
+  console.log('Contract 0x62bd... found:', contractSearch2)
+  
+  // Test exact matching logic
+  if (stmToken) {
+    const testSearch = '0x62bd78d40A9FCb4D29F6fF183CFbcaf2f5ca9B52'.toLowerCase()
+    const tokenContract = stmToken.a.toLowerCase()
+    console.log('STM contract in DB:', stmToken.a)
+    console.log('Search term:', testSearch)
+    console.log('Contract match test:', tokenContract.includes(testSearch))
+    console.log('Exact match test:', tokenContract === testSearch)
+  }
 
   // Validate Ethereum address format
   const isValidAddress = (address: string): boolean => {
@@ -49,22 +79,25 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
   const filteredTokens = (() => {
     console.log('=== DEBUGGING TOKEN SEARCH ===')
     console.log('Search term:', search)
+    console.log('Total tokens available:', ALL_TOKENS.length)
     
-    let tokens = TOKEN_CONSTANTS.filter(token => {
+    let tokens = ALL_TOKENS.filter(token => {
       if (!search) return true
       const searchLower = search.toLowerCase()
       const tickerLower = token.ticker.toLowerCase()
       const nameLower = token.name.toLowerCase()
+      const contractLower = token.a.toLowerCase()
       
-      // Standard matching - check if ticker or name contains search term anywhere
+      // Standard matching - check if ticker, name, or contract address contains search term
       const tickerMatch = tickerLower.includes(searchLower)
       const nameMatch = nameLower.includes(searchLower)
+      const contractMatch = contractLower.includes(searchLower)
       
-      const result = tickerMatch || nameMatch
+      const result = tickerMatch || nameMatch || contractMatch
       
       // Debug specific searches
-      if (search.toLowerCase() === 'hex' || search.toLowerCase() === 'pls') {
-        console.log(`Token: ${token.ticker}, ticker: "${tickerLower}", search: "${searchLower}", tickerMatch: ${tickerMatch}, nameMatch: ${nameMatch}, result: ${result}`)
+      if (search.toLowerCase() === 'hex' || search.toLowerCase() === 'pls' || search.toLowerCase().includes('0xb6a3af5d') || search.toLowerCase().includes('0x62bd78d')) {
+        console.log(`Token: ${token.ticker}, ticker: "${tickerLower}", name: "${nameLower}", contract: "${contractLower}", search: "${searchLower}", tickerMatch: ${tickerMatch}, nameMatch: ${nameMatch}, contractMatch: ${contractMatch}, result: ${result}`)
       }
       
       return result
@@ -72,6 +105,16 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
     
     console.log('Filtered tokens count:', tokens.length)
     console.log('First 10 filtered tokens:', tokens.slice(0, 10).map(t => t.ticker))
+    
+    // Debug contract address searches specifically
+    if (search.toLowerCase().includes('0x62bd78d') || search.toLowerCase().includes('0xb6a3af5d')) {
+      console.log('=== CONTRACT ADDRESS SEARCH DEBUG ===')
+      console.log('Search term:', search)
+      console.log('looksLikeAddress(search):', looksLikeAddress(search))
+      console.log('isValidAddress(search):', isValidAddress(search))
+      console.log('filteredTokens.length:', tokens.length)
+      console.log('filteredTokens:', tokens.map(t => ({ ticker: t.ticker, contract: t.a })))
+    }
 
     // Sort tokens based on priority and relevance
     tokens.sort((a, b) => {
@@ -116,15 +159,25 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
           return 1
         }
         
-        // Then exact matches
-        const aExact = a.ticker.toLowerCase() === searchLower
-        const bExact = b.ticker.toLowerCase() === searchLower
-        if (aExact && !bExact) return -1
-        if (bExact && !aExact) return 1
+        // Prioritize exact contract address matches above all else
+        const aContractExact = a.a.toLowerCase() === searchLower
+        const bContractExact = b.a.toLowerCase() === searchLower
+        if (aContractExact && !bContractExact) return -1
+        if (bContractExact && !aContractExact) return 1
         
-        // Then ticker matches vs name matches
+        const aTickerExact = a.ticker.toLowerCase() === searchLower
+        const bTickerExact = b.ticker.toLowerCase() === searchLower
+        if (aTickerExact && !bTickerExact) return -1
+        if (bTickerExact && !aTickerExact) return 1
+        
+        // Then contract address matches, then ticker matches, then name matches
+        const aContractMatch = a.a.toLowerCase().includes(searchLower)
+        const bContractMatch = b.a.toLowerCase().includes(searchLower)
         const aTickerMatch = a.ticker.toLowerCase().includes(searchLower)
         const bTickerMatch = b.ticker.toLowerCase().includes(searchLower)
+        
+        if (aContractMatch && !bContractMatch) return -1
+        if (bContractMatch && !aContractMatch) return 1
         if (aTickerMatch && !bTickerMatch) return -1
         if (bTickerMatch && !aTickerMatch) return 1
         
@@ -138,7 +191,7 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
     return tokens.slice(0, 50) // Limit to 50 results for performance
   })()
 
-  const handleTokenSelect = (token: typeof TOKEN_CONSTANTS[0]) => {
+  const handleTokenSelect = (token: typeof ALL_TOKENS[0]) => {
     // Close the dialog
     handleOpenChange(false)
     setSearch('')
@@ -180,7 +233,7 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
       <DialogContent className="overflow-hidden p-0 max-w-[360px] sm:max-w-[480px] rounded-xl">
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           <CommandInput 
-            placeholder="Search tokens or wallet addresses..." 
+            placeholder="Search tokens, contract addresses, or wallet addresses..." 
             value={search}
             onValueChange={setSearch}
           />
@@ -226,7 +279,11 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
             )}
 
             {/* Token Search Results */}
-            {!looksLikeAddress(search) && (
+            {(() => {
+              console.log('About to render tokens. filteredTokens.length:', filteredTokens.length)
+              console.log('looksLikeAddress(search):', looksLikeAddress(search))
+              return filteredTokens.length > 0
+            })() && (
               <CommandGroup heading="Tokens">
                 {filteredTokens.map((token) => (
                   <CommandItem

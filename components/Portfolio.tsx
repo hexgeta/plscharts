@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, memo, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, memo, useCallback, useRef, startTransition } from 'react'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
@@ -121,6 +121,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   })
   // Add state for duplicate address error
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
+  // Add state for duplicate token ticker error
+  const [duplicateTokenError, setDuplicateTokenError] = useState<string | null>(null)
   // Add state for bulk parsing results
   const [bulkParseResults, setBulkParseResults] = useState<{
     valid: string[]
@@ -879,14 +881,25 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Prevent body scroll when edit modal is open
   useEffect(() => {
     if (showEditModal) {
-      // Save current overflow value
+      // Save current values
       const originalOverflow = document.body.style.overflow
-      // Disable scrolling
+      const originalPosition = document.body.style.position
+      const originalTop = document.body.style.top
+      const scrollY = window.scrollY
+      
+      // Disable scrolling on mobile and desktop
       document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
       
       // Cleanup function to restore scroll when modal closes
       return () => {
         document.body.style.overflow = originalOverflow
+        document.body.style.position = originalPosition
+        document.body.style.top = originalTop
+        document.body.style.width = ''
+        window.scrollTo(0, scrollY)
       }
     }
   }, [showEditModal])
@@ -904,6 +917,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Element
       if (target?.closest('[data-modal-content]')) return
+      // Also ignore clicks on Radix UI portals (dropdowns, selects, etc.)
+      if (target?.closest('[data-radix-popper-content-wrapper]')) return
+      if (target?.closest('[data-radix-select-content]')) return
+      if (target?.closest('[data-radix-dropdown-menu-content]')) return
       handleModalClose()
     }
 
@@ -1054,11 +1071,42 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
   }, [customTokens])
 
+  // Function to check if ticker already exists
+  const isTickerDuplicate = (ticker: string): boolean => {
+    const upperTicker = ticker.toUpperCase()
+    
+    // Check in TOKEN_CONSTANTS
+    const existsInConstants = TOKEN_CONSTANTS.some(token => 
+      token.ticker.toUpperCase() === upperTicker
+    )
+    
+    // Check in MORE_COINS
+    const existsInMoreCoins = MORE_COINS.some(token => 
+      token.ticker.toUpperCase() === upperTicker
+    )
+    
+    // Check in existing custom tokens
+    const existsInCustom = customTokens.some(token => 
+      token.ticker.toUpperCase() === upperTicker
+    )
+    
+    return existsInConstants || existsInMoreCoins || existsInCustom
+  }
+
   // Custom token management functions
   const addCustomToken = () => {
     if (!newTokenForm.name || !newTokenForm.ticker) {
       return // Validation failed - only name and ticker are required
     }
+
+    // Check for duplicate ticker
+    if (isTickerDuplicate(newTokenForm.ticker)) {
+      setDuplicateTokenError(`Ticker "${newTokenForm.ticker.toUpperCase()}" already exists. Please choose a different ticker.`)
+      return
+    }
+
+    // Clear any previous error
+    setDuplicateTokenError(null)
 
     const customToken: CustomToken = {
       id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1071,24 +1119,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       createdAt: Date.now()
     }
 
-    setCustomTokens(prev => [...prev, customToken])
-    
-    // Auto-enable the new token and mark as newly enabled for proper styling and ? placeholder
-    if (coinDetectionMode === 'manual') {
-      // Only update pending state - don't directly update enabledCoins to avoid immediate reload
-      setPendingEnabledCoins(prev => {
-        const current = prev || enabledCoins
-        return new Set([...current, customToken.ticker])
-      })
-    } else {
-      // In auto-detect mode, directly enable since it should auto-detect
-      setEnabledCoins(prev => new Set([...prev, customToken.ticker]))
-    }
-    
-    // Always mark as newly enabled to show green styling and ? placeholder
+    // Mark as newly enabled for green styling and ? placeholder FIRST
     setNewlyEnabledTokens(prev => new Set([...prev, customToken.ticker]))
+    
+    // Auto-enable the new token using pending state (same pattern as regular token toggles)
+    const currentEnabled = pendingEnabledCoins || enabledCoins
+    const newEnabled = new Set([...currentEnabled, customToken.ticker])
+    setPendingEnabledCoins(newEnabled)
+    
+    // Mark that user made manual changes
+    setHasUserMadeManualChanges(true)
+    
+    // Add the token to custom tokens state with startTransition to prevent flash
+    startTransition(() => {
+      setCustomTokens(prev => [...prev, customToken])
+    })
 
-    // Reset form
+    // Reset form and clear errors
     setNewTokenForm({
       contractAddress: '',
       dexPairAddress: '',
@@ -1097,39 +1144,41 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       decimals: 18,
       chain: 369
     })
+    setDuplicateTokenError(null)
     
-    // Close the custom token section after adding with a small delay to prevent flicker
-    setTimeout(() => {
-      setIsCustomTokenSectionOpen(false)
-    }, 50)
+    // Close the custom token section (but keep the modal open)
+    setIsCustomTokenSectionOpen(false)
   }
 
   const deleteCustomToken = (tokenId: string) => {
     const tokenToDelete = customTokens.find(t => t.id === tokenId)
     if (tokenToDelete) {
-      // Remove from custom tokens
-      setCustomTokens(prev => prev.filter(t => t.id !== tokenId))
-      
-      // Remove from enabled coins if it was enabled
-      setEnabledCoins(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(tokenToDelete.ticker)
-        return newSet
-      })
-      
-      // Remove from pending enabled coins if it was pending
-      setPendingEnabledCoins(prev => {
-        if (!prev) return prev
-        const newSet = new Set(prev)
-        newSet.delete(tokenToDelete.ticker)
-        return newSet
-      })
-      
-      // Remove custom balance if set
-      setCustomBalances(prev => {
-        const newMap = new Map(prev)
-        newMap.delete(tokenToDelete.ticker)
-        return newMap
+      // Batch all state updates in a single transition to prevent UI flashing
+      startTransition(() => {
+        // Remove from custom tokens
+        setCustomTokens(prev => prev.filter(t => t.id !== tokenId))
+        
+        // Remove from enabled coins if it was enabled
+        setEnabledCoins(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(tokenToDelete.ticker)
+          return newSet
+        })
+        
+        // Remove from pending enabled coins if it was pending
+        setPendingEnabledCoins(prev => {
+          if (!prev) return prev
+          const newSet = new Set(prev)
+          newSet.delete(tokenToDelete.ticker)
+          return newSet
+        })
+        
+        // Remove custom balance if set
+        setCustomBalances(prev => {
+          const newMap = new Map(prev)
+          newMap.delete(tokenToDelete.ticker)
+          return newMap
+        })
       })
     }
   }
@@ -4954,26 +5003,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     )
   }
 
-  return (
+    return (
     <>
-      {/* EES Mode Page Glow Effect - Temporarily disabled for performance testing */}
-      {/* {hasMounted && useEESValue && (
-        <>
-          <div 
-            className="fixed top-0 left-0 w-12 h-full pointer-events-none z-0"
-            style={{
-              background: 'linear-gradient(to right, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 50%, transparent 100%)'
-            }}
-          />
-          <div 
-            className="fixed top-0 right-0 w-12 h-full pointer-events-none z-0"
-            style={{
-              background: 'linear-gradient(to left, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 50%, transparent 100%)'
-            }}
-          />
-        </>
-      )} */}
-      
       {/* EES Mode / Time Machine Banner - Centered with Frosted Glass Effect */}
       {hasMounted && (useEESValue || useTimeShift) && (
                  <div className="sticky top-4 w-full flex justify-center py-2 z-50">
@@ -8708,7 +8739,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         : 'text-gray-300 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    Coins
+                    Token List
                   </button>
                 </div>
                 <button
@@ -9173,7 +9204,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                        Simple Mode
+                        Top 100 Tokens
                       </button>
                       <button
                         onClick={() => handleModeSwitch('manual')}
@@ -9183,7 +9214,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                        Advanced Mode
+                        Advanced 500+ Token List
                       </button>
               </div>
                     
@@ -9193,17 +9224,37 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         {coinDetectionMode === 'auto-detect' ? (
                           <div>
                             <div>
-                            💡 Automatically detects the top 200 main PulseChain coins only. (Faster & simpler)
+                            💡 Automatically detects the top 100 main PulseChain coins only.
                             </div>
                           </div>
                         ) : (
                           <div>
-                              Manually track up to 400+ extra tokens, control which ones you see, and edit their balances. (This mode can slow down your portfolio loading if you activate more than 200 tokens, or speed it up if you have less than 200 toggled on.)
+                             💡 Manually track up to 500+ extra tokens & edit their balances.
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
+
+                  {/* Bulk Actions - Only show in Manual Mode */}
+                  {coinDetectionMode === 'manual' && (
+                    <div className="flex flex-col gap-2 mb-4">
+                      <button
+                        onClick={() => setShowImportDialog(true)}
+                        className="w-full max-w-md mx-auto px-3 py-3 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                        title="Check balances for all 400+ tokens from MORE_COINS"
+                      >
+                        Auto-scan for & import tokens from an extended 500+ token list.
+                      </button>
+                      <button
+                        onClick={() => setShowResetConfirmDialog(true)}
+                        className="w-full  max-w-md mx-auto px-3 py-3 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                        title="Reset selection to match auto-detect mode (only tokens with balances from the curated list)"
+                      >
+                        Clear manual selections (Makes faster)
+                      </button>
+                    </div>
+                  )}
 
                   {/* Chain Selection - Only show in Manual Mode */}
                   {coinDetectionMode === 'manual' && (
@@ -9259,23 +9310,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         />
                       </div>
 
-                      {/* Bulk Actions */}
-                      <div className="flex gap-2 mb-4">
-                        <button
-                          onClick={() => setShowImportDialog(true)}
-                          className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
-                          title="Check balances for all 400+ tokens from MORE_COINS"
-                        >
-                          Scan for & import tokens from an extended 400+ token list (Slower)
-                        </button>
-                        <button
-                          onClick={() => setShowResetConfirmDialog(true)}
-                          className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-                          title="Reset selection to match auto-detect mode (only tokens with balances from the curated list)"
-                        >
-                          Reset to match Simple Mode's 200 token list (Faster)
-                        </button>
-                      </div>
+
 
                       {/* Token List */}
                       <div className="space-y-2">
@@ -9339,6 +9374,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                         LP
                                       </span>
                                     )}
+                                    {token.id && token.id.startsWith('custom_') && (
+                                      <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded">
+                                        Custom
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="text-sm text-gray-400 truncate">
                                     {token.name}
@@ -9367,6 +9407,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     className="w-full px-3 py-2 bg-black/50 border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none text-sm text-right"
                                   />
                                 </div>
+                              )}
+                              
+                              {/* Delete button for custom tokens or spacer for alignment */}
+                              {token.id && token.id.startsWith('custom_') ? (
+                                <button
+                                  onClick={() => deleteCustomToken(token.id)}
+                                  className="p-1 mr-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
+                                  title="Delete custom token"
+                                >
+                                  <Icons.trash className="w-3 h-3" />
+                                </button>
+                              ) : (
+                                <div className="w-[20px] mr-2"></div>
                               )}
                               
                               <button
@@ -9426,7 +9479,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
               {/* Fixed Footer - Add Custom Token (only for coins tab) */}
               {activeTab === 'coins' && coinDetectionMode === 'manual' && (
-                <div className="border-t border-white/10 bg-black">
+                <div className="border-t-2 border-white/10 bg-white/5">
                   <div className="p-4 sm:p-6">
                     {/* Toggle Header */}
                     <button
@@ -9435,7 +9488,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     >
                       <h3 className="text-lg font-semibold text-white">Add Custom Token</h3>
                       <ChevronDown 
-                        className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
+                        className={`w-5 h-5 text-gray-400 hover:text-white transition-all duration-200 ${
                           isCustomTokenSectionOpen ? 'rotate-180' : ''
                         }`} 
                       />
@@ -9443,53 +9496,38 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
                     {/* Collapsible Content */}
                     {isCustomTokenSectionOpen && (
-                      <div className="space-y-4 mt-4">
+                      <div className="space-y-4 mt-4 max-h-[50vh] overflow-y-auto scrollbar-hide md:max-h-none md:overflow-visible bg-transparent rounded-lg p-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                     
-                    {/* Custom tokens list */}
-                    {customTokens.length > 0 && (
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        <h4 className="text-sm font-medium text-gray-300">Your Custom Tokens:</h4>
-                        {customTokens.map(token => (
-                            <div key={token.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/10">
-                              <div className="flex items-center gap-3">
-                                <div>
-                                  <div className="text-sm font-medium text-white">{token.ticker}</div>
-                                  <div className="text-xs text-gray-400">{token.name}</div>
-                                </div>
-                              </div>
-                              
-                              <button
-                                onClick={() => deleteCustomToken(token.id)}
-                                className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
-                                title="Delete token"
-                              >
-                                <Icons.trash className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )
-                        })}
+                    {/* Duplicate Token Error Message */}
+                    {duplicateTokenError && (
+                      <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span>{duplicateTokenError}</span>
                       </div>
                     )}
-                    
+
                     {/* Add new token form */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input
                         type="text"
-                        placeholder="Ticker (e.g., MYTOKEN)"
+                        placeholder="Ticker*"
                         value={newTokenForm.ticker}
-                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, ticker: e.target.value.toUpperCase() }))}
+                        onChange={(e) => {
+                          setNewTokenForm(prev => ({ ...prev, ticker: e.target.value.toUpperCase() }))
+                          setDuplicateTokenError(null) // Clear error when user types
+                        }}
                         className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
                       />
                                             <input
                         type="text"
-                        placeholder="Token Name"
+                        placeholder="Token Name*"
                         value={newTokenForm.name}
                         onChange={(e) => setNewTokenForm(prev => ({ ...prev, name: e.target.value }))}
                         className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
                       />
                                               <input
                           type="text"
-                          placeholder="Contract Address (optional)"
+                          placeholder="Contract Address"
                           value={newTokenForm.contractAddress}
                           onChange={(e) => setNewTokenForm(prev => ({ ...prev, contractAddress: e.target.value }))}
                           className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
@@ -9508,7 +9546,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             value={newTokenForm.decimals.toString()}
                             onValueChange={(value) => setNewTokenForm(prev => ({ ...prev, decimals: parseInt(value) }))}
                           >
-                            <SelectTrigger className="flex-1 bg-white/10 border-white/20 text-white">
+                            <SelectTrigger className="flex-[3] bg-white/10 border-white/20 text-white">
                               <SelectValue placeholder="Select decimals" />
                             </SelectTrigger>
                             <SelectContent>
@@ -9523,7 +9561,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             value={newTokenForm.chain.toString()}
                             onValueChange={(value) => setNewTokenForm(prev => ({ ...prev, chain: parseInt(value) }))}
                           >
-                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectTrigger className="flex-[2] bg-white/10 border-white/20 text-white">
                               <SelectValue placeholder="Select chain" />
                             </SelectTrigger>
                             <SelectContent>
@@ -9540,6 +9578,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         Add +
                       </button>
                     </div>
+                    <p className="text-sm mt-0 p-0 mb-0 italic text-white/60">*required fields</p>
                       </div>
                     )}
                   </div>
