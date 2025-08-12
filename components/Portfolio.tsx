@@ -187,6 +187,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return []
   })
 
+  // Pending custom tokens (like pending addresses) - only committed when user saves
+  const [pendingCustomTokens, setPendingCustomTokens] = useState<CustomToken[]>([])
+  const [pendingDeletedTokenIds, setPendingDeletedTokenIds] = useState<Set<string>>(new Set())
+
+  // Combined tokens for display (existing + pending - deleted)
+  const displayCustomTokens = useMemo(() => {
+    const existingTokens = customTokens.filter(token => !pendingDeletedTokenIds.has(token.id))
+    return [...existingTokens, ...pendingCustomTokens]
+  }, [customTokens, pendingCustomTokens, pendingDeletedTokenIds])
+
   // Custom token form state
   const [newTokenForm, setNewTokenForm] = useState({
     contractAddress: '',
@@ -367,10 +377,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const tokensByChain = useMemo(() => {
     const grouped: Record<number, typeof TOKEN_CONSTANTS> = {}
     
-    // Determine which token list to use based on mode
+    // Determine which token list to use based on mode (use displayCustomTokens for UI)
     const tokensToUse = coinDetectionMode === 'manual' 
-      ? [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]  // Combine all lists in manual mode
-      : [...TOKEN_CONSTANTS, ...customTokens]  // Main list + custom tokens in auto-detect mode
+      ? [...TOKEN_CONSTANTS, ...MORE_COINS, ...displayCustomTokens]  // Combine all lists in manual mode
+      : [...TOKEN_CONSTANTS, ...displayCustomTokens]  // Main list + custom tokens in auto-detect mode
     
     tokensToUse.forEach(token => {
       if (!grouped[token.chain]) {
@@ -384,7 +394,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       grouped[parseInt(chain)].sort((a, b) => a.name.localeCompare(b.name))
     })
     return grouped
-  }, [coinDetectionMode, customTokens])
+  }, [coinDetectionMode, displayCustomTokens])
 
   // Filter and sort tokens based on search term and enabled status
   const filteredTokensByChain = useMemo(() => {
@@ -396,13 +406,34 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       return tokens.sort((a, b) => {
         const aEnabled = currentEnabled.has(a.ticker)
         const bEnabled = currentEnabled.has(b.ticker)
+        const aNewlyEnabled = newlyEnabledTokens.has(a.ticker)
+        const bNewlyEnabled = newlyEnabledTokens.has(b.ticker)
+        const aIsCustom = (a as any).id?.startsWith('custom_') || false
+        const bIsCustom = (b as any).id?.startsWith('custom_') || false
         
-        // Primary sort: enabled tokens first
+        /* TOKEN SORTING HIERARCHY:
+         * 1. PRIMARY: Newly enabled tokens first (green ones with ?)
+         * 2. SECONDARY: Custom tokens before standard tokens  
+         * 3. TERTIARY: Enabled tokens before disabled tokens
+         * 4. QUATERNARY: Alphabetical by ticker (A-Z)
+         */
+        
+        // 1. PRIMARY: newly enabled tokens first (green ones)
+        if (aNewlyEnabled !== bNewlyEnabled) {
+          return bNewlyEnabled ? 1 : -1 // newly enabled come first
+        }
+        
+        // 2. SECONDARY: custom tokens before standard tokens
+        if (aIsCustom !== bIsCustom) {
+          return bIsCustom ? 1 : -1 // custom tokens come first
+        }
+        
+        // 3. TERTIARY: enabled tokens before disabled tokens
         if (aEnabled !== bEnabled) {
           return bEnabled ? 1 : -1 // enabled tokens come first
         }
         
-        // Secondary sort: alphabetical by ticker
+        // 4. QUATERNARY: alphabetical by ticker (A-Z)
         return a.ticker.localeCompare(b.ticker)
       })
     }
@@ -1085,8 +1116,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       token.ticker.toUpperCase() === upperTicker
     )
     
-    // Check in existing custom tokens
-    const existsInCustom = customTokens.some(token => 
+    // Check in existing custom tokens (including pending)
+    const existsInCustom = displayCustomTokens.some(token => 
       token.ticker.toUpperCase() === upperTicker
     )
     
@@ -1130,10 +1161,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     // Mark that user made manual changes
     setHasUserMadeManualChanges(true)
     
-    // Add the token to custom tokens state with startTransition to prevent flash
-    startTransition(() => {
-      setCustomTokens(prev => [...prev, customToken])
-    })
+    // Add the token to pending custom tokens (don't immediately affect balance hook)
+    setPendingCustomTokens(prev => [...prev, customToken])
 
     // Reset form and clear errors
     setNewTokenForm({
@@ -1151,35 +1180,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   }
 
   const deleteCustomToken = (tokenId: string) => {
-    const tokenToDelete = customTokens.find(t => t.id === tokenId)
+    const tokenToDelete = customTokens.find(t => t.id === tokenId) || pendingCustomTokens.find(t => t.id === tokenId)
     if (tokenToDelete) {
-      // Batch all state updates in a single transition to prevent UI flashing
-      startTransition(() => {
-        // Remove from custom tokens
-        setCustomTokens(prev => prev.filter(t => t.id !== tokenId))
-        
-        // Remove from enabled coins if it was enabled
-        setEnabledCoins(prev => {
-          const newSet = new Set(prev)
-          newSet.delete(tokenToDelete.ticker)
-          return newSet
-        })
-        
-        // Remove from pending enabled coins if it was pending
-        setPendingEnabledCoins(prev => {
-          if (!prev) return prev
-          const newSet = new Set(prev)
-          newSet.delete(tokenToDelete.ticker)
-          return newSet
-        })
-        
-        // Remove custom balance if set
-        setCustomBalances(prev => {
-          const newMap = new Map(prev)
-          newMap.delete(tokenToDelete.ticker)
-          return newMap
-        })
-      })
+      // If it's a pending token, just remove it from pending
+      if (pendingCustomTokens.find(t => t.id === tokenId)) {
+        setPendingCustomTokens(prev => prev.filter(t => t.id !== tokenId))
+      } else {
+        // If it's an existing token, mark for deletion
+        setPendingDeletedTokenIds(prev => new Set([...prev, tokenId]))
+      }
+      
+      // Remove from pending enabled coins (like a toggle)
+      const currentEnabled = pendingEnabledCoins || enabledCoins
+      const newEnabled = new Set(currentEnabled)
+      newEnabled.delete(tokenToDelete.ticker)
+      setPendingEnabledCoins(newEnabled)
+      setHasUserMadeManualChanges(true)
     }
   }
 
@@ -1636,6 +1652,25 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
   }
 
+  // Commit pending custom token changes to main custom tokens state (triggers data fetch)
+  const commitPendingCustomTokens = () => {
+    // Apply deletions and additions
+    const tokensAfterDeletions = customTokens.filter(token => !pendingDeletedTokenIds.has(token.id))
+    const finalTokens = [...tokensAfterDeletions, ...pendingCustomTokens]
+    
+    // Only update if there are actual changes
+    if (pendingDeletedTokenIds.size > 0 || pendingCustomTokens.length > 0) {
+      console.log('[Portfolio] Committing custom token changes:', {
+        deletions: pendingDeletedTokenIds.size,
+        additions: pendingCustomTokens.length,
+        finalCount: finalTokens.length
+      })
+      setCustomTokens(finalTokens)
+      setPendingCustomTokens([])
+      setPendingDeletedTokenIds(new Set())
+    }
+  }
+
   // Handle reset to auto-detect confirmation
   const handleResetToAutoDetect = () => {
     // Reset to auto-detect mode: only enable tokens with balances from crypto.ts
@@ -1703,6 +1738,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const handleModalClose = () => {
     console.log('[Portfolio] handleModalClose called')
     commitPendingAddresses()
+    commitPendingCustomTokens()
     
     // Commit pending coin changes and always reload to ensure everything stays in sync
     if (pendingEnabledCoins !== null) {
@@ -1725,6 +1761,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     setShowEditModal(false)
     // Clear removed address IDs filter since we're done editing
     setRemovedAddressIds(new Set())
+    
+    // Clear green styling from newly enabled tokens after saving
+    setNewlyEnabledTokens(new Set())
   }
 
   // Handle adding address from modal - add to pending state, don't fetch immediately
@@ -1968,12 +2007,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   }, [allRawBalances, coinDetectionMode, enabledCoins, customBalances])
   console.log('Portfolio Debug - Balance hook result:', { balances: rawBalances, balancesLoading, balancesError })
 
-  // Clear newly enabled tokens when balance data changes (portfolio reload completed)
+  // Clear newly enabled tokens when there's a significant data change (but not when just editing balances)
   useEffect(() => {
-    if (rawBalances && rawBalances.length > 0) {
+    if (rawBalances && rawBalances.length > 0 && !pendingEnabledCoins) {
+      // Only clear if there are no pending changes (meaning this is a fresh reload, not editing)
       setNewlyEnabledTokens(new Set()) // Clear the newly enabled tokens after reload
     }
-  }, [rawBalances])
+  }, [rawBalances, pendingEnabledCoins])
 
   // Auto-set enabled coins based on balances (only on initial load, don't override user choices)
   useEffect(() => {
@@ -9429,6 +9469,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   if (isEnabled) {
                                     newEnabled.delete(token.ticker)
                                     console.log('[Portfolio] Toggled OFF:', token.ticker, 'pending enabled:', Array.from(newEnabled))
+                                    
+                                    // Remove green styling when toggling OFF non-custom tokens
+                                    const isCustomToken = (token as any).id?.startsWith('custom_')
+                                    if (!isCustomToken) {
+                                      setNewlyEnabledTokens(prev => {
+                                        const newSet = new Set(prev)
+                                        newSet.delete(token.ticker)
+                                        return newSet
+                                      })
+                                    }
                                   } else {
                                     newEnabled.add(token.ticker)
                                     // Track that this token was just toggled on
