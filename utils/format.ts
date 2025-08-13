@@ -82,6 +82,11 @@ export function formatPercent(value: number, opts: { alreadyPercentage?: boolean
 export function formatPriceSigFig(price: number, sigFigs = 3): string {
   if (price === 0) return '$0.00';
   
+  // For very small prices (smaller than 0.00000001 - 8 zeros), use scientific notation
+  if (price > 0 && price < 0.00000001) {
+    return '$' + price.toExponential(2);
+  }
+  
   // For numbers >= 1, always show 2 decimal places
   if (price >= 1) {
     return '$' + price.toFixed(2);
@@ -96,7 +101,7 @@ export function formatPriceSigFig(price: number, sigFigs = 3): string {
     else break;
   }
   
-  // Show all leading zeros plus 3 significant digits
-  const totalDecimals = Math.max(leadingZeros + 3, 2);
+  // Show all leading zeros plus significant digits, but cap at 10 decimal places
+  const totalDecimals = Math.min(Math.max(leadingZeros + sigFigs, 2), 10);
   return '$' + price.toFixed(totalDecimals);
 }

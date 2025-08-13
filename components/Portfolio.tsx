@@ -39,6 +39,7 @@ import TSharesLeagueTable from '@/components/ui/TSharesLeagueTable'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import Image from 'next/image'
 import { ChevronDown } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface StoredAddress {
   address: string
@@ -65,6 +66,9 @@ interface PortfolioProps {
 export default function Portfolio({ detectiveMode = false, detectiveAddress }: PortfolioProps) {
   // Debug toggle - set to true to show network debug panel
   const SHOW_DEBUG_PANEL = false
+  
+  // Mobile detection for responsive formatting
+  const isMobile = useIsMobile()
   
   // Track component renders for debugging
   const renderCountRef = useRef(0)
@@ -199,16 +203,21 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Custom token form state
   const [newTokenForm, setNewTokenForm] = useState({
+    url: '',
     contractAddress: '',
-    dexPairAddress: '',
     name: '',
     ticker: '',
-    decimals: 18,
     chain: 369
   })
 
   // Custom token section toggle state
   const [isCustomTokenSectionOpen, setIsCustomTokenSectionOpen] = useState(false)
+  
+  // Edit mode state for custom tokens
+  const [editingTokenId, setEditingTokenId] = useState<string | null>(null)
+  
+  // Auto-detect token data state
+  const [isAutoDetecting, setIsAutoDetecting] = useState(false)
 
   // Add state for coin toggles (which coins to include in balance checks)
   const [enabledCoins, setEnabledCoins] = useState<Set<string>>(() => {
@@ -1102,6 +1111,104 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
   }, [customTokens])
 
+  // Function to automatically find the best DEX pair for a token
+  const findBestDexPair = async (contractAddress: string, chain: number): Promise<string> => {
+    try {
+      const chainName = chain === 1 ? 'ethereum' : 'pulsechain'
+      console.log(`[findBestDexPair] Looking for pairs for ${contractAddress} on ${chainName}`)
+      
+      // Use DexScreener API to find pairs for this token
+      const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`)
+      const data = await response.json()
+      
+      if (!data.pairs || data.pairs.length === 0) {
+        console.warn(`[findBestDexPair] No pairs found for ${contractAddress}`)
+        return ''
+      }
+      
+      // Filter pairs by chain and sort by liquidity + volume
+      const chainPairs = data.pairs.filter((pair: any) => {
+        if (chain === 1) {
+          // Ethereum - look for Uniswap, Sushiswap, etc.
+          return pair.chainId === 'ethereum'
+        } else {
+          // PulseChain
+          return pair.chainId === 'pulsechain'
+        }
+      })
+      
+      if (chainPairs.length === 0) {
+        console.warn(`[findBestDexPair] No pairs found for ${contractAddress} on ${chainName}`)
+        return ''
+      }
+      
+      // Sort by liquidity (USD) descending to get the most liquid pair
+      const sortedPairs = chainPairs.sort((a: any, b: any) => {
+        const liquidityA = parseFloat(a.liquidity?.usd || '0')
+        const liquidityB = parseFloat(b.liquidity?.usd || '0')
+        return liquidityB - liquidityA
+      })
+      
+      const bestPair = sortedPairs[0]
+      console.log(`[findBestDexPair] Found best pair: ${bestPair.pairAddress} with $${bestPair.liquidity?.usd || 0} liquidity`)
+      
+      return bestPair.pairAddress || ''
+    } catch (error) {
+      console.error(`[findBestDexPair] Error finding pair for ${contractAddress}:`, error)
+      return ''
+    }
+  }
+
+  // Function to parse dexscreener URL and extract chain and contract address
+  const parseDexscreenerUrl = (url: string): { chain: number | null, contractAddress: string | null } => {
+    try {
+      const urlObj = new URL(url)
+      if (!urlObj.hostname.includes('dexscreener.com')) {
+        return { chain: null, contractAddress: null }
+      }
+
+      const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0)
+      if (pathParts.length < 2) {
+        return { chain: null, contractAddress: null }
+      }
+
+      const chainName = pathParts[0].toLowerCase()
+      const contractAddress = pathParts[1]
+
+      let chain: number | null = null
+      if (chainName === 'pulsechain') {
+        chain = 369
+      } else if (chainName === 'ethereum') {
+        chain = 1
+      }
+
+      return { 
+        chain, 
+        contractAddress: contractAddress.startsWith('0x') ? contractAddress : null 
+      }
+    } catch (error) {
+      console.error('[parseDexscreenerUrl] Error parsing URL:', error)
+      return { chain: null, contractAddress: null }
+    }
+  }
+
+  // Function to handle URL input and auto-fill form
+  const handleUrlInput = (url: string) => {
+    setNewTokenForm(prev => ({ ...prev, url }))
+    
+    if (url.trim()) {
+      const parsed = parseDexscreenerUrl(url.trim())
+      if (parsed.chain !== null && parsed.contractAddress !== null) {
+        setNewTokenForm(prev => ({
+          ...prev,
+          chain: parsed.chain!,
+          contractAddress: parsed.contractAddress!
+        }))
+        console.log(`[handleUrlInput] Auto-detected chain: ${parsed.chain}, contract: ${parsed.contractAddress}`)
+      }
+    }
+  }
+
   // Function to check if ticker already exists
   const isTickerDuplicate = (ticker: string): boolean => {
     const upperTicker = ticker.toUpperCase()
@@ -1125,31 +1232,99 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   }
 
   // Custom token management functions
-  const addCustomToken = () => {
-    if (!newTokenForm.name || !newTokenForm.ticker) {
-      return // Validation failed - only name and ticker are required
+  const addCustomToken = async () => {
+    if (!newTokenForm.ticker) {
+      return // Validation failed - only ticker is required
     }
 
-    // Check for duplicate ticker
-    if (isTickerDuplicate(newTokenForm.ticker)) {
+    // Check for duplicate ticker (skip check if we're editing the same token)
+    if (!editingTokenId && isTickerDuplicate(newTokenForm.ticker)) {
       setDuplicateTokenError(`Ticker "${newTokenForm.ticker.toUpperCase()}" already exists. Please choose a different ticker.`)
       return
+    }
+
+    // If editing, also check duplicates against other tokens (not the one being edited)
+    if (editingTokenId) {
+      const existingToken = customTokens.find(t => t.id === editingTokenId) || pendingCustomTokens.find(t => t.id === editingTokenId)
+      if (existingToken && existingToken.ticker.toUpperCase() !== newTokenForm.ticker.toUpperCase() && isTickerDuplicate(newTokenForm.ticker)) {
+        setDuplicateTokenError(`Ticker "${newTokenForm.ticker.toUpperCase()}" already exists. Please choose a different ticker.`)
+        return
+      }
     }
 
     // Clear any previous error
     setDuplicateTokenError(null)
 
+    // Create or update the token
     const customToken: CustomToken = {
-      id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: editingTokenId || `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       chain: newTokenForm.chain,
       a: newTokenForm.contractAddress ? newTokenForm.contractAddress.toLowerCase() : '',
-      dexs: newTokenForm.dexPairAddress || '',
+      dexs: '', // Will be populated in background (or preserved if editing)
       ticker: newTokenForm.ticker.toUpperCase(),
-      decimals: newTokenForm.decimals,
-      name: newTokenForm.name,
-      createdAt: Date.now()
+      decimals: 18, // Will be auto-detected from contract
+      name: newTokenForm.name || newTokenForm.ticker.toUpperCase(),
+      createdAt: editingTokenId ? 
+        (customTokens.find(t => t.id === editingTokenId)?.createdAt || pendingCustomTokens.find(t => t.id === editingTokenId)?.createdAt || Date.now()) 
+        : Date.now()
     }
 
+    // If editing, preserve existing DEX pair if no new contract address provided
+    if (editingTokenId) {
+      const existingToken = customTokens.find(t => t.id === editingTokenId) || pendingCustomTokens.find(t => t.id === editingTokenId)
+      if (existingToken && !newTokenForm.contractAddress) {
+        customToken.dexs = existingToken.dexs
+      }
+    }
+
+    // Auto-detect DEX pair in background if contract address is provided
+    if (newTokenForm.contractAddress) {
+      console.log('[addCustomToken] Starting background DEX pair detection for:', newTokenForm.contractAddress)
+      
+      // Don't await - let it run in background
+      findBestDexPair(newTokenForm.contractAddress, newTokenForm.chain)
+        .then(dexPairAddress => {
+          if (dexPairAddress) {
+            console.log('[addCustomToken] Background pair detection successful:', dexPairAddress)
+            
+            // Update the token with the found pair address
+            setPendingCustomTokens(prevTokens => 
+              prevTokens.map(token => 
+                token.id === customToken.id 
+                  ? { ...token, dexs: dexPairAddress }
+                  : token
+              )
+            )
+            
+            // Also update committed custom tokens if they exist
+            setCustomTokens(prevTokens => 
+              prevTokens.map(token => 
+                token.id === customToken.id 
+                  ? { ...token, dexs: dexPairAddress }
+                  : token
+              )
+            )
+          } else {
+            console.warn('[addCustomToken] No DEX pair found for', newTokenForm.contractAddress)
+          }
+        })
+        .catch(error => {
+          console.error('[addCustomToken] Background pair detection failed:', error)
+        })
+    }
+
+    if (editingTokenId) {
+      // Update existing token
+      setPendingCustomTokens(prev => 
+        prev.map(token => token.id === editingTokenId ? customToken : token)
+      )
+      setCustomTokens(prev => 
+        prev.map(token => token.id === editingTokenId ? customToken : token)
+      )
+      
+      console.log('[addCustomToken] Updated existing token:', customToken)
+    } else {
+      // Add new token
     // Mark as newly enabled for green styling and ? placeholder FIRST
     setNewlyEnabledTokens(prev => new Set([...prev, customToken.ticker]))
     
@@ -1161,22 +1336,52 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     // Mark that user made manual changes
     setHasUserMadeManualChanges(true)
     
-    // Add the token to pending custom tokens (don't immediately affect balance hook)
-    setPendingCustomTokens(prev => [...prev, customToken])
+      // Add the token to pending custom tokens (don't immediately affect balance hook)
+      setPendingCustomTokens(prev => [...prev, customToken])
+
+      // Track successful custom token addition
+      if (window.plausible) {
+        window.plausible('Added New Custom Token')
+      }
+      
+      console.log('[addCustomToken] Added new token:', customToken)
+    }
 
     // Reset form and clear errors
     setNewTokenForm({
+      url: '',
       contractAddress: '',
-      dexPairAddress: '',
       name: '',
       ticker: '',
-      decimals: 18,
       chain: 369
     })
     setDuplicateTokenError(null)
+    setEditingTokenId(null) // Clear edit mode
     
     // Close the custom token section (but keep the modal open)
     setIsCustomTokenSectionOpen(false)
+  }
+
+  const editCustomToken = (tokenId: string) => {
+    const tokenToEdit = customTokens.find(t => t.id === tokenId) || pendingCustomTokens.find(t => t.id === tokenId)
+    if (tokenToEdit) {
+      // Pre-fill the form with existing token data
+      setNewTokenForm({
+        url: '', // Don't pre-fill URL when editing
+        contractAddress: tokenToEdit.a || '',
+        name: tokenToEdit.name,
+        ticker: tokenToEdit.ticker,
+        chain: tokenToEdit.chain
+      })
+      
+      // Set edit mode
+      setEditingTokenId(tokenId)
+      
+      // Open the custom token section
+      setIsCustomTokenSectionOpen(true)
+      
+      console.log('[editCustomToken] Editing token:', tokenToEdit)
+    }
   }
 
   const deleteCustomToken = (tokenId: string) => {
@@ -1706,28 +1911,39 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
     
     if (newMode === 'manual' && coinDetectionMode === 'auto-detect') {
-      // Switching from auto-detect to manual: preserve auto-detected tokens
-      console.log('[Portfolio] Preserving auto-detected tokens:', Array.from(autoDetectedCoins))
+      // Switching from auto-detect to manual: preserve tokens with actual balances
+      const tokensWithBalances = new Set<string>()
       
-      // If we're in a pending state, update pending; otherwise update the main state
-      if (pendingEnabledCoins !== null) {
-        setPendingEnabledCoins(new Set([...pendingEnabledCoins, ...autoDetectedCoins]))
-      } else {
-        setEnabledCoins(new Set([...enabledCoins, ...autoDetectedCoins]))
+      if (rawBalances && rawBalances.length > 0) {
+        rawBalances.forEach(balanceData => {
+          // Add native tokens that have non-zero balance
+          if (balanceData.nativeBalance && balanceData.nativeBalance.balanceFormatted > 0) {
+            tokensWithBalances.add(balanceData.nativeBalance.symbol)
+          }
+          
+          // Add ERC-20 tokens that have non-zero balance
+          balanceData.tokenBalances.forEach(token => {
+            if (token.balanceFormatted > 0) {
+              tokensWithBalances.add(token.symbol)
+            }
+          })
+        })
       }
+      
+      console.log('[Portfolio] Preserving tokens with balances:', Array.from(tokensWithBalances))
+      
+      // Always update the main state immediately for mode switches (don't wait for modal close)
+      setEnabledCoins(new Set([...enabledCoins, ...tokensWithBalances]))
+      // Also clear any pending state to avoid conflicts
+      setPendingEnabledCoins(null)
       
       setHasUserMadeManualChanges(true) // Mark that user has made manual changes
     } else if (newMode === 'auto-detect' && coinDetectionMode === 'manual') {
-      // Switching from manual to auto-detect: clear manual selections
-      console.log('[Portfolio] Clearing manual selections for auto-detect mode')
+      // Switching from manual to auto-detect: keep enabled coins but let auto-detect override
+      console.log('[Portfolio] Switching to auto-detect mode - keeping manual selections as fallback')
       
-      if (pendingEnabledCoins !== null) {
-        setPendingEnabledCoins(new Set())
-      } else {
-        setEnabledCoins(new Set())
-      }
-      
-      setCustomBalances(new Map()) // Clear custom balances too
+      // Don't clear enabledCoins - auto-detect mode ignores it anyway
+      // Don't clear custom balances - users should keep their manual balance overrides
       setHasUserMadeManualChanges(false) // Reset manual changes flag
     }
     
@@ -1913,7 +2129,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         tokenBalances: addressData.tokenBalances?.map((token: any) => ({
           ...token,
           balanceFormatted: customBalances.has(token.symbol)
-            ? parseFloat(customBalances.get(token.symbol) || '0')
+            ? (() => {
+                const customValue = parseFloat(customBalances.get(token.symbol) || '0')
+                console.log(`[Custom Balance Applied] ${token.symbol}: stored="${customBalances.get(token.symbol)}" -> parsed=${customValue}`)
+                return customValue
+              })()
             : token.balanceFormatted
         })) || []
       }))
@@ -1933,9 +2153,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         
         const tokensToAdd: any[] = []
         
-        // Add tokens with custom balances
+        // Add tokens with custom balances (only if enabled)
         customBalances.forEach((balance, symbol) => {
-          if (!existingTokenSymbols.has(symbol) && parseFloat(balance) > 0) {
+          if (!existingTokenSymbols.has(symbol) && parseFloat(balance) > 0 && currentEnabledCoins.has(symbol)) {
+            console.log(`[Portfolio] Adding custom balance token: ${symbol} (enabled: ${currentEnabledCoins.has(symbol)})`)
             // Find token config to get proper details - include custom tokens
             const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]
             const tokenConfig = allTokens.find(t => t.ticker === symbol)
@@ -1955,7 +2176,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         
         // Add enabled tokens that don't have balance data yet (in manual mode)
         if (coinDetectionMode === 'manual') {
-          enabledCoins.forEach(symbol => {
+          currentEnabledCoins.forEach(symbol => {
             if (!existingTokenSymbols.has(symbol) && !customBalances.has(symbol)) {
               // Find token config to get proper details - include custom tokens
               const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]
@@ -1993,18 +2214,25 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
     
     // In manual mode, filter based on enabled coins and apply custom balances
+    const currentEnabledCoins = pendingEnabledCoins || enabledCoins
+    console.log('[Portfolio] Manual mode filtering - enabled coins:', Array.from(currentEnabledCoins))
+    
     const filteredBalances = allRawBalances.map(addressData => ({
       ...addressData,
       // Keep native balance if it's enabled
-      nativeBalance: (addressData.nativeBalance && enabledCoins.has(addressData.nativeBalance.symbol)) 
+      nativeBalance: (addressData.nativeBalance && currentEnabledCoins.has(addressData.nativeBalance.symbol)) 
         ? addressData.nativeBalance 
         : null,
       // Filter token balances to only enabled tokens
-      tokenBalances: addressData.tokenBalances?.filter(token => enabledCoins.has(token.symbol)) || []
+      tokenBalances: addressData.tokenBalances?.filter(token => {
+        const isEnabled = currentEnabledCoins.has(token.symbol)
+        console.log(`[Portfolio] Token ${token.symbol}: enabled=${isEnabled}`)
+        return isEnabled
+      }) || []
     }))
     
     return applyCustomBalances(filteredBalances)
-  }, [allRawBalances, coinDetectionMode, enabledCoins, customBalances])
+  }, [allRawBalances, coinDetectionMode, enabledCoins, pendingEnabledCoins, customBalances])
   console.log('Portfolio Debug - Balance hook result:', { balances: rawBalances, balancesLoading, balancesError })
 
   // Clear newly enabled tokens when there's a significant data change (but not when just editing balances)
@@ -2158,7 +2386,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       })
     }
     
-    const allTickers = [...new Set([...tokens, ...baseTokens, ...stakeTokens])]
+    // Add custom tokens to ensure they get price data
+    const customTokenTickers = customTokens.map(token => token.ticker)
+    
+    const allTickers = [...new Set([...tokens, ...baseTokens, ...stakeTokens, ...customTokenTickers])]
     
     // Return a stable array - only change if the actual content changes
     return allTickers.sort() // Sort for consistent ordering
@@ -2169,14 +2400,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       ...(b.tokenBalances?.map(t => t.symbol) || [])
     ].join(',')).sort().join('|'),
     // Also depend on HEX stakes to include their tokens in price fetching
-    hexStakes && hexStakes.map(s => s.chain).sort().join('|')
+    hexStakes && hexStakes.map(s => s.chain).sort().join('|'),
+    // Include custom tokens in price fetching
+    customTokens.map(t => t.ticker).sort().join('|')
   ])
 
   // Minimal debug logging (only when needed)
   // console.log('[Portfolio] Component render - balances:', balances?.length, 'tickers:', allTokenTickers.length, 'chainFilter:', chainFilter, 'selectedIds:', selectedAddressIds.length)
 
   // Fetch prices for all tokens with balances
-  const { prices: rawPrices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers)
+  const { prices: rawPrices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers, { customTokens })
 
   // We need to create a placeholder for LP underlying prices that will be populated later
   // This prevents the dependency cycle while still allowing the prices to be combined
@@ -3363,8 +3596,34 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const formatPrice = (price: number): string => {
     if (price === 0) return '$0.00'
     
-    // For very small prices, use scientific notation
-    if (price > 0 && price < 0.01) {
+    // On mobile, use more compact formatting (keep original thresholds)
+    if (isMobile) {
+      // For very small prices (smaller than 0.000001), use scientific notation
+      if (price > 0 && price < 0.000001) {
+        return `$${price.toExponential(2)}`
+      }
+      
+      // For large prices (≥ 10,000), use comma formatting
+      if (price >= 10000) {
+        return `$${Math.round(price).toLocaleString()}`
+      }
+      
+      // For moderate prices (1 to 9,999), use regular decimal formatting
+      if (price >= 1) {
+        return `$${price.toFixed(2)}`
+      }
+      
+      // For small prices, show limited decimals on mobile
+      if (price < 0.01) {
+        return `$${price.toFixed(6)}`
+      } else {
+        return `$${price.toFixed(4)}`
+      }
+    }
+    
+    // Desktop formatting - show full prices until 8 zeros
+    // For very small prices (smaller than 0.00000001 - 8 zeros), use scientific notation
+    if (price > 0 && price < 0.00000001) {
       return `$${price.toExponential(2)}`
     }
     
@@ -3373,11 +3632,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       return `$${Math.round(price).toLocaleString()}`
     }
     
-    // For moderate prices (0.01 to 9,999), use regular decimal formatting
+    // For moderate prices (1 to 9,999), use regular decimal formatting
     if (price >= 1) {
       return `$${price.toFixed(2)}`
+    }
+    
+    // For small prices between 0.00000001 and 1, show appropriate decimals
+    if (price < 0.01) {
+      // Count leading zeros to determine appropriate decimal places
+      const str = price.toString()
+      const [, decimal = ''] = str.split('.')
+      let leadingZeros = 0
+      for (const char of decimal) {
+        if (char === '0') leadingZeros++
+        else break
+      }
+      
+      // Show leading zeros + 3-4 significant digits, capped at 10 decimals
+      const decimals = Math.min(leadingZeros + 4, 10)
+      return `$${price.toFixed(decimals)}`
     } else {
-      // For prices between 0.01 and 1, show appropriate decimal places
+      // For prices between 0.01 and 1, show 4 decimal places
       return `$${price.toFixed(4)}`
     }
   }
@@ -3497,7 +3772,17 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     const usdValue = token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
     const displayAmount = (() => {
       const currentBalance = getCurrentBalance(token.symbol)
-      return currentBalance !== null ? formatBalance(currentBalance) : '?'
+      if (currentBalance === null) return '?'
+      
+      // Check if this is a custom balance - if so, show exact number with commas
+      if (customBalances.has(token.symbol)) {
+        const customValue = parseFloat(customBalances.get(token.symbol) || '0')
+        console.log(`[Display Amount] ${token.symbol}: stored="${customBalances.get(token.symbol)}" -> display="${customValue.toLocaleString('en-US')}"`)
+        return customValue.toLocaleString('en-US')
+      }
+      
+      // Otherwise use normal formatting
+      return formatBalance(currentBalance)
     })()
     
     // Helper function to get the base token name (remove 'e' or 'we' prefix)
@@ -3717,7 +4002,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             <div className="text-gray-400 text-[10px] break-words leading-tight">
               <span className="sm:hidden">{displayAmount}</span>
               <span className="hidden sm:block">{(() => {
-                const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
+                // Look for token in all sources: TOKEN_CONSTANTS, MORE_COINS, and custom tokens
+                const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]
+                const tokenConfig = allTokens.find(t => t.ticker === token.symbol)
                 return tokenConfig?.name || getDisplayTicker(token.symbol)
               })()}</span>
             </div>
@@ -3830,9 +4117,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         <div className="flex flex-col items-center ml-2">
           {(() => {
             // Get the appropriate address and chain for charts/copying
-            let chartAddress = token.address
-            let copyAddress = token.address
+            let chartAddress = token.address || token.contractAddress
+            let copyAddress = token.address || token.contractAddress
             let chartChain = 'pulsechain' // Default to pulsechain
+            
+            // Set chain based on token chain info
+            if (token.chain === 1) {
+              chartChain = 'ethereum'
+            }
             
             // For PLS (native token), use the dexs address from constants
             if (token.isNative && token.symbol === 'PLS') {
@@ -5412,7 +5704,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               {/* Edit button */}
               <button
                 onClick={() => setShowEditModal(true)}
-                className="p-2 mr-2 rounded-lg text-gray-400 hover:text-white"
+                className="plausible-event-name=Opens+Settings p-2 mr-2 rounded-lg text-gray-400 hover:text-white"
               >
                 <Icons.edit size={16} />
               </button>
@@ -8763,7 +9055,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </button>
                   <button
                     onClick={() => setActiveTab('settings')}
-                    className={`px-6 py-1.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
+                    className={`plausible-event-name=Clicks+Settings+Tab px-6 py-1.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
                       activeTab === 'settings' 
                         ? 'bg-white text-black shadow-lg' 
                         : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -8773,7 +9065,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </button>
                   <button
                     onClick={() => setActiveTab('coins')}
-                    className={`px-6 py-1.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
+                    className={`plausible-event-name=Clicks+Token+List px-6 py-1.5 text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
                       activeTab === 'coins' 
                         ? 'bg-white text-black shadow-lg' 
                         : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -8900,7 +9192,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </div>
                       <button
                         onClick={() => setUseBackingPrice(!useBackingPrice)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        className={`plausible-event-name=Toggles+MAXI+Tokens relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                           useBackingPrice ? 'bg-white' : 'bg-gray-600'
                         }`}
                       >
@@ -8922,7 +9214,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </div>
                       <button
                         onClick={() => setIncludePooledStakes(!includePooledStakes)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        className={`plausible-event-name=Toggles+Pooled+Stakes relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                           includePooledStakes ? 'bg-white' : 'bg-gray-600'
                         }`}
                       >
@@ -8943,7 +9235,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </div>
                       <button
                         onClick={() => setShowLiquidityPositions(!showLiquidityPositions)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        className={`plausible-event-name=Toggles+Liquidity+Positions relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                           showLiquidityPositions ? 'bg-white' : 'bg-gray-600'
                         }`}
                       >
@@ -8967,7 +9259,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         </div>
                         <button
                           onClick={() => setUseTimeShift(!useTimeShift)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          className={`plausible-event-name=Toggles+Time+Machine relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                             useTimeShift ? 'bg-white' : 'bg-gray-600'
                           }`}
                         >
@@ -9033,6 +9325,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     step="0.0001"
                                     value={timeMachineHexPrice}
                                     onChange={(e) => setTimeMachineHexPrice(e.target.value)}
+                                    onBlur={() => {
+                                      if (window.plausible) window.plausible('Edits pHEX Price Override');
+                                    }}
                                     placeholder={`${formatPrice(getTokenPrice('HEX')).replace('$', '')}`}
                                     className="w-full pl-6 pr-2 py-1 text-sm bg-black border border-white/20 rounded text-white placeholder-gray-500 focus:outline-none focus:border-white/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
@@ -9047,6 +9342,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     step="0.0001"
                                     value={timeMachineEHexPrice}
                                     onChange={(e) => setTimeMachineEHexPrice(e.target.value)}
+                                    onBlur={() => {
+                                      if (window.plausible) window.plausible('Edits eHEX Price Override');
+                                    }}
                                     placeholder={`${formatPrice(getTokenPrice('eHEX')).replace('$', '')}`}
                                     className="w-full pl-6 pr-2 py-1 text-sm bg-black border border-white/20 rounded text-white placeholder-gray-500 focus:outline-none focus:border-white/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
@@ -9060,6 +9358,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     step="0.01"
                                     value={timeMachinePlsPayout}
                                     onChange={(e) => setTimeMachinePlsPayout(e.target.value)}
+                                    onBlur={() => {
+                                      if (window.plausible) window.plausible('Edits pHEX Payout Override');
+                                    }}
                                     placeholder={(() => {
                                       if (hexDailyDataCacheForEES?.dailyPayouts?.PLS) {
                                         const current = calculate30DayAvgPayout(hexDailyDataCacheForEES.dailyPayouts.PLS);
@@ -9080,6 +9381,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     step="0.01"
                                     value={timeMachineEthPayout}
                                     onChange={(e) => setTimeMachineEthPayout(e.target.value)}
+                                    onBlur={() => {
+                                      if (window.plausible) window.plausible('Edits eHEX Payout Override');
+                                    }}
                                     placeholder={(() => {
                                       if (hexDailyDataCacheForEES?.dailyPayouts?.ETH) {
                                         const current = calculate30DayAvgPayout(hexDailyDataCacheForEES.dailyPayouts.ETH);
@@ -9109,7 +9413,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </div>
                       <button
                         onClick={() => setUseEESValue(!useEESValue)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        className={`plausible-event-name=Toggles+EES+Mode relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                           useEESValue ? 'bg-white' : 'bg-gray-600'
                         }`}
                       >
@@ -9157,6 +9461,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         min="0"
                         value={validatorCount === 0 ? '' : validatorCount}
                         onChange={(e) => setValidatorCount(Math.max(0, parseInt(e.target.value) || 0))}
+                        onBlur={() => {
+                          if (window.plausible) window.plausible('Edits Validator Count');
+                        }}
                         placeholder="0"
                         className="w-full px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -9199,6 +9506,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               setDustFilter(parsed)
                               setDustFilterInput(parsed.toString())
                             }
+                            // Track the event
+                            if (window.plausible) window.plausible('Edits Dust Filter');
                           }}
                           placeholder="0"
                           className="w-full pl-8 pr-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none"
@@ -9248,7 +9557,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </button>
                       <button
                         onClick={() => handleModeSwitch('manual')}
-                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                        className={`plausible-event-name=Switched+to+Advanced+Token+List flex-1 px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
                           coinDetectionMode === 'manual'
                             ? 'bg-white text-black shadow-sm'
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -9440,6 +9749,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                       } else {
                                         // Store the parsed value (without commas) for calculations
                                         const parsedValue = parseInputValue(e.target.value)
+                                        console.log(`[Custom Balance Input] ${token.ticker}: input="${e.target.value}" -> parsed="${parsedValue}"`)
                                         newCustomBalances.set(token.ticker, parsedValue)
                                       }
                                       setCustomBalances(newCustomBalances)
@@ -9449,17 +9759,29 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 </div>
                               )}
                               
-                              {/* Delete button for custom tokens or spacer for alignment */}
+                                                            {/* Edit or Delete button for custom tokens (based on enabled state) */}
                               {token.id && token.id.startsWith('custom_') ? (
-                                <button
-                                  onClick={() => deleteCustomToken(token.id)}
-                                  className="p-1 mr-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
-                                  title="Delete custom token"
-                                >
-                                  <Icons.trash className="w-3 h-3" />
-                                </button>
+                                <div className="flex items-center">
+                                  {isEnabled ? (
+                                    <button
+                                      onClick={() => editCustomToken(token.id)}
+                                      className="p-1 mr-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded"
+                                      title="Edit custom token"
+                                    >
+                                      <Icons.edit className="w-3 h-3" />
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => deleteCustomToken(token.id)}
+                                      className="p-1 mr-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
+                                      title="Delete custom token"
+                                    >
+                                      <Icons.trash className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
                               ) : (
-                                <div className="w-[20px] mr-2"></div>
+                                <div className="w-[28px] mr-2"></div>
                               )}
                               
                               <button
@@ -9484,6 +9806,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     // Track that this token was just toggled on
                                     setNewlyEnabledTokens(prev => new Set([...prev, token.ticker]))
                                     console.log('[Portfolio] Toggled ON:', token.ticker, 'pending enabled:', Array.from(newEnabled))
+                                    
+                                    // Track Plausible event for toggling ON regular tokens (not custom tokens)
+                                    const isCustomToken = (token as any).id?.startsWith('custom_')
+                                    if (!isCustomToken && window.plausible) {
+                                      window.plausible('Toggled on Token in Advanced Mode')
+                                    }
                                   }
                                   setPendingEnabledCoins(newEnabled)
                                   setHasUserMadeManualChanges(true)
@@ -9536,7 +9864,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       onClick={() => setIsCustomTokenSectionOpen(!isCustomTokenSectionOpen)}
                       className="flex items-center justify-between w-full text-left"
                     >
-                      <h3 className="text-lg font-semibold text-white">Add Custom Token</h3>
+                      <h3 className="text-lg font-semibold text-white">
+                        {editingTokenId ? 'Edit Custom Token' : 'Add Custom Token'}
+                      </h3>
                       <ChevronDown 
                         className={`w-5 h-5 text-gray-400 hover:text-white transition-all duration-200 ${
                           isCustomTokenSectionOpen ? 'rotate-180' : ''
@@ -9558,6 +9888,17 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
                     {/* Add new token form */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* DexScreener URL Input - spans full width */}
+                    <div className="sm:col-span-2">
+                      <input
+                        type="text"
+                        placeholder="DexScreener URL (optional - auto-fills chain & contract)"
+                        value={newTokenForm.url}
+                        onChange={(e) => handleUrlInput(e.target.value)}
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
+                      />
+                    </div>
+                    
                     <input
                         type="text"
                         placeholder="Ticker*"
@@ -9570,7 +9911,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       />
                                             <input
                         type="text"
-                        placeholder="Token Name*"
+                        placeholder="Token Name (optional)"
                         value={newTokenForm.name}
                         onChange={(e) => setNewTokenForm(prev => ({ ...prev, name: e.target.value }))}
                         className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
@@ -9580,38 +9921,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           placeholder="Contract Address"
                           value={newTokenForm.contractAddress}
                           onChange={(e) => setNewTokenForm(prev => ({ ...prev, contractAddress: e.target.value }))}
-                          className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
-                        />
-                      <input
-                        type="text"
-                        placeholder="Dexscreener Pair Address"
-                        value={newTokenForm.dexPairAddress}
-                        onChange={(e) => setNewTokenForm(prev => ({ ...prev, dexPairAddress: e.target.value }))}
                         className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400"
                       />
 
-
-                                              <div className="flex gap-2">
-                          <Select
-                            value={newTokenForm.decimals.toString()}
-                            onValueChange={(value) => setNewTokenForm(prev => ({ ...prev, decimals: parseInt(value) }))}
-                          >
-                            <SelectTrigger className="flex-[3] bg-white/10 border-white/20 text-white">
-                              <SelectValue placeholder="Select decimals" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="18">18 decimals</SelectItem>
-                              <SelectItem value="8">8 decimals</SelectItem>
-                              <SelectItem value="9">9 decimals</SelectItem>
-                              <SelectItem value="6">6 decimals</SelectItem>
-                              <SelectItem value="12">12 decimals</SelectItem>
-                            </SelectContent>
-                          </Select>
+                      <div>
                           <Select
                             value={newTokenForm.chain.toString()}
                             onValueChange={(value) => setNewTokenForm(prev => ({ ...prev, chain: parseInt(value) }))}
                           >
-                            <SelectTrigger className="flex-[2] bg-white/10 border-white/20 text-white">
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
                               <SelectValue placeholder="Select chain" />
                             </SelectTrigger>
                             <SelectContent>
@@ -9622,13 +9940,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         </div>
                       <button
                         onClick={addCustomToken}
-                        disabled={!newTokenForm.name || !newTokenForm.ticker}
+                        disabled={!newTokenForm.ticker}
                         className="px-4 py-2 bg-white text-black rounded font-medium hover:bg-gray-200 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
                       >
-                        Add +
+                        {editingTokenId ? 'Update' : 'Add +'}
                       </button>
                     </div>
-                    <p className="text-sm mt-0 p-0 mb-0 italic text-white/60">*required fields</p>
+                    <p className="text-sm mt-0 p-0 mb-0 italic text-white/60">*ticker required</p>
                       </div>
                     )}
                   </div>

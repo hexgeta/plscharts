@@ -179,7 +179,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="font-sans scrollbar-hide">
       <head>
-        <script defer data-domain="plscharts.com" src="https://plausible.io/js/script.js"></script>
+        <script defer data-domain="plscharts.com" src="https://plausible.io/js/script.tagged-events.js"></script>
         {/* Prevent mobile browser UI bars from resizing content */}
         <meta name="format-detection" content="telephone=no" />
         <meta name="theme-color" content="#000000" />

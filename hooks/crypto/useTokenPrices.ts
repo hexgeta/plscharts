@@ -105,15 +105,15 @@ async function fetchBatchPairData(chainName: string, pairAddresses: string[]): P
   return results;
 }
 
-async function fetchTokenPrices(tickers: string[]): Promise<TokenPrices> {
+async function fetchTokenPrices(tickers: string[], customTokens: any[] = []): Promise<TokenPrices> {
   console.log(`[Price Fetch] Starting fetch for ${tickers.length} tokens:`, tickers);
   
   // Group tokens by chain
   const tokensByChain: { [chain: string]: { ticker: string; pairAddress: string }[] } = {};
   
   for (const ticker of tickers) {
-  // Look for token in both TOKEN_CONSTANTS and MORE_COINS
-  const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS];
+  // Look for token in TOKEN_CONSTANTS, MORE_COINS, and custom tokens
+  const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens];
   const tokenConfig = allTokens.find(token => token.ticker === ticker);
   
   if (!tokenConfig) {
@@ -247,7 +247,7 @@ async function fetchTokenPrices(tickers: string[]): Promise<TokenPrices> {
   return results;
 }
 
-export function useTokenPrices(tickers: string[], options?: { disableRefresh?: boolean }) {
+export function useTokenPrices(tickers: string[], options?: { disableRefresh?: boolean; customTokens?: any[] }) {
   const [prices, setPrices] = useState<TokenPrices>({});
   const [error, setError] = useState<Error | null>(null);
 
@@ -258,7 +258,7 @@ export function useTokenPrices(tickers: string[], options?: { disableRefresh?: b
     cacheKey ? PRICE_CACHE_KEYS.realtime(cacheKey) : null,
     async () => {
       try {
-        return await fetchTokenPrices(tickers);
+        return await fetchTokenPrices(tickers, options?.customTokens || []);
       } catch (e) {
         setError(e as Error);
         return {};

@@ -32,25 +32,9 @@ export const MORE_COINS = [
   },
 {
     chain: 369,
-    a: "0xb55ee890426341fe45ee6dc788d2d93d25b59063",
-    dexs: "0xeffb56e3402f1993a34887eecaaa3d63da8e3f85",
-    ticker: "LOVE",
-    decimals: 18,
-    name: "Love.io"
-  },
-{
-    chain: 369,
-    a: "0xc59be55d22cb7967ee95e5be0770e263ee014f78",
-    dexs: "0x2eba3cf4872aa3b6fa88a53de1eb0cb6802f8a2d",
-    ticker: "OPHIR",
-    decimals: 18,
-    name: "Ophir"
-  },
-{
-    chain: 369,
     a: "0xbd63fa573a120013804e51b46c56f9b3e490f53c",
     dexs: "0x4581e25b434c1ced7a93449b229469f03ca4451e",
-    ticker: "SOIL",
+    ticker: "SOIL (New)",
     decimals: 18,
     name: "SUN Minimeal (New)"
   },
@@ -88,22 +72,6 @@ export const MORE_COINS = [
   },
 {
     chain: 369,
-    a: "0xc91562626b9a697af683555da9946986278ac9a5",
-    dexs: "0x2eff73dca3edb60019834a21758a468cbb22eb4c",
-    ticker: "TYRH",
-    decimals: 18,
-    name: "TYRH"
-  },
-{
-    chain: 369,
-    a: "0xeb2ceed77147893ba8b250c796c2d4ef02a72b68",
-    dexs: "0x25d240831a9c0cb981506538e810d32487d291af",
-    ticker: "PDRIP",
-    decimals: 18,
-    name: "Pulse Drip"
-  },
-{
-    chain: 369,
     a: "0xc589905ef2c8892af8ecef36b1190cd0141e3199",
     dexs: "0x9030a2cb6e52f523c91d3ae8fbd7ffa23b8737ba",
     ticker: "H2O",
@@ -114,9 +82,9 @@ export const MORE_COINS = [
     chain: 369,
     a: "0x444444444444c1a66f394025ac839a535246fcc8",
     dexs: "0xe1ef8b1bfe5a1dbb3fc2f0c3405f54a9e6f32840",
-    ticker: "GENI",
+    ticker: "pGENI",
     decimals: 9,
-    name: "Genius"
+    name: "Genius on PulseChain"
   },
 {
     chain: 369,
@@ -144,14 +112,6 @@ export const MORE_COINS = [
   },
 {
     chain: 369,
-    a: "0xa5beb85e5f82419ab6bd0c13f6c3f66bb95c79da",
-    dexs: "0x5ac9ce15e67ac2c76c030b149eee4cc73e3238ae",
-    ticker: "PEAR",
-    decimals: 18,
-    name: "Rick Ross Pear"
-  },
-{
-    chain: 369,
     a: "0xa12e2661ec6603cbbb891072b2ad5b3d5edb48bd",
     dexs: "0x7c670cee36baf10ad0d547ec4c3c6b5aa32c1fd7",
     ticker: "PINU",
@@ -173,22 +133,6 @@ export const MORE_COINS = [
     ticker: "PINU2",
     decimals: 18,
     name: "Pulse Inu Puppy"
-  },
-{
-    chain: 369,
-    a: "0x9cc7437978255e2c38b0d3d4671fb9ac411a68ac",
-    dexs: "0xf30034233d8da99aa61758b8acde1eedee8fb1f1",
-    ticker: "DOGE",
-    decimals: 18,
-    name: "DOGE on Pulse"
-  },
-{
-    chain: 369,
-    a: "0x5ee84583f67d5ecea5420dbb42b462896e7f8d06",
-    dexs: "0x894167362577ea6ec0ac01ab56a7b2d3946ead55",
-    ticker: "PLSB",
-    decimals: 12,
-    name: "PLSB on PulseChain"
   },
 {
     chain: 369,
@@ -405,7 +349,7 @@ export const MORE_COINS = [
       "dexs": "0x894167362577Ea6ec0aC01aB56A7B2d3946EAD55",
       "ticker": "PLSB",
       "decimals": 12,
-      "name": "PulseBitcoin"
+      "name": "PulseBitcoin on PulseChain"
     },
 {
       "chain": 369,
@@ -415,14 +359,7 @@ export const MORE_COINS = [
       "decimals": 9,
       "name": "Solana from Ethereum"
     },
-{
-      "chain": 369,
-      "a": "0x96E035ae0905EFaC8F733f133462f971Cfa45dB1",
-      "dexs": "0xfe75839c16a6516149D0F7B2208395F54A5e16e8",
-      "ticker": "PHIAT",
-    "decimals": 18,
-      "name": "Phiat Token"
-    }, {
+ {
       "chain": 369,
       "a": "0x96E035ae0905EFaC8F733f133462f971Cfa45dB1",
       "dexs": "0xfe75839c16a6516149D0F7B2208395F54A5e16e8",
@@ -450,7 +387,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0x4d3AeA379b7689E0Cb722826C909Fab39E54123d",
       "dexs": "0xCFAEf90E5F47d7e6b35656425815E1FB6f0Eb04C",
-      "ticker": "ePEPE",
+      "ticker": "wePEPE",
     "decimals": 18,
       "name": "Pepe from Ethereum"
     },
@@ -469,22 +406,6 @@ export const MORE_COINS = [
       "ticker": "BEET",
     "decimals": 18,
       "name": "BEET"
-    },
-{
-      "chain": 369,
-      "a": "0x0000000000085d4780B73119b644AE5ecd22b376",
-      "dexs": "0x0C330f304bA67CD4a41538BdebB7F20d057D965c",
-      "ticker": "pTUSD",
-    "decimals": 18,
-      "name": "TrueUSD on Pulsechain"
-    },
-{
-      "chain": 369,
-      "a": "0xeB6b7932Da20c6D7B3a899D5887d86dfB09A6408",
-      "dexs": "0xabb36512813194b12A82A319783dBB455652440A",
-      "ticker": "PXDC",
-    "decimals": 18,
-      "name": "PXDC Stablecoin"
     },
 {
       "chain": 369,
@@ -518,6 +439,14 @@ export const MORE_COINS = [
     "decimals": 18,
       "name": "Love.io"
     },
+    {
+      "chain": 1,
+      "a": "0xb55ee890426341fe45ee6dc788d2d93d25b59063",
+      "dexs": "0x7bfa17e9d4296bf9697769a55b6654222e36097e",
+      "ticker": "eLOVE",
+      "decimals": 18,
+      "name": "Love.io on Ethereum"
+      }, 
 {
       "chain": 369,
       "a": "0xcFCFfE432A48dB53F59c301422d2EdD77B2A88d7",
@@ -552,17 +481,9 @@ export const MORE_COINS = [
     },
 {
       "chain": 369,
-      "a": "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE",
-      "dexs": "0xe11Ae46AA5200984d59FF54F3b2c7Ff6AC6EF749",
-      "ticker": "SHIB",
-    "decimals": 18,
-      "name": "Shiba Inu"
-    },
-{
-      "chain": 369,
       "a": "0x3f105121A10247DE9a92e818554DD5Fcd2063AE7",
       "dexs": "0xCB395d41373687605a3DC39cD8ed8e435838b14b",
-      "ticker": "UNI",
+      "ticker": "weUNI",
     "decimals": 18,
       "name": "Uniswap from Ethereum"
     },
@@ -653,14 +574,6 @@ export const MORE_COINS = [
       "ticker": "OBStable",
     "decimals": 18,
       "name": "Oracle and Bridge Stable Pool"
-    },
-{
-      "chain": 369,
-      "a": "0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2",
-      "dexs": "0x122267270E1e166B9bC4453Cf19D0065BDb9e617",
-      "ticker": "pMKR",
-    "decimals": 18,
-      "name": "Maker on Pulsechain"
     },
 {
       "chain": 369,
@@ -938,17 +851,9 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0x4CB4eDdE04772332a42ECb039f3790e17733B4B8",
       "dexs": "0x36FA7dD16E600947e20f3a089eb1C6d86377B69c",
-      "ticker": "PUSSY",
+      "ticker": "PUSSY (HOAX)",
     "decimals": 18,
       "name": "PUSSY (HOAX)"
-    },
-{
-      "chain": 369,
-      "a": "0x4C8218Dc22e478963c02748857245FAD79AAd0c6",
-      "dexs": "0x62f2A746A140621A02AE75b6AC30dB53Fa868d19",
-      "ticker": "PLSC",
-    "decimals": 18,
-      "name": "PulseCoin"
     },
 {
       "chain": 369,
@@ -957,14 +862,6 @@ export const MORE_COINS = [
       "ticker": "NOPE",
     "decimals": 18,
       "name": "Nope"
-    },
-{
-      "chain": 369,
-      "a": "0x518076CCE3729eF1a3877EA3647a26e278e764FE",
-      "dexs": "0x441dA3eB677b23E498A3eA9fb11aF15030B14D09",
-      "ticker": "WBNB",
-    "decimals": 18,
-      "name": "Wrapped BNB from BSC"
     },
 {
       "chain": 369,
@@ -1437,15 +1334,7 @@ export const MORE_COINS = [
     "decimals": 18,
       "name": "LEVEL"
     },
-{
-      "chain": 369,
-      "a": "0x2ba592F78dB6436527729929AAf6c908497cB200",
-      "dexs": "0x18701429A0cEF83668A19e351507A4888e7Ce8af",
-      "ticker": "CREAM",
-    "decimals": 18,
-      "name": "Cream"
-    },
-{
+  {
       "chain": 369,
       "a": "0x14B02AFF4B105d18c90472EF574AcC58D9994D1D",
       "dexs": "0x684a82812633bFaBfD6D2b19da54C28ff3c19500",
@@ -1465,9 +1354,9 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0x22b2f187E6EE1f9Bc8f7Fc38bB0D9357462800e4",
       "dexs": "",
-      "ticker": "SOIL",
+      "ticker": "SOIL (Old)",
     "decimals": 2,
-      "name": "SUN Minimeal"
+      "name": "SUN Minimeal (Old)"
     },
 {
       "chain": 369,
@@ -1617,7 +1506,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0xaC9052cb220951c3CCA0Beb4C084A7D4fd2e3428",
       "dexs": "0xF8e9B2259987068494A150E52B4339abe4cF5242",
-      "ticker": "PIZZA",
+      "ticker": "PIZZA 2",
     "decimals": 18,
       "name": "New York City Pizza Rat"
     },
@@ -1636,14 +1525,6 @@ export const MORE_COINS = [
       "ticker": "MATI",
     "decimals": 18,
       "name": "MatiAllin"
-    },
-{
-      "chain": 369,
-      "a": "0xa73f450E3f17468A64BFdD222b099857Db76634d",
-      "dexs": "0x6c66a53f9B66736Cf2AFfC4396F7C58a91dF73C6",
-      "ticker": "LHEX",
-    "decimals": 8,
-      "name": "LiquidHEX"
     },
 {
       "chain": 369,
@@ -1929,7 +1810,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0xde3bab90cA73D22C77050153f0bDab4c516C5552",
       "dexs": "0x87763201F57D740AdE16b24d34bFfb81E8e43AA2",
-      "ticker": "FREE",
+      "ticker": "FREE 2",
     "decimals": 18,
       "name": "FREE PALESTINE"
     },
@@ -2039,14 +1920,6 @@ export const MORE_COINS = [
     },
 {
       "chain": 369,
-      "a": "0x1BC0CE24e87d998b96b42f0F8f70A5aa8d637a04",
-      "dexs": "0x899D124D742e8c3EDB9B9da21d77A48560E292Ab",
-      "ticker": "PLSS",
-    "decimals": 18,
-      "name": "Pulsican Store"
-    },
-{
-      "chain": 369,
       "a": "0x4F0a3F5b40C509402930B139EaF006AFfBF75aDb",
       "dexs": "0x2c469cc5c2aEABC520BC1873a5419Ad161E8dA05",
       "ticker": "PEPU",
@@ -2089,7 +1962,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0x874e3F27140FCB7cd734df9758552f36f1AC5fcF",
       "dexs": "0xE335A81De2B2F92fda4c28fC4E9587925CD16F3A",
-      "ticker": "NUTS",
+      "ticker": "NUTS 2",
     "decimals": 18,
       "name": "Squirrel Wif Nut"
     },
@@ -2153,7 +2026,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0x572Cd3d0e7532439eeAa8cF4C129D2264B6e515f",
       "dexs": "0x722A40Dbc6dad4a6d088658461be7fe8b4F2919D",
-      "ticker": "DOGE",
+      "ticker": "D.O.G.E.",
     "decimals": 18,
       "name": "Department of Government Efficiency"
     },
@@ -2212,14 +2085,6 @@ export const MORE_COINS = [
       "ticker": "VAULT",
     "decimals": 18,
       "name": "Vaultiano"
-    },
-{
-      "chain": 369,
-      "a": "0x79BB3A0Ee435f957ce4f54eE8c3CFADc7278da0C",
-      "dexs": "0x46814b3f18D90625B6E166bC2917Bb64a635d797",
-      "ticker": "vPLS",
-    "decimals": 18,
-      "name": "Vouch Staked PLS"
     },
 {
       "chain": 369,
@@ -2426,8 +2291,8 @@ export const MORE_COINS = [
       "a": "0x79FC0E1d3EC00d81E5423DcC01A617b0e1245c2B",
       "dexs": "0xBfE5AE40BBcA74878419ad7d7E115a30CCFC62F1",
       "ticker": "RICKY",
-    "decimals": 18,
-      "name": "MOST WANTED"
+      "decimals": 18,
+      "name": "Most Wanted"
     },
 {
       "chain": 369,
@@ -2455,17 +2320,9 @@ export const MORE_COINS = [
     },
 {
       "chain": 369,
-      "a": "0x21dCB2c16C3773A565AcB45f6c34348EC78a8385",
-      "dexs": "0x9CB24fBC2f1454aF20e3c14b0d1f50c9376CfA82",
-      "ticker": "stPLS",
-    "decimals": 18,
-      "name": "Project Pi Liquid Staking Token"
-    },
-{
-      "chain": 369,
       "a": "0xdeFB2a9455B2d8f432d8cFe4355e0594787C23D5",
-      "dexs": "",
-      "ticker": "MICHI",
+      "dexs": "0xbF3e25A32dfd3EcB7D07F2FE3A2553dC09ECdb38",
+      "ticker": "MICHI 2",
     "decimals": 18,
       "name": "MICHI"
     },
@@ -2543,30 +2400,6 @@ export const MORE_COINS = [
     },
 {
       "chain": 369,
-      "a": "0xe33a5AE21F93aceC5CfC0b7b0FDBB65A0f0Be5cC",
-      "dexs": "0x908B5490414518981ce5c473Ff120A6b338feF67",
-      "ticker": "MOST",
-    "decimals": 18,
-      "name": "MostWanted"
-    },
-{
-      "chain": 369,
-      "a": "0x8cC6d99114Edd628249fAbc8a4d64F9A759a77Bf",
-      "dexs": "0x2e2A603a35bff3c3e6a21A289Dfd5144d921d3a0",
-      "ticker": "Trump",
-    "decimals": 18,
-      "name": "Trump"
-    },
-{
-      "chain": 369,
-      "a": "0xec4252e62C6dE3D655cA9Ce3AfC12E553ebBA274",
-      "dexs": "0x96Fefb743B1D180363404747bf09BD32657D8B78",
-      "ticker": "PUMP",
-    "decimals": 18,
-      "name": "PUMP from PUMP.tires"
-    },
-{
-      "chain": 369,
       "a": "0x6A46d56F9Dd963cEAc7f60aD148d49219CC3b79f",
       "dexs": "0xe72951Df1F42AB9cD5492d08C01157De52b602Bb",
       "ticker": "FRIENDSHIP",
@@ -2585,17 +2418,17 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0x709e07230860FE0543DCBC359Fdf1D1b5eD13305",
       "dexs": "0x237c7e99D508B0026bB233B381b53c9207Ad9DeF",
-      "ticker": "MARS",
+      "ticker": "MARS from pump.tires",
     "decimals": 18,
-      "name": "MARS"
+      "name": "MARS from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
       "a": "0x435363A7C8C63057aAD5d9903c154b4d43E00093",
       "dexs": "0x2dCEe3EBa5de855ad27e8BDfE39A0869761E7e72",
-      "ticker": "ELON",
+      "ticker": "ELON from pump.tires",
     "decimals": 18,
-      "name": "ELON"
+      "name": "ELON from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2627,7 +2460,7 @@ export const MORE_COINS = [
       "dexs": "0xeC052d46D3115DF7F6058160Cd0b87b272201341",
       "ticker": "DAI from pump.tires",
     "decimals": 18,
-      "name": "DAI from pump.tires"
+      "name": "DAI from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2635,7 +2468,7 @@ export const MORE_COINS = [
       "dexs": "0x0B3D01Dfd8B45C43695ba11547b459D55714f2a4",
       "ticker": "USDC from pump.tires",
     "decimals": 18,
-      "name": "USDC from pump.tires"
+      "name": "USDC from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2651,7 +2484,7 @@ export const MORE_COINS = [
       "dexs": "0x77E4e36E9aB013E6d48B34836b61441C328B1738",
       "ticker": "ETH from pump.tires",
     "decimals": 18,
-      "name": "ETH from pump.tires"
+      "name": "ETH from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2659,7 +2492,7 @@ export const MORE_COINS = [
       "dexs": "0x56AECe39050608a7944908a1754d0397067aA435",
       "ticker": "DOGE from pump.tires",
     "decimals": 18,
-      "name": "DOGE from pump.tires"
+      "name": "DOGE from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2667,7 +2500,7 @@ export const MORE_COINS = [
       "dexs": "0x2A8F6137Ba7749560BB9e84b36CB2Ac9536d9e88",
       "ticker": "PEPE from pump.tires",
     "decimals": 18,
-      "name": "PEPE from pump.tires"
+      "name": "PEPE from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2675,7 +2508,7 @@ export const MORE_COINS = [
       "dexs": "0x605CAB033E430924eB5c72E130f0981c15f2f256",
       "ticker": "BTC from pump.tires",
     "decimals": 18,
-      "name": "Bitcoin from pump.tires"
+      "name": "Bitcoin from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2683,15 +2516,15 @@ export const MORE_COINS = [
       "dexs": "0xb8cB1b8B4631010e41C81A9039a4B2157e15d369",
       "ticker": "XRP from pump.tires",
     "decimals": 18,
-      "name": "XRP from pump.tires"
+      "name": "XRP from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
       "a": "0x9Ff4f187D1a41DCD05d6a80c060c6489C132e372",
       "dexs": "0x331B71862b8A5D56B02A5e0F21908D2511122212",
-      "ticker": "XRP from pump.tires (v2)",
+      "ticker": "XRP from pump.tires (test)",
     "decimals": 18,
-      "name": "XRP new from pump.tires"
+      "name": "XRP new from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2699,7 +2532,7 @@ export const MORE_COINS = [
       "dexs": "0x30fe90B1ad644970C48a6B5886EC39B1e3df97Ee",
       "ticker": "SOL from pump.tires",
     "decimals": 18,
-      "name": "Solana from pump.tires"
+      "name": "Solana from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2707,7 +2540,7 @@ export const MORE_COINS = [
       "dexs": "0xA324000Fbc83c99d2bD2f5073bb0ED75dEe969eb",
       "ticker": "ADA  from pump.tires",
     "decimals": 18,
-      "name": "Cardano from pump.tires"
+      "name": "Cardano from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2715,7 +2548,7 @@ export const MORE_COINS = [
       "dexs": "0x4e891A45B008F6423b595cEE5De6C3B12DDa54fb",
       "ticker": "TRX from pump.tires",
     "decimals": 18,
-      "name": "Tron from pump.tires"
+      "name": "Tron from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2723,23 +2556,23 @@ export const MORE_COINS = [
       "dexs": "0x95BeD91461218D01EEC4005b5101C89f0ea77640",
       "ticker": "PLSX from pump.tires",
     "decimals": 18,
-      "name": "PulseX from pump.tires"
+      "name": "PulseX from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
       "a": "0x260e5dA7eF6E30e0A647d1aDF47628198DCb0709",
       "dexs": "0x9b6efc2c2858dec2889ecA2Ce887C57099076bBF",
-      "ticker": "PLS ",
+      "ticker": "PLS from pump.tires",
     "decimals": 18,
-      "name": "PulseChain from pump.tires"
+      "name": "PulseChain from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
       "a": "0x55C50875e890c7eE5621480baB02511C380E12C6",
       "dexs": "0x9b82FeE4e54011fe7e5352317d6C7fDc5d2c1ACe",
-      "ticker": "HEX (from pump.tires)",
+      "ticker": "HEX from pump.tires",
     "decimals": 18,
-      "name": "HEX from pump.tires"
+      "name": "HEX from pump.tires (@36DC0C)"
     },
 {
       "chain": 369,
@@ -2961,7 +2794,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0xbd59a88754902B80922dFEBc15c7ea94a8C21ce2",
       "dexs": "0xca305A9Da486DbC6db90C2316Bea4CF3e778970F",
-      "ticker": "PUPPERS",
+      "ticker": "PUPPERS 2",
     "decimals": 18,
       "name": "PUPPERS"
     },
@@ -3033,7 +2866,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0xf2DD4FE4bE7B8C0655d0962A4285150Ff09769EA",
       "dexs": "0x0891da635569BeB32528b7Cae63A8a293189BD2A",
-      "ticker": "Trump",
+      "ticker": "Trump Official",
         "decimals": 18,
       "name": "TrumpOfficial"
     },
@@ -3113,7 +2946,7 @@ export const MORE_COINS = [
       "chain": 369,
       "a": "0xAe9509d825B50DDCe44DC98374C8B399105F7596",
       "dexs": "0xBecD9F0690557D784CE3aF4743CA3C483A0470AA",
-      "ticker": "KISHKA",
+      "ticker": "KISHKA 2",
         "decimals": 18,
       "name": "KISHKA"
     },

@@ -72,7 +72,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x29d66D5900Eb0d629E1e6946195520065A6c5aeE",
   dexs: null,
-  ticker: "WETH \/ WPLS",
+  ticker: "WETH \/ WPLS (v2)",
   decimals: 18,
   name: "PulseX V2",
   type: "lp",
@@ -207,7 +207,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x42AbdFDB63f3282033C766E72Cc4810738571609",
   dexs: null,
-  ticker: "WETH \/ WPLS",
+  ticker: "WETH \/ WPLS (v1)",
   decimals: 18,
   name: "PulseX V1",
   type: "lp",
@@ -569,7 +569,7 @@ export const TOKEN_CONSTANTS = [{
   dexs: "0xabb36512813194b12a82a319783dbb455652440a",
   ticker: "PXDC",
   decimals: 18,
-  name: "Powercity PXDC"
+  name: "PXDC Stablecoin (Powercity)"
 }, {
   chain: 369,
   a: "0x9c6fa17d92898b684676993828143596894aa2a6",
@@ -591,13 +591,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "PHAME",
   decimals: 18,
   name: "Phamous"
-}, {
-  chain: 369,
-  a: "0x4243568fa2bbad327ee36e06c16824cad8b37819",
-  dexs: "0x0a022e7591749b0ed0d9e3b7b978f26978440dc7",
-  ticker: "TSFi",
-  decimals: 18,
-  name: "T-Share Finance"
 }, {
   chain: 369,
   a: "0x0d86eb9f43c57f6ff3bc9e23d8f9d82503f0e84b",
@@ -713,13 +706,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "LOAN",
   decimals: 18,
   name: "LOAN"
-}, {
-  chain: 369,
-  a: "0xc52f739f544d20725ba7ad47bb42299034f06f4f",
-  dexs: "0x5da3f2b568073cc04b136e866a44f920603556b4",
-  ticker: "PLSP",
-  decimals: 18,
-  name: "PulsePot"
 },  {
   chain: 369,
   a: "0xcc78a0acdf847a2c1714d2a925bb4477df5d48a6",
@@ -776,13 +762,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "PTS",
   decimals: 18,
   name: "Piteas"
-}, {
-  chain: 369,
-  a: "0x6386704cd6f7a584ea9d23ccca66af7eba5a727e",
-  dexs: "0x1b044593a78e374bd0e558aa6633d2ff13fd5bb7",
-  ticker: "SPARK",
-  decimals: 18,
-  name: "Sparkswap"
 }, {
   chain: 369,
   a: "0x3ca80d83277e721171284667829c686527b8b3c5",
@@ -848,27 +827,6 @@ export const TOKEN_CONSTANTS = [{
   name: "Powercity EARN"
 }, {
   chain: 369,
-  a: "0xbd2826b7823537fcd30d738abe4250ad6262209c",
-  dexs: "0xe33020168e9ee49a9fd9ad8b8f174e895945c703",
-  ticker: "iBURN",
-  decimals: 9,
-  name: "Icosa Burn"
-}, {
-  chain: 369,
-  a: "0x749ccf4c4308490f3c395de897f58e091090b461",
-  dexs: "0x88fb694a376be1b9b2be9212a76348d4ee69b4a0",
-  ticker: "RH404",
-  decimals: 18,
-  name: "RH404"
-}, {
-  chain: 369,
-  a: "0x5a24d7129b6f3fcad2220296df28911880ad22b0",
-  dexs: "0xdfc23736c6910dc27e7fb60553cd1f44d65eb556",
-  ticker: "PZEN",
-  decimals: 9,
-  name: "PLSZEN"
-}, {
-  chain: 369,
   a: "0xbeef3bb9da340ebdf0f5bae2e85368140d7d85d0",
   dexs: "0xbd1364edba35a7284ebac9710894c9b2d5ebf8c5",
   ticker: "MORE",
@@ -888,13 +846,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "UPX",
   decimals: 18,
   name: "uPX"
-}, {
-  chain: 369,
-  a: "0x2556f7f8d82ebcdd7b821b0981c38d9da9439cdd",
-  dexs: "0xe1d2bdba58d34109c547883dc9c2f9e01cebb003",
-  ticker: "DOWN",
-  decimals: 18,
-  name: "dOWN"
 }, {
   chain: 369,
   a: "0x94534eeee131840b1c0f61847c572228bdfdde93",
@@ -925,25 +876,25 @@ export const TOKEN_CONSTANTS = [{
   name: "DickWifButt"
 }, {
   chain: 369,
-  a: "0xec4252e62c6de3d655ca9ce3afc12e553ebba274",
-  dexs: "0x96fefb743b1d180363404747bf09bd32657d8b78",
-  ticker: "PUMP",
-  decimals: 18,
-  name: "PUMP.tires"
-}, {
-  chain: 369,
   a: "0xe33a5ae21f93acec5cfc0b7b0fdbb65a0f0be5cc",
   dexs: "0x908b5490414518981ce5c473ff120a6b338fef67",
   ticker: "MOST",
   decimals: 18,
-  name: "MostWanted"
+  name: "MostWanted from pump.tires (@36DC0C)"
 }, {
   chain: 369,
-  a: "0x8cc6d99114edd628249fabc8a4d64f9a759a77bf",
-  dexs: "0x2e2a603a35bff3c3e6a21a289dfd5144d921d3a0",
+  a: "0xec4252e62c6de3d655ca9ce3afc12e553ebba274",
+  dexs: "0x96fefb743b1d180363404747bf09bd32657d8b78",
+  ticker: "PUMP",
+  decimals: 18,
+  name: "PUMP from pump.tires (@36DC0C)"
+}, {
+  chain: 369,
+  a: "0x8cC6d99114Edd628249fAbc8a4d64F9A759a77Bf",
+  dexs: "0x2e2A603a35bff3c3e6a21A289Dfd5144d921d3a0",
   ticker: "TRUMP",
   decimals: 18,
-  name: "Trump"
+  name: "Trump from pump.tires (@36DC0C)"
 }, {
   chain: 369,
   a: "0x7901a3569679aec3501dbec59399f327854a70fe",
@@ -1056,13 +1007,6 @@ export const TOKEN_CONSTANTS = [{
   ticker: "pMKR",
   decimals: 18,
   name: "Maker on PulseChain"
-}, {
-  chain: 369,
-  a: "0x6810e776880c02933d47db1b9fc05908e5386b96",
-  dexs: "0x7c69b191990891392ea6909e5c8679e16ae9efd5",
-  ticker: "pGNO",
-  decimals: 18,
-  name: "Gnosis on PulseChain"
 }, {
   chain: 369,
   a: "0x3845badade8e6dff049820680d1f14bd3903a5d0",
@@ -1243,22 +1187,6 @@ export const TOKEN_CONSTANTS = [{
   origin: [1, "0x514910771af9ca656af840dff83e8264ecf986ca"]
 }, {
   chain: 369,
-  a: "0x3f105121a10247de9a92e818554dd5fcd2063ae7",
-  dexs: ["0x97280929166f6f724b8F8a6c666468C8D718084c"],
-  ticker: "weUNI",
-  decimals: 18,
-  name: "Wrapped UNI from Eth",
-  origin: [1, "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"]
-}, {
-  chain: 369,
-  a: "0x4d3aea379b7689e0cb722826c909fab39e54123d",
-  dexs: ["0x36Aa4EDFde9B604c50dc138657646AEd8e0628Bc"],
-  ticker: "wePEPE",
-  decimals: 18,
-  name: "Wrapped PEPE from Eth",
-  origin: [1, "0x6982508145454ce325ddbe47a25d4ec3d2311933"]
-},  {
-  chain: 369,
   a: "0x1fe0319440a672526916c232eaee4808254bdb00",
   dexs: "0x9756f095dfa27d4c2eae0937a7b8a6603d99affb",
   ticker: "HEXDC",
@@ -1414,14 +1342,14 @@ name: "DBXen"
 chain: 1,
 a: "0x5ee84583f67d5ecea5420dbb42b462896e7f8d06",
 dexs: "0xa5ef2a6bbe8852bd6fd2ef6ab9bb45081a6f531c",
-ticker: "PLSB",
+ticker: "ePLSB",
 decimals: 12,
-name: "PLSB on Ethereum"
+name: "PulseBitcoin on Ethereum"
 }, {
 chain: 1,
 a: "0xfd8b9ba4845fb38c779317ec134b298c064937a2",
 dexs: "0xe0533126c4013e2f5bcf44a2c84a396219be2d9d",
-ticker: "9INCH",
+ticker: "e9INCH",
 decimals: 18,
 name: "9inch on Ethereum"
 }, {
@@ -1431,13 +1359,6 @@ dexs: "0xcb1a01c4b3217472ba74ca3e8f217ee0d0531ed6",
 ticker: "eBBC",
 decimals: 18,
 name: "BBC on Ethereum"
-}, {
-chain: 1,
-a: "0xb55ee890426341fe45ee6dc788d2d93d25b59063",
-dexs: "0x7bfa17e9d4296bf9697769a55b6654222e36097e",
-ticker: "LOVE",
-decimals: 18,
-name: "Love.io"
 }, {
 chain: 1,
 a: "0x54f667db585b7b10347429c72c36c8b59ab441cb",
@@ -1754,7 +1675,7 @@ a: "0x444444444444c1a66f394025ac839a535246fcc8",
 dexs: "0xf60afed42d276507b6bcae93157c66bee2cf332b",
 ticker: "GENI",
 decimals: 9,
-name: "Genius"
+name: "Genius on Ethereum"
 }, {
 chain: 1,
 a: "0x66a0f676479cee1d7373f3dc2e2952778bff5bd6",
