@@ -20,7 +20,7 @@ const Footer = () => {
                 navigator.clipboard.writeText('0x1F12DAE5450522b445Fe1882C4F8D2Cf67B38a43');
                 const popup = document.createElement('div');
                 popup.textContent = '✓ Copied!';
-                popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[10000]';
+                popup.className = 'fixed bottom-4 left-4 bg-white text-black px-4 py-2 rounded-md text-sm z-[998]';
                 document.body.appendChild(popup);
                 setTimeout(() => popup.remove(), 2000);
               }}
