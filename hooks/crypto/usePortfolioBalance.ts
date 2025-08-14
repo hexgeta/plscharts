@@ -175,9 +175,9 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
     const nativeBalance = shouldIncludeNative ? await getNativeBalance(address, chainId) : null
 
     // Get relevant tokens for this chain
-    // In auto-detect mode (no enabledCoins filter), only use TOKEN_CONSTANTS + custom tokens
-    // In manual mode (with enabledCoins filter), use TOKEN_CONSTANTS + MORE_COINS + custom tokens
-    const baseTokens = enabledCoins ? [...TOKEN_CONSTANTS, ...MORE_COINS] : TOKEN_CONSTANTS
+    // In auto-detect mode (no enabledCoins filter), use TOKEN_CONSTANTS + MORE_COINS + custom tokens to check all possible balances
+    // In manual mode (with enabledCoins filter), use TOKEN_CONSTANTS + MORE_COINS + custom tokens but filter by enabled
+    const baseTokens = [...TOKEN_CONSTANTS, ...MORE_COINS]
     const allTokens = customTokens ? [...baseTokens, ...customTokens] : baseTokens
     const relevantTokens = allTokens.filter(token => 
       token.chain === chainId && 

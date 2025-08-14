@@ -11,6 +11,7 @@ export interface TokenConfig {
   supply?: number
   type?: "lp" | "token"
   platform?: string
+  hardcodedPrice?: number
 }
 
 export const TOKEN_CONSTANTS = [{
@@ -63,7 +64,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x149b2c629e652f2e89e11cd57e5d4d77ee166f9f",
   dexs: null,
-  ticker: "PLSX \/ WPLS (V2)",
+  ticker: "PLSX \/ WPLS (v2)",
   decimals: 18,
   name: "PulseX V2",
   type: "lp",
@@ -117,7 +118,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x31eF9a41500E6BD18524404aC9c5B88D04AA924E",
   dexs: null,
-  ticker: "WPLS \/ TEDDY",
+  ticker: "WPLS \/ BEAR",
   decimals: 18,
   name: "PulseX V2",
   type: "lp",
@@ -135,7 +136,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x5B9661276708202DD1A0dD2346A3856b00d3c251",
   dexs: null,
-  ticker: "INC \/ WPLS (V2)",
+  ticker: "INC \/ WPLS (v2)",
   decimals: 18,
   name: "PulseX V2",
   type: "lp",
@@ -193,7 +194,7 @@ export const TOKEN_CONSTANTS = [{
   decimals: 18,
   name: "PulseX Stable Pool",
   type: "lp",
-  platform: "PLSX V2"
+  platform: "PulseX Stable Pool"
 }, {
   chain: 369,
   a: "0xE56043671df55dE5CDf8459710433C10324DE0aE",
@@ -216,7 +217,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x1b45b9148791d3a104184Cd5DFE5CE57193a3ee9",
   dexs: null,
-  ticker: "PLSX \/ WPLS (V1)",
+  ticker: "PLSX \/ WPLS (v1)",
   decimals: 18,
   name: "PulseX V1",
   type: "lp",
@@ -234,7 +235,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65",
   dexs: null,
-  ticker: "HEX \/ WPLS (V1)",
+  ticker: "HEX \/ WPLS (v1)",
   decimals: 18,
   name: "PulseX V1",
   type: "lp",
@@ -261,7 +262,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0xf808Bb6265e9Ca27002c0A04562Bf50d4FE37EAA",
   dexs: null,
-  ticker: "INC \/ WPLS (V1)",
+  ticker: "INC \/ WPLS (v1)",
   decimals: 18,
   name: "PulseX V1",
   type: "lp",

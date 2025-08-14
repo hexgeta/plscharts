@@ -6,6 +6,7 @@ import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
 import { usePortfolioBalance } from '@/hooks/crypto/usePortfolioBalance'
 import { useMaxiTokenData } from '@/hooks/crypto/useMaxiTokenData'
+import { usePlsApiData } from '@/hooks/crypto/usePlsApiData'
 import { useHexStakes } from '@/hooks/crypto/useHexStakes'
 import { useHsiStakes } from '@/hooks/crypto/useHsiStakes'
 import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
@@ -457,10 +458,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     Object.entries(tokensByChain).forEach(([chain, tokens]) => {
       const searchLower = tokenSearchTerm.toLowerCase()
-      const filteredTokens = tokens.filter(token => 
-        token.name.toLowerCase().includes(searchLower) ||
-        token.ticker.toLowerCase().includes(searchLower)
-      )
+      const filteredTokens = tokens.filter(token => {
+        // Standard name and ticker matching
+        const nameMatch = token.name.toLowerCase().includes(searchLower)
+        const tickerMatch = token.ticker.toLowerCase().includes(searchLower)
+        
+        // Contract address matching (check both 'a' and 'contractAddress' fields)
+        const contractAddress = token.a || token.contractAddress || ''
+        const addressMatch = contractAddress.toLowerCase().includes(searchLower)
+        
+        // LP/liquidity pool matching
+        const isLPToken = token.type === 'lp' || token.ticker.includes(' / ')
+        const isLPSearch = searchLower === 'lp' || searchLower === 'liquidity'
+        const lpMatch = isLPSearch && isLPToken
+        
+        return nameMatch || tickerMatch || addressMatch || lpMatch
+      })
       
       if (filteredTokens.length > 0) {
         filtered[parseInt(chain)] = sortTokens(filteredTokens)
@@ -802,6 +815,24 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       return saved !== null ? saved === 'true' : false // Default to false
     }
     return false
+  })
+
+  // Advanced filter for temporarily hiding liquidity positions (independent of main setting)
+  const [includeLiquidityPositionsFilter, setIncludeLiquidityPositionsFilter] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioIncludeLiquidityFilter')
+      return saved !== null ? saved === 'true' : true // Default to true (include when available)
+    }
+    return true
+  })
+
+  // Advanced filter for temporarily hiding validators (independent of main setting)
+  const [includeValidatorsFilter, setIncludeValidatorsFilter] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioIncludeValidatorsFilter')
+      return saved !== null ? saved === 'true' : true // Default to true (include when available)
+    }
+    return true
   })
   
   // Dust filter state
@@ -1415,6 +1446,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       localStorage.setItem('portfolioShowLiquidityPositions', showLiquidityPositions.toString())
     }
   }, [showLiquidityPositions])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioIncludeLiquidityFilter', includeLiquidityPositionsFilter.toString())
+    }
+  }, [includeLiquidityPositionsFilter])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioIncludeValidatorsFilter', includeValidatorsFilter.toString())
+    }
+  }, [includeValidatorsFilter])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -2074,7 +2117,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Always fetch all tokens to avoid cache invalidation when switching modes
   // We'll filter client-side in the rawBalances memo instead
-  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoins, customTokens)
+  // In auto-detect mode, don't pass enabledCoins to ensure we check all tokens from TOKEN_CONSTANTS + MORE_COINS
+  const enabledCoinsForHook = coinDetectionMode === 'auto-detect' ? undefined : enabledCoins
+  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoinsForHook, customTokens)
   
   // Filter the raw balances client-side based on enabled coins and apply custom balance overrides
   const rawBalances = useMemo(() => {
@@ -2175,9 +2220,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       return updatedBalances
     }
     
-    // In auto-detect mode, show all fetched tokens with custom balances applied
+    // In auto-detect mode, show only tokens with actual balances (ignore manually enabled tokens)
     if (coinDetectionMode === 'auto-detect') {
-      return applyCustomBalances(allRawBalances)
+      // Filter out tokens that were manually added but have no real balance
+      const filteredForAutoDetect = allRawBalances.map(addressData => ({
+        ...addressData,
+        // Keep native balance only if it has actual balance > 0
+        nativeBalance: (addressData.nativeBalance && addressData.nativeBalance.balanceFormatted > 0) 
+          ? addressData.nativeBalance 
+          : null,
+        // Keep only tokens with actual balances > 0 (filter out placeholder tokens)
+        tokenBalances: addressData.tokenBalances?.filter(token => 
+          token.balanceFormatted > 0 && !token.isPlaceholder
+        ) || []
+      }))
+      
+      return applyCustomBalances(filteredForAutoDetect)
     }
     
     // In manual mode, filter based on enabled coins and apply custom balances
@@ -2384,6 +2442,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Fetch MAXI token backing data
   const { data: maxiData, isLoading: maxiLoading, error: maxiError, getBackingPerToken } = useMaxiTokenData()
+
+  // Fetch PLS pool virtual price data
+  const { virtualPrice: plsVirtualPrice, lastUpdated: plsLastUpdated, error: plsError } = usePlsApiData()
 
   // Get HEX daily data for T-shares calculations
   const { data: hexDailyData } = useHexDailyDataCache()
@@ -2939,12 +3000,31 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // Check if this is an LP token
     const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === symbol)
-    if (tokenConfig?.platform === 'PLSX V2') {
-      // This is a PulseX V2 LP token, get price from LP data
+    if (tokenConfig?.type === 'lp') {
+      // Special handling for USDT/USDC/DAI PLS stable pool
+      if (symbol === 'USDT  \/ USDC \/ DAI' && tokenConfig.a === '0xE3acFA6C40d53C3faf2aa62D0a715C737071511c') {
+        // Use real-time virtual price data from API
+        if (plsVirtualPrice && plsVirtualPrice > 0) {
+          return plsVirtualPrice
+        }
+        // If API data not available, return 0 (no fallback)
+        console.warn('PLS virtual price API data not available for USDT/USDC/DAI pool')
+        return 0
+      }
+      
+      // Check for hardcoded price for other LP tokens
+      if (tokenConfig.hardcodedPrice) {
+        return tokenConfig.hardcodedPrice
+      }
+      
+      // For PulseX V2 LP tokens, get price from LP data
+      if (tokenConfig.platform === 'PLSX V2') {
       const lpPrice = getLPTokenPrice(symbol)
       if (lpPrice > 0) {
         return lpPrice
       }
+      }
+      
       // Fallback to 0 if LP price not available
       return 0
     }
@@ -4279,8 +4359,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       })
     }
 
-    // Add validator value if enabled (but not in detective mode)
-    if (!detectiveMode && showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
+    // Add validator value if enabled AND filter is on (but not in detective mode)
+    if (!detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPrice = getTokenPrice('PLS')
       const validatorValue = validatorPLS * plsPrice
@@ -4449,10 +4529,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       })
     }
 
-    // Add LP token values if liquidity positions are enabled
-    if (showLiquidityPositions && lpTokensWithBalances) {
+    // Add LP token values if liquidity positions are enabled AND filter is on
+    if (showLiquidityPositions && includeLiquidityPositionsFilter && lpTokensWithBalances) {
       lpTokensWithBalances.forEach(lpToken => {
-        const lpPrice = getLPTokenPrice(lpToken.symbol)
+        // Use PLS API price for USDT/USDC/DAI pool, regular pricing for others
+        const isStablePool = lpToken.symbol === 'USDT  \/ USDC \/ DAI'
+        const lpPrice = isStablePool && plsVirtualPrice 
+          ? plsVirtualPrice 
+          : getLPTokenPrice(lpToken.symbol) || 0
         const lpValue = lpToken.balanceFormatted * lpPrice
         totalValue += lpValue
         
@@ -4542,8 +4626,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     })
     }
 
-    // Add validator value if enabled (but not in detective mode)
-    if (!detectiveMode && showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
+    // Add validator value if enabled AND filter is on (but not in detective mode)
+    if (!detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPriceData = prices['PLS']
       const plsCurrentPrice = plsPriceData?.price || 0
@@ -4748,8 +4832,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       })
     }
 
-    // Add validator value if enabled (but not in detective mode)
-    if (!detectiveMode && showValidators && validatorCount > 0 && chainFilter !== 'ethereum') {
+    // Add validator value if enabled AND filter is on (but not in detective mode)
+    if (!detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000
       const plsCurrentPrice = getTokenPrice('PLS')
       currentTotalValue += validatorPLS * plsCurrentPrice
@@ -5758,34 +5842,47 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </label>
                 </div>
                 
+                                {/* Only show validators filter if enabled in settings */}
+                {(() => {
+                  console.log('Validators debug:', { 
+                    showValidators, 
+                    detectiveMode, 
+                    validatorCount: validatorCount || 0,
+                    saved: typeof window !== 'undefined' ? localStorage.getItem('portfolioShowValidators') : null
+                  })
+                  return showValidators
+                })() && (
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="validators"
-                    checked={showValidators}
-                    onCheckedChange={(checked) => setShowValidators(checked === true)}
+                      checked={includeValidatorsFilter}
+                      onCheckedChange={(checked) => setIncludeValidatorsFilter(checked === true)}
                   />
                   <label 
                     htmlFor="validators" 
-                    className={`text-sm cursor-pointer ${showValidators ? 'text-white' : 'text-gray-400'}`}
+                      className={`text-sm cursor-pointer ${includeValidatorsFilter ? 'text-white' : 'text-gray-400'}`}
                   >
                     Include validators
                   </label>
                 </div>
+                )}
                 
-                {/* Always show liquidity positions checkbox in advanced filters */}
+                {/* Only show liquidity positions filter if enabled in settings */}
+                {showLiquidityPositions && (
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="liquidity-positions-filter"
-                      checked={showLiquidityPositions}
-                      onCheckedChange={(checked) => setShowLiquidityPositions(checked === true)}
+                      checked={includeLiquidityPositionsFilter}
+                      onCheckedChange={(checked) => setIncludeLiquidityPositionsFilter(checked === true)}
                     />
                     <label 
                       htmlFor="liquidity-positions-filter" 
-                      className={`text-sm cursor-pointer ${showLiquidityPositions ? 'text-white' : 'text-gray-400'}`}
+                      className={`text-sm cursor-pointer ${includeLiquidityPositionsFilter ? 'text-white' : 'text-gray-400'}`}
                     >
                       Include liquidity positions
                     </label>
                   </div>
+                )}
                 
                 
 
@@ -5940,7 +6037,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       )}
 
       {/* Liquidity Pools Section */}
-      {showLiquidityPositions && isEverythingReady && lpTokensWithBalances.length > 0 && (
+      {showLiquidityPositions && includeLiquidityPositionsFilter && isEverythingReady && lpTokensWithBalances.length > 0 && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -5960,7 +6057,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           <div className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6">
             <div className="space-y-3">
               {lpTokensWithBalances.map((token, tokenIndex) => {
-                const tokenPrice = getLPTokenPrice(token.symbol) || 0
+                // Use PLS API price for USDT/USDC/DAI pool, regular pricing for others
+                const isStablePool = token.symbol === 'USDT  \/ USDC \/ DAI'
+                const tokenPrice = isStablePool && plsVirtualPrice 
+                  ? plsVirtualPrice 
+                  : getLPTokenPrice(token.symbol) || 0
                 const stableKey = `${token.chain}-${token.symbol}-${token.address || 'lp'}`
                 const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
                 const displayAmount = token.balanceFormatted !== null ? formatBalance(token.balanceFormatted) : '?'
@@ -5996,11 +6097,76 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       <div className="flex items-center space-x-2 sm:space-x-3 min-w-[70px] md:min-w-[140px] overflow-hidden">
                         <div className="flex-shrink-0">
                           {(() => {
-                            // Extract token symbols from LP pair name (e.g., "HEX / WPLS" -> ["HEX", "WPLS"])
-                            const tokenSymbols = token.symbol.split(' / ')
-                            const token0Symbol = tokenSymbols[0] || 'PLS'
-                            const token1Symbol = tokenSymbols[1] || 'HEX'
+                            // Check if this is a multi-token LP pair (contains " / ") or single token LP
+                            const hasMultipleTokens = token.symbol.includes(' / ') || token.symbol.includes('\\/')
                             
+                            if (!hasMultipleTokens) {
+                              // Single token LP (like PHUX LPs) - use the token's own logo
+                              return (
+                                <div className="w-8 h-8 flex items-center justify-center">
+                                  <CoinLogo symbol={token.symbol} size="lg" className="w-8 h-8" />
+                                </div>
+                              )
+                            }
+                            
+                            // Extract token symbols from LP pair name
+                            // Handle both "HEX / WPLS" and "USDT  \/ USDC \/ DAI" formats
+                            const tokenSymbols = token.symbol.includes('\\/')
+                              ? token.symbol.split(/\s*\\\/ \s*/) // Split on \/ with optional spaces
+                              : token.symbol.split(' / ')
+                            
+                            // Clean up all token symbols for logo lookup (same as settings)
+                            const cleanedSymbols = tokenSymbols.map(symbol => {
+                              let cleanedSymbol = symbol || 'PLS'
+                              
+                              // Handle pump.tires tokens: "DAI (from pump.tires)" -> "DAI"
+                              if (cleanedSymbol.includes('(from pump.tires)')) {
+                                cleanedSymbol = cleanedSymbol.replace(' (from pump.tires)', '').trim()
+                              }
+                              
+                              // Handle version indicators: "HEX (v1)" -> "HEX", "WPLS (Alt)" -> "WPLS"
+                              cleanedSymbol = cleanedSymbol.replace(/\s*\((v1|v2|Alt)\)$/i, '').trim()
+                              
+                              return cleanedSymbol
+                            })
+                            
+                            const token0Symbol = cleanedSymbols[0] || 'PLS'
+                            const token1Symbol = cleanedSymbols[1] || 'HEX'
+                            const token2Symbol = cleanedSymbols[2]
+                            
+                            // Handle 3-token pools with triangle layout (same as settings)
+                            if (token2Symbol) {
+                              return (
+                                <div className="relative w-8 h-8">
+                                  {/* First token (top center) */}
+                                  <div className="absolute top-0 left-1.5 w-5 h-5">
+                                    <CoinLogo
+                                      symbol={token0Symbol}
+                                      size="sm"
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                  </div>
+                                  {/* Second token (bottom left) */}
+                                  <div className="absolute top-3 left-0 w-5 h-5">
+                                    <CoinLogo
+                                      symbol={token1Symbol}
+                                      size="sm"
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                  </div>
+                                  {/* Third token (bottom right) */}
+                                  <div className="absolute top-3 left-3 w-5 h-5">
+                                    <CoinLogo
+                                      symbol={token2Symbol}
+                                      size="sm"
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                  </div>
+                                </div>
+                              )
+                            }
+                            
+                            // Regular 2-token LP layout
                             return (
                               <div className="relative w-8 h-8">
                                 {/* First token (back) */}
@@ -6075,6 +6241,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
                       {/* Chart & Copy Icons - Far Right Column */}
                       <div className="flex flex-col items-center ml-2">
+                        {/* Hide toggle arrow for USDT/USDC/DAI pool and PHUX pools */}
+                        {!(token.symbol === 'USDT  \/ USDC \/ DAI' || token.symbol.includes('PHUX')) && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
@@ -6096,6 +6264,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             }`}
                           />
                         </button>
+                        )}
                       </div>
                     </div>
                     
@@ -6176,7 +6345,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       )}
 
       {/* Validators Section */}
-      {effectiveAddresses.length > 0 && isEverythingReady && !detectiveMode && showValidators && validatorCount > 0 && (chainFilter === 'pulsechain' || chainFilter === 'both') && (
+      {effectiveAddresses.length > 0 && isEverythingReady && !detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && (chainFilter === 'pulsechain' || chainFilter === 'both') && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -9591,7 +9760,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     <div className="text-center mb-4">
                       <button
                         onClick={() => setShowResetConfirmDialog(true)}
-                        className="text-red-400 italic text-sm hover:text-red-300 transition-colors cursor-pointer"
+                        className="text-red-400 underline text-sm hover:text-red-300 transition-colors cursor-pointer"
                         title="Reset selection to match auto-detect mode (only tokens with balances from the curated list)"
                       >
                         Clear all manual selections
@@ -9651,11 +9820,73 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 {isLP ? (
                                   <div className="relative w-8 h-8 flex-shrink-0">
                                     {(() => {
+                                      // Check if this is a multi-token LP pair (contains " / ") or single token LP
+                                      const hasMultipleTokens = token.ticker.includes(' / ')
+                                      
+                                      if (!hasMultipleTokens) {
+                                        // Single token LP (like PHUX LPs) - use the token's own logo
+                                        return (
+                                          <div className="w-8 h-8 flex items-center justify-center">
+                                            <CoinLogo symbol={token.ticker} size="lg" className="w-8 h-8" />
+                                          </div>
+                                        )
+                                      }
+                                      
                                       // Extract token symbols from LP pair name (e.g., "HEX / WPLS" -> ["HEX", "WPLS"])
                                       const tokenSymbols = token.ticker.split(' / ')
-                                      const token0Symbol = tokenSymbols[0] || 'PLS'
-                                      const token1Symbol = tokenSymbols[1] || 'HEX'
                                       
+                                      // Clean up all token symbols for logo lookup
+                                      const cleanedSymbols = tokenSymbols.map(symbol => {
+                                        let cleanedSymbol = symbol || 'PLS'
+                                        
+                                        // Handle pump.tires tokens: "HEX (from pump.tires)" -> "HEX"
+                                        if (cleanedSymbol.includes('(from pump.tires)')) {
+                                          cleanedSymbol = cleanedSymbol.replace(' (from pump.tires)', '').trim()
+                                        }
+                                        
+                                        // Handle version indicators: "HEX (v1)" -> "HEX", "WPLS (Alt)" -> "WPLS"
+                                        cleanedSymbol = cleanedSymbol.replace(/\s*\((v1|v2|Alt)\)$/i, '').trim()
+                                        
+                                        return cleanedSymbol
+                                      })
+                                      
+                                      const token0Symbol = cleanedSymbols[0] || 'PLS'
+                                      const token1Symbol = cleanedSymbols[1] || 'HEX'
+                                      const token2Symbol = cleanedSymbols[2]
+                                      
+                                      // Handle 3-token pools with smaller triangle layout
+                                      if (token2Symbol) {
+                                        return (
+                                          <>
+                                            {/* First token (top) */}
+                                            <div className="absolute top-0 left-1.5 w-5 h-5 flex-shrink-0">
+                                              <CoinLogo
+                                                symbol={token0Symbol}
+                                                size="sm"
+                                                className="w-5 h-5 rounded-full"
+                                              />
+                                            </div>
+                                            {/* Second token (bottom left) */}
+                                            <div className="absolute top-3 left-0 w-5 h-5 flex-shrink-0">
+                                              <CoinLogo
+                                                symbol={token1Symbol}
+                                                size="sm"
+                                                className="w-5 h-5 rounded-full"
+                                              />
+                                            </div>
+                                            {/* Third token (bottom right) */}
+                                            <div className="absolute top-3 left-3 w-5 h-5 flex-shrink-0">
+                                              <CoinLogo
+                                                symbol={token2Symbol}
+                                                size="sm"
+                                                className="w-5 h-5 rounded-full"
+                                              />
+                                            </div>
+                                          </>
+                                        )
+                                      }
+                                      
+                                      // Handle 2-token pools with standard overlapping layout
                                       return (
                                         <>
                                           {/* First token (back) */}
@@ -9663,7 +9894,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                             <CoinLogo
                                               symbol={token0Symbol}
                                               size="sm"
-                                              className="w-6 h-6 border border-black/20 rounded-full"
+                                              className="w-6 h-6 rounded-full shadow-sm"
                                             />
                                           </div>
                                           {/* Second token (front, overlapping) */}
@@ -9671,7 +9902,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                             <CoinLogo
                                               symbol={token1Symbol}
                                               size="sm"
-                                              className="w-6 h-6 border border-black/20 rounded-full"
+                                              className="w-6 h-6 rounded-full shadow-sm"
                                             />
                                           </div>
                                         </>
@@ -9702,7 +9933,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     {/* Custom label - show under ticker on mobile only */}
                                     {token.id && token.id.startsWith('custom_') && (
                                       <span className="md:hidden px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded w-fit my-2">
-                                        Custom
+                                        C
                                       </span>
                                     )}
                                     <div className="text-xs md:text:sm text-gray-400 truncate hidden md:block">
@@ -9715,7 +9946,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               {/* Balance input field - only show for enabled tokens */}
                               {isEnabled && (
                                 <div className={`w-[80px] sm:w-[140px] md:w-[160px] ${  
-                                  token.id && token.id.startsWith('custom_') ? 'w-20 mr-2 md:mr-8' : 'w-20 mr-12 md:mr-4'
+                                  token.id && token.id.startsWith('custom_') ? 'w-20' : 'w-20'
                                 }`}>
                                   <input
                                     type="text"
@@ -9738,18 +9969,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 </div>
                               )}
                               
-                              {/* Edit or Delete button for custom tokens based on toggle state */}
+                              {/* Edit and Delete buttons for custom tokens - only show when toggle is off */}
                               {token.id && token.id.startsWith('custom_') ? (
                                 <div className="flex items-center">
-                                  {isEnabled ? (
+                                  {!isEnabled ? (
+                                    <>
                                     <button
                                       onClick={() => editCustomToken(token.id)}
-                                      className="p-1 mr-4 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded"
+                                        className="p-1 mr-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded"
                                       title="Edit custom token"
                                     >
                                       <Icons.edit className="w-4 h-4" />
                                     </button>
-                                  ) : (
                                     <button
                                       onClick={() => deleteCustomToken(token.id)}
                                       className="p-1 mr-4 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
@@ -9757,6 +9988,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     >
                                       <Icons.trash className="w-4 h-4" />
                                     </button>
+                                    </>
+                                  ) : (
+                                    <div className="w-[40px] mr-4"></div>
                                   )}
                                 </div>
                               ) : (
@@ -9838,24 +10072,24 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               {activeTab === 'coins' && coinDetectionMode === 'manual' && (
                 <div className="border-t-2 border-white/10 bg-white/5">
                   {/* Toggle Header - Entire shelf clickable */}
-                  <button
-                    onClick={() => setIsCustomTokenSectionOpen(!isCustomTokenSectionOpen)}
+                    <button
+                      onClick={() => setIsCustomTokenSectionOpen(!isCustomTokenSectionOpen)}
                     className="flex items-center justify-between w-full text-left py-4 px-4 sm:px-6"
-                  >
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-semibold text-white">
-                        {editingTokenId ? 'Edit Custom Token' : 'Add Custom Token'}
-                      </h3>
-                    </div>
-                    <ChevronDown 
-                      className={`w-5 h-5 text-gray-400 hover:text-white transition-all duration-200 ${
-                        isCustomTokenSectionOpen ? 'rotate-180' : ''
-                      }`} 
-                    />
-                  </button>
+                    >
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold text-white">
+                          {editingTokenId ? 'Edit Custom Token' : 'Add Custom Token'}
+                        </h3>
+                      </div>
+                      <ChevronDown 
+                        className={`w-5 h-5 text-gray-400 hover:text-white transition-all duration-200 ${
+                          isCustomTokenSectionOpen ? 'rotate-180' : ''
+                        }`} 
+                      />
+                    </button>
 
-                  {/* Collapsible Content */}
-                  {isCustomTokenSectionOpen && (
+                    {/* Collapsible Content */}
+                    {isCustomTokenSectionOpen && (
                       <div className="space-y-4 max-h-[50vh] overflow-y-auto scrollbar-hide md:max-h-none md:overflow-visible bg-transparent rounded-lg p-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                     
                     {/* Duplicate Token Error Message */}
@@ -9992,11 +10226,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
               {/* Reset Confirmation Overlay - Inside the  modal */}
               <AnimatePresence>
-                {showResetConfirmDialog && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+              {showResetConfirmDialog && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -10042,16 +10276,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     </div>
                   </motion.div>
                 </motion.div>
-                )}
+              )}
               </AnimatePresence>
 
               {/* Import All Tokens Dialog - Inside the modal */}
               <AnimatePresence>
-                {showImportDialog && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+              {showImportDialog && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -10174,7 +10408,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     </div>
                   </motion.div>
                 </motion.div>
-                )}
+              )}
               </AnimatePresence>
 
             </motion.div>

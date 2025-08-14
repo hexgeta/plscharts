@@ -40,8 +40,17 @@ export function CoinLogo({
   // - Keep 'we' tokens exactly as they are (weDECI stays weDECI)
   // - Keep other prefixes like 'p' for PulseChain tokens (pBAT stays pBAT)
   // - Handle deposit tokens from PHIAT/PHAME to use 'we' prefixed logos
+  // - Handle pump.tires tokens to use root ticker (TRX from pump.tires -> TRX)
   let baseSymbol = symbol
   
+  // Handle pump.tires tokens - extract root ticker before "from pump.tires"
+  if (symbol.includes('from pump.tires')) {
+    // Extract the root ticker from patterns like:
+    // "TRX from pump.tires" -> "TRX"
+    // "USDC from pump.tires" -> "USDC"
+    // "USDT from pump.tires" -> "USDT"
+    baseSymbol = symbol.split(' from pump.tires')[0].trim()
+  }
   // Handle deposit tokens - extract base token and use 'we' prefix
   if (symbol.includes('(PHIAT deposit)') || symbol.includes('(PHAME deposit)')) {
     // Extract the base token name from patterns like:

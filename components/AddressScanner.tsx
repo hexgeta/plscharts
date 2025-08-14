@@ -80,6 +80,24 @@ export default function AddressScanner() {
     // Stablecoins are always $1
     if (isStablecoin(symbol)) return 1
     
+    // Check if this is an LP token
+    const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === symbol)
+    if (tokenConfig?.type === 'lp') {
+      // Special handling for USDT/USDC/DAI PLS stable pool - scanner doesn't use API data
+      if (symbol === 'USDT  \/ USDC \/ DAI' && tokenConfig.a === '0xE3acFA6C40d53C3faf2aa62D0a715C737071511c') {
+        // Scanner doesn't use real-time data, return 0
+        return 0
+      }
+      
+      // Check for hardcoded price for other LP tokens
+      if (tokenConfig.hardcodedPrice) {
+        return tokenConfig.hardcodedPrice
+      }
+      
+      // Fallback to 0 if LP price not available (scanner doesn't use LP data)
+      return 0
+    }
+    
     // Check if this token should use backing price (always false for scanner)
     const useBackingPrice = false // Scanner doesn't use backing prices
     if (useBackingPrice && shouldUseBackingPrice(symbol)) {
