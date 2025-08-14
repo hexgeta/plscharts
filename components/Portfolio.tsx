@@ -5861,16 +5861,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   </label>
                 </div>
                 
-                                {/* Only show validators filter if enabled in settings */}
-                {(() => {
-                  console.log('Validators debug:', { 
-                    showValidators, 
-                    detectiveMode, 
-                    validatorCount: validatorCount || 0,
-                    saved: typeof window !== 'undefined' ? localStorage.getItem('portfolioShowValidators') : null
-                  })
-                  return showValidators
-                })() && (
+                                {/* Only show validators filter if validator count > 0 */}
+                {!detectiveMode && validatorCount > 0 && (
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="validators"
