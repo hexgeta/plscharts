@@ -9643,11 +9643,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               key={`${token.chain}-${token.a}-${token.ticker}`}
                               className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
                                 newlyEnabledTokens.has(token.ticker) 
-                                  ? 'bg-green-500/10 border-green-500/30 hover:bg-green-500/15' 
-                                  : 'bg-white/5 border-white/10 hover:bg-white/10'
+                                  ? 'bg-green-500/10 border-green-500/30' 
+                                  : 'bg-white/5 border-white/10'
                               }`}
                             >
-                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
                                 {isLP ? (
                                   <div className="relative w-8 h-8 flex-shrink-0">
                                     {(() => {
@@ -9659,7 +9659,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                       return (
                                         <>
                                           {/* First token (back) */}
-                                          <div className="absolute top-0 left-0 w-6 h-6">
+                                          <div className="absolute top-0 left-0 w-6 h-6 flex-shrink-0">
                                             <CoinLogo
                                               symbol={token0Symbol}
                                               size="sm"
@@ -9667,7 +9667,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                             />
                                           </div>
                                           {/* Second token (front, overlapping) */}
-                                          <div className="absolute top-2 left-2.5 w-6 h-6">
+                                          <div className="absolute top-2 left-2.5 w-6 h-6 flex-shrink-0">
                                             <CoinLogo
                                               symbol={token1Symbol}
                                               size="sm"
@@ -9679,13 +9679,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                     })()}
                                   </div>
                                 ) : (
-                                  <div className="w-8 h-8 flex items-center justify-center">
-                                    <CoinLogo symbol={token.ticker} size="md" />
+                                  <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                    <CoinLogo symbol={token.ticker} size="lg" className="w-8 h-8" />
                                   </div>
                                 )}
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-white">{token.ticker}</span>
+                                <div className="min-w-0 flex-1 max-w-[50%] sm:max-w-none">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium text-white text-[11px] md:text-base break-words leading-tight">{token.ticker}</span>
                                     {isLP && (
                                       <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded">
                                         LP
@@ -9714,8 +9714,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               
                               {/* Balance input field - only show for enabled tokens */}
                               {isEnabled && (
-                                <div className={`mx-2 md:mx-4 md:w-[200px] ${
-                                  token.id && token.id.startsWith('custom_') ? 'w-20' : 'w-20'
+                                <div className={`w-[80px] sm:w-[140px] md:w-[160px] ${  
+                                  token.id && token.id.startsWith('custom_') ? 'w-20 mr-2 md:mr-8' : 'w-20 mr-12 md:mr-4'
                                 }`}>
                                   <input
                                     type="text"
@@ -9733,7 +9733,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                       }
                                       setCustomBalances(newCustomBalances)
                                     }}
-                                    className="w-full px-2 md:px-3 py-2 bg-black/50 border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none text-xs md:text-sm text-right"
+                                    className="w-full h-8 px-2 md:px-3 bg-black border border-white/20 rounded text-white placeholder-gray-500 focus:border-white/20 focus:outline-none text-xs md:text-sm text-right"
                                   />
                                 </div>
                               )}
@@ -9837,27 +9837,26 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               {/* Fixed Footer - Add Custom Token (only for coins tab) */}
               {activeTab === 'coins' && coinDetectionMode === 'manual' && (
                 <div className="border-t-2 border-white/10 bg-white/5">
-                  <div className="p-4 sm:p-6">
-                    {/* Toggle Header */}
-                    <button
-                      onClick={() => setIsCustomTokenSectionOpen(!isCustomTokenSectionOpen)}
-                      className="flex items-center justify-between w-full text-left"
-                    >
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold text-white">
-                          {editingTokenId ? 'Edit Custom Token' : 'Add Custom Token'}
-                        </h3>
-                      </div>
-                      <ChevronDown 
-                        className={`w-5 h-5 text-gray-400 hover:text-white transition-all duration-200 ${
-                          isCustomTokenSectionOpen ? 'rotate-180' : ''
-                        }`} 
-                      />
-                    </button>
+                  {/* Toggle Header - Entire shelf clickable */}
+                  <button
+                    onClick={() => setIsCustomTokenSectionOpen(!isCustomTokenSectionOpen)}
+                    className="flex items-center justify-between w-full text-left py-4 px-4 sm:px-6"
+                  >
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-white">
+                        {editingTokenId ? 'Edit Custom Token' : 'Add Custom Token'}
+                      </h3>
+                    </div>
+                    <ChevronDown 
+                      className={`w-5 h-5 text-gray-400 hover:text-white transition-all duration-200 ${
+                        isCustomTokenSectionOpen ? 'rotate-180' : ''
+                      }`} 
+                    />
+                  </button>
 
-                    {/* Collapsible Content */}
-                    {isCustomTokenSectionOpen && (
-                      <div className="space-y-4 mt-4 max-h-[50vh] overflow-y-auto scrollbar-hide md:max-h-none md:overflow-visible bg-transparent rounded-lg p-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+                  {/* Collapsible Content */}
+                  {isCustomTokenSectionOpen && (
+                      <div className="space-y-4 max-h-[50vh] overflow-y-auto scrollbar-hide md:max-h-none md:overflow-visible bg-transparent rounded-lg p-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                     
                     {/* Duplicate Token Error Message */}
                     {duplicateTokenError && (
@@ -9905,7 +9904,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           value={newTokenForm.chain.toString()}
                           onValueChange={(value) => setNewTokenForm(prev => ({ ...prev, chain: parseInt(value) }))}
                         >
-                          <SelectTrigger className="h-10 bg-white/10 border-white/20 text-xs md:text-sm text-white focus:outline-none focus:ring-0 focus:border-white/20">
+                          <SelectTrigger className="h-10 bg-white/10 border-white/20 text-sm md:text-base text-white focus:outline-none focus:ring-0 focus:border-white/20">
                             <SelectValue placeholder="Select chain" />
                           </SelectTrigger>
                           <SelectContent>
@@ -9924,7 +9923,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     </div>
                       </div>
                     )}
-                  </div>
                 </div>
               )}
 
@@ -9993,11 +9991,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               )}
 
               {/* Reset Confirmation Overlay - Inside the  modal */}
-              {showResetConfirmDialog && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+              <AnimatePresence>
+                {showResetConfirmDialog && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                   className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -10043,14 +10042,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     </div>
                   </motion.div>
                 </motion.div>
-              )}
+                )}
+              </AnimatePresence>
 
               {/* Import All Tokens Dialog - Inside the modal */}
-              {showImportDialog && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+              <AnimatePresence>
+                {showImportDialog && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                   className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -10173,7 +10174,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     </div>
                   </motion.div>
                 </motion.div>
-              )}
+                )}
+              </AnimatePresence>
 
             </motion.div>
           </motion.div>
