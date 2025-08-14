@@ -7,6 +7,7 @@ import { getCachedSupplies } from '@/hooks/crypto/useBackgroundPreloader'
 import { useBridgeBalanceCheck } from '@/hooks/crypto/useBridgeBalanceCheck'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { getDisplayTicker } from '@/utils/ticker-display'
 
 // Hardcoded address to check
 const HARDCODED_ADDRESS = '0x1715a3e4a142d8b698131108995174f37aeba10d'

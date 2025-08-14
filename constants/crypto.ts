@@ -1718,17 +1718,11 @@ export const API_ENDPOINTS = {
 // 1. Add the token to TOKEN_CONSTANTS with type: "lp" and platform: "PLSX V2" 
 // 2. The Portfolio component will automatically detect and price it
 
+// This function is deprecated - use cleanTickerForLogo from utils/ticker-display.ts instead
 const getLogoPath = (ticker: string): string | null => {
-  // Remove chain prefixes if they exist
-  const cleanTicker = ticker.replace(/^[ep]/, '');
-  
-  // Try different paths
-  const paths = [
-    `/coin-logos/${cleanTicker}.svg`,
-    `/coin-logos/${ticker}.svg`
-  ];
-  
-  // Return the first path that exists
-  return paths[0]; // For now return first path, we'll validate existence later
+  // Use centralized cleaning logic for consistency
+  const { cleanTickerForLogo } = require('@/utils/ticker-display')
+  const cleanedTicker = cleanTickerForLogo(ticker)
+  return `/coin-logos/${cleanedTicker}.svg`
 }
 

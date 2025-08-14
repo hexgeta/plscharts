@@ -18,6 +18,7 @@ import { useEnrichedTransactions } from '@/hooks/crypto/useEnrichedTransactions'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { MORE_COINS } from '@/constants/more-coins'
+import { cleanTickerForLogo } from '@/utils/ticker-display'
 import { Icons } from '@/components/ui/icons'
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Toggle } from '@/components/ui/toggle'
@@ -233,6 +234,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Add pending state for coin toggles (to prevent immediate portfolio reload)
   const [pendingEnabledCoins, setPendingEnabledCoins] = useState<Set<string> | null>(null)
+  
+  // Pending mode changes - track mode changes before they're committed
+  const [pendingCoinDetectionMode, setPendingCoinDetectionMode] = useState<'auto-detect' | 'manual' | null>(null)
   
   // Track if user has made manual changes to avoid overriding their choices
   const [hasUserMadeManualChanges, setHasUserMadeManualChanges] = useState<boolean>(false)
@@ -1911,15 +1915,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     setShowResetConfirmDialog(false) // Close the dialog
   }
 
-  // Handle mode switching with smart token preservation
+  // Handle mode switching with smart token preservation - use pending state to avoid immediate reload
   const handleModeSwitch = (newMode: 'auto-detect' | 'manual') => {
     console.log('[Portfolio] Mode switch:', coinDetectionMode, '->', newMode)
     
-    if (coinDetectionMode === newMode) {
+    const currentMode = pendingCoinDetectionMode || coinDetectionMode
+    if (currentMode === newMode) {
       return // No change needed
     }
     
-    if (newMode === 'manual' && coinDetectionMode === 'auto-detect') {
+    // Set pending mode (will be committed on modal close)
+    setPendingCoinDetectionMode(newMode)
+    
+    if (newMode === 'manual' && currentMode === 'auto-detect') {
       // Switching from auto-detect to manual: preserve tokens with actual balances
       const tokensWithBalances = new Set<string>()
       
@@ -1941,22 +1949,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       
       console.log('[Portfolio] Preserving tokens with balances:', Array.from(tokensWithBalances))
       
-      // Always update the main state immediately for mode switches (don't wait for modal close)
-      setEnabledCoins(new Set([...enabledCoins, ...tokensWithBalances]))
-      // Also clear any pending state to avoid conflicts
-      setPendingEnabledCoins(null)
+      // Update pending enabled coins instead of immediate state
+      const currentEnabledCoins = pendingEnabledCoins || enabledCoins
+      setPendingEnabledCoins(new Set([...currentEnabledCoins, ...tokensWithBalances]))
       
       setHasUserMadeManualChanges(true) // Mark that user has made manual changes
-    } else if (newMode === 'auto-detect' && coinDetectionMode === 'manual') {
+    } else if (newMode === 'auto-detect' && currentMode === 'manual') {
       // Switching from manual to auto-detect: keep enabled coins but let auto-detect override
       console.log('[Portfolio] Switching to auto-detect mode - keeping manual selections as fallback')
       
-      // Don't clear enabledCoins - auto-detect mode ignores it anyway
+      // Don't clear pendingEnabledCoins - auto-detect mode ignores it anyway
       // Don't clear custom balances - users should keep their manual balance overrides
       setHasUserMadeManualChanges(false) // Reset manual changes flag
     }
-    
-    setCoinDetectionMode(newMode)
   }
 
   // Handle modal close - commit any pending addresses and removals
@@ -1965,22 +1970,36 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     commitPendingAddresses()
     commitPendingCustomTokens()
     
-    // Commit pending coin changes and always reload to ensure everything stays in sync
+    // Track if any changes were made that require a reload
+    let hasChanges = false
+    
+    // Commit pending mode changes
+    if (pendingCoinDetectionMode !== null) {
+      console.log('[Portfolio] Committing pending mode change:', coinDetectionMode, '->', pendingCoinDetectionMode)
+      setCoinDetectionMode(pendingCoinDetectionMode)
+      setPendingCoinDetectionMode(null)
+      hasChanges = true
+    }
+    
+    // Commit pending coin changes
     if (pendingEnabledCoins !== null) {
       console.log('[Portfolio] Committing pending coin changes:', {
         currentEnabled: Array.from(enabledCoins),
         pendingEnabled: Array.from(pendingEnabledCoins),
-        coinDetectionMode
+        coinDetectionMode: pendingCoinDetectionMode || coinDetectionMode
       })
       
       setEnabledCoins(pendingEnabledCoins)
       setPendingEnabledCoins(null)
-      
-      // Always force a reload when coin settings change to ensure everything stays in sync
-      console.log('[Portfolio] Coin settings changed, forcing full reload')
+      hasChanges = true
+    }
+    
+    // Only reload if changes were made
+    if (hasChanges) {
+      console.log('[Portfolio] Settings changed, forcing full reload')
       mutateBalances()
     } else {
-      console.log('[Portfolio] No pending coin changes to commit')
+      console.log('[Portfolio] No pending changes to commit')
     }
     
     setShowEditModal(false)
@@ -2115,11 +2134,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   
   console.log('Portfolio Debug - Using address strings:', allAddressStrings)
 
-  // Always fetch all tokens to avoid cache invalidation when switching modes
-  // We'll filter client-side in the rawBalances memo instead
-  // In auto-detect mode, don't pass enabledCoins to ensure we check all tokens from TOKEN_CONSTANTS + MORE_COINS
+  // In auto-detect mode, don't pass enabledCoins to ensure we check all tokens from TOKEN_CONSTANTS
+  // In manual mode, pass enabledCoins to limit the tokens we check from TOKEN_CONSTANTS + MORE_COINS  
+  // The mode parameter controls which token lists are used (see usePortfolioBalance)
   const enabledCoinsForHook = coinDetectionMode === 'auto-detect' ? undefined : enabledCoins
-  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoinsForHook, customTokens)
+  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoinsForHook, customTokens, coinDetectionMode)
   
   // Filter the raw balances client-side based on enabled coins and apply custom balance overrides
   const rawBalances = useMemo(() => {
@@ -6115,20 +6134,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               ? token.symbol.split(/\s*\\\/ \s*/) // Split on \/ with optional spaces
                               : token.symbol.split(' / ')
                             
-                            // Clean up all token symbols for logo lookup (same as settings)
-                            const cleanedSymbols = tokenSymbols.map(symbol => {
-                              let cleanedSymbol = symbol || 'PLS'
-                              
-                              // Handle pump.tires tokens: "DAI (from pump.tires)" -> "DAI"
-                              if (cleanedSymbol.includes('(from pump.tires)')) {
-                                cleanedSymbol = cleanedSymbol.replace(' (from pump.tires)', '').trim()
-                              }
-                              
-                              // Handle version indicators: "HEX (v1)" -> "HEX", "WPLS (Alt)" -> "WPLS"
-                              cleanedSymbol = cleanedSymbol.replace(/\s*\((v1|v2|Alt)\)$/i, '').trim()
-                              
-                              return cleanedSymbol
-                            })
+                            // Clean up all token symbols for logo lookup using centralized logic
+                            const cleanedSymbols = tokenSymbols.map(symbol => cleanTickerForLogo(symbol || 'PLS'))
                             
                             const token0Symbol = cleanedSymbols[0] || 'PLS'
                             const token1Symbol = cleanedSymbols[1] || 'HEX'
@@ -9682,7 +9689,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       <button
                         onClick={() => handleModeSwitch('auto-detect')}
                         className={`flex-1 px-4 py-2 text-xs md:text-sm font-medium rounded-full transition-all duration-200 ${
-                          coinDetectionMode === 'auto-detect'
+                          (pendingCoinDetectionMode || coinDetectionMode) === 'auto-detect'
                             ? 'bg-white text-black shadow-sm'
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
@@ -9692,7 +9699,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       <button
                         onClick={() => handleModeSwitch('manual')}
                         className={`plausible-event-name=Switched+to+Advanced+Token+List flex-1 px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
-                          coinDetectionMode === 'manual'
+                          (pendingCoinDetectionMode || coinDetectionMode) === 'manual'
                             ? 'bg-white text-black shadow-sm'
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
@@ -9704,7 +9711,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     {/* Mode Description */}
                     <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                       <div className="text-sm text-center leading-12 text-blue-300">
-                        {coinDetectionMode === 'auto-detect' ? (
+                        {(pendingCoinDetectionMode || coinDetectionMode) === 'auto-detect' ? (
                           <div>
                             <div>
                             💡 Automatically detects the top 100 main PulseChain coins only.
@@ -9730,7 +9737,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
 
                   {/* Chain Selection - Only show in Manual Mode */}
-                  {coinDetectionMode === 'manual' && (
+                  {(pendingCoinDetectionMode || coinDetectionMode) === 'manual' && (
                     <div className="flex bg-white/5 text-sm border border-white/10 rounded-full p-1">
                     {availableChains.map(chainId => {
                       const chainName = chainId === 369 ? 'PulseChain' : 
@@ -9756,7 +9763,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   )}
 
                   {/* Clear Manual Selections - Only show in Manual Mode */}
-                  {coinDetectionMode === 'manual' && (
+                  {(pendingCoinDetectionMode || coinDetectionMode) === 'manual' && (
                     <div className="text-center mb-4">
                       <button
                         onClick={() => setShowResetConfirmDialog(true)}
@@ -9769,7 +9776,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   )}
 
                   {/* Coins List for Selected Chain - Only show in Manual Mode */}
-                  {coinDetectionMode === 'manual' && (
+                  {(pendingCoinDetectionMode || coinDetectionMode) === 'manual' && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-white">
@@ -9916,7 +9923,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                 )}
                                 <div className="min-w-0 flex-1 max-w-[50%] sm:max-w-none">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium text-white text-[11px] md:text-base break-words leading-tight">{token.ticker}</span>
+                                    <span className="font-medium text-white text-[11px] md:text-base break-words leading-tight">{getDisplayTicker(token.ticker)}</span>
                                     {isLP && (
                                       <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded">
                                         LP
@@ -10069,7 +10076,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               </div>
 
               {/* Fixed Footer - Add Custom Token (only for coins tab) */}
-              {activeTab === 'coins' && coinDetectionMode === 'manual' && (
+              {activeTab === 'coins' && (pendingCoinDetectionMode || coinDetectionMode) === 'manual' && (
                 <div className="border-t-2 border-white/10 bg-white/5">
                   {/* Toggle Header - Entire shelf clickable */}
                     <button

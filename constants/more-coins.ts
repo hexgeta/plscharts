@@ -180,6 +180,7 @@ export const MORE_COINS = [
     dexs: null,
     ticker: "PHLP",
     decimals: 18,
+    type: "lp",
     name: "Phame LP"
   },
 {
@@ -266,69 +267,69 @@ export const MORE_COINS = [
     chain: 369,
     a: "0xxx",
     dexs: "0x6d69654390c70d9e8814b04c69a542632dc93161",
-    ticker: "stLOAN",
+    ticker: "stLOAN (Liquid Loans)",
     decimals: 18,
-    name: "Staked LOAN (Liquid Loans)"
+    name: "Staked LOAN on Liquid Loans"
   }, {
     chain: 369,
     a: "0x0deed1486bc52aa0d3e6f8849cec5add6598a162",
     dexs: "0x27557d148293d1c8e8f8c5deeab93545b1eb8410",
-    ticker: "stUSDL",
+    ticker: "stUSDL (Liquid Loans)",
     decimals: 18,
-    name: "Staked USDL (Liquid Loans)"
+    name: "Staked USDL on Liquid Loans"
   },
   {
     chain: 369,
     a: "0x0deed1486bc52aa0d3e6f8849cec5add6598a162",
     dexs: "0x27557d148293d1c8e8f8c5deeab93545b1eb8410",
-    ticker: "stPLS LL",
+    ticker: "PLS (Liquid Loans)",
     decimals: 18,
-    name: "Deposited PLS (Liquid Loans)"
+    name: "Deposited PLS on Liquid Loans"
   }, {
     chain: 369,
-    a: "0x95b303987a60c71504d99aa1b13b4da07b0790ab",
+    a: "0x",
     dexs: "0x1b45b9148791d3a104184cd5dfe5ce57193a3ee9",
-    ticker: "stPLSX EARN",
+    ticker: "stPLSX (EARN)",
     decimals: 18,
-    name: "Staked PulseX EARN"
+    name: "Staked PulseX on PowerCity's EARN"
   }, {
     chain: 369,
-    a: "0xb513038bbfdf9d40b676f41606f4f61d4b02c4a2",
+    a: "0x",
     dexs: "0xed77cbbb80e5a5c3a1fe664419d6f690766b5913",
-    ticker: "stEARN EARN",
+    ticker: "stEARN (EARN)",
     decimals: 18,
-    name: "Staked EARN (PowerCity's EARN)"
+    name: "Staked EARN on PowerCity's EARN"
   }, {
     chain: 369,
-    a: "0xeb6b7932da20c6d7b3a899d5887d86dfb09a6408",
+    a: "0x",
     dexs: "0xabb36512813194b12a82a319783dbb455652440a",
-    ticker: "stPXDC EARN",
+    ticker: "stPXDC (EARN)",
     decimals: 18,
-    name: "Staked PXDC (PowerCity's EARN)"
+    name: "Staked PXDC on PowerCity's EARN"
   }, {
     chain: 369,
-    a: "0x9c6fa17d92898b684676993828143596894aa2a6",
+    a: "0x",
     dexs: "0x476d63ab94b4e86614df0c3d5a27e9e22631d062",
-    ticker: "stHEX FLEX",
+    ticker: "stHEX (FLEX)",
     decimals: 8,
-    name: "Staked HEX FLEX"
+    name: "Staked HEX on PowerCity's FLEX"
   }, {
     chain: 369,
-    a: "0xb513038bbfdf9d40b676f41606f4f61d4b02c4a2",
+    a: "0x",
     dexs: "0xed77cbbb80e5a5c3a1fe664419d6f690766b5913",
-    ticker: "stFLEX FLEX",
+    ticker: "stFLEX (FLEX)",
     decimals: 18,
-    name: "Staked FLEX (PowerCity's FLEX)"
+    name: "Staked FLEX PowerCity's FLEX"
   }, {
     chain: 369,
-    a: "0x1fe0319440a672526916c232eaee4808254bdb00",
+    a: "0x",
     dexs: "0x9756f095dfa27d4c2eae0937a7b8a6603d99affb",
-    ticker: "stHEXDC FLEX",
+    ticker: "stHEXDC (FLEX)",
     decimals: 8,
-    name: "Staked HEXDC (PowerCity's FLEX)"
+    name: "Staked HEXDC on PowerCity's FLEX"
   }, {
     chain: 369,
-    a: "0xb7c9e99da8a857ce576a830a9c19312114d9de02",
+    a: "0x",
     dexs: "0x55b4387ff2cf168801ec64ca8221e035fd07b81d",
     ticker: "stTEAM",
     decimals: 8,
@@ -336,7 +337,7 @@ export const MORE_COINS = [
   },
 {
     chain: 369,
-    a: "0xsss",
+    a: "0x",
     dexs: "0x5f2d8624e6abea8f679a1095182f4bc84fe148e0",
     ticker: "stMINT",
     decimals: 18,
@@ -372,7 +373,7 @@ export const MORE_COINS = [
       },
 {
     chain: 1,
-    a: "xxx",
+    a: "0x",
     dexs: "",
     ticker: "steCOM",
     decimals: 12,
@@ -396,7 +397,7 @@ export const MORE_COINS = [
     },
  {
       "chain": 369,
-      "a": "0x96E035ae0905EFaC8F733f133462f971Cfa45dB1",
+      "a": "0x",
       "dexs": "0xfe75839c16a6516149D0F7B2208395F54A5e16e8",
       "ticker": "stPHIAT",
     "decimals": 18,
@@ -584,15 +585,17 @@ export const MORE_COINS = [
       "dexs": "",
       "ticker": "PHLPv2",
     "decimals": 18,
-      "name": "Phame LP v2"
+      "name": "Phame LP",
+      "type": "lp"
     },
 {
       "chain": 369,
       "a": "0x9009c1de3220cAF855F83140E5Ac18A43272eC01",
       "dexs": "",
       "ticker": "CSTStable",
-    "decimals": 18,
-      "name": "CST Stable Pool"
+      "decimals": 18,
+      "type": "lp",
+      "name": "PHUX LP"
     },
 {
       "chain": 369,
@@ -3051,7 +3054,7 @@ export const MORE_COINS = [
       chain: 369,
       a: "0x",
       dexs: "0xf808bb6265e9ca27002c0a04562bf50d4fe37eaa",
-      ticker: "Incentive (PHIAT deposit)",
+      ticker: "INC (PHIAT deposit)",
       decimals: 18,
       name: "Incentive (PHIAT deposit)"
     },   {
@@ -3107,7 +3110,7 @@ export const MORE_COINS = [
       chain: 369,
       a: "0x",
       dexs: "0x8c52470a05eEB2fCe4905688Ec59bFDd32E71D07",
-      ticker: "weWBTC Coin (PHIAT deposit)",
+      ticker: "weWBTC (PHIAT deposit)",
       decimals: 8,
       name: "WBTC Coin from ETH (PHIAT deposit)"
     },   {
@@ -3135,28 +3138,28 @@ export const MORE_COINS = [
       chain: 369,
       a: "0x",
       dexs: "0x",
-      ticker: "Incentive (PHAME deposit)",
+      ticker: "INC (PHAME deposit)",
       decimals: 18,
       name: "Incentive (PHAME deposit)"
     },     {
       chain: 369,
       a: "0x",
       dexs: "",
-      ticker: "DAI from ETH (PHAME deposit)",
+      ticker: "weDAI from ETH (PHAME deposit)",
       decimals: 18,
       name: "DAI from ETH (PHAME deposit)"
     }, {
       chain: 369,
       a: "0x",
       dexs: "0x29d66D5900Eb0d629E1e6946195520065A6c5aeE",
-      ticker: "WETH from ETH (PHAME deposit)",
+      ticker: "weWETH from ETH (PHAME deposit)",
       decimals: 18,
       name: "WETH from ETH (PHAME deposit)"
     }, {
       chain: 369,
       a: "0x",
       dexs: "0x8c52470a05eEB2fCe4905688Ec59bFDd32E71D07",
-      ticker: "WBTC Coin from ETH (PHAME deposit)",
+      ticker: "weWBTC Coin from ETH (PHAME deposit)",
       decimals: 8,
       name: "WBTC Coin from ETH (PHAME deposit)"
     }, {
@@ -3170,14 +3173,14 @@ export const MORE_COINS = [
       chain: 369,
       a: "0x",
       dexs: "0x52ca8c5c6a5c7c56cf5e01bde9473b3b7f7c0b1e",
-      ticker: "USDC from ETH (PHAME deposit)",
+      ticker: "weUSDC from ETH (PHAME deposit)",
       decimals: 6,
       name: "USDC from ETH (PHAME deposit)"
     }, {
       chain: 369,
       a: "0x",
       dexs: "0xc8bbdb5a0652877eb1f774cba684eb8fbdd7bbb7",
-      ticker: "USDT from ETH (PHAME deposit)",
+      ticker: "weUSDT from ETH (PHAME deposit)",
       decimals: 6,
       name: "USDT from ETH (PHAME deposit)"
     }, {
@@ -3193,28 +3196,31 @@ export const MORE_COINS = [
       dexs: null,
       ticker: "PrimePHUX",
       decimals: 18,
-      name: "Prime PHUX PHUX LP"
+      type: "lp",
+      name: "PHUX LP"
     }, {
       chain: 369,
       a: "0xF96d60e9444f19Fe5126888BD53BdE80e58c2851",
       dexs: null,
       ticker: "BridgedSP",
       decimals: 18,
-      name: "Bridged Stable Pool PHUX LP"
+      type: "lp",
+      name: "PHUX LP"
     },     {
       chain: 369,
       a: "0xcE3181167c03AB5a6D84c1a93716521E83A6300b",
       dexs: null,
       ticker: "RH Maxi",
       decimals: 18,
-      name: "RH Maxi PHUX LP"
+      type: "lp",
+      name: "PHUX LP"
     }, {
       chain: 369,
       a: "0xedd845207362Da4e1950BE55bF72584318A0a4b3",
       dexs: null,
       ticker: "Piteas Prime",
       decimals: 18,
-      name: "Piteas Prime PHUX LP",
+      name: "PHUX LP",
       type: "lp"
     }, {
       chain: 369,
@@ -3222,7 +3228,7 @@ export const MORE_COINS = [
       dexs: null,
       ticker: "Great Time",
       decimals: 18,
-      name: "Great Time PHUX LP",
+      name: "PHUX LP",
       type: "lp"
     }, {
       chain: 369,
@@ -3230,7 +3236,7 @@ export const MORE_COINS = [
       dexs: null,
       ticker: "Maximus Perps Maxi",
       decimals: 18,
-      name: "Maximus Perps Maxi PHUX LP",
+      name: "PHUX LP",
       type: "lp"
     }, {
       chain: 369,
@@ -3238,7 +3244,7 @@ export const MORE_COINS = [
       dexs: null,
       ticker: "Alex Hedron Maxi",
       decimals: 18,
-      name: "Alex Hedron Maxi PHUX LP",
+      name: "PHUX LP",
       type: "lp"
     },
 ];
@@ -3254,17 +3260,11 @@ export const API_ENDPOINTS = {
 // 1. Add the token to TOKEN_CONSTANTS with type: "lp" and platform: "PLSX V2" 
 // 2. The Portfolio component will automatically detect and price it
 
+// This function is deprecated - use cleanTickerForLogo from utils/ticker-display.ts instead
 const getLogoPath = (ticker: string): string | null => {
-  // Remove chain prefixes if they exist
-  const cleanTicker = ticker.replace(/^[ep]/, '');
-  
-  // Try different paths
-  const paths = [
-    `/coin-logos/${cleanTicker}.svg`,
-    `/coin-logos/${ticker}.svg`
-  ];
-  
-  // Return the first path that exists
-  return paths[0]; // For now return first path, we'll validate existence later
+  // Use centralized cleaning logic for consistency
+  const { cleanTickerForLogo } = require('@/utils/ticker-display')
+  const cleanedTicker = cleanTickerForLogo(ticker)
+  return `/coin-logos/${cleanedTicker}.svg`
 }
 

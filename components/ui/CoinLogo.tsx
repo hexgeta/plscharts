@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import { CircleDollarSign } from 'lucide-react'
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { cleanTickerForLogo } from '@/utils/ticker-display'
 
 // Cache to remember which symbols don't have logos to prevent flashing
 const missingLogosCache = new Set<string>()
@@ -34,71 +35,21 @@ export function CoinLogo({
   inverted = false,
   variant = 'default'
 }: CoinLogoProps) {
-  // Handle different token prefixes and special deposit cases:
-  // - Remove 'e' prefix for Ethereum tokens (eDECI -> DECI, eHEX -> HEX)
-  // - Remove 'w' prefix for wrapped tokens (wBTC -> BTC, wETH -> ETH) but NOT 'we' tokens
-  // - Keep 'we' tokens exactly as they are (weDECI stays weDECI)
-  // - Keep other prefixes like 'p' for PulseChain tokens (pBAT stays pBAT)
-  // - Handle deposit tokens from PHIAT/PHAME to use 'we' prefixed logos
-  // - Handle pump.tires tokens to use root ticker (TRX from pump.tires -> TRX)
-  let baseSymbol = symbol
-  
-  // Handle pump.tires tokens - extract root ticker before "from pump.tires"
-  if (symbol.includes('from pump.tires')) {
-    // Extract the root ticker from patterns like:
-    // "TRX from pump.tires" -> "TRX"
-    // "USDC from pump.tires" -> "USDC"
-    // "USDT from pump.tires" -> "USDT"
-    baseSymbol = symbol.split(' from pump.tires')[0].trim()
-  }
-  // Handle deposit tokens - extract base token and use 'we' prefix
-  if (symbol.includes('(PHIAT deposit)') || symbol.includes('(PHAME deposit)')) {
-    // Extract the base token name from patterns like:
-    // "WETH from ETH (PHIAT deposit)" -> "weWETH"
-    // "WBTC Coin from ETH (PHIAT deposit)" -> "weWBTC" 
-    // "weWETH (PHIAT deposit)" -> "weWETH"
-    // "PLS (PHAME deposit)" -> "wePLS"
-    
-    if (symbol.startsWith('we')) {
-      // Already has 'we' prefix, extract before deposit info
-      baseSymbol = symbol.split(' ')[0] // "weWETH (PHIAT deposit)" -> "weWETH"
-    } else {
-      // Extract base token and add 'we' prefix
-      let baseToken = symbol
-      if (symbol.includes(' from ')) {
-        // "WETH from ETH (PHIAT deposit)" -> "WETH"
-        baseToken = symbol.split(' from ')[0]
-      } else {
-        // "PLS (PHAME deposit)" -> "PLS"
-        baseToken = symbol.split(' (')[0]
-      }
-      
-      // Clean up common suffixes
-      baseToken = baseToken.replace(' Coin', '').trim()
-      
-      baseSymbol = `we${baseToken}`
-    }
-  } else if (symbol.startsWith('we')) {
-    // Keep 'we' tokens exactly as they are
-    baseSymbol = symbol
-  } else if (symbol.startsWith('e')) {
-    // Remove 'e' prefix for Ethereum tokens
-    baseSymbol = symbol.slice(1)
-  } else if (symbol.startsWith('w')) {
-    // Remove 'w' prefix for other wrapped tokens
-    baseSymbol = symbol.slice(1)
-  }
+  // Use centralized ticker cleaning logic to ensure consistency across the app
+  const baseSymbol = cleanTickerForLogo(symbol)
   
   // Determine the best format to try (check cache first, then default to svg)
   const preferredFormat = formatCache.get(baseSymbol) || 'svg'
   
   // State for tracking current format and errors
   const [currentFormat, setCurrentFormat] = useState(preferredFormat)
+  const [useUppercase, setUseUppercase] = useState(false)
   
   // Build the logo path with current format
+  const effectiveSymbol = useUppercase ? baseSymbol.toUpperCase() : baseSymbol
   let logoPath = baseSymbol === 'ETH' && variant === 'no-bg'
     ? '/coin-logos/eth-black-no-bg.svg'
-    : `/coin-logos/${baseSymbol}.${currentFormat}`
+    : `/coin-logos/${effectiveSymbol}.${currentFormat}`
   
   // Special case for HDRN to use white version only when inverted
   if (baseSymbol === 'HDRN' && inverted) {
@@ -117,16 +68,39 @@ export function CoinLogo({
         return
       }
     }
-    // If png also failed or we were already trying png, give up
+    
+    // If both svg and png failed with the original case, try uppercase
+    if (!useUppercase && baseSymbol !== baseSymbol.toUpperCase()) {
+      const upperCaseSymbol = baseSymbol.toUpperCase()
+      const upperSvgPath = `/coin-logos/${upperCaseSymbol}.svg`
+      const upperPngPath = `/coin-logos/${upperCaseSymbol}.png`
+      
+      if (!failedLogos.has(upperSvgPath)) {
+        // Try uppercase svg
+        setUseUppercase(true)
+        setCurrentFormat('svg')
+        setHasError(false)
+        return
+      } else if (!failedLogos.has(upperPngPath)) {
+        // Try uppercase png
+        setUseUppercase(true)
+        setCurrentFormat('png')
+        setHasError(false)
+        return
+      }
+    }
+    
+    // If all attempts failed, give up
     failedLogos.add(logoPath)
     missingLogosCache.add(symbol) // Also cache by symbol
     setHasError(true)
-  }, [logoPath, symbol, currentFormat, baseSymbol])
+  }, [logoPath, symbol, currentFormat, baseSymbol, useUppercase])
   
   const handleLoad = useCallback(() => {
     // Cache the working format for future use
-    formatCache.set(baseSymbol, currentFormat)
-  }, [baseSymbol, currentFormat])
+    const cacheKey = useUppercase ? baseSymbol.toUpperCase() : baseSymbol
+    formatCache.set(cacheKey, currentFormat)
+  }, [baseSymbol, currentFormat, useUppercase])
   
   // If this symbol is known to not have a logo, don't even try loading
   const shouldSkipImage = missingLogosCache.has(symbol) || failedLogos.has(logoPath)
@@ -152,7 +126,6 @@ export function CoinLogo({
       className={cn(
         LOGO_SIZES[size],
         'object-contain',
-        '',
         inverted ? 'brightness-0 invert' : '',
         className
       )}
