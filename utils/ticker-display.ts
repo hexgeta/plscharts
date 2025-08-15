@@ -103,9 +103,21 @@ export function getDisplayTicker(ticker: string): string {
   
   let displayTicker = ticker.trim()
   
-  // Convert "we" prefix to "e" for display purposes
+  // Handle LP token pairs that contain "/" - convert "we" prefix to "e" in token names
+  if (displayTicker.includes(' / ')) {
+    const parts = displayTicker.split(' / ')
+    const convertedParts = parts.map(part => {
+      const trimmedPart = part.trim()
+      if (trimmedPart.startsWith('we') && trimmedPart.length > 2) {
+        return 'e' + trimmedPart.slice(2)
+      }
+      return trimmedPart
+    })
+    displayTicker = convertedParts.join(' / ')
+  }
+  // Convert "we" prefix to "e" for display purposes for single tokens
   // weLINK -> eLINK, weUSDC -> eUSDC, etc.
-  if (displayTicker.startsWith('we') && displayTicker.length > 2) {
+  else if (displayTicker.startsWith('we') && displayTicker.length > 2) {
     displayTicker = 'e' + displayTicker.slice(2)
   }
   

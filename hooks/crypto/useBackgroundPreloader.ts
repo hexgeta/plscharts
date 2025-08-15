@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import { useHexDailyDataPreloader } from './useHexDailyData';
-import { ALL_COIN_LOGOS } from '@/constants/generated-logos';
+
 
 // Cache keys for localStorage
 const CACHE_KEYS = {
@@ -225,41 +225,114 @@ export const useTokenSuppliesCache = () => {
   });
 };
 
-// Preload coin logos in the background - ALL logos from the folder (auto-discovered)
+// Preload coin logos in the background - two-phase approach
 const preloadCoinLogos = async (): Promise<void> => {
   try {
-    // Use the auto-generated list of all logos in the folder
-    const allLogos = ALL_COIN_LOGOS;
+    // Phase 1: Load common/important logos first for quick performance
+    const commonLogos = [
+      'PLS', 'PLSX', 'HEX', 'HEXDC', 'HDRN', 'ICSA', 'INC', 'COM', 'PHIAT', 'PHAME',
+      'BTC', 'ETH', 'USDC', 'USDT', 'DAI', 'WBTC', 'WETH', 'UNI', 'LINK', 'AAVE',
+      'weHEX', 'weUSDC', 'weUSDT', 'weDAI', 'weLINK', 'weWBTC', 'weWETH',
+      'DECI', 'MAXI', 'EARN', 'FLEX', 'ASIC', 'MINT', 'TEXAN'
+    ];
     
-    console.log(`[Background Preloader] Starting to preload ${allLogos.length} coin logos from /coin-logos folder...`);
+    console.log(`[Background Preloader] Phase 1: Preloading ${commonLogos.length} common coin logos...`);
     
-    const preloadPromises = allLogos.map(async (logoName) => {
-      try {
+    const tryLoadImage = (url: string, logoName: string): Promise<boolean> => {
+      return new Promise<boolean>((resolve) => {
         const img = new Image();
-        const logoUrl = `/coin-logos/${logoName.toLowerCase()}.svg`;
+        img.onload = () => {
+          console.log(`[Background Preloader] ✅ Preloaded logo: ${logoName} (${url})`);
+          resolve(true);
+        };
+        img.onerror = () => resolve(false);
+        img.src = url;
+      });
+    };
+    
+    // Phase 1: Load common logos quickly
+    const commonPreloadPromises = commonLogos.map(async (logoName) => {
+      try {
+        const attempts = [
+          `/coin-logos/${logoName}.svg`,
+          `/coin-logos/${logoName}.png`,
+          `/coin-logos/${logoName.toUpperCase()}.svg`,
+          `/coin-logos/${logoName.toUpperCase()}.png`
+        ];
         
-        return new Promise<void>((resolve) => {
-          img.onload = () => {
-            console.log(`[Background Preloader] ✅ Preloaded logo: ${logoName}`);
-            resolve();
-          };
-          img.onerror = () => {
-            // Silently fail - logo might not exist for this token
-            resolve();
-          };
-          img.src = logoUrl;
-        });
+        for (const url of attempts) {
+          const success = await tryLoadImage(url, logoName);
+          if (success) break;
+        }
       } catch (error) {
-        // Silently continue if individual logo fails
         return Promise.resolve();
       }
     });
     
-    await Promise.allSettled(preloadPromises);
+    await Promise.allSettled(commonPreloadPromises);
+    console.log(`[Background Preloader] Phase 1 complete: Common logos loaded`);
     
-    // Mark as preloaded in localStorage
+    // Phase 2: Load all remaining logos in background (more comprehensive list)
+    console.log(`[Background Preloader] Phase 2: Starting comprehensive logo loading...`);
+    
+    // Extended list of logos to try (extracted from common token names)
+    const allLogos = [
+      ...commonLogos, // Include common ones again in case they failed
+      // Additional tokens from various sources
+      '1INCH', '9MM', 'AAVE', 'ADA', 'ALIEN', 'APC', 'ASIC', 'AXIS', 'BASE', 'BBC', 'BEAR', 'BFF', 'BLAST', 'BNB', 'BRO', 'BTC', 'CAVIAR', 'CEREAL', 'COOKIES', 'CST', 'CULT', 'DAIX', 'DCA', 'DEX', 'DMND', 'DOGE', 'DRS', 'DWB', 'FIRE', 'GENI', 'GOAT', 'GOFURS', 'H2O', 'HARD', 'HELGO', 'HOA', 'ICARUS', 'IM', 'LAUNCH', 'LINK', 'LOAN', 'LOVE', 'LUCKY', 'MAGIC', 'MIKE', 'MINT', 'MORE', 'MOST', 'NBA', 'OPHIR', 'PARTY', 'PATH', 'PAXG', 'PEACH', 'PHL', 'PINU', 'PLN', 'PLSB', 'PLSC', 'PLSD', 'PLSP', 'PNS', 'POLY', 'POPPY', 'PP', 'PRNDR', 'PRS', 'PSAND', 'PTGC', 'PTP', 'PTS', 'PUMP', 'PXDC', 'PZEN', 'RFX', 'SHIB', 'SOIL', 'SOL', 'SPARK', 'TBILL', 'TEAM', 'TETRA', 'TEXAN', 'TFC', 'TIME', 'TON', 'TRIO', 'TRUMP', 'TSFI', 'TWO', 'UFO', 'UP', 'UPX', 'USDL', 'VPLS', 'VRX', 'WAIT', 'WATER', 'WATT', 'WBNB', 'WPLS', 'XEN', 'ZKZX',
+      // Ethereum bridged tokens
+      'eHEX', 'eDECI', 'eHDRN', 'eMAXI', 'ePEPE',
+      // PulseChain wrapped tokens  
+      'pAAVE', 'pAMPL', 'pAPE', 'pBAL', 'pBAT', 'pBTT', 'pCOMP', 'pCREAM', 'pCRO', 'pCULT', 'pDAI', 'pENS', 'pFET', 'pGRT', 'pLDO', 'pLINK', 'pMANA', 'pMKR', 'pPAXG', 'pPEPE', 'pSHIB', 'pSTETH', 'pTUSD', 'pUNI', 'pUSDC', 'pUSDT', 'pWBTC', 'pWETH', 'pWPLS', 'pXEN', 'pYFI',
+      // Additional we tokens
+      'weBASE', 'weDAI', 'weDECI', 'weHDRN', 'weICSA', 'weLUCKY', 'weMAXI', 'wePEPE', 'weSHIB', 'weTRIO', 'weUNI'
+    ];
+    
+    // Remove duplicates and use Set for performance
+    const uniqueLogos = [...new Set(allLogos)];
+    
+    // Phase 2: Load remaining logos more slowly to not overwhelm the browser
+    const loadRemainingLogos = async () => {
+      const batchSize = 10; // Load 10 at a time
+      const batches = [];
+      
+      for (let i = 0; i < uniqueLogos.length; i += batchSize) {
+        batches.push(uniqueLogos.slice(i, i + batchSize));
+      }
+      
+      for (const batch of batches) {
+        const batchPromises = batch.map(async (logoName) => {
+          try {
+            const attempts = [
+              `/coin-logos/${logoName}.svg`,
+              `/coin-logos/${logoName}.png`,
+              `/coin-logos/${logoName.toUpperCase()}.svg`,
+              `/coin-logos/${logoName.toUpperCase()}.png`
+            ];
+            
+            for (const url of attempts) {
+              const success = await tryLoadImage(url, logoName);
+              if (success) break;
+            }
+          } catch (error) {
+            return Promise.resolve();
+          }
+        });
+        
+        await Promise.allSettled(batchPromises);
+        // Small delay between batches to not overwhelm the browser
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    };
+    
+    // Run Phase 2 in background (don't await)
+    loadRemainingLogos().then(() => {
+      console.log(`[Background Preloader] Phase 2 complete: All logos loaded`);
+    });
+    
+    // Mark Phase 1 as complete in localStorage
     localStorage.setItem(CACHE_KEYS.COIN_LOGOS, new Date().toISOString());
-    console.log(`[Background Preloader] Completed preloading ${allLogos.length} coin logos from folder`);
+    console.log(`[Background Preloader] Logo preloading initialized (Phase 1 complete, Phase 2 running in background)`);
     
   } catch (error) {
     console.error('[Background Preloader] Error preloading coin logos:', error);

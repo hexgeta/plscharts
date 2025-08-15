@@ -11,6 +11,7 @@ export interface TokenConfig {
   supply?: number
   type?: "lp" | "token"
   platform?: string
+  composition?: Array<{ ticker: string; weight: number }>
 }
 
 export const MORE_COINS = [
@@ -595,7 +596,8 @@ export const MORE_COINS = [
       "ticker": "CSTStable",
       "decimals": 18,
       "type": "lp",
-      "name": "PHUX LP"
+      "name": "PHUX LP",
+      "platform": "PHUX"
     },
 {
       "chain": 369,
@@ -3194,10 +3196,15 @@ export const MORE_COINS = [
       chain: 369,
       a: "0x545998ABCbf0633C83bA20Cb94f384925BE75dd5",
       dexs: null,
-      ticker: "PrimePHUX",
+      ticker: "Prime PHUX",
       decimals: 18,
       type: "lp",
-      name: "PHUX LP"
+      platform: "PHUX",
+      name: "PHUX LP",
+      composition: [
+        { ticker: "PHUX", weight: 80.0 },
+        { ticker: "WPLS", weight: 20.0 }
+      ]
     }, {
       chain: 369,
       a: "0xF96d60e9444f19Fe5126888BD53BdE80e58c2851",
@@ -3205,6 +3212,7 @@ export const MORE_COINS = [
       ticker: "BridgedSP",
       decimals: 18,
       type: "lp",
+      platform: "PHUX",
       name: "PHUX LP"
     },     {
       chain: 369,
@@ -3213,7 +3221,15 @@ export const MORE_COINS = [
       ticker: "RH Maxi",
       decimals: 18,
       type: "lp",
-      name: "PHUX LP"
+      platform: "PHUX",
+      name: "RH Maxi",
+      composition: [
+        { ticker: "WPLS", weight: 40.00 },
+        { ticker: "PLSX", weight: 25.00 },
+        { ticker: "HEX", weight: 20.00 },
+        { ticker: "weHEX", weight: 10.00 },
+        { ticker: "INC", weight: 5.00 }
+      ]
     }, {
       chain: 369,
       a: "0xedd845207362Da4e1950BE55bF72584318A0a4b3",
@@ -3221,31 +3237,58 @@ export const MORE_COINS = [
       ticker: "Piteas Prime",
       decimals: 18,
       name: "PHUX LP",
-      type: "lp"
-    }, {
+      type: "lp",
+      platform: "PHUX",
+      composition: [
+        { symbol: "PTS", weight: 80.0 },
+        { symbol: "WPLS", weight: 20.0 }
+      ]
+    },     {
       chain: 369,
       a: "0xb584A3754C3219187bb05474579dfa11cBb960C4", 
       dexs: null,
       ticker: "Great Time",
       decimals: 18,
-      name: "PHUX LP",
-      type: "lp"
-    }, {
+      name: "Great Time",
+      type: "lp",
+      platform: "PHUX",
+      composition: [
+        { ticker: "TIME", weight: 80.0 },
+        { ticker: "WPLS", weight: 20.0 }
+      ]
+    },     {
       chain: 369,
       a: "0x7962F72Cb8D2A1924cb49e718be2C370CF578432", 
       dexs: null,
       ticker: "Maximus Perps Maxi",
       decimals: 18,
       name: "PHUX LP",
-      type: "lp"
-    }, {
+      type: "lp",
+      platform: "PHUX",
+      composition: [
+        { ticker: "HEX", weight: 30.0 },
+        { ticker: "MAXI", weight: 25.0 },
+        { ticker: "DECI", weight: 25.0 },
+        { ticker: "LUCKY", weight: 8.0 },
+        { ticker: "BASE", weight: 6.0 },
+        { ticker: "TRIO", weight: 6.0 }
+      ]
+    },     {
       chain: 369,
       a: "0xC116c38B1eF97fE0adB32C96672Ac85079D4e3c0", 
       dexs: null,
       ticker: "Alex Hedron Maxi",
       decimals: 18,
       name: "PHUX LP",
-      type: "lp"
+      type: "lp",
+      platform: "PHUX",
+      composition: [
+        { ticker: "HDRN", weight: 41.98 },
+        { ticker: "HEX", weight: 40.00 },
+        { ticker: "weHDRN", weight: 10.01 },
+        { ticker: "ICSA", weight: 7.00 },
+        { ticker: "weICSA", weight: 1.01 }
+      ]
     },
 ];
 

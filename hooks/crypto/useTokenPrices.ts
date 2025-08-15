@@ -121,6 +121,12 @@ async function fetchTokenPrices(tickers: string[], customTokens: any[] = []): Pr
       continue;
   }
 
+  // Skip LP tokens - they should be priced via PHUX pool data, not DEX prices
+  if (tokenConfig.type === 'lp') {
+      console.log(`[Price Fetch] Skipping LP token ${ticker} - will be priced via pool TVL/shares`);
+      continue;
+  }
+
     const { chain: chainId, dexs } = tokenConfig;
   const dexAddress = Array.isArray(dexs) ? dexs[0] : dexs;
   
