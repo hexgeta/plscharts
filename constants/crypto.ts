@@ -1705,7 +1705,591 @@ dexs: "0x81fbbc40cf075fd7de6afce1bc72eda1bb0e13aa",
 ticker: "IMX",
 decimals: 18,
 name: "Immutable X"
-}];
+}, {
+  chain: 369,
+  a: "0x545998ABCbf0633C83bA20Cb94f384925BE75dd5",
+  dexs: null,
+  ticker: "Prime PHUX",
+  decimals: 18,
+  type: "lp",
+  platform: "PHUX",
+  name: "PHUX LP",
+  composition: [
+    { ticker: "PHUX", weight: 80.0 },
+    { ticker: "WPLS", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xF96d60e9444f19Fe5126888BD53BdE80e58c2851",
+  dexs: null,
+  ticker: "BridgedSP",
+  decimals: 18,
+  type: "lp",
+  platform: "PHUX",
+  name: "PHUX LP"
+},     {
+  chain: 369,
+  a: "0xcE3181167c03AB5a6D84c1a93716521E83A6300b",
+  dexs: null,
+  ticker: "RH Maxi",
+  decimals: 18,
+  type: "lp",
+  platform: "PHUX",
+  name: "RH Maxi",
+  composition: [
+    { ticker: "WPLS", weight: 40.00 },
+    { ticker: "PLSX", weight: 25.00 },
+    { ticker: "HEX", weight: 20.00 },
+    { ticker: "weHEX", weight: 10.00 },
+    { ticker: "INC", weight: 5.00 }
+  ]
+}, {
+  chain: 369,
+  a: "0xedd845207362Da4e1950BE55bF72584318A0a4b3",
+  dexs: null,
+  ticker: "Piteas Prime",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { symbol: "PTS", weight: 80.0 },
+    { symbol: "WPLS", weight: 20.0 }
+  ]
+},     {
+  chain: 369,
+  a: "0xb584A3754C3219187bb05474579dfa11cBb960C4", 
+  dexs: null,
+  ticker: "Great Time",
+  decimals: 18,
+  name: "Great Time",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "TIME", weight: 80.0 },
+    { ticker: "WPLS", weight: 20.0 }
+  ]
+},     {
+  chain: 369,
+  a: "0x7962F72Cb8D2A1924cb49e718be2C370CF578432", 
+  dexs: null,
+  ticker: "Maximus Perps Maxi",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "HEX", weight: 30.0 },
+    { ticker: "MAXI", weight: 25.0 },
+    { ticker: "DECI", weight: 25.0 },
+    { ticker: "LUCKY", weight: 8.0 },
+    { ticker: "BASE", weight: 6.0 },
+    { ticker: "TRIO", weight: 6.0 }
+  ]
+},     {
+  chain: 369,
+  a: "0xC116c38B1eF97fE0adB32C96672Ac85079D4e3c0", 
+  dexs: null,
+  ticker: "Alex Hedron Maxi",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "HDRN", weight: 41.98 },
+    { ticker: "HEX", weight: 40.00 },
+    { ticker: "weHDRN", weight: 10.01 },
+    { ticker: "ICSA", weight: 7.00 },
+    { ticker: "weICSA", weight: 1.01 }
+  ]
+}, {
+  chain: 369,
+  a: "0x014F2620A91aD4541b7DD9A1191ACb0909d71494", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Pareto Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "PHAME", weight: 80.0 },
+    { ticker: "WPLS", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x4942Ab2e69deD72627EeC632bC30e246e5d0ef88", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Piteas Maxi Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "PTS", weight: 50.0 },
+    { ticker: "WPLS", weight: 25.0 },
+    { ticker: "pHEX", weight: 15.0 },
+    { ticker: "PLSX", weight: 10.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x7801654b9367eF5d8A460DE8B675E1cb3d65dAEA", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "PLSX Single Sided Staking (Almost)",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "PLSX", weight: 90.0 },
+    { ticker: "Prime PHUX", weight: 5.0 },
+    { ticker: "Bridged Stable Pool", weight: 5.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xc2f68C33AE1a60C438DA70396E213d9EF57bAf5F", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "33puP-33WBTC-33uPX",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "puP", weight: 33.0 },
+    { ticker: "WBTC", weight: 33.0 },
+    { ticker: "uPX", weight: 33.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x9a8c76db183b47233DAFd42fE07DcE1f7F9ABC15", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "RH PHLPV2",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "PHLPv2", weight: 50.0 },
+    { ticker: "WPLS", weight: 20.0 },
+    { ticker: "pHEX", weight: 15.0 },
+    { ticker: "PLSX", weight: 15.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xF5bbe8F8B6048aBCb4C733E7360534B8B7336e3A", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "PHORGY Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "PHLP", weight: 50.0 },
+    { ticker: "PHAME", weight: 30.0 },
+    { ticker: "PHUX", weight: 10.0 },
+    { ticker: "PHIAT", weight: 10.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x7EC26455B86C8e2c61842353365D8Db9ACADCf7E", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "SOLaPLSooZa",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "SOL", weight: 80.0 },
+    { ticker: "WPLS", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x77F2Bc68c9ff4b098Fdec62f9B25D94209023B42", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Native PHLPV2",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "PHLPv2", weight: 50.0 },
+    { ticker: "wWETH", weight: 13.0 },
+    { ticker: "SOL", weight: 13.0 },
+    { ticker: "WPLS", weight: 13.0 },
+    { ticker: "wWBTC", weight: 13.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x3Bbe6141E5624461Dee48b9673c6A8D22ff3ABBc", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "BriBerry Farm🍓",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "BRIBE", weight: 50.0 },
+    { ticker: "2PHUX", weight: 50.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x08a2807b8191F23F3E55206705901CBE8B61289E", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Staked Pulse Multivault🏛",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "stPLS", weight: 25.0 },
+    { ticker: "vPLS", weight: 25.0 },
+    { ticker: "uPLS", weight: 25.0 },
+    { ticker: "WPLS", weight: 25.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xDd0076e21c29E4eFAb9F03dbceAAFcA912d2165F", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "NOPEpls",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "NOPE", weight: 75.0 },
+    { ticker: "WPLS", weight: 25.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x73e2218D8cF33B0bfcBf124c09b00e973A2BBaE3", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Quad Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "pHEX", weight: 30.0 },
+    { ticker: "WPLS", weight: 30.0 },
+    { ticker: "pHDRN", weight: 20.0 },
+    { ticker: "PLSX", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x74832257BD59097766F7B03212c21006F6F990f5", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "50uPX-50DAI",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "uPX", weight: 50.0 },
+    { ticker: "DAI", weight: 50.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x5205517e12A6737a8628afBa3eDe2cbDa62AAF7F", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "33puP-33uPX-33DAI",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "uPX", weight: 33.0 },
+    { ticker: "puP", weight: 33.0 },
+    { ticker: "DAI", weight: 33.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x9009c1de3220cAF855F83140E5Ac18A43272eC01", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "CST Stable Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "wUSDC", weight: 50.0 },
+    { ticker: "CST", weight: 50.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x05aC1846d32728C28b798212F3Da687052002F5B", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "MAXIMUS TEAM Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "pMAXI", weight: 50.0 },
+    { ticker: "pTEAM", weight: 50.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x5AA6F61D7df42064E9D2ad80D4C8A9E7c3Cb1f61", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Fire Whale🔥🐋",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "INC", weight: 50.0 },
+    { ticker: "SOLIDX", weight: 50.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x5928C6434398D9B9bEDEe8D1CdD2F98f054f0F20", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Quattro Rico's Heart",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "RPE", weight: 80.0 },
+    { ticker: "WPLS", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x7b70F6C77F7e3EfFe28495dbBd146F9a8af1aFE5", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "2Solid Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "2PHUX", weight: 33.0 },
+    { ticker: "AXIS", weight: 15.0 },
+    { ticker: "NOPE", weight: 15.0 },
+    { ticker: "SOLIDX", weight: 15.0 },
+    { ticker: "FIRE", weight: 15.0 },
+    { ticker: "WPLS", weight: 7.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xe00A24da1720086AC87cDD89230497047c64f61A", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "PULSING for PHIAT",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "PHIAT", weight: 50.0 },
+    { ticker: "WPLS", weight: 50.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xF004CE3606A8C42b49706AB006021913002A1741", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "FUSION",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "AXIS", weight: 50.0 },
+    { ticker: "ALIVE", weight: 50.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x16e337b6B59b28466F8eafd7d473b332934f2454", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "REFINERY",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "COM", weight: 40.0 },
+    { ticker: "ALIVE", weight: 40.0 },
+    { ticker: "HEX", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x0be65a722FCF4802D055645BA3371A99509e9E38", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "TETRA Gas Station",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "TETRAp", weight: 80.0 },
+    { ticker: "WPLS", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x98fd442C2F7106f839069D89C770BD4E218E9218", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Quattro Rico's Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "HEX", weight: 20.0 },
+    { ticker: "INC", weight: 20.0 },
+    { ticker: "RPE", weight: 20.0 },
+    { ticker: "PLSX", weight: 20.0 },
+    { ticker: "WPLS", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xAD4550155F7D62F1378b12c36F2e4FB3aF618521", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Jeet Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "USDT", weight: 20.0 },
+    { ticker: "USDC", weight: 20.0 },
+    { ticker: "PHUX", weight: 20.0 },
+    { ticker: "WPLS", weight: 20.0 },
+    { ticker: "DAI", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x9D24CDCD25F13c42AAd946Dc4c4Db668a3f7e3D6", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Pulsechain Dark Web Pool 🧿",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "DAI", weight: 23.0 },
+    { ticker: "ATROPA", weight: 23.0 },
+    { ticker: "TEDDY BEAR", weight: 23.0 },
+    { ticker: "INC", weight: 10.0 },
+    { ticker: "TSFi", weight: 10.0 },
+    { ticker: "WPLS", weight: 10.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x451E27F0608A5503416b8a70d9E213dC33D2427c", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "Vouch Liquid Staked PLS Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "vPLS", weight: 50.0 },
+    { ticker: "WPLS", weight: 50.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xAFbff831203514B154b5488Cd11874bFa17A7348", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "HEXFIRE 🔥",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "FIRE", weight: 34.0 },
+    { ticker: "HEX", weight: 33.0 },
+    { ticker: "HEX", weight: 33.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x6987772330A72637dee68Ae3Dd4b55CF643190bd", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "She'll be apples",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "PHIAT", weight: 63.0 },
+    { ticker: "HEX", weight: 37.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xFa41C8cb4D02D1AB4536c27a664CBb8b3C0937a0", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "USDL Stable Pool",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "USDT", weight: 25.0 },
+    { ticker: "USDL", weight: 25.0 },
+    { ticker: "USDC", weight: 25.0 },
+    { ticker: "DAI", weight: 25.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0x0B41674002756D967bF99F6C7D98bb4f7e3c9294", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "CODEAK Communis Maxi",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "COM", weight: 80.0 },
+    { ticker: "HEX", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xA0305707793014c9C43EdFC09e1314845A5be6CE", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "RH Stable Stack 🏛",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "USDL", weight: 20.0 },
+    { ticker: "INCD", weight: 20.0 },
+    { ticker: "HEXDC", weight: 20.0 },
+    { ticker: "PXDC", weight: 20.0 },
+    { ticker: "DAI", weight: 20.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xbCce7cB56218E7cEd5Be2C5Ec0bf9B84783A69AD", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "HEX Time Complex",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "HEX", weight: 25.0 },
+    { ticker: "MAXI", weight: 15.0 },
+    { ticker: "HTT-7000", weight: 15.0 },
+    { ticker: "DECI", weight: 15.0 },
+    { ticker: "HTT-5000", weight: 15.0 },
+    { ticker: "HTT-3000", weight: 15.0 }
+  ]
+}, {
+  chain: 369,
+  a: "0xCa994c176c00FCB3D2ffc3d4DF41885fB978cE42", // Placeholder address - needs to be updated
+  dexs: null,
+  ticker: "eMaximus Perps Maxi",
+  decimals: 18,
+  name: "PHUX LP",
+  type: "lp",
+  platform: "PHUX",
+  composition: [
+    { ticker: "eMAXI", weight: 39.0 },
+    { ticker: "eLUCKY", weight: 25.0 },
+    { ticker: "eDECI", weight: 20.0 },
+    { ticker: "eHEX", weight: 15.0 },
+    { ticker: "eTRIO", weight: 1.0 }
+  ]
+},
+];
 
 export const API_ENDPOINTS = {
   historic_pulsechain: 'https://hexdailystats.com/fulldatapulsechain',

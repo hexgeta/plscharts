@@ -272,16 +272,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Track newly enabled tokens (show ? until portfolio reloads)
   const [newlyEnabledTokens, setNewlyEnabledTokens] = useState<Set<string>>(new Set())
 
-  // State for import all tokens functionality
-  const [showImportDialog, setShowImportDialog] = useState(false)
-  const [importProgress, setImportProgress] = useState(0)
-  const [importTotal, setImportTotal] = useState(0)
-  const [importCurrentToken, setImportCurrentToken] = useState('')
-  const [isImporting, setIsImporting] = useState(false)
-  const [importResults, setImportResults] = useState<{found: string[], notFound: string[]}>(
-    {found: [], notFound: []}
-  )
-  const [importStartTime, setImportStartTime] = useState<number | null>(null)
+  // Import functionality removed - manual mode no longer requires scanning
+  const [hasSeenTokenPopup, setHasSeenTokenPopup] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioHasSeenTokenPopup')
+      return saved === 'true'
+    }
+    return false
+  })
 
   // Format balance for input placeholder
   const formatBalanceForPlaceholder = (balance: number | null): string => {
@@ -384,114 +382,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
 
 
-  // Group tokens by chain for the coins tab (combine TOKEN_CONSTANTS + MORE_COINS + CUSTOM_TOKENS in manual mode)
-  const tokensByChain = useMemo(() => {
-    const grouped: Record<number, typeof TOKEN_CONSTANTS> = {}
-    
-    // Determine which token list to use based on mode (use displayCustomTokens for UI)
-    const tokensToUse = coinDetectionMode === 'manual' 
-      ? [...TOKEN_CONSTANTS, ...MORE_COINS, ...displayCustomTokens]  // Combine all lists in manual mode
-      : [...TOKEN_CONSTANTS, ...displayCustomTokens]  // Main list + custom tokens in auto-detect mode
-    
-    tokensToUse.forEach(token => {
-      if (!grouped[token.chain]) {
-        grouped[token.chain] = []
-      }
-      grouped[token.chain].push(token)
-    })
-    
-    // Sort tokens within each chain by name A-Z
-    Object.keys(grouped).forEach(chain => {
-      grouped[parseInt(chain)].sort((a, b) => a.name.localeCompare(b.name))
-    })
-    return grouped
-  }, [coinDetectionMode, displayCustomTokens])
 
-  // Filter and sort tokens based on search term and enabled status
-  const filteredTokensByChain = useMemo(() => {
-    const currentEnabled = pendingEnabledCoins || enabledCoins
-    
-    console.log('[Portfolio] filteredTokensByChain - current enabled:', Array.from(currentEnabled))
-    
-    const sortTokens = (tokens: typeof TOKEN_CONSTANTS) => {
-      return tokens.sort((a, b) => {
-        const aEnabled = currentEnabled.has(a.ticker)
-        const bEnabled = currentEnabled.has(b.ticker)
-        const aNewlyEnabled = newlyEnabledTokens.has(a.ticker)
-        const bNewlyEnabled = newlyEnabledTokens.has(b.ticker)
-        const aIsCustom = (a as any).id?.startsWith('custom_') || false
-        const bIsCustom = (b as any).id?.startsWith('custom_') || false
-        
-        /* TOKEN SORTING HIERARCHY:
-         * 1. PRIMARY: Newly enabled tokens first (green ones with ?)
-         * 2. SECONDARY: Custom tokens before standard tokens  
-         * 3. TERTIARY: Enabled tokens before disabled tokens
-         * 4. QUATERNARY: Alphabetical by ticker (A-Z)
-         */
-        
-        // 1. PRIMARY: newly enabled tokens first (green ones)
-        if (aNewlyEnabled !== bNewlyEnabled) {
-          return bNewlyEnabled ? 1 : -1 // newly enabled come first
-        }
-        
-        // 2. SECONDARY: custom tokens before standard tokens
-        if (aIsCustom !== bIsCustom) {
-          return bIsCustom ? 1 : -1 // custom tokens come first
-        }
-        
-        // 3. TERTIARY: enabled tokens before disabled tokens
-        if (aEnabled !== bEnabled) {
-          return bEnabled ? 1 : -1 // enabled tokens come first
-        }
-        
-        // 4. QUATERNARY: alphabetical by ticker (A-Z)
-        return a.ticker.localeCompare(b.ticker)
-      })
-    }
-    
-    if (!tokenSearchTerm.trim()) {
-      // No search term: just sort all tokens
-      const sorted: Record<number, typeof TOKEN_CONSTANTS> = {}
-      Object.entries(tokensByChain).forEach(([chain, tokens]) => {
-        sorted[parseInt(chain)] = sortTokens([...tokens])
-      })
-      return sorted
-    }
-    
-    // With search term: filter then sort
-    const filtered: Record<number, typeof TOKEN_CONSTANTS> = {}
-    
-    Object.entries(tokensByChain).forEach(([chain, tokens]) => {
-      const searchLower = tokenSearchTerm.toLowerCase()
-      const filteredTokens = tokens.filter(token => {
-        // Standard name and ticker matching
-        const nameMatch = token.name.toLowerCase().includes(searchLower)
-        const tickerMatch = token.ticker.toLowerCase().includes(searchLower)
-        
-        // Contract address matching (check both 'a' and 'contractAddress' fields)
-        const contractAddress = token.a || token.contractAddress || ''
-        const addressMatch = contractAddress.toLowerCase().includes(searchLower)
-        
-        // LP/liquidity pool matching
-        const isLPToken = token.type === 'lp' || token.ticker.includes(' / ')
-        const isLPSearch = searchLower === 'lp' || searchLower === 'liquidity'
-        const lpMatch = isLPSearch && isLPToken
-        
-        return nameMatch || tickerMatch || addressMatch || lpMatch
-      })
-      
-      if (filteredTokens.length > 0) {
-        filtered[parseInt(chain)] = sortTokens(filteredTokens)
-      }
-    })
-    
-    return filtered
-  }, [tokensByChain, tokenSearchTerm, enabledCoins, pendingEnabledCoins])
 
-  // Get available chains for the coins tab
-  const availableChains = useMemo(() => {
-    return Object.keys(tokensByChain).map(Number).sort()
-  }, [tokensByChain])
 
 
 
@@ -533,6 +425,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       localStorage.setItem('portfolio-time-shift-date', timeShiftDate.toISOString().split('T')[0])
     }
   }, [timeShiftDate])
+
+  // Save token popup seen state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioHasSeenTokenPopup', hasSeenTokenPopup.toString())
+    }
+  }, [hasSeenTokenPopup])
 
   // Save custom balances to localStorage whenever they change
   useEffect(() => {
@@ -592,75 +491,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
   }
 
-  // Function to import all tokens from MORE_COINS
-  const importAllTokens = async () => {
-    setIsImporting(true)
-    setImportProgress(0)
-    setImportResults({found: [], notFound: []})
-    setImportStartTime(Date.now())
-    
-    // Get all valid tokens from MORE_COINS (PulseChain only, with valid addresses)
-    const validTokens = MORE_COINS.filter(token => 
-      token.chain === 369 && 
-      token.a && 
-      token.a.length === 42 && 
-      token.a !== "0x0" &&
-      !token.a.includes('xxx') && // Skip placeholder addresses
-      !token.a.includes('eee') &&
-      !token.a.includes('sss')
-    )
-    
-    setImportTotal(validTokens.length)
-    
-    const tokensWithBalance: string[] = []
-    const tokensWithoutBalance: string[] = []
-    
-    // Check each address's balance for each token
-    for (let i = 0; i < validTokens.length; i++) {
-      const token = validTokens[i]
-      setImportCurrentToken(token.ticker)
-      setImportProgress(i + 1)
-      
-      let hasBalance = false
-      
-      // Check balance for each of the user's addresses
-      for (const addressObj of addresses) {
-        try {
-          const balance = await checkTokenBalance(token.a, addressObj.address, token.decimals)
-          if (balance > 0) {
-            hasBalance = true
-            break // Found balance, no need to check other addresses
-          }
-        } catch (error) {
-          console.error(`Error checking ${token.ticker} for ${addressObj.address}:`, error)
-        }
-      }
-      
-      if (hasBalance) {
-        tokensWithBalance.push(token.ticker)
-      } else {
-        tokensWithoutBalance.push(token.ticker)
-      }
-      
-      // Small delay to prevent overwhelming the RPC
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    
-    setImportResults({
-      found: tokensWithBalance,
-      notFound: tokensWithoutBalance
-    })
-    
-    // Enable all tokens that have balances
-    if (tokensWithBalance.length > 0) {
-      const currentEnabled = pendingEnabledCoins || enabledCoins
-      const newEnabled = new Set([...currentEnabled, ...tokensWithBalance])
-      setPendingEnabledCoins(newEnabled)
-      setHasUserMadeManualChanges(true)
-    }
-    
-    setIsImporting(false)
-  }
+  // Import function removed - manual mode no longer requires scanning
 
   // Helper to convert timeShiftDate to string format for calculations
   const timeShiftDateString = useMemo(() => {
@@ -831,6 +662,90 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return true
   })
 
+  // Include more tokens setting (scan MORE_COINS list in addition to TOKEN_CONSTANTS)
+  const [includeMoreTokens, setIncludeMoreTokens] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioIncludeMoreTokens')
+      return saved === 'true' // Default to false for performance
+    }
+    return false
+  })
+
+  // Track initial state to detect changes when settings popup closes
+  const [initialIncludeMoreTokens, setInitialIncludeMoreTokens] = useState<boolean>(includeMoreTokens)
+  
+  // Pending state for includeMoreTokens (like pendingCoinDetectionMode)
+  const [pendingIncludeMoreTokens, setPendingIncludeMoreTokens] = useState<boolean | null>(null)
+
+  // Image upload state for profile picture
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Handle image upload and crop to circle
+  const handleImageUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.match(/^image\/(png|svg\+xml)$/)) {
+      alert('Please upload a PNG or SVG file')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = document.createElement('img')
+      img.onload = () => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+
+        // Set canvas size to a small square
+        const size = 80
+        canvas.width = size
+        canvas.height = size
+
+        // Clear canvas
+        ctx.clearRect(0, 0, size, size)
+
+        // Create circular clipping path
+        ctx.beginPath()
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+        ctx.clip()
+
+        // Calculate dimensions to fit image in circle (cover mode)
+        const scale = Math.max(size / img.width, size / img.height)
+        const scaledWidth = img.width * scale
+        const scaledHeight = img.height * scale
+        const x = (size - scaledWidth) / 2
+        const y = (size - scaledHeight) / 2
+
+        // Draw the image
+        ctx.drawImage(img, x, y, scaledWidth, scaledHeight)
+
+        // Convert to data URL and save
+        const dataURL = canvas.toDataURL('image/png')
+        setUploadedImage(dataURL)
+      }
+      img.src = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }, [])
+
+  // Clear uploaded image
+  const clearImage = useCallback(() => {
+    setUploadedImage(null)
+    const canvas = canvasRef.current
+    if (canvas) {
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+    }
+  }, [])
+
   // Advanced filter for temporarily hiding validators (independent of main setting)
   const [includeValidatorsFilter, setIncludeValidatorsFilter] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -995,11 +910,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // If import dialog is open, close only the import dialog (unless importing)
-        if (showImportDialog && !isImporting) {
-          setShowImportDialog(false)
         // If reset dialog is open, close only the reset dialog
-        } else if (showResetConfirmDialog) {
+        if (showResetConfirmDialog) {
           setShowResetConfirmDialog(false)
         } else {
           // Otherwise close the entire modal
@@ -1025,7 +937,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       document.removeEventListener('keydown', handleEscape)
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showEditModal, showResetConfirmDialog, showImportDialog, isImporting])
+  }, [showEditModal, showResetConfirmDialog])
 
 
 
@@ -1457,6 +1369,121 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       localStorage.setItem('portfolioIncludeLiquidityFilter', includeLiquidityPositionsFilter.toString())
     }
   }, [includeLiquidityPositionsFilter])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioIncludeMoreTokens', includeMoreTokens.toString())
+    }
+  }, [includeMoreTokens])
+
+  // Group tokens by chain for the coins tab (combine TOKEN_CONSTANTS + MORE_COINS based on mode and settings)
+  const tokensByChain = useMemo(() => {
+    const grouped: Record<number, typeof TOKEN_CONSTANTS> = {}
+    
+    // Determine which token list to use based on includeMoreTokens setting (same for both auto and manual modes)
+    const tokensToUse = includeMoreTokens 
+      ? [...TOKEN_CONSTANTS, ...MORE_COINS, ...displayCustomTokens]  // Extended list when includeMoreTokens is enabled
+      : [...TOKEN_CONSTANTS, ...displayCustomTokens]  // Main list + custom tokens when includeMoreTokens is disabled
+    
+    tokensToUse.forEach(token => {
+      if (!grouped[token.chain]) {
+        grouped[token.chain] = []
+      }
+      grouped[token.chain].push(token)
+    })
+    
+    // Sort tokens within each chain by name A-Z
+    Object.keys(grouped).forEach(chain => {
+      grouped[parseInt(chain)].sort((a, b) => a.name.localeCompare(b.name))
+    })
+    return grouped
+  }, [coinDetectionMode, includeMoreTokens, displayCustomTokens])
+
+  // Filter and sort tokens based on search term and enabled status
+  const filteredTokensByChain = useMemo(() => {
+    const currentEnabled = pendingEnabledCoins || enabledCoins
+    
+    console.log('[Portfolio] filteredTokensByChain - current enabled:', Array.from(currentEnabled))
+    
+    const sortTokens = (tokens: typeof TOKEN_CONSTANTS) => {
+      return tokens.sort((a, b) => {
+        const aEnabled = currentEnabled.has(a.ticker)
+        const bEnabled = currentEnabled.has(b.ticker)
+        const aNewlyEnabled = newlyEnabledTokens.has(a.ticker)
+        const bNewlyEnabled = newlyEnabledTokens.has(b.ticker)
+        const aIsCustom = (a as any).id?.startsWith('custom_') || false
+        const bIsCustom = (b as any).id?.startsWith('custom_') || false
+        
+        /* TOKEN SORTING HIERARCHY:
+         * 1. PRIMARY: Newly enabled tokens first (green ones with ?)
+         * 2. SECONDARY: Custom tokens before standard tokens  
+         * 3. TERTIARY: Enabled tokens before disabled tokens
+         * 4. QUATERNARY: Alphabetical by ticker (A-Z)
+         */
+        
+        // 1. PRIMARY: newly enabled tokens first (green ones)
+        if (aNewlyEnabled !== bNewlyEnabled) {
+          return bNewlyEnabled ? 1 : -1 // newly enabled come first
+        }
+        
+        // 2. SECONDARY: custom tokens before standard tokens
+        if (aIsCustom !== bIsCustom) {
+          return bIsCustom ? 1 : -1 // custom tokens come first
+        }
+        
+        // 3. TERTIARY: enabled tokens before disabled tokens
+        if (aEnabled !== bEnabled) {
+          return bEnabled ? 1 : -1 // enabled tokens come first
+        }
+        
+        // 4. QUATERNARY: alphabetical by ticker (A-Z)
+        return a.ticker.localeCompare(b.ticker)
+      })
+    }
+    
+    if (!tokenSearchTerm.trim()) {
+      // No search term: just sort all tokens
+      const sorted: Record<number, typeof TOKEN_CONSTANTS> = {}
+      Object.entries(tokensByChain).forEach(([chain, tokens]) => {
+        sorted[parseInt(chain)] = sortTokens([...tokens])
+      })
+      return sorted
+    }
+    
+    // With search term: filter then sort
+    const filtered: Record<number, typeof TOKEN_CONSTANTS> = {}
+    
+    Object.entries(tokensByChain).forEach(([chain, tokens]) => {
+      const searchLower = tokenSearchTerm.toLowerCase()
+      const filteredTokens = tokens.filter(token => {
+        // Standard name and ticker matching
+        const nameMatch = token.name.toLowerCase().includes(searchLower)
+        const tickerMatch = token.ticker.toLowerCase().includes(searchLower)
+        
+        // Contract address matching (check both 'a' and 'contractAddress' fields)
+        const contractAddress = token.a || token.contractAddress || ''
+        const addressMatch = contractAddress.toLowerCase().includes(searchLower)
+        
+        // LP/liquidity pool matching
+        const isLPToken = token.type === 'lp' || token.ticker.includes(' / ')
+        const isLPSearch = searchLower === 'lp' || searchLower === 'liquidity'
+        const lpMatch = isLPSearch && isLPToken
+        
+        return nameMatch || tickerMatch || addressMatch || lpMatch
+      })
+      
+      if (filteredTokens.length > 0) {
+        filtered[parseInt(chain)] = sortTokens(filteredTokens)
+      }
+    })
+    
+    return filtered
+  }, [tokensByChain, tokenSearchTerm, enabledCoins, pendingEnabledCoins])
+
+  // Get available chains for the coins tab
+  const availableChains = useMemo(() => {
+    return Object.keys(tokensByChain).map(Number).sort()
+  }, [tokensByChain])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1924,6 +1951,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     if (currentMode === newMode) {
       return // No change needed
     }
+
+    // No longer show first-time popup for manual mode since we removed import functionality
     
     // Set pending mode (will be committed on modal close)
     setPendingCoinDetectionMode(newMode)
@@ -1992,6 +2021,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       
       setEnabledCoins(pendingEnabledCoins)
       setPendingEnabledCoins(null)
+      hasChanges = true
+    }
+    
+    // Commit pending Include More Tokens changes
+    if (pendingIncludeMoreTokens !== null) {
+      console.log('[Portfolio] Committing pending Include More Tokens change:', includeMoreTokens, '->', pendingIncludeMoreTokens)
+      setIncludeMoreTokens(pendingIncludeMoreTokens)
+      setPendingIncludeMoreTokens(null)
       hasChanges = true
     }
     
@@ -2135,11 +2172,50 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   
   console.log('Portfolio Debug - Using address strings:', allAddressStrings)
 
-  // In auto-detect mode, don't pass enabledCoins to ensure we check all tokens from TOKEN_CONSTANTS
-  // In manual mode, pass enabledCoins to limit the tokens we check from TOKEN_CONSTANTS + MORE_COINS  
-  // The mode parameter controls which token lists are used (see usePortfolioBalance)
-  const enabledCoinsForHook = coinDetectionMode === 'auto-detect' ? undefined : enabledCoins
-  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoinsForHook, customTokens, coinDetectionMode)
+  // Determine effective mode based on coin detection mode and include more tokens setting
+  // Auto-detect mode: includeMoreTokens ? 'auto-detect-extended' : 'auto-detect'
+  // Manual mode: includeMoreTokens ? 'manual-extended' : 'manual'
+  // Use committed value, not pending value, to avoid immediate reloads
+  const effectiveMode = coinDetectionMode === 'auto-detect' 
+    ? (includeMoreTokens ? 'auto-detect-extended' : 'auto-detect')
+    : (includeMoreTokens ? 'manual-extended' : 'manual')
+  // Always scan ALL tokens regardless of mode - filtering happens in Portfolio component
+  const enabledCoinsForHook = undefined // Don't filter at hook level
+  
+  // DEBUG: Log current mode and settings
+  console.log('[Portfolio] DEBUG MODE INFO:', {
+    coinDetectionMode,
+    includeMoreTokens,
+    effectiveMode,
+    enabledCoinsCount: enabledCoins ? enabledCoins.size : 'unlimited (auto-scan)',
+    addressCount: allAddressStrings.length
+  })
+  
+  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoinsForHook, customTokens, effectiveMode)
+  
+  // DEBUG: Log tokens found in balances
+  useEffect(() => {
+    if (allRawBalances && allRawBalances.length > 0) {
+      const missingTokens = ['HEX', 'WPLS', 'pBAL', 'pAAVE', 'pBTT', 'eWBTC', 'eWETH']
+      const foundTokens = new Set<string>()
+      
+      allRawBalances.forEach(addressData => {
+        if (addressData.nativeBalance) {
+          foundTokens.add(addressData.nativeBalance.symbol)
+        }
+        addressData.tokenBalances?.forEach(token => {
+          foundTokens.add(token.symbol)
+        })
+      })
+      
+      console.log('[Portfolio] DEBUG TOKENS FOUND:', Array.from(foundTokens).sort())
+      console.log('[Portfolio] DEBUG MISSING TOKENS STATUS:', missingTokens.map(token => ({
+        token,
+        found: foundTokens.has(token),
+        alternateFound: foundTokens.has(`w${token}`) || foundTokens.has(`we${token}`) || foundTokens.has(`p${token}`)
+      })))
+    }
+  }, [allRawBalances])
   
   // Enhanced portfolio holdings with LP pricing (PHUX integration)
   const allHoldingsFlat = useMemo(() => {
@@ -3647,7 +3723,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
              token.name?.includes(' / ')
     })
     
-    console.log(`[LP Detection] Found ${lpTokens.length} LP tokens:`, lpTokens.map(t => t.symbol))
+
     
     // Sort by USD value (highest first)
     return [...lpTokens].sort((a, b) => {
@@ -4528,6 +4604,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           const tokenPrice = getTokenPrice(token.symbol)
           const tokenValue = token.balanceFormatted * tokenPrice
           
+
+          
           // If pooled stakes are enabled and this is a pooled token, don't count it as liquid
           if (includePooledStakes && POOLED_STAKE_TOKENS.includes(token.symbol)) {
             // Skip adding this token value as it will be counted as a stake instead
@@ -4758,7 +4836,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         // Find which user address holds this LP token
         const addressData = filteredBalances.find(balance => 
           balance.tokenBalances?.some(token => 
-            position.poolAddress && token.address.toLowerCase() === position.poolAddress.toLowerCase()
+            position.poolAddress && token.address && token.address.toLowerCase() === position.poolAddress.toLowerCase()
           )
         )
         
@@ -9454,7 +9532,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     <span className="hidden sm:inline">{displayAddresses.length} Address{displayAddresses.length !== 1 ? 'es' : ''}</span>
                   </button>
                   <button
-                    onClick={() => setActiveTab('settings')}
+                    onClick={() => {
+                      setActiveTab('settings')
+                      // Reset pending states when entering settings
+                      setPendingIncludeMoreTokens(null)
+                    }}
                     className={`plausible-event-name=Clicks+Settings+Tab px-6 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
                       activeTab === 'settings' 
                         ? 'bg-white text-black shadow-lg' 
@@ -9592,7 +9674,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </div>
                       <button
                         onClick={() => setUseBackingPrice(!useBackingPrice)}
-                        className={`plausible-event-name=Toggles+MAXI+Tokens relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        className={`plausible-event-name=Toggles+MAXI+Tokens ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                           useBackingPrice ? 'bg-white' : 'bg-gray-600'
                         }`}
                       >
@@ -9614,7 +9696,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </div>
                       <button
                         onClick={() => setIncludePooledStakes(!includePooledStakes)}
-                        className={`plausible-event-name=Toggles+Pooled+Stakes relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        className={`plausible-event-name=Toggles+Pooled+Stakes ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                           includePooledStakes ? 'bg-white' : 'bg-gray-600'
                         }`}
                       >
@@ -9635,7 +9717,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </div>
                       <button
                         onClick={() => setShowLiquidityPositions(!showLiquidityPositions)}
-                        className={`plausible-event-name=Toggles+Liquidity+Positions relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        className={`plausible-event-name=Toggles+Liquidity+Positions ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                           showLiquidityPositions ? 'bg-white' : 'bg-gray-600'
                         }`}
                       >
@@ -9659,7 +9741,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         </div>
                         <button
                           onClick={() => setUseTimeShift(!useTimeShift)}
-                          className={`plausible-event-name=Toggles+Time+Machine relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          className={`plausible-event-name=Toggles+Time+Machine ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                             useTimeShift ? 'bg-white' : 'bg-gray-600'
                           }`}
                         >
@@ -9813,7 +9895,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </div>
                       <button
                         onClick={() => setUseEESValue(!useEESValue)}
-                        className={`plausible-event-name=Toggles+EES+Mode relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        className={`plausible-event-name=Toggles+EES+Mode ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                           useEESValue ? 'bg-white' : 'bg-gray-600'
                         }`}
                       >
@@ -9823,6 +9905,83 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           }`}
                         />
                       </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex-1">
+                        <div className="font-medium text-white mb-1">Include More Tokens</div>
+                        <div className="text-sm text-gray-400">
+                          Scan an additional ~400 tokens from an extended whitelist. (This will increase loading time by around 3X.)
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newValue = pendingIncludeMoreTokens !== null ? !pendingIncludeMoreTokens : !includeMoreTokens
+                          setPendingIncludeMoreTokens(newValue)
+                        }}
+                        className={`plausible-event-name=Toggles+Include+More+Tokens ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'bg-white' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                            (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Profile Picture Upload */}
+                    <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="font-medium text-white mb-1">Profile Picture</div>
+                          <div className="text-sm text-gray-400">
+                            Upload a PNG or SVG image (auto-cropped to circle)
+                          </div>
+                        </div>
+                        {uploadedImage && (
+                          <button
+                            onClick={clearImage}
+                            className="ml-2 px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        {/* Canvas for displaying the cropped image */}
+                        <div className="relative">
+                          <canvas
+                            ref={canvasRef}
+                            width={80}
+                            height={80}
+                            className={`rounded-full border-2 border-white/20 ${
+                              uploadedImage ? 'bg-transparent' : 'bg-gray-800'
+                            }`}
+                            style={{ display: uploadedImage ? 'block' : 'none' }}
+                          />
+                          {!uploadedImage && (
+                            <div className="w-20 h-20 rounded-full border-2 border-dashed border-white/30 flex items-center justify-center bg-gray-800">
+                              <svg className="w-6 h-6 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Upload button */}
+                        <label className="cursor-pointer px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded border border-white/20 transition-colors text-sm">
+                          {uploadedImage ? 'Change Image' : 'Upload Image'}
+                          <input
+                            type="file"
+                            accept=".png,.svg"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
                     </div>
 
                     {/* Include Liquidity Positions - Temporarily commented out */}
@@ -9922,7 +10081,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           </div>
                         <button
                           onClick={() => setHideTokensWithoutPrice(!hideTokensWithoutPrice)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          className={`ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                             hideTokensWithoutPrice ? 'bg-white' : 'bg-gray-600'
                           }`}
                         >
@@ -9953,7 +10112,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                        Top 100 Tokens
+                        Auto-scan
                       </button>
                       <button
                         onClick={() => handleModeSwitch('manual')}
@@ -9963,7 +10122,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                             : 'text-gray-300 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                       500+ Token List
+                       Manual Overrides
                       </button>
               </div>
                     
@@ -9973,20 +10132,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                         {(pendingCoinDetectionMode || coinDetectionMode) === 'auto-detect' ? (
                           <div>
                             <div>
-                            💡 Automatically detects the top 100 main PulseChain coins only.
+                            💡 Automatically detects tokens & balances for you.
                             </div>
                           </div>
                         ) : (
                           <div>
-                             💡 Manually track up to 500+ extra tokens & edit their balances:
-                             <br/><br/> - <button 
+                             💡 Manually add extra tokens & edit their balances:
+                             {/* <br/><br/> - <button 
                                onClick={() => setShowImportDialog(true)}
                                className="text-blue-300 hover:text-white underline cursor-pointer transition-colors"
                                title="Check balances for all 400+ tokens from MORE_COINS"
                              >
                                Click here
                              </button> to scan & import tokens automatically (5-10 mins)
-                             <br/> - Or add tokens and edit balances manually below...
+                             <br/> - Or add tokens and edit balances manually below... */}
                           </div>
                         )}
                       </div>
@@ -10539,7 +10698,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       <ul className="space-y-1 ml-4 text-sm">
                         <li>• Remove all manually enabled tokens</li>
                         <li>• Clear all custom balance input overrides</li>
-                        <li>• Reset tracked tokens to just the basic 100 token list</li>
                       </ul>
                       <p className="font-medium">Are you sure you want to continue?</p>
                     </div>
@@ -10562,138 +10720,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               )}
               </AnimatePresence>
 
-              {/* Import All Tokens Dialog - Inside the modal */}
-              <AnimatePresence>
-              {showImportDialog && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    // If clicking on the background (not the dialog), close only the import dialog
-                    if (e.target === e.currentTarget && !isImporting) {
-                      setShowImportDialog(false)
-                    }
-                  }}
-                >
-                  <motion.div 
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.95, opacity: 0 }}
-                    className="bg-black border border-white/20 rounded-xl p-6 max-w-md w-full mx-4"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="text-center space-y-4">
-                <h3 className="text-lg font-semibold text-white">
-                  {isImporting ? 'Importing Tokens...' : 'Import extra tokens from 400+ token list'}
-                </h3>
-                
-                {!isImporting && importResults.found.length === 0 && importResults.notFound.length === 0 ? (
-                  <div className="space-y-4">
-                    <p className="text-gray-300 text-sm">
-                      This will scan your wallets for all {MORE_COINS.length} additional tokens from the extended token list.
-                      Only tokens with non-zero balances will be enabled.
-                      <br />
-                      <br />
-                      You just have to do this process once and it will be done forever. It takes 5-10 mins.
-                      <br />
-                      <br />
-                      ⚠️ WARNING:
-                      <br />
-                      • This will override your current manual token entries & balances
-                      <br />
-                      • If you hold lots of tokens, this will make your portfolio load slower
-                      <br />
-                    </p>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => setShowImportDialog(false)} 
-                        className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={importAllTokens}
-                        className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                      >
-                        Start Import
-                      </button>
-                    </div>
-                  </div>
-                ) : !isImporting && (importResults.found.length > 0 || importResults.notFound.length > 0) ? (
-                  <div className="space-y-4">
-                    <div className="text-green-400 font-medium">
-                      Import Complete!
-                    </div>
-                    <div className="text-sm text-gray-300 space-y-2">
-                      <div>
-                        <span className="text-green-400">✓ Found {importResults.found.length} tokens with balances</span>
-                        {importResults.found.length > 0 && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            {importResults.found.slice(0, 5).join(', ')}
-                            {importResults.found.length > 5 && ` and ${importResults.found.length - 5} more...`}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-gray-400">• Checked {importResults.notFound.length} tokens with zero balance</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setShowImportDialog(false)
-                        setImportResults({found: [], notFound: []})
-                      }}
-                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                    >
-                      Done
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="text-sm text-gray-300">
-                      Checking: <span className="text-white font-medium">{importCurrentToken}</span>
-                    </div>
-                    
-                    {/* Progress Bar */}
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-white h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${importTotal > 0 ? (importProgress / importTotal) * 100 : 0}%` }}
-                      />
-                    </div>
-                    
-                    <div className="flex justify-between items-center text-xs text-gray-400">
-                      <span>{importProgress} / {importTotal} tokens checked</span>
-                      <span className="font-medium text-gray-300">
-                        {importTotal > 0 ? Math.round((importProgress / importTotal) * 100) : 0}%
-                      </span>
-                    </div>
-                    
-                    <div className="text-xs text-center text-blue-300">
-                      {getEstimatedTimeRemaining()}
-                    </div>
-                    
-                    <button
-                      onClick={() => {
-                        setIsImporting(false)
-                        setShowImportDialog(false)
-                        // TODO: Cancel import process
-                      }}
-                      className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-              </AnimatePresence>
 
+
+              {/* Import dialog removed - no longer needed since manual mode doesn't require scanning */}
             </motion.div>
           </motion.div>
         )}
@@ -10709,181 +10738,50 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               duration: 0.5,
               delay: 0.6,
               ease: [0.23, 1, 0.32, 1]
-            }
+            },
           } : {})}
-          className="max-w-[860px] w-full"
+          className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6"
         >
-          <div className="bg-black border-2 border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-white">Recent Transactions</h3>
-              {!showTransactions && (
-                <button
-                  onClick={() => setShowTransactions(true)}
-                  className="px-4 py-2 bg-white text-black rounded-lg font-medium hover:bg-gray-100 transition-colors"
-                >
-                  Load Transactions
-                </button>
-              )}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-white">Transactions</h2>
+            <div className="text-sm text-gray-400">
+              {enrichedTransactions.length} transaction{enrichedTransactions.length !== 1 ? 's' : ''}
             </div>
-            
-            {showTransactions && (
-              <div className="space-y-4">
-                {/* Loading State */}
-                {(transactionsLoading || enrichmentLoading) && (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin w-5 h-5 border-2 border-gray-600 border-t-white rounded-full mr-3"></div>
-                    <span className="text-gray-400">
-                      {transactionsLoading ? 'Loading transactions...' : 'Enriching transaction details...'}
-                    </span>
                   </div>
-                )}
-                
-                {/* Error State */}
-                {(transactionsError || enrichmentError) && (
-                  <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
-                    Error loading transactions: {transactionsError?.message || transactionsError || enrichmentError}
-                  </div>
-                )}
-                
-                {/* Transactions List */}
-                {enrichedTransactions && enrichedTransactions.length > 0 && (
-                  <div className="space-y-3">
+
+          {enrichedTransactions.length > 0 ? (
+            <div className="space-y-4">
                     {enrichedTransactions.map((tx, index) => (
-                      <div key={tx.hash} className="p-4 bg-white/5 rounded-lg border border-white/10">
-                        {/* Transaction Header */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => copyTransactionHash(tx.hash)}
-                              className="text-white font-medium text-sm hover:text-gray-300 transition-colors cursor-pointer"
-                              title="Click to copy transaction hash"
-                            >
-                              {tx.hash.slice(0, 6)}...{tx.hash.slice(-4)}
-                            </button>
-                            <a
-                              href={`https://midgard.wtf/tx-standard/${tx.hash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-gray-400 hover:text-white transition-colors"
-                            >
-                              <Icons.externalLink size={14} />
-                            </a>
+                <div key={tx.hash} className="bg-white/5 rounded-lg p-4 border border-white/5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-3 h-3 rounded-full ${
+                          tx.originalData.status === '1' ? 'bg-green-500' : 'bg-red-500'
+                        }`} />
+                        <div className="font-medium text-white">
+                          {tx.originalData.functionName || 'Contract Interaction'}
                           </div>
-                          <div className="text-right">
-                            <div className="text-white text-sm">
-                              {new Date(tx.originalData.timestamp).toLocaleDateString()}
+                        <div className="text-xs text-gray-400 bg-white/5 px-2 py-1 rounded">
+                          {new Date(parseInt(tx.originalData.timeStamp) * 1000).toLocaleDateString()}
                             </div>
-                            <div className="text-gray-400 text-xs">
-                              {new Date(tx.originalData.timestamp).toLocaleTimeString()}
                             </div>
                           </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-400">Gas Used</div>
+                      <div className="text-white font-mono text-sm">
+                        {parseInt(tx.originalData.gasUsed).toLocaleString()}
                         </div>
-
-                        {/* Method and Type Tags */}
-                        {(tx.method || (tx.txTypes && tx.txTypes.length > 0)) && (
-                          <div className="flex items-center space-x-2 mb-3">
-                            {tx.method && (
-                              <div className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-medium flex items-center space-x-1">
-                                {tx.method.includes('swap') && <span>🔄</span>}
-                                <span>{tx.method}</span>
                               </div>
-                            )}
-                            {tx.txTypes && tx.txTypes.slice(0, 2).map((type, idx) => (
-                              <div key={idx} className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded text-xs">
-                                {type.replace('_', ' ')}
                               </div>
-                            ))}
-                          </div>
-                        )}
 
-                                                {/* Token Transfers - Simplified Swap View */}
-                        {tx.tokenTransfers && tx.tokenTransfers.length > 0 && (
-                          <div className="mb-4">
-                            {(() => {
-                              const userAddress = detectiveAddress?.toLowerCase()
-                              
-                              // For swaps, calculate net token changes (total received - total sent for each token)
-                              if (tx.method && tx.method.includes('swap') && tx.tokenTransfers.length > 0) {
-                                const tokenBalances: { [symbol: string]: { net: number, usdValue: number, symbol: string } } = {}
-                                
-                                // Calculate net change for each token
-                                tx.tokenTransfers.forEach(transfer => {
-                                  const symbol = transfer.tokenSymbol || 'Unknown'
-                                  if (!tokenBalances[symbol]) {
-                                    tokenBalances[symbol] = { net: 0, usdValue: 0, symbol }
-                                  }
-                                  
-                                  if (transfer.from.toLowerCase() === userAddress) {
-                                    // User sent this token (negative)
-                                    tokenBalances[symbol].net -= transfer.amountFormatted
-                                    tokenBalances[symbol].usdValue -= (transfer.usdValue || 0)
-                                  } else if (transfer.to.toLowerCase() === userAddress) {
-                                    // User received this token (positive)
-                                    tokenBalances[symbol].net += transfer.amountFormatted
-                                    tokenBalances[symbol].usdValue += (transfer.usdValue || 0)
-                                  }
-                                })
-                                
-                                // Find the main input (most negative net) and output (most positive net)
-                                const tokenChanges = Object.values(tokenBalances).filter(t => Math.abs(t.net) > 0.000001)
-                                const mainInput = tokenChanges.find(t => t.net < 0 && Math.abs(t.usdValue) > 1)
-                                const mainOutput = tokenChanges.find(t => t.net > 0 && Math.abs(t.usdValue) > 1)
-                                
-                                if (mainInput && mainOutput) {
-                                  return (
-                                    <div>
-                                      <div className="text-gray-400 text-xs mb-2">Swap:</div>
-                                      <div className="bg-white/5 p-3 rounded border border-white/5">
-                                        <div className="flex items-center justify-between">
-                                          {/* Input */}
-                                          <div className="flex items-center space-x-2">
-                                            <CoinLogo
-                                              symbol={mainInput.symbol}
-                                              size="sm"
-                                              className="rounded-none"
-                                            />
-                                            <div>
-                                              <div className="text-white text-sm font-medium">
-                                                {Math.abs(mainInput.net).toLocaleString()} {mainInput.symbol}
-                                              </div>
-                                              <div className="text-gray-400 text-xs">
-                                                ${Math.abs(mainInput.usdValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                              </div>
-                                            </div>
-                                          </div>
-                                          
-                                          {/* Arrow */}
-                                          <div className="text-gray-400 mx-4">→</div>
-                                          
-                                          {/* Output */}
-                                          <div className="flex items-center space-x-2">
-                                            <CoinLogo
-                                              symbol={mainOutput.symbol}
-                                              size="sm"
-                                              className="rounded-none"
-                                            />
-                                            <div>
-                                              <div className="text-white text-sm font-medium">
-                                                {mainOutput.net.toLocaleString()} {mainOutput.symbol}
-                                              </div>
-                                              <div className="text-gray-400 text-xs">
-                                                ${mainOutput.usdValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )
-                                }
-                              }
-                              
-                              // Fallback: show all transfers
-                              return (
-                                <div>
-                                  <div className="text-gray-400 text-xs mb-2">Token Transfers:</div>
+                  {/* Token Transfer Information */}
+                  {tx.isTokenTransfer && tx.tokenTransfers && tx.tokenTransfers.length > 0 && (
+                    <div className="mb-3">
+                      <div className="text-sm text-gray-400 mb-2">Token Transfers</div>
                                   <div className="space-y-2">
-                                    {tx.tokenTransfers.map((transfer, transferIndex) => (
+                        {(() => {
+                          return tx.tokenTransfers.map((transfer: any, transferIndex: number) => (
                                       <div key={transferIndex} className="bg-white/5 p-2 rounded border border-white/5">
                                         <div className="flex items-center space-x-2">
                                           {transfer.tokenSymbol && (
@@ -10905,11 +10803,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                           </div>
                                         </div>
                                       </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )
+                          ))
                             })()}
+                      </div>
                           </div>
                         )}
 
@@ -10924,58 +10820,33 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                           <div>
                             <div className="text-gray-400 text-xs mb-1">To</div>
                             <div className="text-white text-xs">
-                              {tx.originalData.to ? (tx.originalData.toName || `${tx.originalData.to.slice(0, 6)}...${tx.originalData.to.slice(-4)}`) : 'Contract Creation'}
+                        {tx.originalData.toName || `${tx.originalData.to.slice(0, 6)}...${tx.originalData.to.slice(-4)}`}
                             </div>
                           </div>
                           <div>
-                            <div className="text-gray-400 text-xs mb-1">Value</div>
-                            <div className="text-white">
-                              {tx.originalData.valueFormatted > 0 ? `${tx.originalData.valueFormatted.toFixed(6)} PLS` : '0 PLS'}
+                      <div className="text-gray-400 text-xs mb-1">Block</div>
+                      <div className="text-white font-mono text-xs">
+                        {parseInt(tx.originalData.blockNumber).toLocaleString()}
                             </div>
                           </div>
                           <div>
-                            <div className="text-gray-400 text-xs mb-1">Status</div>
-                            <div className={`font-medium ${(tx.status || tx.originalData.status) === 'success' ? 'text-green-400' : 'text-red-400'}`}>
-                              {(tx.status || tx.originalData.status) === 'success' ? 'Success' : (tx.status || tx.originalData.status)}
+                      <div className="text-gray-400 text-xs mb-1">Transaction Hash</div>
+                      <div className="text-blue-400 font-mono text-xs">
+                        {tx.originalData.hash.slice(0, 10)}...{tx.originalData.hash.slice(-8)}
                             </div>
                           </div>
                         </div>
-
-                        {/* Additional Info */}
-                        <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
-                          <div className="text-gray-400 text-xs">
-                            Block {tx.originalData.blockNumber.toLocaleString()}
-                          </div>
-                          {tx.originalData.fee && (
-                            <div className="text-gray-400 text-xs">
-                              Fee: {(parseFloat(tx.originalData.fee.value) / 1e18).toFixed(6)} PLS
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Decoded Function Call */}
-                        {tx.originalData.decodedInput && (
-                          <div className="mt-3 pt-3 border-t border-white/10">
-                            <div className="text-gray-400 text-xs mb-1">Function Call:</div>
-                            <div className="text-white text-xs bg-gray-900/50 p-2 rounded">
-                              {tx.originalData.decodedInput.method_call}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
-                )}
-                
-                {/* No Transactions Found */}
-                {transactionData && transactionData.transactions && transactionData.transactions.length === 0 && !transactionsLoading && !enrichmentLoading && (
-                  <div className="text-center py-8 text-gray-400">
-                    No recent transactions found for this address
+          ) : (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-lg mb-2">No transactions found</div>
+              <div className="text-gray-500 text-sm">
+                This address has no recent transaction history
                   </div>
-                )}
               </div>
             )}
-          </div>
         </Section>
       )}
 

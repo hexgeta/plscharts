@@ -164,7 +164,7 @@ async function getTokenBalance(
 }
 
 // Function to get all balances for an address on a specific chain
-async function getAddressBalances(address: string, chainId: number, enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'manual'): Promise<BalanceData> {
+async function getAddressBalances(address: string, chainId: number, enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended'): Promise<BalanceData> {
   try {
     const chainName = chainId === 369 ? 'PulseChain' : 'Ethereum'
     console.log(`[usePortfolioBalance] Fetching balances for ${address} on ${chainName}`)
@@ -175,23 +175,36 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
     const nativeBalance = shouldIncludeNative ? await getNativeBalance(address, chainId) : null
 
     // Get relevant tokens for this chain based on mode
-    // In auto-detect mode: only use TOKEN_CONSTANTS (top 100 tokens) + custom tokens
-    // In manual mode: use TOKEN_CONSTANTS + MORE_COINS (500+ tokens) + custom tokens
+    // In auto-detect mode: only use TOKEN_CONSTANTS (top ~258 tokens) + custom tokens
+    // In auto-detect-extended mode: use TOKEN_CONSTANTS + MORE_COINS (~662 tokens) + custom tokens
+    // In manual mode: same tokens as auto-detect + custom tokens (filtered by enabledCoins)
+    // In manual-extended mode: same tokens as auto-detect-extended + custom tokens (filtered by enabledCoins)
     const currentMode = mode || 'auto-detect'
-    const baseTokens = currentMode === 'auto-detect' 
-      ? TOKEN_CONSTANTS  // Top 100 tokens only
-      : [...TOKEN_CONSTANTS, ...MORE_COINS]  // All 500+ tokens
+    const baseTokens = (currentMode === 'auto-detect' || currentMode === 'manual') 
+      ? TOKEN_CONSTANTS  // Top ~258 tokens only
+      : [...TOKEN_CONSTANTS, ...MORE_COINS]  // All ~662 tokens (auto-detect-extended, manual-extended)
     const allTokens = customTokens ? [...baseTokens, ...customTokens] : baseTokens
+    // Always check ALL tokens regardless of mode - filtering happens after balance checking
     const relevantTokens = allTokens.filter(token => 
       token.chain === chainId && 
       token.a !== "0x0" && // Skip native tokens
       token.a && 
       token.a.length === 42 && // Valid address format
-      token.a.startsWith('0x') && // Must be a valid hex address
-      (!enabledCoins || enabledCoins.has(token.ticker)) // Only include enabled coins if filter is provided
+      token.a.startsWith('0x') // Must be a valid hex address
+      // NOTE: enabledCoins filtering moved to after balance checking
     )
 
-    console.log(`[usePortfolioBalance] Checking ${relevantTokens.length} ${chainName} tokens for ${address} (mode: ${currentMode})`)
+    console.log(`[usePortfolioBalance] ⏱️ TIMING DEBUG: ${chainName} for ${address} (mode: ${currentMode})`)
+    console.log(`[usePortfolioBalance] 📊 TOKEN COUNTS:`, {
+      baseTokensCount: (currentMode === 'auto-detect' || currentMode === 'manual') ? TOKEN_CONSTANTS.length : TOKEN_CONSTANTS.length + MORE_COINS.length,
+      allTokensCount: allTokens.length,
+      relevantTokensAfterFilter: relevantTokens.length,
+      mode: currentMode,
+      chainId,
+      chainName,
+      enabledCoinsProvided: !!enabledCoins,
+      enabledCoinsCount: enabledCoins ? enabledCoins.size : 'unlimited'
+    })
 
     // Get token balances in batches to avoid overwhelming the RPC
     const batchSize = 10 // Test larger batch size - increase until you see errors
@@ -303,12 +316,13 @@ const BALANCE_CACHE_KEYS = {
 }
 
 // Fetcher function for SWR
-async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'manual'): Promise<BalanceData[]> {
+async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended'): Promise<BalanceData[]> {
   if (!Array.isArray(addresses) || addresses.length === 0) {
     return []
   }
 
-  console.log(`[usePortfolioBalance] Fetching balances for ${addresses.length} addresses`)
+  console.log(`[usePortfolioBalance] 🚀 STARTING FETCH for ${addresses.length} addresses at ${new Date().toISOString()}`)
+  const startTime = Date.now()
   
   // Fetch balances for all addresses on both chains
   const balancePromises: Promise<BalanceData>[] = []
@@ -333,12 +347,15 @@ async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<s
     })
   }
   
+  const endTime = Date.now()
+  const totalDuration = endTime - startTime
+  console.log(`[usePortfolioBalance] ✅ COMPLETED FETCH in ${totalDuration}ms (${(totalDuration/1000).toFixed(1)}s)`)
   console.log(`[usePortfolioBalance] Successfully fetched balances for ${validBalances.length}/${addresses.length * 2} address/chain combinations`)
   
   return validBalances
 }
 
-export function usePortfolioBalance(walletAddresses: string[], enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'manual'): UsePortfolioBalanceResult {
+export function usePortfolioBalance(walletAddresses: string[], enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended'): UsePortfolioBalanceResult {
   // Create cache key that includes enabled coins, custom tokens, and mode to invalidate cache when they change
   const enabledCoinsArray = enabledCoins ? Array.from(enabledCoins).sort() : []
   const customTokensIds = customTokens ? customTokens.map(t => t.id).sort() : []

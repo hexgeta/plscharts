@@ -178,7 +178,8 @@ export function useEnhancedPortfolioHoldings(
         const lpTokenPrice = getLPTokenPrice(holding.contract_address)
         
         if (lpTokenPrice) {
-          const shares = parseFloat(holding.balance) || 0
+          // Use balanceFormatted (decimal-adjusted) instead of raw balance to match LP display calculation
+          const shares = parseFloat(holding.balanceFormatted) || 0
           const lpValue = shares * lpTokenPrice.pricePerShare
 
           return {
