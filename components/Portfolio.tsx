@@ -1,5 +1,9 @@
 'use client'
 
+// Feature flags - set to false to hide features from users
+const ENABLE_MORE_TOKENS = false  // Hide "Include More Tokens" setting and Tokens tab
+const ENABLE_TOKENS_TAB = false   // Hide Tokens tab specifically
+
 import React, { useState, useMemo, useEffect, memo, useCallback, useRef, startTransition } from 'react'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
@@ -9525,16 +9529,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   >
                     Settings
                   </button>
-                  <button
-                    onClick={() => setActiveTab('coins')}
-                    className={`plausible-event-name=Clicks+Token+List px-6 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
-                      activeTab === 'coins' 
-                        ? 'bg-white text-black shadow-lg' 
-                        : 'text-gray-300 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    Tokens
-                  </button>
+                  {ENABLE_TOKENS_TAB && (
+                    <button
+                      onClick={() => setActiveTab('coins')}
+                      className={`plausible-event-name=Clicks+Token+List px-6 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
+                        activeTab === 'coins' 
+                          ? 'bg-white text-black shadow-lg' 
+                          : 'text-gray-300 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      Tokens
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={handleModalClose}
@@ -9644,29 +9650,31 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                 <div className="space-y-6">
                   
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                      <div className="flex-1">
-                        <div className="font-medium text-white mb-1">Include More Tokens</div>
-                        <div className="text-sm text-gray-400">
-                          Scan an additional ~400 tokens from an extended whitelist. (This will increase loading time by around 3X.)
+                    {ENABLE_MORE_TOKENS && (
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div className="flex-1">
+                          <div className="font-medium text-white mb-1">Include More Tokens</div>
+                          <div className="text-sm text-gray-400">
+                            Scan an additional ~400 tokens from an extended whitelist. (This will increase loading time by around 3X.)
+                          </div>
                         </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const newValue = pendingIncludeMoreTokens !== null ? !pendingIncludeMoreTokens : !includeMoreTokens
-                          setPendingIncludeMoreTokens(newValue)
-                        }}
-                        className={`plausible-event-name=Toggles+Include+More+Tokens ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                          (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'bg-white' : 'bg-gray-600'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
-                            (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'translate-x-6' : 'translate-x-1'
+                        <button
+                          onClick={() => {
+                            const newValue = pendingIncludeMoreTokens !== null ? !pendingIncludeMoreTokens : !includeMoreTokens
+                            setPendingIncludeMoreTokens(newValue)
+                          }}
+                          className={`plausible-event-name=Toggles+Include+More+Tokens ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'bg-white' : 'bg-gray-600'
                           }`}
-                        />
-                      </button>
-                    </div>
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                              (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex-1">
