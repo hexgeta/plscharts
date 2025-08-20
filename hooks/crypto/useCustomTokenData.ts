@@ -182,7 +182,7 @@ function hexToString(hex: string): string | null {
   }
 }
 
-// Helper function to fetch price data from DexScreener
+// Helper function to fetch price and image data from DexScreener
 async function fetchDexScreenerPrice(contractAddress: string, chain: 'ethereum' | 'pulsechain'): Promise<number | null> {
   try {
     // DexScreener API endpoint for token data
@@ -225,6 +225,122 @@ async function fetchDexScreenerPrice(contractAddress: string, chain: 'ethereum' 
 
   } catch (error) {
     console.error('Error fetching DexScreener price:', error)
+    return null
+  }
+}
+
+// Helper function to download and convert image to base64
+const downloadAndCacheImage = async (imageUrl: string, cacheKey: string): Promise<string | null> => {
+  try {
+    // Check if already cached
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem(`tokenImage_${cacheKey}`)
+      if (cached) {
+        console.log(`[ImageCache] Using cached image for ${cacheKey}`)
+        return cached
+      }
+    }
+
+    console.log(`[ImageCache] Downloading image from ${imageUrl}`)
+    
+    // Download the image
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      console.warn(`[ImageCache] Failed to download image: ${response.status}`)
+      return imageUrl // Fallback to original URL
+    }
+
+    // Convert to blob then to base64
+    const blob = await response.blob()
+    const base64 = await new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.readAsDataURL(blob)
+    })
+
+    // Cache in localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`tokenImage_${cacheKey}`, base64)
+        console.log(`[ImageCache] Cached image for ${cacheKey} (${Math.round(base64.length / 1024)}KB)`)
+      } catch (e) {
+        console.warn('[ImageCache] Failed to cache image in localStorage (probably too large):', e)
+        return imageUrl // Fallback to original URL if caching fails
+      }
+    }
+
+    return base64
+
+  } catch (error) {
+    console.error('[ImageCache] Error downloading/caching image:', error)
+    return imageUrl // Fallback to original URL
+  }
+}
+
+// New function to fetch token image from DexScreener
+export async function fetchTokenImageFromDexScreener(contractAddress: string, chain: 'ethereum' | 'pulsechain'): Promise<string | null> {
+  try {
+    console.log(`[DexScreener] Fetching token image for ${contractAddress} on ${chain}`)
+    
+    const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`)
+    
+    if (!response.ok) {
+      console.warn(`[DexScreener] API error: ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    
+    if (!data.pairs || data.pairs.length === 0) {
+      console.warn('[DexScreener] No trading pairs found')
+      return null
+    }
+
+    // Filter pairs by chain and find the one with highest liquidity
+    const chainName = chain === 'ethereum' ? 'ethereum' : 'pulsechain'
+    const chainPairs = data.pairs.filter((pair: any) => 
+      pair.chainId === chainName || pair.chainId === chain
+    )
+
+    if (chainPairs.length === 0) {
+      console.warn(`[DexScreener] No pairs found for chain: ${chain}`)
+      return null
+    }
+
+    // Sort by liquidity (USD) descending and take the highest
+    const bestPair = chainPairs.sort((a: any, b: any) => {
+      const liquidityA = parseFloat(a.liquidity?.usd || '0')
+      const liquidityB = parseFloat(b.liquidity?.usd || '0')
+      return liquidityB - liquidityA
+    })[0]
+
+    // Get token image - DexScreener provides imageUrl in the pair's info object
+    const baseToken = bestPair.baseToken
+    const quoteToken = bestPair.quoteToken
+    
+    // Determine which token matches our contract address
+    const isBaseToken = baseToken?.address?.toLowerCase() === contractAddress.toLowerCase()
+    const isQuoteToken = quoteToken?.address?.toLowerCase() === contractAddress.toLowerCase()
+    
+    // Check if this pair contains our target token
+    if (isBaseToken || isQuoteToken) {
+      // The imageUrl is in the pair's info object for the token we're looking for
+      if (bestPair.info?.imageUrl) {
+        console.log(`[DexScreener] Found token image:`, bestPair.info.imageUrl)
+        
+        // Download and cache the image locally
+        const cacheKey = `${contractAddress}_${chain}`.toLowerCase()
+        const cachedImage = await downloadAndCacheImage(bestPair.info.imageUrl, cacheKey)
+        
+        return cachedImage
+      }
+    }
+    
+    console.warn('[DexScreener] No token image found in API response')
+    return null
+
+  } catch (error) {
+    console.error('[DexScreener] Error fetching token image:', error)
     return null
   }
 } 

@@ -86,11 +86,13 @@ export function useLPTokenPrices() {
       isLoading,
       error,
       getLPTokenPrice: (tokenAddress: string) => {
+        if (!tokenAddress) return undefined
         const price = lpTokenPrices.get(tokenAddress.toLowerCase())
 
         return price
       },
       isLPToken: (tokenAddress: string) => {
+        if (!tokenAddress) return false
         return lpTokenPrices.has(tokenAddress.toLowerCase())
       },
       getAllLPTokens: () => Array.from(lpTokenPrices.values())
@@ -119,11 +121,29 @@ export function useLiquidityPositions(
     holdings.forEach(holding => {
       const lpTokenPrice = getLPTokenPrice(holding.contract_address)
       
-
-      
       if (lpTokenPrice) {
-        const shares = parseFloat(holding.balance) || 0
+        // Use balanceFormatted if available (already decimal-adjusted), otherwise parse balance
+        let shares = holding.balanceFormatted !== undefined 
+          ? holding.balanceFormatted 
+          : parseFloat(holding.balance) || 0
+        
+        // Safety check: if shares seems too large (>1B), likely using raw balance - apply decimals
+        if (shares > 1000000000 && lpTokenPrice.poolName.includes('CST')) {
+          console.warn(`[LP] Applying decimal adjustment to ${lpTokenPrice.poolName}: ${shares} -> ${shares / 1e18}`)
+          shares = shares / 1e18 // Most LP tokens use 18 decimals
+        }
+        
         const valueUSD = shares * lpTokenPrice.pricePerShare
+
+        // Debug log only for extremely large values that are clearly wrong
+        if (valueUSD > 100000000) { // > $100M
+          console.warn(`[LP] Large value: ${lpTokenPrice.poolName} = $${valueUSD.toLocaleString()}`, {
+            shares,
+            pricePerShare: lpTokenPrice.pricePerShare,
+            totalLiquidity: lpTokenPrice.totalLiquidity,
+            totalShares: lpTokenPrice.totalShares
+          })
+        }
 
         if (shares > 0 && valueUSD > 0.01) { // Filter out dust positions
           lpPositions.push({
@@ -144,7 +164,14 @@ export function useLiquidityPositions(
   }, [holdings, enabled, lpTokenPrices, getLPTokenPrice])
 
   const totalLPValue = useMemo(() => {
-    return positions.reduce((sum, position) => sum + position.valueUSD, 0)
+    const total = positions.reduce((sum, position) => sum + position.valueUSD, 0)
+    
+    // Only log if total is extremely large (likely wrong)
+    if (total > 1000000000) { // > $1B
+      console.warn(`[LP] Total value: $${total.toLocaleString()} (${positions.length} positions)`)
+    }
+    
+    return total
   }, [positions])
 
   return {
@@ -181,6 +208,8 @@ export function useEnhancedPortfolioHoldings(
           // Use balanceFormatted (decimal-adjusted) instead of raw balance to match LP display calculation
           const shares = parseFloat(holding.balanceFormatted) || 0
           const lpValue = shares * lpTokenPrice.pricePerShare
+          
+          // Removed excessive debug logging
 
           return {
             ...holding,

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo, useEffect, memo, useCallback, useRef, startTransition } from 'react'
+import React, { useState, useMemo, useEffect, memo, useCallback, useRef, startTransition } from 'react'
 import { CoinLogo } from '@/components/ui/CoinLogo'
 import { useTokenPrices } from '@/hooks/crypto/useTokenPrices'
 import { useTokenSupply } from '@/hooks/crypto/useTokenSupply'
 import { usePortfolioBalance } from '@/hooks/crypto/usePortfolioBalance'
+import { fetchTokenImageFromDexScreener } from '@/hooks/crypto/useCustomTokenData'
 import { useLiquidityPositions, useEnhancedPortfolioHoldings, useLPTokenPrices } from '@/hooks/crypto/useLiquidityPositions'
 import { useMaxiTokenData } from '@/hooks/crypto/useMaxiTokenData'
 import { usePlsApiData } from '@/hooks/crypto/usePlsApiData'
@@ -58,6 +59,7 @@ interface CustomToken {
   decimals: number
   name: string
   createdAt: number
+  logoUrl?: string // Cached logo URL from DexScreener
 }
 
 interface PortfolioProps {
@@ -600,11 +602,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   })
   
   // Token balances sorting state
-  const [tokenSortField, setTokenSortField] = useState<'amount' | 'change' | 'league'>(() => {
+  const [tokenSortField, setTokenSortField] = useState<'amount' | 'change' | 'dollarChange' | 'alphabetical' | 'league'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('portfolioTokenSortField')
-      if (saved && ['amount', 'change', 'league'].includes(saved)) {
-        return saved as 'amount' | 'change' | 'league'
+      if (saved && ['amount', 'change', 'dollarChange', 'alphabetical', 'league'].includes(saved)) {
+        return saved as 'amount' | 'change' | 'dollarChange' | 'alphabetical' | 'league'
       }
     }
     return 'amount'
@@ -677,74 +679,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Pending state for includeMoreTokens (like pendingCoinDetectionMode)
   const [pendingIncludeMoreTokens, setPendingIncludeMoreTokens] = useState<boolean | null>(null)
 
-  // Image upload state for profile picture
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // Handle image upload and crop to circle
-  const handleImageUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
 
-    // Validate file type
-    if (!file.type.match(/^image\/(png|svg\+xml)$/)) {
-      alert('Please upload a PNG or SVG file')
-      return
-    }
 
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const img = document.createElement('img')
-      img.onload = () => {
-        const canvas = canvasRef.current
-        if (!canvas) return
 
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
 
-        // Set canvas size to a small square
-        const size = 80
-        canvas.width = size
-        canvas.height = size
-
-        // Clear canvas
-        ctx.clearRect(0, 0, size, size)
-
-        // Create circular clipping path
-        ctx.beginPath()
-        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-        ctx.clip()
-
-        // Calculate dimensions to fit image in circle (cover mode)
-        const scale = Math.max(size / img.width, size / img.height)
-        const scaledWidth = img.width * scale
-        const scaledHeight = img.height * scale
-        const x = (size - scaledWidth) / 2
-        const y = (size - scaledHeight) / 2
-
-        // Draw the image
-        ctx.drawImage(img, x, y, scaledWidth, scaledHeight)
-
-        // Convert to data URL and save
-        const dataURL = canvas.toDataURL('image/png')
-        setUploadedImage(dataURL)
-      }
-      img.src = e.target?.result as string
-    }
-    reader.readAsDataURL(file)
-  }, [])
-
-  // Clear uploaded image
-  const clearImage = useCallback(() => {
-    setUploadedImage(null)
-    const canvas = canvasRef.current
-    if (canvas) {
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-      }
-    }
-  }, [])
 
   // Advanced filter for temporarily hiding validators (independent of main setting)
   const [includeValidatorsFilter, setIncludeValidatorsFilter] = useState<boolean>(() => {
@@ -1193,21 +1132,35 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       }
     }
 
-    // Auto-detect DEX pair in background if contract address is provided
+    // Auto-detect DEX pair and logo in background if contract address is provided
     if (newTokenForm.contractAddress) {
-      console.log('[addCustomToken] Starting background DEX pair detection for:', newTokenForm.contractAddress)
+      const chainName = newTokenForm.chain === 1 ? 'ethereum' : 'pulsechain'
       
-      // Don't await - let it run in background
-      findBestDexPair(newTokenForm.contractAddress, newTokenForm.chain)
-        .then(dexPairAddress => {
-          if (dexPairAddress) {
-            console.log('[addCustomToken] Background pair detection successful:', dexPairAddress)
-            
-            // Update the token with the found pair address
+      // Run both DEX pair detection and logo fetching in parallel
+      Promise.allSettled([
+        findBestDexPair(newTokenForm.contractAddress, newTokenForm.chain),
+        fetchTokenImageFromDexScreener(newTokenForm.contractAddress, chainName)
+      ]).then(([dexPairResult, logoResult]) => {
+        let updates: Partial<CustomToken> = {}
+        
+        // Handle DEX pair result
+        if (dexPairResult.status === 'fulfilled' && dexPairResult.value) {
+          updates.dexs = dexPairResult.value
+        }
+        
+        // Handle logo result
+        if (logoResult.status === 'fulfilled' && logoResult.value) {
+          updates.logoUrl = logoResult.value
+          console.log('[Logo] Successfully fetched logo for token:', logoResult.value)
+        }
+        
+        // Apply updates if we have any
+        if (Object.keys(updates).length > 0) {
+          // Update pending custom tokens
             setPendingCustomTokens(prevTokens => 
               prevTokens.map(token => 
                 token.id === customToken.id 
-                  ? { ...token, dexs: dexPairAddress }
+                ? { ...token, ...updates }
                   : token
               )
             )
@@ -1216,16 +1169,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             setCustomTokens(prevTokens => 
               prevTokens.map(token => 
                 token.id === customToken.id 
-                  ? { ...token, dexs: dexPairAddress }
+                ? { ...token, ...updates }
                   : token
               )
             )
-          } else {
-            console.warn('[addCustomToken] No DEX pair found for', newTokenForm.contractAddress)
           }
-        })
-        .catch(error => {
-          console.error('[addCustomToken] Background pair detection failed:', error)
+            }).catch(error => {
+        // Silently handle errors for now
         })
     }
 
@@ -1919,28 +1869,41 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   // Handle reset to auto-detect confirmation
   const handleResetToAutoDetect = () => {
-    // Reset to auto-detect mode: only enable tokens with balances from crypto.ts
-    const tokensWithBalances = new Set<string>()
-    if (rawBalances && rawBalances.length > 0) {
-      rawBalances.forEach(balanceData => {
-        if (balanceData.nativeBalance && balanceData.nativeBalance.balanceFormatted > 0) {
-          tokensWithBalances.add(balanceData.nativeBalance.symbol)
-        }
-        balanceData.tokenBalances.forEach(token => {
-          if (token.balanceFormatted > 0) {
-            const isFromCrypto = TOKEN_CONSTANTS.some(t => t.ticker === token.symbol)
-            if (isFromCrypto) {
-              tokensWithBalances.add(token.symbol)
-            }
-          }
-        })
-      })
-    }
-    console.log('[Portfolio] Reset to auto-detect - tokens with balances:', Array.from(tokensWithBalances))
-    setPendingEnabledCoins(tokensWithBalances)
-    setCustomBalances(new Map()) // Clear all custom balances
+    console.log('[Portfolio] Starting complete reset to auto-detect mode')
+    
+    // 1. Clear custom balance input overrides
+    setCustomBalances(new Map())
+    console.log('[Portfolio] Cleared all custom balance overrides')
+    
+    // 2. Close dialogs
+    setShowResetConfirmDialog(false)
+    setShowEditModal(false)
+    
+    // 3. Temporarily clear enabled coins to force a fresh scan
+    console.log('[Portfolio] Temporarily clearing enabled coins for fresh scan')
+    setEnabledCoins(new Set())
+    
+    // 4. Switch to auto-detect mode after clearing
+    setTimeout(() => {
+      console.log('[Portfolio] Switching to auto-detect mode')
+      setCoinDetectionMode('auto-detect')
+      
+      // 5. Enable all tokens so auto-detect can find everything
+      const allCuratedTokens = new Set<string>()
+      TOKEN_CONSTANTS.forEach(token => allCuratedTokens.add(token.ticker))
+      if (includeMoreTokens) {
+        MORE_COINS.forEach(token => allCuratedTokens.add(token.ticker))
+      }
+      
+      console.log('[Portfolio] Enabling all curated tokens for auto-detection scan:', allCuratedTokens.size)
+      setEnabledCoins(allCuratedTokens)
+      
+      // 6. Force a reload after enabling all tokens
+      console.log('[Portfolio] Forcing balance reload - auto-detect will apply after data loads')
+      mutateBalances()
+    }, 100) // Small delay to ensure state updates are processed
+    
     setHasUserMadeManualChanges(true)
-    setShowResetConfirmDialog(false) // Close the dialog
   }
 
   // Handle mode switching with smart token preservation - use pending state to avoid immediate reload
@@ -2182,14 +2145,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   // Always scan ALL tokens regardless of mode - filtering happens in Portfolio component
   const enabledCoinsForHook = undefined // Don't filter at hook level
   
-  // DEBUG: Log current mode and settings
-  console.log('[Portfolio] DEBUG MODE INFO:', {
-    coinDetectionMode,
-    includeMoreTokens,
-    effectiveMode,
-    enabledCoinsCount: enabledCoins ? enabledCoins.size : 'unlimited (auto-scan)',
-    addressCount: allAddressStrings.length
-  })
+  // Removed excessive debug logging
   
   const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoinsForHook, customTokens, effectiveMode)
   
@@ -2208,8 +2164,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         })
       })
       
-      console.log('[Portfolio] DEBUG TOKENS FOUND:', Array.from(foundTokens).sort())
-      console.log('[Portfolio] DEBUG MISSING TOKENS STATUS:', missingTokens.map(token => ({
+      // Removed excessive debug logging
+      console.log('[Portfolio] Missing tokens:', missingTokens.map(token => ({
         token,
         found: foundTokens.has(token),
         alternateFound: foundTokens.has(`w${token}`) || foundTokens.has(`we${token}`) || foundTokens.has(`p${token}`)
@@ -2470,6 +2426,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     console.log('[Portfolio] Auto-detected coins:', Array.from(detectedCoins))
     return detectedCoins
   }, [coinDetectionMode, rawBalances])
+
+  // Apply auto-detected coins in auto-detect mode (with loop prevention)
+  useEffect(() => {
+    if (coinDetectionMode === 'auto-detect' && autoDetectedCoins.size > 0) {
+      // Only update if the sets are actually different to prevent infinite loops
+      const currentCoins = Array.from(enabledCoins).sort()
+      const detectedCoins = Array.from(autoDetectedCoins).sort()
+      
+      if (JSON.stringify(currentCoins) !== JSON.stringify(detectedCoins)) {
+        console.log('[Portfolio] Applying auto-detected coins to enabled coins:', detectedCoins)
+        setEnabledCoins(autoDetectedCoins)
+      }
+    }
+  }, [coinDetectionMode, autoDetectedCoins, enabledCoins])
 
   // Fetch transactions for detective mode (only first address)
   const { transactions: transactionData, isLoading: transactionsLoading, error: transactionsError } = useAddressTransactions(
@@ -3645,8 +3615,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
         // Sort by USD value
         comparison = bValue - aValue // Higher value first for desc
       } else if (tokenSortField === 'change') {
-        if (showDollarChange) {
-          // Sort by 24h dollar change when in dollar mode
+        // Sort by 24h percentage change
+        const aPriceData = prices[a.symbol]
+        const bPriceData = prices[b.symbol]
+        const aChange = aPriceData?.priceChange?.h24 || 0
+        const bChange = bPriceData?.priceChange?.h24 || 0
+        comparison = bChange - aChange // Higher change first for desc
+      } else if (tokenSortField === 'dollarChange') {
+        // Sort by 24h dollar change
           const aPriceData = prices[a.symbol]
           const bPriceData = prices[b.symbol]
           const aPercentChange = aPriceData?.priceChange?.h24 || 0
@@ -3661,19 +3637,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             : 0
           
           comparison = bDollarChange - aDollarChange // Higher dollar change first for desc
-        } else {
-          // Sort by 24h percentage change when in percentage mode
-          const aPriceData = prices[a.symbol]
-          const bPriceData = prices[b.symbol]
-          const aChange = aPriceData?.priceChange?.h24 || 0
-          const bChange = bPriceData?.priceChange?.h24 || 0
-          comparison = bChange - aChange // Higher change first for desc
-        }
         
         // Secondary sort by USD value if changes are equal
         if (Math.abs(comparison) < 0.01) {
           comparison = bValue - aValue
         }
+      } else if (tokenSortField === 'alphabetical') {
+        // Sort alphabetically by symbol
+        comparison = a.symbol.localeCompare(b.symbol)
       }
       
       // Apply sort direction
@@ -3993,13 +3964,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
   const toggle24hChangeDisplay = useCallback(() => {
     const newShowDollarChange = !showDollarChange
     setShowDollarChange(newShowDollarChange)
-    
-    // Auto-sort by change when switching to dollar mode for better UX
-    if (newShowDollarChange && tokenSortField !== 'change') {
-      setTokenSortField('change')
-      setTokenSortDirection('desc') // Show highest dollar changes first
-    }
-  }, [showDollarChange, tokenSortField])
+  }, [showDollarChange])
 
 
 
@@ -4289,6 +4254,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
               size="md"
               className="rounded-none"
               variant="default"
+              customImageUrl={customTokens.find(t => t.ticker === token.symbol)?.logoUrl}
             />
           </div>
           <div className="flex-1 min-w-0">
@@ -4609,6 +4575,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
           // If pooled stakes are enabled and this is a pooled token, don't count it as liquid
           if (includePooledStakes && POOLED_STAKE_TOKENS.includes(token.symbol)) {
             // Skip adding this token value as it will be counted as a stake instead
+            return
+          }
+          
+          // If liquidity positions are enabled, check if this token is an LP token to avoid double counting
+          if (showLiquidityPositions && includeLiquidityPositionsFilter && getPhuxLPTokenPrice && token.contract_address && getPhuxLPTokenPrice(token.contract_address)) {
+            // Skip adding this token value as it will be counted as an LP position instead
+            console.log(`[Portfolio] Skipping LP token ${token.symbol} to avoid double counting`)
             return
           }
           
@@ -6262,7 +6235,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
             <div className="flex gap-2 flex-wrap">
               {[
                 { field: 'amount' as const, label: 'Amount' },
-                { field: 'change' as const, label: '24h Change' }
+                { field: 'alphabetical' as const, label: 'A-Z' },
+                { field: 'change' as const, label: '24h % Change' },
+                { field: 'dollarChange' as const, label: '24h $ Change' }
               ].map(({ field, label }) => (
                 <button
                   key={field}
@@ -6424,7 +6399,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                               const cleanedSymbol = cleanTickerForLogo(token.symbol)
                               return (
                                 <div className="w-8 h-8 flex items-center justify-center">
-                                  <CoinLogo symbol={cleanedSymbol} size="lg" className="w-8 h-8" />
+                                  <CoinLogo 
+                                    symbol={cleanedSymbol} 
+                                    size="lg" 
+                                    className="w-8 h-8"
+                                    customImageUrl={customTokens.find(t => t.ticker === cleanedSymbol)?.logoUrl}
+                                  />
                                 </div>
                               )
                             }
@@ -9666,6 +9646,51 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex-1">
+                        <div className="font-medium text-white mb-1">Include More Tokens</div>
+                        <div className="text-sm text-gray-400">
+                          Scan an additional ~400 tokens from an extended whitelist. (This will increase loading time by around 3X.)
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newValue = pendingIncludeMoreTokens !== null ? !pendingIncludeMoreTokens : !includeMoreTokens
+                          setPendingIncludeMoreTokens(newValue)
+                        }}
+                        className={`plausible-event-name=Toggles+Include+More+Tokens ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'bg-white' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                            (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex-1">
+                        <div className="font-medium text-white mb-1">Liquidity Positions</div>
+                        <div className="text-sm text-gray-400">
+                          Show liquidity pool positions in your portfolio. (May increase loading time.)
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowLiquidityPositions(!showLiquidityPositions)}
+                        className={`plausible-event-name=Toggles+Liquidity+Positions ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          showLiquidityPositions ? 'bg-white' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                            showLiquidityPositions ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex-1">
                         <div className="font-medium text-white mb-1">MAXI Tokens</div>
                         <div className="text-sm text-gray-400">
                           Use the backing price instead of the current market price
@@ -9708,26 +9733,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                      <div className="flex-1">
-                        <div className="font-medium text-white mb-1">Liquidity Positions</div>
-                        <div className="text-sm text-gray-400">
-                          Show liquidity pool positions in your portfolio. (May increase loading time.)
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setShowLiquidityPositions(!showLiquidityPositions)}
-                        className={`plausible-event-name=Toggles+Liquidity+Positions ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                          showLiquidityPositions ? 'bg-white' : 'bg-gray-600'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
-                            showLiquidityPositions ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
+
 
                     {/* Time-Shift Feature Toggle and Date Picker */}
                     <div className="p-4 bg-white/5 rounded-lg border border-white/10">
@@ -9907,82 +9913,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                      <div className="flex-1">
-                        <div className="font-medium text-white mb-1">Include More Tokens</div>
-                        <div className="text-sm text-gray-400">
-                          Scan an additional ~400 tokens from an extended whitelist. (This will increase loading time by around 3X.)
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const newValue = pendingIncludeMoreTokens !== null ? !pendingIncludeMoreTokens : !includeMoreTokens
-                          setPendingIncludeMoreTokens(newValue)
-                        }}
-                        className={`plausible-event-name=Toggles+Include+More+Tokens ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                          (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'bg-white' : 'bg-gray-600'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
-                            (pendingIncludeMoreTokens !== null ? pendingIncludeMoreTokens : includeMoreTokens) ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
 
-                    {/* Profile Picture Upload */}
-                    <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="font-medium text-white mb-1">Profile Picture</div>
-                          <div className="text-sm text-gray-400">
-                            Upload a PNG or SVG image (auto-cropped to circle)
-                          </div>
-                        </div>
-                        {uploadedImage && (
-                          <button
-                            onClick={clearImage}
-                            className="ml-2 px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-                          >
-                            Clear
-                          </button>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        {/* Canvas for displaying the cropped image */}
-                        <div className="relative">
-                          <canvas
-                            ref={canvasRef}
-                            width={80}
-                            height={80}
-                            className={`rounded-full border-2 border-white/20 ${
-                              uploadedImage ? 'bg-transparent' : 'bg-gray-800'
-                            }`}
-                            style={{ display: uploadedImage ? 'block' : 'none' }}
-                          />
-                          {!uploadedImage && (
-                            <div className="w-20 h-20 rounded-full border-2 border-dashed border-white/30 flex items-center justify-center bg-gray-800">
-                              <svg className="w-6 h-6 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Upload button */}
-                        <label className="cursor-pointer px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded border border-white/20 transition-colors text-sm">
-                          {uploadedImage ? 'Change Image' : 'Upload Image'}
-                          <input
-                            type="file"
-                            accept=".png,.svg"
-                            onChange={handleImageUpload}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-                    </div>
 
                     {/* Include Liquidity Positions - Temporarily commented out */}
                     {/* <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
@@ -10252,7 +10183,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                         // Single token LP (like PHUX LPs) - use the token's own logo
                                         return (
                                           <div className="w-8 h-8 flex items-center justify-center">
-                                            <CoinLogo symbol={token.ticker} size="lg" className="w-8 h-8" />
+                                            <CoinLogo 
+                                              symbol={token.ticker} 
+                                              size="lg" 
+                                              className="w-8 h-8"
+                                              customImageUrl={customTokens.find(t => t.ticker === token.ticker)?.logoUrl}
+                                            />
                                           </div>
                                         )
                                       }
@@ -10336,7 +10272,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                   </div>
                                 ) : (
                                   <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                                    <CoinLogo symbol={token.ticker} size="lg" className="w-8 h-8" />
+                                    <CoinLogo 
+                                      symbol={token.ticker} 
+                                      size="lg" 
+                                      className="w-8 h-8"
+                                      customImageUrl={customTokens.find(t => t.ticker === token.ticker)?.logoUrl}
+                                    />
                                   </div>
                                 )}
                                 <div className="min-w-0 flex-1 max-w-[50%] sm:max-w-none">
@@ -10360,24 +10301,21 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                                       
                                       return isZeroBalance && !isLoading && (
                                         <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded">
-                                          Watchlist
+                                          <span className="hidden md:inline">Watchlist</span>
+                                          <span className="md:hidden">W</span>
                                         </span>
                                       )
                                     })()}
-                                    {/* Custom label - show inline on desktop only */}
+                                    {/* Custom label - show inline on all screen sizes */}
                                     {token.id && token.id.startsWith('custom_') && (
-                                      <span className="hidden md:inline px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded">
-                                        Custom
+                                      <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded">
+                                        <span className="hidden md:inline">Custom</span>
+                                        <span className="md:hidden">C</span>
                                       </span>
                                     )}
                                   </div>
                                   <div className="flex flex-col">
-                                    {/* Custom label - show under ticker on mobile only */}
-                                    {token.id && token.id.startsWith('custom_') && (
-                                      <span className="md:hidden px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded w-fit my-2">
-                                        C
-                                      </span>
-                                    )}
+
                                     <div className="text-xs md:text:sm text-gray-400 truncate hidden md:block">
                                       {token.name}
                                     </div>
@@ -10698,6 +10636,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       <ul className="space-y-1 ml-4 text-sm">
                         <li>• Remove all manually enabled tokens</li>
                         <li>• Clear all custom balance input overrides</li>
+                        <li>• Clear all watchlist coins</li>
                       </ul>
                       <p className="font-medium">Are you sure you want to continue?</p>
                     </div>

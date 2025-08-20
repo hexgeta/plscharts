@@ -260,7 +260,7 @@ export const MORE_COINS = [
     chain: 369,
     a: "eee",
     dexs: "0x5137a308dbf822aae9fb34467633baaa516ed099",
-    ticker: "stpCOM",
+    ticker: "stCOM",
     decimals: 12,
     name: "Staked Communis on PulseChain"
   },
@@ -588,16 +588,6 @@ export const MORE_COINS = [
     decimals: 18,
       name: "Phame LP",
       type: "lp"
-    },
-{
-      chain: 369,
-      a: "0x9009c1de3220cAF855F83140E5Ac18A43272eC01",
-      dexs: "",
-      ticker: "CSTStable",
-      decimals: 18,
-      type: "lp",
-      name: "PHUX LP",
-      platform: "PHUX"
     },
 {
       chain: 369,

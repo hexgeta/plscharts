@@ -207,7 +207,7 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
     })
 
     // Get token balances in batches to avoid overwhelming the RPC
-    const batchSize = 10 // Test larger batch size - increase until you see errors
+    const batchSize = 25 // Test larger batch size - increase until you see errors
     const tokenBalances: TokenBalance[] = []
     let totalErrors = 0
     let totalSuccessful = 0

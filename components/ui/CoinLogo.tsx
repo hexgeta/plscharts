@@ -20,6 +20,7 @@ interface CoinLogoProps {
   priority?: boolean
   inverted?: boolean
   variant?: 'default' | 'no-bg'
+  customImageUrl?: string // For custom tokens with cached logo URLs
 }
 
 // Create a global cache to remember which logos have failed to load
@@ -33,7 +34,8 @@ export function CoinLogo({
   className,
   priority = false,
   inverted = false,
-  variant = 'default'
+  variant = 'default',
+  customImageUrl
 }: CoinLogoProps) {
   // Use centralized ticker cleaning logic to ensure consistency across the app
   const baseSymbol = cleanTickerForLogo(symbol)
@@ -44,21 +46,34 @@ export function CoinLogo({
   // State for tracking current format and errors
   const [currentFormat, setCurrentFormat] = useState(preferredFormat)
   const [useUppercase, setUseUppercase] = useState(false)
+  const [customUrlFailed, setCustomUrlFailed] = useState(false)
+  
+  // If custom URL is provided and hasn't failed, use it
+  const usingCustomUrl = customImageUrl && !customUrlFailed
   
   // Build the logo path with current format
   const effectiveSymbol = useUppercase ? baseSymbol.toUpperCase() : baseSymbol
-  let logoPath = baseSymbol === 'ETH' && variant === 'no-bg'
+  let logoPath = usingCustomUrl 
+    ? customImageUrl
+    : baseSymbol === 'ETH' && variant === 'no-bg'
     ? '/coin-logos/eth-black-no-bg.svg'
     : `/coin-logos/${effectiveSymbol}.${currentFormat}`
   
-  // Special case for HDRN to use white version only when inverted
-  if (baseSymbol === 'HDRN' && inverted) {
+  // Special case for HDRN to use white version only when inverted (but not for custom URLs)
+  if (!usingCustomUrl && baseSymbol === 'HDRN' && inverted) {
     logoPath = '/coin-logos/HDRN-white.svg'
   }
   
-  const [hasError, setHasError] = useState(() => failedLogos.has(logoPath))
+  const [hasError, setHasError] = useState(() => !usingCustomUrl && failedLogos.has(logoPath))
   
   const handleError = useCallback(() => {
+    // If using custom URL and it failed, fallback to local logos
+    if (usingCustomUrl) {
+      setCustomUrlFailed(true)
+      setHasError(false)
+      return
+    }
+    
     // If svg failed, try png next
     if (currentFormat === 'svg') {
       const pngPath = `/coin-logos/${baseSymbol}.png`
@@ -94,7 +109,7 @@ export function CoinLogo({
     failedLogos.add(logoPath)
     missingLogosCache.add(symbol) // Also cache by symbol
     setHasError(true)
-  }, [logoPath, symbol, currentFormat, baseSymbol, useUppercase])
+  }, [logoPath, symbol, currentFormat, baseSymbol, useUppercase, usingCustomUrl])
   
   const handleLoad = useCallback(() => {
     // Cache the working format for future use
@@ -102,8 +117,8 @@ export function CoinLogo({
     formatCache.set(cacheKey, currentFormat)
   }, [baseSymbol, currentFormat, useUppercase])
   
-  // If this symbol is known to not have a logo, don't even try loading
-  const shouldSkipImage = missingLogosCache.has(symbol) || failedLogos.has(logoPath)
+  // If this symbol is known to not have a logo, don't even try loading (unless using custom URL)
+  const shouldSkipImage = !usingCustomUrl && (missingLogosCache.has(symbol) || failedLogos.has(logoPath))
   
   // If image failed to load or is known missing, show the fallback icon immediately
   if (shouldSkipImage || hasError) {
