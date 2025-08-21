@@ -314,6 +314,24 @@ export const TOKEN_CONSTANTS = [{
   platform: "PLSX V1"
 }, {
   chain: 369,
+  a: "0x1dA059091d5fe9F2d3781e0FdA238BB109FC6218",
+  dexs: null,
+  ticker: "HEX \/ weHEX",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
+  a: "0xa04620601d7DAdc3BD1c99312A699aDe8e6C16d2",
+  dexs: null,
+  ticker: "HEX \/ PLSX",
+  decimals: 18,
+  name: "PulseX V1",
+  type: "lp",
+  platform: "PLSX V1"
+}, {
+  chain: 369,
   a: "0xcBBad671CA3A46A565551335C10144e75554B367",
   dexs: null,
   ticker: "WPLS \/ ATROPA",

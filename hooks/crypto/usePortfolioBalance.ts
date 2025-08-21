@@ -164,7 +164,7 @@ async function getTokenBalance(
 }
 
 // Function to get all balances for an address on a specific chain
-async function getAddressBalances(address: string, chainId: number, enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended'): Promise<BalanceData> {
+async function getAddressBalances(address: string, chainId: number, enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended', includeLiquidityPositions?: boolean): Promise<BalanceData> {
   try {
     const chainName = chainId === 369 ? 'PulseChain' : 'Ethereum'
     console.log(`[usePortfolioBalance] Fetching balances for ${address} on ${chainName}`)
@@ -184,13 +184,15 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
       ? TOKEN_CONSTANTS  // Top ~258 tokens only
       : [...TOKEN_CONSTANTS, ...MORE_COINS]  // All ~662 tokens (auto-detect-extended, manual-extended)
     const allTokens = customTokens ? [...baseTokens, ...customTokens] : baseTokens
-    // Always check ALL tokens regardless of mode - filtering happens after balance checking
+    // Filter tokens based on settings and LP inclusion preference
     const relevantTokens = allTokens.filter(token => 
       token.chain === chainId && 
       token.a !== "0x0" && // Skip native tokens
       token.a && 
       token.a.length === 42 && // Valid address format
-      token.a.startsWith('0x') // Must be a valid hex address
+      token.a.startsWith('0x') && // Must be a valid hex address
+      // Filter out LP tokens if liquidity positions are disabled
+      (includeLiquidityPositions !== false || token.type !== "lp")
       // NOTE: enabledCoins filtering moved to after balance checking
     )
 
@@ -199,7 +201,9 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
       baseTokensCount: (currentMode === 'auto-detect' || currentMode === 'manual') ? TOKEN_CONSTANTS.length : TOKEN_CONSTANTS.length + MORE_COINS.length,
       allTokensCount: allTokens.length,
       relevantTokensAfterFilter: relevantTokens.length,
+      lpTokensFiltered: includeLiquidityPositions === false ? allTokens.filter(t => t.chain === chainId && t.type === "lp").length : 0,
       mode: currentMode,
+      includeLiquidityPositions,
       chainId,
       chainName,
       enabledCoinsProvided: !!enabledCoins,
@@ -316,7 +320,7 @@ const BALANCE_CACHE_KEYS = {
 }
 
 // Fetcher function for SWR
-async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended'): Promise<BalanceData[]> {
+async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended', includeLiquidityPositions?: boolean): Promise<BalanceData[]> {
   if (!Array.isArray(addresses) || addresses.length === 0) {
     return []
   }
@@ -329,9 +333,9 @@ async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<s
   
   addresses.forEach(address => {
     // Fetch PulseChain balances
-    balancePromises.push(getAddressBalances(address, 369, enabledCoins, customTokens, mode))
+    balancePromises.push(getAddressBalances(address, 369, enabledCoins, customTokens, mode, includeLiquidityPositions))
     // Fetch Ethereum balances
-    balancePromises.push(getAddressBalances(address, 1, enabledCoins, customTokens, mode))
+    balancePromises.push(getAddressBalances(address, 1, enabledCoins, customTokens, mode, includeLiquidityPositions))
   })
   
   const allBalanceData = await Promise.all(balancePromises)
@@ -355,20 +359,21 @@ async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<s
   return validBalances
 }
 
-export function usePortfolioBalance(walletAddresses: string[], enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended'): UsePortfolioBalanceResult {
-  // Create cache key that includes enabled coins, custom tokens, and mode to invalidate cache when they change
+export function usePortfolioBalance(walletAddresses: string[], enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended', includeLiquidityPositions?: boolean): UsePortfolioBalanceResult {
+  // Create cache key that includes enabled coins, custom tokens, mode, and LP setting to invalidate cache when they change
   const enabledCoinsArray = enabledCoins ? Array.from(enabledCoins).sort() : []
   const customTokensIds = customTokens ? customTokens.map(t => t.id).sort() : []
   const currentMode = mode || 'auto-detect'
+  const lpEnabled = includeLiquidityPositions ?? true // Default to true for backward compatibility
   const cacheKey = walletAddresses.length > 0 ? 
-    `${BALANCE_CACHE_KEYS.balances(walletAddresses)}-coins:${enabledCoinsArray.join(',')}-custom:${customTokensIds.join(',')}-mode:${currentMode}` : null
+    `${BALANCE_CACHE_KEYS.balances(walletAddresses)}-coins:${enabledCoinsArray.join(',')}-custom:${customTokensIds.join(',')}-mode:${currentMode}-lp:${lpEnabled}` : null
   
   // Debug: Log when this hook is called and with what cache key
   console.log('[usePortfolioBalance] Hook called with addresses:', walletAddresses.length, 'enabled coins:', enabledCoinsArray.length, 'custom tokens:', customTokensIds.length, 'cacheKey:', cacheKey)
   
   const { data: balances, error, isLoading, mutate } = useSWR(
     cacheKey,
-    () => fetchAllAddressBalances(walletAddresses, enabledCoins, customTokens, currentMode),
+    () => fetchAllAddressBalances(walletAddresses, enabledCoins, customTokens, currentMode, lpEnabled),
     {
       // Disable all automatic revalidation - only fetch on mount/reload
       refreshInterval: 0, // No automatic refresh
