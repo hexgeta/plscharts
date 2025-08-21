@@ -2,7 +2,7 @@
 
 // Feature flags - set to false to hide features from users
 const ENABLE_MORE_TOKENS = true  // Hide "Include More Tokens" setting and Tokens tab
-const ENABLE_TOKENS_TAB = false   // Hide Tokens tab specifically
+const ENABLE_TOKENS_TAB = true   // Hide Tokens tab specifically
 
 import React, { useState, useMemo, useEffect, memo, useCallback, useRef, startTransition } from 'react'
 import { CoinLogo } from '@/components/ui/CoinLogo'
