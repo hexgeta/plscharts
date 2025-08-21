@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { TOKEN_CONSTANTS } from '@/constants/crypto';
+import { MORE_COINS } from '@/constants/more-coins';
 
 // Force dynamic rendering since we use request headers
 export const dynamic = 'force-dynamic';
@@ -104,13 +105,17 @@ async function fetchAllTokenSupplies(): Promise<TokenSupplyData[]> {
   
   // Optimized batch size based on G4MM4/Erigon capabilities
   const batchSize = 10; // Conservative batch size for RPC calls
-  const tokens = TOKEN_CONSTANTS.filter(token => 
+  
+  // Combine TOKEN_CONSTANTS and MORE_COINS
+  const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS];
+  
+  const tokens = allTokens.filter(token => 
     token.a !== "0x0" && // Skip native tokens
     token.a && 
     token.a.length === 42 // Valid Ethereum address format
   );
   
-  console.log(`Processing ${tokens.length} tokens in batches of ${batchSize}`);
+  console.log(`Processing ${tokens.length} tokens (${TOKEN_CONSTANTS.length} from TOKEN_CONSTANTS + ${MORE_COINS.length} from MORE_COINS) in batches of ${batchSize}`);
   
   for (let i = 0; i < tokens.length; i += batchSize) {
     const batch = tokens.slice(i, i + batchSize);
@@ -194,7 +199,7 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    console.log('Starting daily token supply collection...');
+    console.log('Starting daily token supply collection for TOKEN_CONSTANTS and MORE_COINS...');
     
     // Fetch all token supplies
     const supplies = await fetchAllTokenSupplies();

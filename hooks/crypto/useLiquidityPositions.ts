@@ -128,7 +128,7 @@ export function useLiquidityPositions(
           : parseFloat(holding.balance) || 0
         
         // Safety check: if shares seems too large (>1B), likely using raw balance - apply decimals
-        if (shares > 1000000000 && lpTokenPrice.poolName.includes('CST')) {
+        if (shares > 1000000000) {
           console.warn(`[LP] Applying decimal adjustment to ${lpTokenPrice.poolName}: ${shares} -> ${shares / 1e18}`)
           shares = shares / 1e18 // Most LP tokens use 18 decimals
         }
