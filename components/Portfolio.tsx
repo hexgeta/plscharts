@@ -46,7 +46,8 @@ import LeagueTable from '@/components/LeagueTable'
 import TSharesLeagueTable from '@/components/ui/TSharesLeagueTable'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import Image from 'next/image'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Download } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface StoredAddress {
   address: string
@@ -2430,6 +2431,55 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     console.log('[Portfolio] Auto-detected coins:', Array.from(detectedCoins))
     return detectedCoins
   }, [coinDetectionMode, rawBalances])
+
+  // CSV Download function for custom overrides
+  const downloadCustomOverridesCSV = useCallback(() => {
+    const csvData: string[] = []
+    
+    // CSV Headers
+    csvData.push('Type,Ticker,Chain,Address,Custom Balance,Status,Name')
+    
+    // Add manually enabled tokens
+    const manuallyEnabledTokens = Array.from(enabledCoins).filter(ticker => {
+      const token = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])].find(t => t.ticker === ticker)
+      return token && !autoDetectedCoins.has(ticker)
+    })
+    
+    manuallyEnabledTokens.forEach(ticker => {
+      const token = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])].find(t => t.ticker === ticker)
+      if (token) {
+        csvData.push(`Manual Enable,"${ticker}",${token.chain},"${token.a}","","Enabled","${token.name}"`)
+      }
+    })
+    
+    // Add custom tokens
+    customTokens.forEach(token => {
+      csvData.push(`Custom Token,"${token.ticker}",${token.chain},"${token.a}","","Custom","${token.name}"`)
+    })
+    
+    // Add custom balance overrides
+    customBalances.forEach((balance, ticker) => {
+      const token = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])].find(t => t.ticker === ticker)
+      if (token) {
+        csvData.push(`Balance Override,"${ticker}",${token.chain},"${token.a}","${balance}","Override","${token.name}"`)
+      }
+    })
+    
+    // Create and download CSV
+    const csvContent = csvData.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `portfolio_custom_overrides_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }, [enabledCoins, autoDetectedCoins, customTokens, customBalances])
 
   // Apply auto-detected coins in auto-detect mode (with loop prevention)
   useEffect(() => {
@@ -5259,6 +5309,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       Array.isArray(pooledStakesData.tokens)
     )
     
+    // Check if liquidity positions are ready (if enabled)
+    const liquidityPositionsReady = !showLiquidityPositions || !includeLiquidityPositionsFilter || (
+      !phuxPricesLoading && 
+      !phuxLPLoading
+    )
+    
     // Only consider loading states on initial load
     // Include MAXI loading for backing price functionality and all calculations
     if (isInitialLoad) {
@@ -5267,6 +5323,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
              hexStakesCalculationsReady && 
              hsiStakesCalculationsReady &&
              pooledStakesCalculationsReady &&
+             liquidityPositionsReady &&
              hexDailyCacheReady &&
              !balancesLoading && 
              !pricesLoading && 
@@ -5275,7 +5332,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // After initial load, stay ready as long as we have data and calculations
     // For subsequent loads (like adding new addresses), ensure HEX stakes are also ready
-    return hasInitialData && hasCalculatedData && hexStakesCalculationsReady && hsiStakesCalculationsReady && hexDailyCacheReady
+    return hasInitialData && hasCalculatedData && hexStakesCalculationsReady && hsiStakesCalculationsReady && liquidityPositionsReady && hexDailyCacheReady
   }, [
     effectiveAddresses.length,
     balancesLoading,
@@ -5283,6 +5340,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     maxiLoading,
     hexStakesLoading,
     hsiStakesLoading,
+    phuxPricesLoading,
+    phuxLPLoading,
     balancesError,
     balances?.length,
     Object.keys(prices).length,
@@ -5291,6 +5350,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     portfolio24hChange,
     isInitialLoad,
     showHexStakes,
+    showLiquidityPositions,
+    includeLiquidityPositionsFilter,
     activeStakesTab,
     includePooledStakes, // Add explicit dependency on toggle state
     hexStakes,
@@ -10119,9 +10180,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     </div>
                   )}
 
-                  {/* Clear Manual Selections - Only show in Manual Mode */}
+                  {/* Clear Manual Selections & CSV Download - Only show in Manual Mode */}
                   {(pendingCoinDetectionMode || coinDetectionMode) === 'manual' && (
-                    <div className="text-center mb-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <div></div> {/* Spacer */}
                       <button
                         onClick={() => setShowResetConfirmDialog(true)}
                         className="text-red-400 underline text-sm hover:text-red-300 transition-colors cursor-pointer"
@@ -10129,6 +10191,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       >
                         Clear all manual selections
                       </button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={downloadCustomOverridesCSV}
+                              className="p-2 text-gray-400 hover:text-white transition-colors"
+                              title="Download custom overrides as CSV"
+                            >
+                              <Download size={16} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Download custom overrides as CSV</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   )}
 
