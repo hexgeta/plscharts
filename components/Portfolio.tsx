@@ -4654,7 +4654,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     // Add validator value if enabled AND filter is on (but not in detective mode)
-    if (!detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
+    if (!detectiveMode && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPrice = getTokenPrice('PLS')
       const validatorValue = validatorPLS * plsPrice
@@ -4884,7 +4884,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, showLiquidityPositions, lpTokensWithBalances, getLPTokenPrice, phuxLPPositions, phuxTotalLPValue, includeLiquidityPositionsFilter])
+  }, [filteredBalances, prices, addresses, getTokenPrice, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, showLiquidityPositions, lpTokensWithBalances, getLPTokenPrice, phuxLPPositions, phuxTotalLPValue, includeLiquidityPositionsFilter])
 
   // Calculate 24h portfolio change percentage using weighted average
   const portfolio24hChange = useMemo(() => {
@@ -4951,7 +4951,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     // Add validator value if enabled AND filter is on (but not in detective mode)
-    if (!detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
+    if (!detectiveMode && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPriceData = prices['PLS']
       const plsCurrentPrice = plsPriceData?.price || 0
@@ -5121,7 +5121,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Calculate weighted average percentage change
     return totalValue > 0 ? weightedPriceChange / totalValue : 0
-  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate])
+  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate])
 
   // Calculate portfolio dollar change for 24h
   const portfolio24hDollarChange = useMemo(() => {
@@ -5157,7 +5157,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     // Add validator value if enabled AND filter is on (but not in detective mode)
-    if (!detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
+    if (!detectiveMode && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000
       const plsCurrentPrice = getTokenPrice('PLS')
       currentTotalValue += validatorPLS * plsCurrentPrice
@@ -5245,7 +5245,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Calculate dollar change: (percentage / 100) * current value
     return (portfolio24hChange / 100) * currentTotalValue
-  }, [portfolio24hChange, prices, addresses, getTokenPrice, showLiquidBalances, filteredBalances, showValidators, validatorCount, chainFilter, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate])
+  }, [portfolio24hChange, prices, addresses, getTokenPrice, showLiquidBalances, filteredBalances, validatorCount, chainFilter, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate])
 
   // Get HEX daily data cache
   const { data: hexDailyDataCache } = useHexDailyDataCache()
@@ -5639,7 +5639,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return () => {
       document.title = 'PlsCharts.com'
     }
-  }, [totalUsdValue, effectiveAddresses.length, isEverythingReady, chainFilter, showLiquidBalances, showValidators, showHexStakes])
+  }, [totalUsdValue, effectiveAddresses.length, isEverythingReady, chainFilter, showLiquidBalances, showHexStakes])
 
   // Auto-trigger analysis in detective mode when portfolio data is loaded
   useEffect(() => {
@@ -6734,7 +6734,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       )}
 
       {/* Validators Section */}
-      {effectiveAddresses.length > 0 && isEverythingReady && !detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && (chainFilter === 'pulsechain' || chainFilter === 'both') && (
+      {effectiveAddresses.length > 0 && isEverythingReady && !detectiveMode && includeValidatorsFilter && validatorCount > 0 && (chainFilter === 'pulsechain' || chainFilter === 'both') && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
