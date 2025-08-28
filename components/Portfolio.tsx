@@ -6864,7 +6864,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           
           {/* Advanced Stats Section - Only show for active stakes */}
           {showAdvancedStats && stakeStatusFilter === 'active' && (
-            <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+            <div className="mb-6 p-4 bg-black border-2 border-white/10 rounded-lg">
               {(() => {
                 // Calculate total liquid HEX and eHEX (only direct HEX tokens)
                 const liquidHexStats = sortedTokens.reduce((acc, token) => {
@@ -7034,7 +7034,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 return (
                   <div className="space-y-4">
                     {/* Combined Total HEX Value Card */}
-                    <div className="bg-black/20 border border-white/10 rounded-lg p-4 text-center">
+                    <div className="bg-black/20 border-2 border-white/10 rounded-lg p-4 text-center">
                       <div className="text-sm text-gray-400 mb-2">Total HEX Value</div>
                       <div className="text-2xl font-bold text-white mb-1">
                         ${formatBalance(totalCombinedValue)}
@@ -7086,7 +7086,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                     {/* Individual Stats Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
                     {/* Liquid HEX Stats */}
-                    <div className="bg-black/20 border border-white/10 rounded-lg p-4">
+                    <div className="bg-black/20 border-2 border-white/10 rounded-lg p-4">
                       <div className="text-sm text-gray-400 mb-2">
                         Total Liquid HEX {totalCombinedValue > 0 && (
                           <span className="text-xs">({formatPercentage((totalLiquidValue / totalCombinedValue) * 100)})</span>
@@ -7124,7 +7124,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                     </div>
 
                     {/* Staked HEX Stats */}
-                    <div className="bg-black/20 border border-white/10 rounded-lg p-4">
+                    <div className="bg-black/20 border-2 border-white/10 rounded-lg p-4">
                       <div className="text-sm text-gray-400 mb-2">
                         Total Staked HEX {totalCombinedValue > 0 && (
                           <span className="text-xs">({formatPercentage((totalStakedValue / totalCombinedValue) * 100)})</span>
@@ -8944,9 +8944,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 if (isAfterStakeEnd) {
                                   // Time shift date is after stake end - successful completion (green)
                                   colorClass = 'text-[#70D668]'
+                                  const stakeEndDateFormatted = stakeEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                   noteContent = (
                                     <>
-                                      Projected realized value at stake end of <span className="underline">{formattedDate}</span> at <span className="underline">{formattedPrice} {hexSymbol}</span>
+                                      Projected realized value at stake end on <span className="underline">{stakeEndDateFormatted}</span> at <span className="underline">{formattedPrice} {hexSymbol}</span>
                                       {hasOverridePayout && <> at <span className="underline">{overridePayout} {hexSymbol}</span> payout</>}
                                     </>
                                   )
@@ -9047,7 +9048,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                   return (
                                     <div>
                                       {eesDetails.eesValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
-                                        ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {baselineYield.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{projectedYieldAmount > 0 && <span className="text-orange-400"> + {projectedYieldAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} projected yield</span>} <span className="text-red-400">- {eesDetails.penalty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>)
+                                        ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {baselineYield.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{projectedYieldAmount > 0 && <span className="text-orange-400"> + {projectedYieldAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} projected yield</span>}{eesDetails.penalty > 0 && <span className="text-red-400"> - {eesDetails.penalty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>})
                                 </span>
                                     </div>
                                   );
@@ -9110,10 +9111,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 displayPenalty = stake.penaltyHex;
                               }
                               
+                              // Show penalty text if penalty is greater than 0
+                              const shouldShowPenalty = displayPenalty > 0;
+                              
                               return (
                                 <>
                                   {totalHexDisplay.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} total HEX = <span className="text-xs">
-                                    ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{displayPenalty > 0 ? (<span className="text-red-400"> - {displayPenalty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>) : ''})
+                                    ({stake.principleHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} principal + {stake.yieldHex.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} yield{shouldShowPenalty ? (<span className="text-red-400"> - {displayPenalty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} penalty</span>) : ''})
                                   </span>
                                 </>
                               );

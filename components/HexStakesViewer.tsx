@@ -163,7 +163,7 @@ export default function HexStakesViewer() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4">
+    <div className="min-h-screen bg-black text-white p-4" style={{ backgroundColor: '#000000' }}>
       <div className="max-w-6xl mx-auto space-y-6">
         
         {/* Header */}
