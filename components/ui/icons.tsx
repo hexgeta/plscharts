@@ -20,6 +20,9 @@ import {
   Users,
   Check,
   ExternalLink,
+  Settings,
+  Loader2,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -34,6 +37,9 @@ export const Icons = {
   chevronDown: ChevronDown,
   save: Save,
   check: Check,
+  settings: Settings,
+  loader: Loader2,
+  wallet: Wallet,
   
   // UI icons
   dollarSign: CircleDollarSign,
@@ -98,5 +104,8 @@ export {
   Users,
   Check,
   ExternalLink,
+  Settings,
+  Loader2,
+  Wallet,
   type LucideIcon,
 } 

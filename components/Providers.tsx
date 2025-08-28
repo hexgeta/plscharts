@@ -6,6 +6,9 @@ import { ThemeProvider } from '@/components/ui/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { useHexDailyDataPreloader } from '@/hooks/crypto/useHexDailyData'
 import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
+import { WalletProvider } from '@/components/WalletModule'
+
+
 
 // Background HEX data preloader component
 function HexDataPreloader() {
@@ -25,14 +28,21 @@ function BackgroundPreloader() {
   return null // This component doesn't render anything
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
+interface ProvidersProps { 
+  children: React.ReactNode
+  enableWallet?: boolean 
+}
+
+export function Providers({ children, enableWallet = false }: ProvidersProps) {
   return (
     <SWRConfig value={swrConfig}>
       <ThemeProvider>
-        <HexDataPreloader />
-        <BackgroundPreloader />
-        {children}
-        <Toaster />
+        <WalletProvider enabled={enableWallet}>
+          <HexDataPreloader />
+          <BackgroundPreloader />
+          {children}
+          <Toaster />
+        </WalletProvider>
       </ThemeProvider>
     </SWRConfig>
   )

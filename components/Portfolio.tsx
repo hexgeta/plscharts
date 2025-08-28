@@ -46,8 +46,7 @@ import LeagueTable from '@/components/LeagueTable'
 import TSharesLeagueTable from '@/components/ui/TSharesLeagueTable'
 import { getDisplayTicker } from '@/utils/ticker-display'
 import Image from 'next/image'
-import { ChevronDown, Download } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { ChevronDown } from 'lucide-react'
 
 interface StoredAddress {
   address: string
@@ -70,9 +69,10 @@ interface CustomToken {
 interface PortfolioProps {
   detectiveMode?: boolean
   detectiveAddress?: string
+  eesMode?: boolean
 }
 
-export default function Portfolio({ detectiveMode = false, detectiveAddress }: PortfolioProps) {
+export default function Portfolio({ detectiveMode = false, detectiveAddress, eesMode = false }: PortfolioProps) {
   // Debug toggle - set to true to show network debug panel
   const SHOW_DEBUG_PANEL = false
   
@@ -2432,55 +2432,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return detectedCoins
   }, [coinDetectionMode, rawBalances])
 
-  // CSV Download function for custom overrides
-  const downloadCustomOverridesCSV = useCallback(() => {
-    const csvData: string[] = []
-    
-    // CSV Headers
-    csvData.push('Type,Ticker,Chain,Address,Custom Balance,Status,Name')
-    
-    // Add manually enabled tokens
-    const manuallyEnabledTokens = Array.from(enabledCoins).filter(ticker => {
-      const token = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])].find(t => t.ticker === ticker)
-      return token && !autoDetectedCoins.has(ticker)
-    })
-    
-    manuallyEnabledTokens.forEach(ticker => {
-      const token = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])].find(t => t.ticker === ticker)
-      if (token) {
-        csvData.push(`Manual Enable,"${ticker}",${token.chain},"${token.a}","","Enabled","${token.name}"`)
-      }
-    })
-    
-    // Add custom tokens
-    customTokens.forEach(token => {
-      csvData.push(`Custom Token,"${token.ticker}",${token.chain},"${token.a}","","Custom","${token.name}"`)
-    })
-    
-    // Add custom balance overrides
-    customBalances.forEach((balance, ticker) => {
-      const token = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])].find(t => t.ticker === ticker)
-      if (token) {
-        csvData.push(`Balance Override,"${ticker}",${token.chain},"${token.a}","${balance}","Override","${token.name}"`)
-      }
-    })
-    
-    // Create and download CSV
-    const csvContent = csvData.join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob)
-      link.setAttribute('href', url)
-      link.setAttribute('download', `portfolio_custom_overrides_${new Date().toISOString().split('T')[0]}.csv`)
-      link.style.visibility = 'hidden'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    }
-  }, [enabledCoins, autoDetectedCoins, customTokens, customBalances])
-
   // Apply auto-detected coins in auto-detect mode (with loop prevention)
   useEffect(() => {
     if (coinDetectionMode === 'auto-detect' && autoDetectedCoins.size > 0) {
@@ -4654,7 +4605,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     // Add validator value if enabled AND filter is on (but not in detective mode)
-    if (!detectiveMode && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
+    if (!detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPrice = getTokenPrice('PLS')
       const validatorValue = validatorPLS * plsPrice
@@ -4884,7 +4835,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, showLiquidityPositions, lpTokensWithBalances, getLPTokenPrice, phuxLPPositions, phuxTotalLPValue, includeLiquidityPositionsFilter])
+  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, showLiquidityPositions, lpTokensWithBalances, getLPTokenPrice, phuxLPPositions, phuxTotalLPValue, includeLiquidityPositionsFilter])
 
   // Calculate 24h portfolio change percentage using weighted average
   const portfolio24hChange = useMemo(() => {
@@ -4951,7 +4902,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     // Add validator value if enabled AND filter is on (but not in detective mode)
-    if (!detectiveMode && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
+    if (!detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000 // 32 million PLS per validator
       const plsPriceData = prices['PLS']
       const plsCurrentPrice = plsPriceData?.price || 0
@@ -5121,7 +5072,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Calculate weighted average percentage change
     return totalValue > 0 ? weightedPriceChange / totalValue : 0
-  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate])
+  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate])
 
   // Calculate portfolio dollar change for 24h
   const portfolio24hDollarChange = useMemo(() => {
@@ -5157,7 +5108,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     }
 
     // Add validator value if enabled AND filter is on (but not in detective mode)
-    if (!detectiveMode && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
+    if (!detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && chainFilter !== 'ethereum') {
       const validatorPLS = validatorCount * 32_000_000
       const plsCurrentPrice = getTokenPrice('PLS')
       currentTotalValue += validatorPLS * plsCurrentPrice
@@ -5245,7 +5196,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
     // Calculate dollar change: (percentage / 100) * current value
     return (portfolio24hChange / 100) * currentTotalValue
-  }, [portfolio24hChange, prices, addresses, getTokenPrice, showLiquidBalances, filteredBalances, validatorCount, chainFilter, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate])
+  }, [portfolio24hChange, prices, addresses, getTokenPrice, showLiquidBalances, filteredBalances, showValidators, validatorCount, chainFilter, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate])
 
   // Get HEX daily data cache
   const { data: hexDailyDataCache } = useHexDailyDataCache()
@@ -5309,12 +5260,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       Array.isArray(pooledStakesData.tokens)
     )
     
-    // Check if liquidity positions are ready (if enabled)
-    const liquidityPositionsReady = !showLiquidityPositions || !includeLiquidityPositionsFilter || (
-      !phuxPricesLoading && 
-      !phuxLPLoading
-    )
-    
     // Only consider loading states on initial load
     // Include MAXI loading for backing price functionality and all calculations
     if (isInitialLoad) {
@@ -5323,7 +5268,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
              hexStakesCalculationsReady && 
              hsiStakesCalculationsReady &&
              pooledStakesCalculationsReady &&
-             liquidityPositionsReady &&
              hexDailyCacheReady &&
              !balancesLoading && 
              !pricesLoading && 
@@ -5332,7 +5276,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     
     // After initial load, stay ready as long as we have data and calculations
     // For subsequent loads (like adding new addresses), ensure HEX stakes are also ready
-    return hasInitialData && hasCalculatedData && hexStakesCalculationsReady && hsiStakesCalculationsReady && liquidityPositionsReady && hexDailyCacheReady
+    return hasInitialData && hasCalculatedData && hexStakesCalculationsReady && hsiStakesCalculationsReady && hexDailyCacheReady
   }, [
     effectiveAddresses.length,
     balancesLoading,
@@ -5340,8 +5284,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     maxiLoading,
     hexStakesLoading,
     hsiStakesLoading,
-    phuxPricesLoading,
-    phuxLPLoading,
     balancesError,
     balances?.length,
     Object.keys(prices).length,
@@ -5350,8 +5292,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     portfolio24hChange,
     isInitialLoad,
     showHexStakes,
-    showLiquidityPositions,
-    includeLiquidityPositionsFilter,
     activeStakesTab,
     includePooledStakes, // Add explicit dependency on toggle state
     hexStakes,
@@ -5639,7 +5579,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
     return () => {
       document.title = 'PlsCharts.com'
     }
-  }, [totalUsdValue, effectiveAddresses.length, isEverythingReady, chainFilter, showLiquidBalances, showHexStakes])
+  }, [totalUsdValue, effectiveAddresses.length, isEverythingReady, chainFilter, showLiquidBalances, showValidators, showHexStakes])
 
   // Auto-trigger analysis in detective mode when portfolio data is loaded
   useEffect(() => {
@@ -5709,22 +5649,35 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
 
   return (
     <>
-      {/* EES Mode / Time Machine Banner - Centered with Frosted Glass Effect */}
+      {/* EES Mode / Time Machine Hue Overlay */}
+      {hasMounted && (eesMode || useEESValue || useTimeShift) && (
+        <div 
+          className="fixed inset-0 pointer-events-none z-[0]"
+          style={{ 
+            background: (eesMode || useEESValue) 
+              ? 'linear-gradient(to right, transparent, rgba(239, 68, 68, 0.17) 50%, transparent)'    // Red gradient for EES mode
+              : 'linear-gradient(to right, transparent, rgba(251, 146, 60, 0.17) 50%, transparent)',  // Orange gradient for Time Machine only
+            mixBlendMode: 'screen'
+          }}
+        />
+      )}
+      
+      {/* EES Mode / Time Machine Toast - Bottom Right Corner */}
       {hasMounted && (useEESValue || useTimeShift) && (
-        <div className="sticky top-4 w-full flex justify-center py-2 z-50">
-          <div className={`w-full max-w-[760px] min-w-[300px] py-2 mx-auto rounded-full text-center text-sm font-medium backdrop-blur-md shadow-lg ${useEESValue && useTimeShift ? 'border border-red-400 text-red-400 bg-red-400/10' : useEESValue ? 'border border-red-400 text-red-400 bg-red-400/10' : 'border border-orange-400 text-orange-400 bg-orange-400/10'}`}>
+        <div className="fixed bottom-4 right-4 z-[9996] pointer-events-none">
+          <div className={`px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-md shadow-lg border ${useEESValue && useTimeShift ? 'border-red-400 text-red-400 bg-red-400/10' : useEESValue ? 'border-red-400 text-red-400 bg-red-400/10' : 'border-orange-400 text-orange-400 bg-orange-400/10'}`}>
             {useEESValue && useTimeShift && (
-              <>EES Mode & Time Machine Active <span className="underline">{timeShiftDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>
+              <>EES Mode & Time Machine <span className="underline">{timeShiftDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>
             )}
             {useEESValue && !useTimeShift && 'EES Mode Active'}
             {!useEESValue && useTimeShift && (
-              <>Time Machine Active <span className="underline">{timeShiftDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>
+              <>Time Machine <span className="underline">{timeShiftDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>
             )}
           </div>
         </div>
       )}
       
-      <div className="w-full pb--20 md:pb-0">
+      <div className="w-full pb--20 md:pb-0 relative z-[1]">
         <Container 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -6734,7 +6687,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
       )}
 
       {/* Validators Section */}
-      {effectiveAddresses.length > 0 && isEverythingReady && !detectiveMode && includeValidatorsFilter && validatorCount > 0 && (chainFilter === 'pulsechain' || chainFilter === 'both') && (
+      {effectiveAddresses.length > 0 && isEverythingReady && !detectiveMode && showValidators && includeValidatorsFilter && validatorCount > 0 && (chainFilter === 'pulsechain' || chainFilter === 'both') && (
         <Section 
           {...(showMotion ? {
             initial: { opacity: 0, y: 20 },
@@ -10180,10 +10133,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                     </div>
                   )}
 
-                  {/* Clear Manual Selections & CSV Download - Only show in Manual Mode */}
+                  {/* Clear Manual Selections - Only show in Manual Mode */}
                   {(pendingCoinDetectionMode || coinDetectionMode) === 'manual' && (
-                    <div className="flex justify-between items-center mb-4">
-                      <div></div> {/* Spacer */}
+                    <div className="text-center mb-4">
                       <button
                         onClick={() => setShowResetConfirmDialog(true)}
                         className="text-red-400 underline text-sm hover:text-red-300 transition-colors cursor-pointer"
@@ -10191,22 +10143,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress }: P
                       >
                         Clear all manual selections
                       </button>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={downloadCustomOverridesCSV}
-                              className="p-2 text-gray-400 hover:text-white transition-colors"
-                              title="Download custom overrides as CSV"
-                            >
-                              <Download size={16} />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Download custom overrides as CSV</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
                     </div>
                   )}
 
