@@ -271,7 +271,7 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
               )}
               {/* Add PLS price equivalent and ratio for HEX */}
               {ticker === "HEX" && prices?.PLS?.price && prices?.eHEX?.price && (
-                <div className="text-[14px] text-[#777] text-bold whitespace-nowrap">
+                <div className="text-[12px] text-[#777] text-bold whitespace-nowrap">
                   {formatNumber(price / prices.PLS.price, { decimals: 0 })} PLS | {formatNumber(price/prices.eHEX.price, { decimals: 2 })} eHEX | +eHEX: {formatPriceSigFig((prices.eHEX?.price || 0) + (price || 0), 3)}
                 </div>
               )}

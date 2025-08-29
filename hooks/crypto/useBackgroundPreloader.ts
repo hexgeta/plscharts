@@ -225,6 +225,11 @@ export const useTokenSuppliesCache = () => {
   });
 };
 
+// Import token constants to include in logo preloading
+import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { MORE_COINS } from '@/constants/more-coins'
+import { cleanTickerForLogo } from '@/utils/ticker-display'
+
 // Preload coin logos in the background - two-phase approach
 const preloadCoinLogos = async (): Promise<void> => {
   try {
@@ -272,14 +277,21 @@ const preloadCoinLogos = async (): Promise<void> => {
     await Promise.allSettled(commonPreloadPromises);
     console.log(`[Background Preloader] Phase 1 complete: Common logos loaded`);
     
-    // Phase 2: Load all remaining logos in background (more comprehensive list)
+    // Phase 2: Load all remaining logos in background (comprehensive list from actual token data)
     console.log(`[Background Preloader] Phase 2: Starting comprehensive logo loading...`);
     
-    // Extended list of logos to try (extracted from common token names)
+    // Extract tickers from all available token sources
+    const allTokenTickers = [
+      ...TOKEN_CONSTANTS.map(token => cleanTickerForLogo(token.ticker)),
+      ...MORE_COINS.map(token => cleanTickerForLogo(token.ticker))
+    ];
+    
+    // Combine with common logos and additional known tokens
     const allLogos = [
       ...commonLogos, // Include common ones again in case they failed
-      // Additional tokens from various sources
-      '1INCH', '9MM', 'AAVE', 'ADA', 'ALIEN', 'APC', 'ASIC', 'AXIS', 'BASE', 'BBC', 'BEAR', 'BFF', 'BLAST', 'BNB', 'BRO', 'BTC', 'CAVIAR', 'CEREAL', 'COOKIES', 'CST', 'CULT', 'DAIX', 'DCA', 'DEX', 'DMND', 'DOGE', 'DRS', 'DWB', 'FIRE', 'GENI', 'GOAT', 'GOFURS', 'H2O', 'HARD', 'HELGO', 'HOA', 'ICARUS', 'IM', 'LAUNCH', 'LINK', 'LOAN', 'LOVE', 'LUCKY', 'MAGIC', 'MIKE', 'MINT', 'MORE', 'MOST', 'NBA', 'OPHIR', 'PARTY', 'PATH', 'PAXG', 'PEACH', 'PHL', 'PINU', 'PLN', 'PLSB', 'PLSC', 'PLSD', 'PLSP', 'PNS', 'POLY', 'POPPY', 'PP', 'PRNDR', 'PRS', 'PSAND', 'PTGC', 'PTP', 'PTS', 'PUMP', 'PXDC', 'PZEN', 'RFX', 'SHIB', 'SOIL', 'SOL', 'SPARK', 'TBILL', 'TEAM', 'TETRA', 'TEXAN', 'TFC', 'TIME', 'TON', 'TRIO', 'TRUMP', 'TSFI', 'TWO', 'UFO', 'UP', 'UPX', 'USDL', 'VPLS', 'VRX', 'WAIT', 'WATER', 'WATT', 'WBNB', 'WPLS', 'XEN', 'ZKZX',
+      ...allTokenTickers, // All tokens from our data sources
+      // Additional tokens from various sources that might not be in our constants
+      '1INCH', '9MM', 'AAVE', 'ADA', 'ALIEN', 'AXIS', 'BASE', 'BBC', 'BEAR', 'BNB', 'CST', 'CULT', 'DAIX', 'DCA', 'DMND', 'DRS', 'DWB', 'FIRE', 'GENI', 'HOA', 'IM', 'LUCKY', 'MORE', 'MOST', 'PARTY', 'PATH', 'PAXG', 'PNS', 'PRNDR', 'PRS', 'PSAND', 'PTGC', 'PTS', 'PUMP', 'SHIB', 'TBILL', 'TETRA', 'TIME', 'TON', 'TRIO', 'TRUMP', 'UFO', 'UP', 'UPX', 'VPLS', 'VRX', 'WATER', 'WATT', 'WBNB', 'XEN', 'ZKZX',
       // Ethereum bridged tokens
       'eHEX', 'eDECI', 'eHDRN', 'eMAXI', 'ePEPE',
       // PulseChain wrapped tokens  
@@ -290,6 +302,7 @@ const preloadCoinLogos = async (): Promise<void> => {
     
     // Remove duplicates and use Set for performance
     const uniqueLogos = [...new Set(allLogos)];
+    console.log(`[Background Preloader] Phase 2: Will preload ${uniqueLogos.length} total logos (including ${allTokenTickers.length} from TOKEN_CONSTANTS and MORE_COINS)`);
     
     // Phase 2: Load remaining logos more slowly to not overwhelm the browser
     const loadRemainingLogos = async () => {

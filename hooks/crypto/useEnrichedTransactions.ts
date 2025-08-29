@@ -30,6 +30,34 @@ interface EnrichedTransaction {
   }
   toName?: string
   fromName?: string
+  // Original transaction data for compatibility
+  originalData: {
+    hash: string
+    from: string
+    to: string | null
+    value: string
+    valueFormatted: number
+    gasPrice: string
+    gasUsed: string
+    blockNumber: number
+    timestamp: string
+    method: string | null
+    status: string
+    txTypes: string[]
+    decodedInput?: {
+      method_call: string
+      method_id: string
+      parameters: any[]
+    }
+    fee?: {
+      type: string
+      value: string
+    }
+    toName?: string
+    fromName?: string
+    timeStamp: string // Additional field for timestamp compatibility
+    functionName?: string // Additional field for function name compatibility
+  }
   // Enhanced fields
   isTokenTransfer: boolean
   tokenInfo?: {
@@ -42,6 +70,7 @@ interface EnrichedTransaction {
   direction: 'in' | 'out' | 'self'
   historicPLSPriceUSD?: number
   gasCostUSD?: number
+  tokenTransfers?: any[] // Additional field for token transfers compatibility
 }
 
 interface TokenTransaction {
@@ -416,9 +445,22 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
       return {
         ...tx,
         timestampDate,
+        originalData: {
+          ...tx,
+          timeStamp: tx.timestamp, // Convert timestamp to timeStamp for compatibility
+          functionName: tx.method || undefined // Convert method to functionName for compatibility
+        },
         isTokenTransfer: isToken,
         tokenInfo: tokenInfo || undefined,
         direction,
+        tokenTransfers: isToken && tokenInfo ? [{ // Create tokenTransfers array for compatibility
+          tokenSymbol: tokenInfo.symbol,
+          tokenAddress: tokenInfo.address,
+          amount: tokenInfo.amount,
+          amountFormatted: tokenInfo.amount,
+          direction: direction,
+          usdValue: 0 // Will be updated when historic prices are applied
+        }] : []
       }
     })
 
@@ -578,13 +620,18 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
         if (historicPrice !== undefined) {
           if (historicPrice > 0) {
             console.log(`[useEnrichedTransactions] ✅ Applied historic price $${historicPrice} to ${tokenDescription}`)
+            const valueUSD = tx.tokenInfo.amount * historicPrice
             return {
               ...tx,
               tokenInfo: {
                 ...tx.tokenInfo,
                 historicPriceUSD: historicPrice,
-                valueUSD: tx.tokenInfo.amount * historicPrice
-              }
+                valueUSD
+              },
+              tokenTransfers: (tx.tokenTransfers || []).map(transfer => ({
+                ...transfer,
+                usdValue: valueUSD
+              }))
             }
           } else {
             console.log(`[useEnrichedTransactions] ⚠️ Applied zero historic price to ${tokenDescription} (price data exists but is $0)`)
@@ -594,7 +641,11 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
                 ...tx.tokenInfo,
                 historicPriceUSD: 0,
                 valueUSD: 0
-              }
+              },
+              tokenTransfers: (tx.tokenTransfers || []).map(transfer => ({
+                ...transfer,
+                usdValue: 0
+              }))
             }
           }
         } else {
