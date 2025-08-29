@@ -8,6 +8,68 @@ import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWallet } from '@/components/WalletModule'
 
+// Add type for window.ethereum
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: any[] }) => Promise<any>;
+      networkVersion: string;
+    };
+  }
+}
+
+// HEX contract addresses
+const HEX_ADDRESSES: Record<number, `0x${string}`> = {
+  1: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', // Ethereum HEX
+  369: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', // PulseChain HEX
+}
+
+// HEX contract ABI for stake ending
+const hexAbi = [
+  {
+    "inputs": [
+      { "name": "stakeIndex", "type": "uint256" },
+      { "name": "stakeIdParam", "type": "uint40" }
+    ],
+    "name": "stakeEnd",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "name": "staker", "type": "address" },
+      { "name": "stakeIndex", "type": "uint256" }
+    ],
+    "name": "stakeLists",
+    "outputs": [
+      { "name": "stakeId", "type": "uint40" },
+      { "name": "stakedHearts", "type": "uint72" },
+      { "name": "stakeShares", "type": "uint72" },
+      { "name": "lockedDay", "type": "uint16" },
+      { "name": "stakedDays", "type": "uint16" },
+      { "name": "unlockedDay", "type": "uint16" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "currentDay",
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const
+
+// Warning popup type
+type WarningPopup = {
+  show: boolean;
+  stakeId: string;
+  stakeIndex: number;
+  chain: 'ETH' | 'PLS';
+}
+
 interface ScannedAddress {
   address: string
   label: string
@@ -18,9 +80,17 @@ export default function HexStakesViewer() {
   const [addressInput, setAddressInput] = useState('')
   const [addresses, setAddresses] = useState<ScannedAddress[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [warningPopup, setWarningPopup] = useState<WarningPopup>({ 
+    show: false, 
+    stakeId: '', 
+    stakeIndex: 0, 
+    chain: 'ETH' 
+  })
+  const [endingStake, setEndingStake] = useState<{stakeId: string, stakeIndex: number, chain: 'ETH' | 'PLS'} | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   
   // Use optional wallet module
-  const { address: connectedAddress, isConnected: isWalletConnected, disconnect } = useWallet()
+  const { address: connectedAddress, isConnected: isWalletConnected, disconnect, connect } = useWallet()
 
   // Get address strings for balance fetching
   const addressStrings = useMemo(() => {
@@ -95,20 +165,252 @@ export default function HexStakesViewer() {
     }
   }, [addressInput])
 
-  // Handle wallet connection (basic MetaMask)
+  // Handle wallet connection
   const handleConnectWallet = async () => {
     try {
       setError(null)
+      if (!connect) {
+        setError('Wallet connection not available. Please refresh the page and try again.')
+        return
+      }
+      
+      await connect()
+      // The address will be auto-populated via useEffect when wallet connects
+      
+    } catch (err: any) {
+      console.error('Wallet connection error:', err)
+      if (err.code === 4001) {
+        setError('Wallet connection was rejected by user')
+      } else if (err.code === -32002) {
+        setError('Wallet connection request is already pending. Please check your wallet.')
+      } else {
+        setError(`Failed to connect wallet: ${err.message || 'Unknown error'}`)
+      }
+    }
+  }
+
+  // Handle stake ending
+  const handleEndStake = async (stakeId: string, stakeIndex: number, chain: 'ETH' | 'PLS') => {
+    try {
+      if (!isWalletConnected || !connectedAddress) {
+        setError('Please connect your wallet to end stakes')
+        return
+      }
+
+      console.log('Starting stake end process:', { stakeId, stakeIndex, chain, connectedAddress })
+      setEndingStake({ stakeId, stakeIndex, chain })
+      
+      // Get chain ID for the network
+      const chainId = chain === 'ETH' ? 1 : 369
+      const hexAddress = HEX_ADDRESSES[chainId]
+      
+      if (!hexAddress) {
+        setError('HEX contract not available for this network')
+        setEndingStake(null)
+        return
+      }
+
+      console.log('Using HEX contract address:', hexAddress)
+
+      // Check if we're on the correct network
       if (typeof window !== 'undefined' && window.ethereum) {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
-        if (accounts && accounts.length > 0) {
-          setAddressInput(accounts[0])
+        const currentChainId = await window.ethereum.request({ method: 'eth_chainId' })
+        const currentChainIdNumber = parseInt(currentChainId, 16)
+        
+        console.log('Current chain ID:', currentChainIdNumber, 'Expected:', chainId)
+        
+        if (currentChainIdNumber !== chainId) {
+          // Try to switch networks automatically
+          try {
+            if (chainId === 369) {
+              // Switch to PulseChain
+              await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x171' }], // 369 in hex
+              })
+            } else {
+              // Switch to Ethereum
+              await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x1' }], // 1 in hex
+              })
+            }
+            // If successful, continue with the transaction
+            console.log('Network switched successfully')
+          } catch (switchError: any) {
+            if (switchError.code === 4902) {
+              // Network not added, try to add it
+              if (chainId === 369) {
+                try {
+                  await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                      chainId: '0x171',
+                      chainName: 'PulseChain',
+                      rpcUrls: ['https://rpc.pulsechain.com'],
+                      nativeCurrency: {
+                        name: 'PLS',
+                        symbol: 'PLS',
+                        decimals: 18,
+                      },
+                      blockExplorerUrls: ['https://scan.pulsechain.com'],
+                    }],
+                  })
+                  console.log('PulseChain network added successfully')
+                } catch (addError) {
+                  setError('Failed to add PulseChain network. Please add it manually.')
+                  setEndingStake(null)
+                  return
+                }
+              }
+            } else {
+              setError(`Please switch to ${chain === 'ETH' ? 'Ethereum' : 'PulseChain'} to end this stake`)
+              setEndingStake(null)
+              return
+            }
+          }
+        }
+
+        // Encode the transaction data properly
+        // stakeEnd function signature: stakeEnd(uint256,uint40)
+        // Function selector: 0xcd1de2b2 (first 4 bytes of keccak256("stakeEnd(uint256,uint40)"))
+        const stakeIndexHex = stakeIndex.toString(16).padStart(64, '0')
+        const stakeIdHex = parseInt(stakeId).toString(16).padStart(64, '0')
+        const txData = `0xcd1de2b2${stakeIndexHex}${stakeIdHex}`
+        
+        console.log('🔄 STAKE END TRANSACTION:', {
+          stakeName: `Stake ${stakeId}`,
+          stakeIndex,
+          stakeId,
+          stakeIndexHex,
+          stakeIdHex,
+          txData,
+          contractAddress: HEX_ADDRESSES[chainId],
+          functionSelector: '0xcd1de2b2 (stakeEnd)',
+          decodedCall: `stakeEnd(${stakeIndex}, ${stakeId})`
+        })
+
+        // Execute the transaction
+        const txParams = {
+          from: connectedAddress,
+          to: hexAddress,
+          data: txData,
+          gas: '0x7A120', // 500000 gas
+        }
+        
+        console.log('Sending transaction with params:', txParams)
+
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [txParams],
+        })
+
+        console.log('Transaction submitted:', txHash)
+        setSuccessMessage(`✅ Transaction submitted: ${txHash}`)
+
+        console.log('🚀 TRANSACTION SUBMITTED:', {
+          txHash,
+          explorer: chainId === 369 
+            ? `https://scan.pulsechain.com/tx/${txHash}`
+            : `https://etherscan.io/tx/${txHash}`,
+          stakeName: `Stake ${stakeId}`,
+          action: 'stakeEnd'
+        })
+        
+        // Monitor transaction status
+        const checkTransaction = async () => {
+          try {
+            const receipt = await window.ethereum.request({
+              method: 'eth_getTransactionReceipt',
+              params: [txHash],
+            })
+            
+            if (receipt) {
+              console.log('✅ TRANSACTION RECEIPT:', receipt)
+              if (receipt.status === '0x1') {
+                console.log('✅ STAKE END SUCCESS:', {
+                  txHash,
+                  stakeName: `Stake ${stakeId}`,
+                  message: 'Stake ended successfully on blockchain!'
+                })
+                setSuccessMessage('✅ Stake ended successfully! Refreshing data...')
+                // Force refresh the stakes data
+                setTimeout(() => window.location.reload(), 2000)
+              } else {
+                console.error('❌ TRANSACTION FAILED:', { txHash, receipt })
+                setError('❌ Transaction failed. Please check the transaction hash on the block explorer.')
+                setEndingStake(null)
         }
       } else {
-        setError('No wallet detected. Please install MetaMask or use manual address input.')
+              // Transaction still pending, check again
+              setTimeout(checkTransaction, 3000)
+            }
+          } catch (err) {
+            console.error('Error checking transaction:', err)
+            // Fallback: assume success after 10 seconds
+            setTimeout(() => {
+              setSuccessMessage('⏳ Transaction should be confirmed. Refreshing data...')
+              window.location.reload()
+            }, 10000)
+          }
+        }
+        
+        // Start checking transaction status after 5 seconds
+        setTimeout(checkTransaction, 5000)
       }
     } catch (err: any) {
-      setError(`Failed to connect wallet: ${err.message}`)
+      console.error('End stake error:', err)
+      if (err.code === 4001) {
+        setError('Transaction was rejected by user')
+      } else if (err.code === -32603) {
+        setError('Transaction failed. Please check if you have enough gas or if the stake is still valid.')
+      } else {
+        setError(`Failed to end stake: ${err.message || 'Unknown error'}`)
+      }
+      setEndingStake(null)
+    }
+  }
+
+  // Initiate stake ending with warning for early end
+  const initiateEndStake = (stake: any) => {
+    if (!isWalletConnected) {
+      setError('Please connect your wallet to end stakes')
+      return
+    }
+
+    console.log('Initiating stake end for stake:', stake)
+    
+    // For HEX stakes, the stakeIndex is usually the array index in the stakes list
+    // We need to find the actual index in the user's stakes array
+    const stakeIndex = hexStakes?.findIndex(s => s.stakeId === stake.stakeId) ?? 0
+    const daysLeft = stake.daysLeft || 0
+    
+    console.log('Stake details:', { 
+      stakeId: stake.stakeId, 
+      stakeIndex, 
+      chain: stake.chain, 
+      daysLeft 
+    })
+    
+    if (daysLeft > 0) {
+      // Show warning for early end
+      setWarningPopup({ 
+        show: true, 
+        stakeId: stake.stakeId, 
+        stakeIndex: stakeIndex, 
+        chain: stake.chain 
+      })
+    } else {
+      // Direct end for completed stakes
+      handleEndStake(stake.stakeId, stakeIndex, stake.chain)
+    }
+  }
+
+  // Handle warning confirmation
+  const handleWarningConfirm = () => {
+    if (warningPopup.show) {
+      handleEndStake(warningPopup.stakeId, warningPopup.stakeIndex, warningPopup.chain)
+      setWarningPopup({ show: false, stakeId: '', stakeIndex: 0, chain: 'ETH' })
     }
   }
 
@@ -121,6 +423,26 @@ export default function HexStakesViewer() {
       // Let user decide whether to keep viewing the data
     }
   }, [isWalletConnected, connectedAddress])
+
+  // Auto-clear success messages
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [successMessage])
+
+  // Auto-clear error messages
+  useEffect(() => {
+    if (error && !error.includes('No valid addresses')) {
+      const timer = setTimeout(() => {
+        setError(null)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [error])
 
   // Handle disconnect wallet
   const handleDisconnectWallet = () => {
@@ -137,6 +459,23 @@ export default function HexStakesViewer() {
     setAddressInput('')
     setError(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Handle manual refresh
+  const handleRefresh = () => {
+    // Clear any potential cache
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          caches.delete(name)
+        })
+      })
+    }
+    
+    // Add timestamp to force fresh data
+    const url = new URL(window.location.href)
+    url.searchParams.set('refresh', Date.now().toString())
+    window.location.href = url.toString()
   }
 
   // Format stake values
@@ -205,11 +544,6 @@ export default function HexStakesViewer() {
                     <div className="text-sm text-gray-400 font-mono">
                       {connectedAddress?.slice(0, 6)}...{connectedAddress?.slice(-4)}
                     </div>
-                    {chain && (
-                      <div className="text-xs text-gray-500">
-                        Connected to {chain.name}
-                      </div>
-                    )}
                     <Button
                       onClick={handleDisconnectWallet}
                       variant="outline"
@@ -279,6 +613,57 @@ export default function HexStakesViewer() {
           </Card>
         )}
 
+        {/* Success Message */}
+        {successMessage && (
+          <Card className="p-4 bg-green-900/20 border-green-700">
+            <div className="text-center space-y-2">
+              <p className="text-green-400">{successMessage}</p>
+              <p className="text-sm text-green-300">
+                If the stake still appears active, click "Refresh" to update the data or wait a few minutes for the blockchain to sync.
+              </p>
+            </div>
+          </Card>
+        )}
+
+        {/* Error Message */}
+        {error && !error.includes('No valid addresses') && (
+          <Card className="p-4 bg-red-900/20 border-red-700">
+            <div className="text-center">
+              <p className="text-red-400">{error}</p>
+            </div>
+          </Card>
+        )}
+
+        {/* Warning Popup */}
+        {warningPopup.show && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Card className="bg-gray-900 border-red-500 p-6 max-w-md w-full mx-4">
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold text-white">Early End Stake Warning</h3>
+                <p className="text-gray-300">
+                  You are about to end your stake early. This will result in penalties according to the HEX protocol. 
+                  Are you sure you want to continue?
+                </p>
+                <div className="flex justify-end space-x-4">
+                  <Button
+                    onClick={() => setWarningPopup({ show: false, stakeId: '', stakeIndex: 0, chain: 'ETH' })}
+                    variant="outline"
+                    className="border-gray-600 hover:border-gray-500"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleWarningConfirm}
+                    className="bg-red-500 hover:bg-red-600 text-white"
+                  >
+                    End Stake
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* Stakes Display */}
         {!hexStakesLoading && addresses.length > 0 && (
           <div className="space-y-6">
@@ -296,6 +681,15 @@ export default function HexStakesViewer() {
                     ))}
                   </div>
                 </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleRefresh}
+                    variant="outline"
+                    className="border-blue-600 hover:border-blue-500 text-blue-400"
+                  >
+                    <Icons.loader className="w-4 h-4 mr-2" />
+                    Refresh
+                  </Button>
                 <Button
                   onClick={handleCheckAnotherAddress}
                   variant="outline"
@@ -303,6 +697,7 @@ export default function HexStakesViewer() {
                 >
                   Check Another Address
                 </Button>
+                </div>
               </div>
             </Card>
 
@@ -440,6 +835,43 @@ export default function HexStakesViewer() {
                                     <p className="text-white">{new Date(stake.endDate).toLocaleDateString()}</p>
                                   </div>
                                 </div>
+
+                                {/* End Stake Button - Only show for active stakes and if wallet is connected */}
+                                {isActive && isWalletConnected && connectedAddress && (
+                                  <div className="flex justify-end mt-4">
+                                    <Button
+                                      onClick={() => initiateEndStake(stake)}
+                                      disabled={endingStake?.stakeId === stake.stakeId}
+                                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        stake.daysLeft > 0
+                                          ? 'bg-red-500 hover:bg-red-600 text-white'
+                                          : 'bg-green-500 hover:bg-green-600 text-white'
+                                      } ${endingStake?.stakeId === stake.stakeId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                      {endingStake?.stakeId === stake.stakeId ? (
+                                        <div className="flex items-center space-x-2">
+                                          <Icons.loader className="w-4 h-4 animate-spin" />
+                                          <span>Ending...</span>
+                                        </div>
+                                      ) : (
+                                        stake.daysLeft > 0 ? 'Emergency End Stake' : 'End Stake'
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {/* Connect Wallet Message for active stakes */}
+                                {isActive && !isWalletConnected && (
+                                  <div className="flex justify-end mt-4">
+                                    <Button
+                                      onClick={handleConnectWallet}
+                                      variant="outline"
+                                      className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
+                                    >
+                                      Connect Wallet to End Stake
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             </Card>
                           </motion.div>

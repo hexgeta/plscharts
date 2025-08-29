@@ -21,6 +21,7 @@ import { usePulseXLPDataSWR } from '@/hooks/crypto/usePulseXLPData'
 import { useAllDefinedLPTokenPrices } from '@/hooks/crypto/useAllLPTokenPrices'
 import { useAddressTransactions } from '@/hooks/crypto/useAddressTransactions'
 import { useEnrichedTransactions } from '@/hooks/crypto/useEnrichedTransactions'
+import { useFontContext, AVAILABLE_FONTS } from '@/contexts/FontContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
 import { MORE_COINS } from '@/constants/more-coins'
@@ -30,8 +31,8 @@ import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, Dialog
 import { Toggle } from '@/components/ui/toggle'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { DatePicker } from '@/components/ui/date-range-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DatePicker } from '@/components/ui/date-range-picker'
 
 import { 
   DropdownMenu, 
@@ -223,6 +224,37 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   
   // Auto-detect token data state
   const [isAutoDetecting, setIsAutoDetecting] = useState(false)
+
+  // Font context
+  const { useFontSelection, setUseFontSelection, selectedFont, setSelectedFont, applyFontOnModalClose } = useFontContext()
+
+  // Custom background color state
+  const [useCustomBackground, setUseCustomBackground] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioUseCustomBackground')
+      return saved === 'true'
+    }
+    return false
+  })
+  
+  const [customBackgroundColor, setCustomBackgroundColor] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioCustomBackgroundColor')
+      return saved || '#ffffff'
+    }
+    return '#ffffff'
+  })
+
+  // Ref to access color picker value directly
+  const colorPickerRef = useRef<HTMLInputElement>(null)
+  
+  // Current color being dragged (for preview and saving)
+  const [currentPickerColor, setCurrentPickerColor] = useState<string>(customBackgroundColor)
+
+  // Sync currentPickerColor with customBackgroundColor when it changes from outside
+  useEffect(() => {
+    setCurrentPickerColor(customBackgroundColor)
+  }, [customBackgroundColor])
 
   // Add state for coin toggles (which coins to include in balance checks)
   const [enabledCoins, setEnabledCoins] = useState<Set<string>>(() => {
@@ -999,6 +1031,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       localStorage.setItem('portfolioTimeMachinePlsPayout', timeMachinePlsPayout)
     }
   }, [timeMachinePlsPayout, detectiveMode])
+
+  // Save custom background settings to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioUseCustomBackground', useCustomBackground.toString())
+    }
+  }, [useCustomBackground])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('portfolioCustomBackgroundColor', customBackgroundColor)
+    }
+  }, [customBackgroundColor])
 
   // Save pooled stakes setting to localStorage whenever it changes (skip in detective mode)
   useEffect(() => {
@@ -2008,6 +2053,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       console.log('[Portfolio] No pending changes to commit')
     }
     
+    // Apply font changes when modal closes
+    applyFontOnModalClose()
+    
+    // Ensure custom background color is saved when modal closes
+    if (typeof window !== 'undefined') {
+      // Use the current picker color that's been updated during drag
+      const finalColor = currentPickerColor;
+      
+      if (finalColor !== customBackgroundColor) {
+        setCustomBackgroundColor(finalColor);
+      }
+      
+      localStorage.setItem('portfolioUseCustomBackground', useCustomBackground.toString())
+      localStorage.setItem('portfolioCustomBackgroundColor', finalColor)
+    }
+    
     setShowEditModal(false)
     // Clear removed address IDs filter since we're done editing
     setRemovedAddressIds(new Set())
@@ -2104,6 +2165,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       setPendingAddresses([])
       setRemovedAddressIds(new Set())
       setShowEditModal(false)
+      
+      // Disable EES Mode and Time Machine when no addresses are present
+      if (!detectiveMode) {
+        setUseEESValue(false)
+        setUseTimeShift(false)
+        localStorage.setItem('portfolioUseEESValue', 'false')
+        localStorage.setItem('portfolioUseTimeShift', 'false')
+      }
     }
     
     // Note: We don't update addresses state here to avoid refetching data
@@ -5649,14 +5718,30 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   return (
     <>
-      {/* EES Mode / Time Machine Hue Overlay */}
-      {hasMounted && (eesMode || useEESValue || useTimeShift) && (
+      {/* EES Mode / Time Machine / Custom Background Hue Overlay */}
+      {hasMounted && (eesMode || useEESValue || useTimeShift || useCustomBackground) && (
         <div 
           className="fixed inset-0 pointer-events-none z-[0]"
           style={{ 
-            background: (eesMode || useEESValue) 
-              ? 'linear-gradient(to right, transparent, rgba(239, 68, 68, 0.17) 50%, transparent)'    // Red gradient for EES mode
-              : 'linear-gradient(to right, transparent, rgba(251, 146, 60, 0.17) 50%, transparent)',  // Orange gradient for Time Machine only
+            background: (() => {
+              // EES mode and Time Machine always take priority over custom background
+              if (eesMode || useEESValue) {
+                return 'linear-gradient(to right, transparent, rgba(239, 68, 68, 0.17) 50%, transparent)'    // Red gradient for EES mode
+              }
+              if (useTimeShift) {
+                return 'linear-gradient(to right, transparent, rgba(251, 146, 60, 0.17) 50%, transparent)'  // Orange gradient for Time Machine
+              }
+              if (useCustomBackground) {
+                // Convert hex to rgba with 0.17 opacity
+                const hex = customBackgroundColor.replace('#', '')
+                const r = parseInt(hex.substr(0, 2), 16)
+                const g = parseInt(hex.substr(2, 2), 16)
+                const b = parseInt(hex.substr(4, 2), 16)
+                return `linear-gradient(to right, transparent, rgba(${r}, ${g}, ${b}, 0.17) 50%, transparent)`
+              }
+              // Fallback (should not reach here based on the condition above)
+              return 'transparent'
+            })(),
             mixBlendMode: 'screen'
           }}
         />
@@ -5970,7 +6055,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
               ease: [0.23, 1, 0.32, 1]
             }
           } : {})}
-          className="bg-black border-2 border-white/10 rounded-2xl py-8 text-center max-w-[860px] w-full relative"
+          className="bg-black/60 backdrop-blur-xl border-2 border-white/10 rounded-2xl py-8 text-center max-w-[860px] w-full relative"
         >
                     {/* Chain Toggle and Edit button in top right - Hidden in detective mode */}
           {addresses.length > 0 && !detectiveMode && (
@@ -6270,7 +6355,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
                     tokenSortField === field 
                       ? 'bg-white text-black border-white' 
-                      : 'bg-transparent text-gray-400 border-gray-400 hover:text-white hover:border-white'
+                      : 'bg-black/30 text-gray-400 border-gray-400 hover:text-white hover:border-white'
                   }`}
                 >
                   {label} {tokenSortField === field ? (tokenSortDirection === 'asc' ? '↑' : '↓') : ''}
@@ -6279,7 +6364,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             </div>
           </div>
           
-          <div className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6">
+          <div className="bg-black/60 backdrop-blur-md border-2 border-white/10 rounded-2xl p-1 sm:p-6">
           <div className="space-y-3">
             {sortedTokens.map((token, tokenIndex) => {
               // Get price using conditional routing for LP vs regular tokens
@@ -6313,7 +6398,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
               ease: [0.23, 1, 0.32, 1]
             }
           } : {})}
-          className="bg-black border-2 border-white/10 rounded-2xl p-6 text-center max-w-[860px] w-full"
+          className="bg-black/60 backdrop-blur-md border-2 border-white/10 rounded-2xl p-6 text-center max-w-[860px] w-full"
         >
           <div className="text-gray-400">
             No tokens found for tracked addresses
@@ -6339,7 +6424,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             <h3 className="text-xl font-semibold text-white">Liquidity Pools</h3>
           </div>
           
-          <div className="bg-black border-2 border-white/10 rounded-2xl p-1 sm:p-6">
+          <div className="bg-black/60 backdrop-blur-md border-2 border-white/10 rounded-2xl p-1 sm:p-6">
             <div className="space-y-3">
               {lpTokensWithBalances.map((token, tokenIndex) => {
                 // Use PLS API price for USDT/USDC/DAI pool, regular pricing for others
@@ -6705,7 +6790,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           </div>
           
           <div className="space-y-4">
-            <Card className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10">
+            <Card className="bg-black/60 backdrop-blur-md text-white p-4 rounded-xl border-2 border-white/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 flex items-center justify-center">
@@ -6753,7 +6838,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
               
               {/* Stakes Type Tabs - only show HSI tab if toggle is enabled */}
               {includePooledStakes ? (
-                <div className="flex bg-black border border-white/20 rounded-full p-1">
+                <div className="flex bg-black/50 backdrop-blur-xl border border-white/20 rounded-full p-1">
                   <button
                     onClick={() => setActiveStakesTab('native')}
                     className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
@@ -6864,7 +6949,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           
           {/* Advanced Stats Section - Only show for active stakes */}
           {showAdvancedStats && stakeStatusFilter === 'active' && (
-            <div className="mb-6 p-4 bg-black border-2 border-white/10 rounded-lg">
+            <div className="mb-6 p-4 bg-black/50 backdrop-blur-xl border-2 border-white/10 rounded-lg">
               {(() => {
                 // Calculate total liquid HEX and eHEX (only direct HEX tokens)
                 const liquidHexStats = sortedTokens.reduce((acc, token) => {
@@ -7034,7 +7119,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 return (
                   <div className="space-y-4">
                     {/* Combined Total HEX Value Card */}
-                    <div className="bg-black/20 border-2 border-white/10 rounded-lg p-4 text-center">
+                    <div className="bg-black/50 backdrop-blur-xl border-2 border-white/10 rounded-lg p-4 text-center">
                       <div className="text-sm text-gray-400 mb-2">Total HEX Value</div>
                       <div className="text-2xl font-bold text-white mb-1">
                         ${formatBalance(totalCombinedValue)}
@@ -7086,7 +7171,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                     {/* Individual Stats Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
                     {/* Liquid HEX Stats */}
-                    <div className="bg-black/20 border-2 border-white/10 rounded-lg p-4">
+                    <div className="bg-black/50 backdrop-blur-xl border-2 border-white/10 rounded-lg p-4">
                       <div className="text-sm text-gray-400 mb-2">
                         Total Liquid HEX {totalCombinedValue > 0 && (
                           <span className="text-xs">({formatPercentage((totalLiquidValue / totalCombinedValue) * 100)})</span>
@@ -7124,7 +7209,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                     </div>
 
                     {/* Staked HEX Stats */}
-                    <div className="bg-black/20 border-2 border-white/10 rounded-lg p-4">
+                    <div className="bg-black/50 backdrop-blur-xl border-2 border-white/10 rounded-lg p-4">
                       <div className="text-sm text-gray-400 mb-2">
                         Total Staked HEX {totalCombinedValue > 0 && (
                           <span className="text-xs">({formatPercentage((totalStakedValue / totalCombinedValue) * 100)})</span>
@@ -7304,7 +7389,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             <>
               {/* Combined Total HEX Stakes + Pooled Stakes Value */}
               {stakeStatusFilter === 'active' && (
-                <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center mb-6">
+                <div className="bg-black/50 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-4 text-center mb-6">
                   {(() => {
                     // Solo stakes calculations (ONLY ACTIVE STAKES)
                     const activeStakes = filteredStakes.filter(stake => stake.status === 'active')
@@ -7818,7 +7903,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
               {stakeStatusFilter === 'active' && (
                 <div className={`grid grid-cols-1 ${includePooledStakes && hasHsiStakes ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4 mb-6`}>
                   {/* Solo Stakes Card - Native stakes only */}
-                  <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center">
+                  <div className="bg-black/50 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-4 text-center">
                         {(() => {
               // Only include native stakes (exclude HSI stakes) for Solo Stakes
               const activeSoloStakes = activeStakesTab === 'native' 
@@ -8067,7 +8152,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
                   {/* HSI Stakes Card - only show if toggle is enabled */}
                   {includePooledStakes && hasHsiStakes && (
-                    <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center">
+                    <div className="bg-black/50 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-4 text-center">
                       {(() => {
                         // Only include HSI stakes
                         const activeHsiStakes = activeStakesTab === 'hsi' 
@@ -8293,7 +8378,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                   )}
 
                   {/* Pooled Stakes Card */}
-                  <div className="bg-black border-2 border-white/10 rounded-2xl p-4 text-center">
+                  <div className="bg-black/50 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-4 text-center">
                     <div className="text-lg font-semibold text-white mb-2">Pooled Stakes</div>
                     <div className="text-2xl font-bold text-white mb-2">
                       <span className="sm:hidden">${formatBalanceMobile(pooledStakesData.totalValue)}</span>
@@ -8716,7 +8801,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           
           <div className="space-y-4">
             {filteredStakes.length === 0 ? (
-              <div className="bg-black border-2 border-white/10 rounded-2xl p-8 text-center">
+              <div className="bg-black/50 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-8 text-center">
                 <div className="text-gray-400">
                   No stakes found with the selected filters.
                 </div>
@@ -8726,7 +8811,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
               </div>
             ) : (
               filteredStakes.slice(0, displayedStakesCount).map((stake) => (
-              <Card key={stake.id} className="bg-black/20 backdrop-blur-sm text-white p-4 rounded-xl border-2 border-white/10 relative">
+              <Card key={stake.id} className="bg-black/50 backdrop-blur-xl text-white p-4 rounded-xl border-2 border-white/10 relative">
                 {/* Chain Icon - Absolutely positioned */}
                 <div className="absolute top-6 right-6 z-10">
                   <CoinLogo
@@ -9759,8 +9844,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                       </button>
                     </div>
 
-
-
                     {/* Time-Shift Feature Toggle and Date Picker */}
                     <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex items-center justify-between mb-4">
@@ -10049,6 +10132,159 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                           />
                         </button>
                       </div>
+                    </div>
+
+                    {/* Font Selection Setting */}
+                    <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="font-medium text-white mb-1">Custom Font</div>
+                          <div className="text-sm text-gray-400">
+                            Choose a custom font for the UI interface. When disabled, uses the default Archia font.
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setUseFontSelection(!useFontSelection)}
+                          className={`plausible-event-name=Toggles+Custom+Font ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            useFontSelection ? 'bg-white' : 'bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                              useFontSelection ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Font Selector - Only show when font selection is enabled */}
+                      {useFontSelection && (
+                        <div className="space-y-2">
+                          <div className="text-sm text-gray-300 mb-2">Select Font</div>
+                          <Select value={selectedFont} onValueChange={setSelectedFont}>
+                            <SelectTrigger className="w-full bg-black border-white/20 text-white">
+                              <SelectValue placeholder="Select a font..." />
+                            </SelectTrigger>
+                            <SelectContent className="bg-black border-white/20">
+                              {Object.entries(AVAILABLE_FONTS).map(([key, font]) => (
+                                <SelectItem 
+                                  key={key} 
+                                  value={key}
+                                  className="text-white hover:bg-white/10 focus:bg-white/10"
+                                  style={{ fontFamily: font.name }}
+                                >
+                                  {font.displayName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Custom Background Color Setting */}
+                    <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="font-medium text-white mb-1">Custom Background</div>
+                          <div className="text-sm text-gray-400">
+                            Add a subtle colored overlay effect to the background. Uses white by default when enabled.
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setUseCustomBackground(!useCustomBackground)}
+                          className={`plausible-event-name=Toggles+Custom+Background ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            useCustomBackground ? 'bg-white' : 'bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                              useCustomBackground ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Color Picker - Only show when custom background is enabled */}
+                      {useCustomBackground && (
+                        <div className="space-y-3">
+                          <div className="text-sm text-gray-300 mb-2">Background Color</div>
+                          
+                          {/* Color input row */}
+                          <div className="flex items-center gap-3">
+                            {/* Color picker */}
+                            <div className="relative">
+                              <div 
+                                className="w-12 h-10 rounded border-2 border-white/20 bg-black cursor-pointer overflow-hidden relative"
+                                title="Choose background color"
+                              >
+                                <input
+                                  ref={colorPickerRef}
+                                  type="color"
+                                  value={currentPickerColor}
+                                  onChange={(e) => setCurrentPickerColor(e.target.value)}
+                                  onBlur={(e) => setCustomBackgroundColor(e.target.value)}
+                                  onMouseUp={(e) => setCustomBackgroundColor(e.target.value)}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                                <div 
+                                  className="w-full h-full"
+                                  style={{ backgroundColor: currentPickerColor }}
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Hex input */}
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={currentPickerColor}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  // Validate hex color format
+                                  if (/^#[0-9A-Fa-f]{0,6}$/.test(value)) {
+                                    setCurrentPickerColor(value)
+                                  }
+                                }}
+                                onBlur={(e) => setCustomBackgroundColor(e.target.value)}
+                                placeholder="#ffffff"
+                                className="w-full px-3 py-2 bg-black border border-white/20 rounded text-white placeholder-gray-500/50 focus:border-white/40 focus:outline-none text-sm font-mono"
+                                maxLength={7}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Quick color presets */}
+                          <div className="flex gap-2 flex-wrap">
+                            {[
+                              { name: 'Purple', color: '#8b5cf6' },
+                              { name: 'Pink', color: '#ec4899' },
+                              { name: 'Blue', color: '#3b82f6' },
+                              { name: 'White', color: '#ffffff' },
+                              { name: 'Black', color: '#000000' },
+                              { name: 'Green', color: '#10b981' },
+                              { name: 'Yellow', color: '#f59e0b' }
+                            ].map(preset => (
+                              <button
+                                key={preset.color}
+                                onClick={() => {
+                                  setCurrentPickerColor(preset.color)
+                                  setCustomBackgroundColor(preset.color)
+                                  
+                                  // If user clicks black, turn off the toggle
+                                  if (preset.color === '#000000') {
+                                    setUseCustomBackground(false)
+                                  }
+                                }}
+                                className="px-3 py-1 text-xs rounded border border-white/20 text-gray-300 hover:text-white hover:border-white/40 transition-colors"
+                                style={{ backgroundColor: `${preset.color}20` }}
+                              >
+                                {preset.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
   
                   </div>

@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { useHexDailyDataPreloader } from '@/hooks/crypto/useHexDailyData'
 import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
 import { WalletProvider } from '@/components/WalletModule'
+import { FontProvider } from '@/contexts/FontContext'
 
 
 
@@ -37,12 +38,14 @@ export function Providers({ children, enableWallet = false }: ProvidersProps) {
   return (
     <SWRConfig value={swrConfig}>
       <ThemeProvider>
-        <WalletProvider enabled={enableWallet}>
-          <HexDataPreloader />
-          <BackgroundPreloader />
-          {children}
-          <Toaster />
-        </WalletProvider>
+        <FontProvider>
+          <WalletProvider enabled={enableWallet}>
+            <HexDataPreloader />
+            <BackgroundPreloader />
+            {children}
+            <Toaster />
+          </WalletProvider>
+        </FontProvider>
       </ThemeProvider>
     </SWRConfig>
   )

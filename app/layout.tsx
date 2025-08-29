@@ -115,6 +115,13 @@ function FontLoadingOptimizer() {
           .font-loaded {
             font-family: 'Departure Mono', 'ui-monospace', 'SFMono-Regular', 'SF Mono', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
           }
+          /* Apply saved font immediately to prevent FOUT */
+          .font-archia {
+            font-family: 'Archia', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+          }
+          .font-departure-mono {
+            font-family: 'Departure Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          }
           /* Hide scrollbars globally */
           html, body, * {
             -ms-overflow-style: none !important;
@@ -167,6 +174,35 @@ function FontLoadingOptimizer() {
           }
         `
       }} />
+      {/* Immediate font application script - runs before React hydration */}
+      <script dangerouslySetInnerHTML={{
+        __html: `
+          (function() {
+            try {
+              const useFontSelection = localStorage.getItem('useFontSelection') === 'true';
+              const selectedFont = localStorage.getItem('selectedFont');
+              
+              if (useFontSelection && selectedFont) {
+                if (selectedFont === 'departure-mono') {
+                  document.documentElement.style.setProperty('--font-sans', "'Departure Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \\"Liberation Mono\\", \\"Courier New\\", monospace");
+                  document.body.style.fontFamily = "'Departure Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \\"Liberation Mono\\", \\"Courier New\\", monospace";
+                } else if (selectedFont === 'archia') {
+                  document.documentElement.style.setProperty('--font-sans', "'Archia', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif");
+                  document.body.style.fontFamily = "'Archia', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif";
+                }
+              } else {
+                // Default to Archia when font selection is disabled
+                document.documentElement.style.setProperty('--font-sans', "'Archia', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif");
+                document.body.style.fontFamily = "'Archia', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif";
+              }
+            } catch (e) {
+              // Fallback to default if localStorage is unavailable
+              document.documentElement.style.setProperty('--font-sans', "'Archia', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif");
+              document.body.style.fontFamily = "'Archia', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif";
+            }
+          })();
+        `
+      }} />
     </>
   );
 }
@@ -210,7 +246,7 @@ export default function RootLayout({
         ))}
       </head>
       <body className="no-select min-h-screen bg-black text-white overflow-y-auto scrollbar-hide">
-        <Providers>
+        <Providers enableWallet={true}>
           <div className="flex flex-col min-h-screen scrollbar-hide">
             <NavBar />
             <main className="flex-grow scrollbar-hide">{children}</main>

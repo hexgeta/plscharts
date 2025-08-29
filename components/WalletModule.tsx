@@ -2,18 +2,29 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 
+// Add type for window.ethereum
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: any[] }) => Promise<any>;
+      on: (event: string, callback: (...args: any[]) => void) => void;
+      removeListener: (event: string, callback: (...args: any[]) => void) => void;
+    };
+  }
+}
+
 // Optional wallet context - only loads if wallet features are enabled
 interface WalletContextType {
   isConnected: boolean
   address?: string
-  connect: () => void
+  connect: () => Promise<void>
   disconnect: () => void
   isWalletEnabled: boolean
 }
 
 const WalletContext = createContext<WalletContextType>({
   isConnected: false,
-  connect: () => {},
+  connect: async () => {},
   disconnect: () => {},
   isWalletEnabled: false
 })
@@ -56,7 +67,7 @@ export function WalletProvider({ children, enabled = false }: WalletProviderProp
     setAddress(undefined)
   }
 
-  // Auto-connect if previously connected
+  // Auto-connect if previously connected and setup event listeners
   useEffect(() => {
     if (!isWalletEnabled) return
 
@@ -76,7 +87,30 @@ export function WalletProvider({ children, enabled = false }: WalletProviderProp
       }
     }
 
+    // Handle account changes
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (accounts.length > 0) {
+        setAddress(accounts[0])
+        setIsConnected(true)
+      } else {
+        setAddress(undefined)
+        setIsConnected(false)
+      }
+    }
+
     checkConnection()
+
+    // Setup event listeners
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged)
+    }
+
+    // Cleanup event listeners
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
+      }
+    }
   }, [isWalletEnabled])
 
   return (
