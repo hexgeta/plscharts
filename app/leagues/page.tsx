@@ -118,6 +118,18 @@ const moreTokens = [
   { ticker: 'pAAVE', name: 'pAAVE' },
 ];
 
+// All popup tokens combined for preloading
+const ALL_POPUP_TOKENS = [
+  ...maximusTokens.map(t => t.ticker),
+  ...additionalTokens.map(t => t.ticker),
+  ...memeTokens.map(t => t.ticker),
+  ...tangGangTokens.map(t => t.ticker),
+  ...moreTokens.map(t => t.ticker)
+];
+
+// Combined list of all tokens for data fetching
+const ALL_TOKENS = [...MAIN_TOKENS, ...ALL_POPUP_TOKENS];
+
 // OA (Origin Address) supplies to subtract when toggle is enabled
 const OA_SUPPLIES = {
   'PLS': 120_000_000_000_000, // Example OA supply for PLS
@@ -128,15 +140,21 @@ const OA_SUPPLIES = {
 };
 
 // Memoized component for popup tokens (individually loaded)
-const PopupTokenCard = React.memo(({ token }: { 
+const PopupTokenCard = React.memo(({ token, preloadedPrices, preloadedSupplies }: { 
   token: { ticker: string; name: string };
+  preloadedPrices?: any;
+  preloadedSupplies?: any;
 }) => {
   return (
-    <PopupLeagueTable token={token}>
+    <PopupLeagueTable 
+      token={token}
+      preloadedPrices={preloadedPrices}
+      preloadedSupply={preloadedSupplies?.[token.ticker]}
+    >
       {(onClick) => (
         <div
           onClick={onClick}
-          className="bg-black border border-2 border-white/10 rounded-2xl p-4 cursor-pointer hover:bg-gray-800/50 transition-all duration-200 flex flex-col items-center gap-3 w-full"
+          className="bg-black border-2 border-white/10 rounded-2xl p-4 cursor-pointer hover:bg-gray-800/50 transition-all duration-200 flex flex-col items-center gap-3 w-full"
         >
           <div className="w-12 h-12 relative">
             <CoinLogo
@@ -154,10 +172,12 @@ const PopupTokenCard = React.memo(({ token }: {
     </PopupLeagueTable>
   );
 }, (prevProps, nextProps) => {
-  // Only re-render if token data changed
+  // Only re-render if token data or preloaded data changed
   return (
     prevProps.token.ticker === nextProps.token.ticker &&
-    prevProps.token.name === nextProps.token.name
+    prevProps.token.name === nextProps.token.name &&
+    prevProps.preloadedPrices === nextProps.preloadedPrices &&
+    prevProps.preloadedSupplies === nextProps.preloadedSupplies
   );
 });
 
@@ -171,16 +191,16 @@ export default function LeaguesPage() {
 
   // League images are now preloaded by the background preloader
   
-  // Batch fetch prices and supplies for main tokens only
-  const { prices, isLoading: pricesLoading } = useTokenPrices(MAIN_TOKENS, { disableRefresh: true });
+  // Batch fetch prices and supplies for all tokens (main + popup)
+  const { prices, isLoading: pricesLoading } = useTokenPrices(ALL_TOKENS, { disableRefresh: true });
   
   // Get supplies from cache (background preloader should have loaded these)
   const cachedSupplies = getCachedSupplies();
   const supplies = useMemo(() => {
     if (!cachedSupplies) return null;
-    // Filter to only include MAIN_TOKENS
+    // Filter to include ALL_TOKENS
     const filteredSupplies: Record<string, number> = {};
-    MAIN_TOKENS.forEach(token => {
+    ALL_TOKENS.forEach(token => {
       if (cachedSupplies.supplies[token]) {
         filteredSupplies[token] = cachedSupplies.supplies[token];
       }
@@ -215,7 +235,7 @@ export default function LeaguesPage() {
     
     // Create a stable reference that only changes when actual price values change
     const stablePrices: Record<string, any> = {};
-    for (const ticker of MAIN_TOKENS) {
+    for (const ticker of ALL_TOKENS) {
       if (prices[ticker]) {
         stablePrices[ticker] = {
           price: prices[ticker].price,
@@ -229,8 +249,8 @@ export default function LeaguesPage() {
     return stablePrices;
   }, [
     // Only depend on the actual price values, not the object reference
-    prices && MAIN_TOKENS.map(ticker => prices[ticker]?.price).join(','),
-    prices && MAIN_TOKENS.map(ticker => JSON.stringify(prices[ticker]?.priceChange)).join(',')
+    prices && ALL_TOKENS.map(ticker => prices[ticker]?.price).join(','),
+    prices && ALL_TOKENS.map(ticker => JSON.stringify(prices[ticker]?.priceChange)).join(',')
   ]);
 
   // Memoize the supply data with OA exclusion logic
@@ -462,7 +482,12 @@ export default function LeaguesPage() {
             <h2 className="text-2xl font-bold mb-6 text-center">Maximus</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {maximusTokens.map((token) => (
-                <PopupTokenCard key={token.ticker} token={token} />
+                <PopupTokenCard 
+                  key={token.ticker} 
+                  token={token} 
+                  preloadedPrices={memoizedPrices}
+                  preloadedSupplies={memoizedSupplies}
+                />
               ))}
             </div>
           </div>
@@ -473,7 +498,12 @@ export default function LeaguesPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 place-items-center md:place-items-start">
               <div className="hidden md:block"></div>
               {memeTokens.map((token) => (
-                <PopupTokenCard key={token.ticker} token={token} />
+                <PopupTokenCard 
+                  key={token.ticker} 
+                  token={token} 
+                  preloadedPrices={memoizedPrices}
+                  preloadedSupplies={memoizedSupplies}
+                />
               ))}
               <div className="hidden md:block"></div>
             </div>
@@ -485,7 +515,12 @@ export default function LeaguesPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 place-items-center md:place-items-start">
               <div className="hidden md:block"></div>
               {tangGangTokens.map((token) => (
-                <PopupTokenCard key={token.ticker} token={token} />
+                <PopupTokenCard 
+                  key={token.ticker} 
+                  token={token} 
+                  preloadedPrices={memoizedPrices}
+                  preloadedSupplies={memoizedSupplies}
+                />
               ))}
               <div className="hidden md:block"></div>
             </div>
@@ -496,7 +531,12 @@ export default function LeaguesPage() {
             <h2 className="text-2xl font-bold mb-6 text-center">Popular Tokens</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {additionalTokens.map((token) => (
-                <PopupTokenCard key={token.ticker} token={token} />
+                <PopupTokenCard 
+                  key={token.ticker} 
+                  token={token} 
+                  preloadedPrices={memoizedPrices}
+                  preloadedSupplies={memoizedSupplies}
+                />
               ))}
             </div>
           </div>
@@ -506,7 +546,12 @@ export default function LeaguesPage() {
             <h2 className="text-2xl font-bold mb-6 text-center">More Tokens</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {moreTokens.map((token) => (
-                <PopupTokenCard key={token.ticker} token={token} />
+                <PopupTokenCard 
+                  key={token.ticker} 
+                  token={token} 
+                  preloadedPrices={memoizedPrices}
+                  preloadedSupplies={memoizedSupplies}
+                />
               ))}
             </div>
           </div>

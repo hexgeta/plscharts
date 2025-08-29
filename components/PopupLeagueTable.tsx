@@ -12,9 +12,11 @@ interface PopupLeagueTableProps {
     name: string
   }
   children: (onClick: () => void) => React.ReactNode // Function that takes onClick and returns the trigger element
+  preloadedPrices?: any // Optional preloaded price data
+  preloadedSupply?: number // Optional preloaded supply data
 }
 
-const PopupLeagueTable = React.memo(({ token, children }: PopupLeagueTableProps) => {
+const PopupLeagueTable = React.memo(({ token, children, preloadedPrices, preloadedSupply }: PopupLeagueTableProps) => {
   const [open, setOpen] = useState(false)
 
   const handleClick = () => setOpen(true)
@@ -25,11 +27,13 @@ const PopupLeagueTable = React.memo(({ token, children }: PopupLeagueTableProps)
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-full max-w-[360px] sm:max-w-lg max-h-[90vh] bg-black border-2 border-white/10 rounded-lg overflow-y-auto">
           <div className="mt-6">
-            {/* No preloaded data - will fetch individually when opened */}
+            {/* Pass preloaded data if available to prevent loading flashes */}
             <LeagueTable 
               tokenTicker={token.ticker} 
               containerStyle={false}
               showLeagueNames={true}
+              preloadedPrices={preloadedPrices}
+              preloadedSupply={preloadedSupply}
             />
           </div>
         </DialogContent>
@@ -37,10 +41,12 @@ const PopupLeagueTable = React.memo(({ token, children }: PopupLeagueTableProps)
     </>
   )
 }, (prevProps, nextProps) => {
-  // Only re-render if token data changed
+  // Only re-render if token data or preloaded data changed
   return (
     prevProps.token.ticker === nextProps.token.ticker &&
-    prevProps.token.name === nextProps.token.name
+    prevProps.token.name === nextProps.token.name &&
+    prevProps.preloadedPrices === nextProps.preloadedPrices &&
+    prevProps.preloadedSupply === nextProps.preloadedSupply
   )
 })
 

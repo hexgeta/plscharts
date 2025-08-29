@@ -2221,7 +2221,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   
   // Removed excessive debug logging
   
-  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoinsForHook, customTokens, effectiveMode, showLiquidityPositions && includeLiquidityPositionsFilter)
+  const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoinsForHook, customTokens, effectiveMode, showLiquidityPositions)
   
   // DEBUG: Log tokens found in balances
   useEffect(() => {
@@ -2277,7 +2277,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   // Get LP positions using PHUX pool data
   const { positions: phuxLPPositions, totalLPValue: phuxTotalLPValue, isLoading: phuxLPLoading } = useLiquidityPositions(
     allHoldingsFlat, 
-    showLiquidityPositions && includeLiquidityPositionsFilter
+    showLiquidityPositions
   )
   
   // Filter the raw balances client-side based on enabled coins and apply custom balance overrides
@@ -4168,7 +4168,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       }
       
       return totalBalance
-    }, [token.symbol, token.balanceFormatted, mainTokensWithBalances])
+    }, [
+      token.symbol, 
+      token.balanceFormatted, 
+      // Only depend on specific paired token balances, not entire array
+      token.symbol.startsWith('e') ? mainTokensWithBalances.find(t => t.symbol === token.symbol.replace('e', 'we'))?.balanceFormatted : 0,
+      token.symbol.startsWith('we') ? mainTokensWithBalances.find(t => t.symbol === token.symbol.replace('we', 'e'))?.balanceFormatted : 0
+    ])
     
     // Only show league on 'e' version when there's a paired 'we' version
     // For all other tokens (not starting with e or we), always show league except for ETH
