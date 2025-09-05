@@ -3183,6 +3183,79 @@ export const MORE_COINS = [
       decimals: 18,
       name: "Staked Phamous"
     }, 
+  // Farm entries
+  {
+    chain: 369,
+    a: "0xFARM000000000000000000000000000000000001", // Placeholder - not a real token contract
+    dexs: "0x1b45b9148791d3a104184Cd5DFE5CE57193a3ee9", // LP address for price lookup
+    ticker: "PLSX / WPLS",
+    decimals: 18,
+    name: "PLSX V1 Farm",
+    type: "farm"
+  },
+  {
+    chain: 369,
+    a: "0xFARM000000000000000000000000000000000002", // Placeholder - not a real token contract  
+    dexs: "0xE56043671df55dE5CDf8459710433C10324DE0aE", // LP address for price lookup
+    ticker: "WPLS \/ weDAI",
+    decimals: 18,
+    name: "DAI V1 Farm",
+    type: "farm"
+  },
+  {
+    chain: 369,
+    a: "0xFARM000000000000000000000000000000000003", // Placeholder - not a real token contract
+    dexs: "0x6753560538ECa67617A9Ce605178F788bE7E524E", // LP address for price lookup
+    ticker: "weUSDC \/ WPLS",
+    decimals: 18,
+    name: "USDC V1 Farm",
+    type: "farm"
+  },
+  {
+    chain: 369,
+    a: "0xFARM000000000000000000000000000000000004", // Placeholder - not a real token contract
+    dexs: "0x42AbdFDB63f3282033C766E72Cc4810738571609", // LP address for price lookup
+    ticker: "WETH / WPLS",
+    decimals: 18,
+    name: "WETH V1 Farm",
+    type: "farm"
+  },
+  {
+    chain: 369,
+    a: "0xFARM000000000000000000000000000000000005", // Placeholder - not a real token contract
+    dexs: "0x322Df7921F28F1146Cdf62aFdaC0D6bC0Ab80711", // LP address for price lookup
+    ticker: "USDT / WPLS",
+    decimals: 18,
+    name: "USDT V1 Farm",
+    type: "farm"
+  },
+  {
+    chain: 369,
+    a: "0xFARM000000000000000000000000000000000006", // Placeholder - not a real token contract
+    dexs: "0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65", // LP address for price lookup
+    ticker: "HEX / WPLS",
+    decimals: 18,
+    name: "HEX V1 Farm",
+    type: "farm"
+  },
+  {
+    chain: 369,
+    a: "0xFARM000000000000000000000000000000000007", // Placeholder - not a real token contract
+    dexs: "0xf808Bb6265e9Ca27002c0A04562Bf50d4FE37EAA", // LP address for price lookup
+    ticker: "INC / WPLS",
+    decimals: 18,
+    name: "INC V1 Farm",
+    type: "farm"
+  },
+  {
+    chain: 369,
+    a: "0xFARM000000000000000000000000000000000008", // Placeholder - not a real token contract
+    dexs: "0x7Dbeca4c74d01cd8782D4EF5C05C0769723fb0ea", // LP address for price lookup
+    ticker: "INC / PLSX",
+    decimals: 18,
+    name: "PLSX V1 Farm",
+    type: "farm"
+  }
 ];
 
 export const API_ENDPOINTS = {

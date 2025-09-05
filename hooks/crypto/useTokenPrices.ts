@@ -127,6 +127,12 @@ async function fetchTokenPrices(tickers: string[], customTokens: any[] = []): Pr
       continue;
   }
 
+  // Skip farm tokens - they should be priced via LP pricing system, not DEX prices
+  if (tokenConfig.type === 'farm') {
+      console.log(`[Price Fetch] Skipping farm token ${ticker} - will be priced via LP pricing system`);
+      continue;
+  }
+
     const { chain: chainId, dexs } = tokenConfig;
   const dexAddress = Array.isArray(dexs) ? dexs[0] : dexs;
   

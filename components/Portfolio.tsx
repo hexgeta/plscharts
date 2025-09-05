@@ -2829,8 +2829,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     (token.name && token.name.includes(' / '))
   )
   
-  // Fetch all LP token prices at once using the new batch hook
-  const { lpPrices, loading: allLPLoading, error: allLPError } = useAllDefinedLPTokenPrices(TOKEN_CONSTANTS)
+  // Fetch all LP token prices at once using the new batch hook (include both TOKEN_CONSTANTS and MORE_COINS for farm tokens)
+  const allTokenConfigs = [...TOKEN_CONSTANTS, ...MORE_COINS]
+  const { lpPrices, loading: allLPLoading, error: allLPError } = useAllDefinedLPTokenPrices(allTokenConfigs)
   
   // Convert to the format expected by existing code
   const lpTokenPrices: { [ticker: string]: number } = {}
@@ -2864,7 +2865,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
     const tokenConfig = allTokens.find(token => token.ticker === symbol)
     
-    if (!tokenConfig || tokenConfig.type !== 'lp') {
+    if (!tokenConfig || (tokenConfig.type !== 'lp' && tokenConfig.type !== 'farm')) {
+      return 0
+    }
+    
+    // Special handling for farm tokens - they use the LP contract address in dexs field
+    if (tokenConfig.type === 'farm') {
+      // Find the corresponding LP token by matching the dexs address
+      const correspondingLP = [...TOKEN_CONSTANTS, ...MORE_COINS].find(token => 
+        token.type === 'lp' && token.a === tokenConfig.dexs
+      )
+      
+      if (correspondingLP) {
+        // Use the LP token's price
+        const lpPrice = lpTokenPrices[correspondingLP.ticker]
+        if (lpPrice && lpPrice > 0) {
+          console.log(`[Farm Pricing] ${symbol} using LP ${correspondingLP.ticker} price = $${lpPrice}`)
+          return lpPrice
+        }
+      }
+      
+      console.warn(`[Farm Pricing] No corresponding LP token found for farm ${symbol} (dexs: ${tokenConfig.dexs})`)
       return 0
     }
     
@@ -3800,6 +3821,30 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       
       console.log(`[LP Sorting] ${a.symbol}: ${a.balanceFormatted} × $${aPrice} = $${aValue}`)
       console.log(`[LP Sorting] ${b.symbol}: ${b.balanceFormatted} × $${bPrice} = $${bValue}`)
+      
+      return bValue - aValue // Higher value first
+    })
+  }, [
+    mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted?.toFixed(6) || '0'}`).join('|'),
+    lpTokenPrices
+  ])
+
+  // Memoized Farm tokens with balances
+  const farmTokensWithBalances = useMemo(() => {
+    if (!mainTokensWithBalances.length) return []
+    
+    // Filter for Farm tokens (tokens with type: "farm")
+    const farmTokens = mainTokensWithBalances.filter(token => {
+      const tokenConfig = [...TOKEN_CONSTANTS, ...MORE_COINS].find(t => t.ticker === token.symbol)
+      return tokenConfig?.type === 'farm'
+    })
+    
+    // Sort by USD value (highest first)
+    return [...farmTokens].sort((a, b) => {
+      const aPrice = getLPTokenPrice(a.symbol) || 0
+      const bPrice = getLPTokenPrice(b.symbol) || 0
+      const aValue = a.balanceFormatted * aPrice
+      const bValue = b.balanceFormatted * bPrice
       
       return bValue - aValue // Higher value first
     })
@@ -6267,7 +6312,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                       htmlFor="liquidity-positions-filter" 
                       className={`text-sm cursor-pointer ${includeLiquidityPositionsFilter ? 'text-white' : 'text-gray-400'}`}
                     >
-                      Include liquidity positions
+                      Include lp tokens & farms
                     </label>
                   </div>
                 )}
@@ -6790,6 +6835,237 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                         </motion.div>
                       )}
                     </AnimatePresence>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {/* Farms Section */}
+      {showLiquidityPositions && includeLiquidityPositionsFilter && isEverythingReady && farmTokensWithBalances.length > 0 && (
+        <Section 
+          {...(showMotion ? {
+            initial: { opacity: 0, y: 20 },
+            animate: { opacity: 1, y: 0 },
+            transition: { 
+              duration: 0.5,
+              delay: 0.47,
+              ease: [0.23, 1, 0.32, 1]
+            }
+          } : {})}
+          className="max-w-[860px] w-full"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white">Farms</h3>
+          </div>
+          
+          <div className="bg-black/60 backdrop-blur-md border-2 border-white/10 rounded-2xl p-1 sm:p-6">
+            <div className="space-y-3">
+              {farmTokensWithBalances.map((token, tokenIndex) => {
+                const tokenPrice = getLPTokenPrice(token.symbol) || 0
+                  
+                const farmKey = `${token.chain}-${token.symbol}-${token.address || 'farm'}`
+                // Look for token in all sources: TOKEN_CONSTANTS, MORE_COINS, and custom tokens
+                const allTokensForConfig = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
+                const tokenConfig = allTokensForConfig.find(t => t.ticker === token.symbol)
+                
+                const displayAmount = token.balanceFormatted !== null ? formatBalance(token.balanceFormatted) : '?'
+                const usdValue = token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
+                
+                // Calculate underlying tokens using LP method since farms use LP pricing
+                const underlyingTokens = calculateLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0)
+                
+                // Calculate pool ownership percentage using LP data
+                const lpData = lpTokenData[token.symbol]
+                let poolOwnershipPercentage = null
+                
+                if (lpData && lpData.totalSupply && token.balanceFormatted) {
+                  poolOwnershipPercentage = (token.balanceFormatted / parseFloat(lpData.totalSupply)) * 100
+                }
+                
+                return (
+                  <div key={farmKey}>
+                    {/* Main Farm Token Row */}
+                    <div className="grid grid-cols-[minmax(20px,auto)_2fr_1fr_2fr_minmax(20px,auto)] xs:grid-cols-[minmax(20px,auto)_1fr_1fr_1fr_minmax(20px,auto)] sm:grid-cols-[minmax(20px,auto)_2fr_1fr_1fr_minmax(60px,auto)_2fr_minmax(40px,auto)] items-center gap-2 sm:gap-4 border-b border-white/10 mx-2 sm:mx-4 py-4 last:border-b-0 overflow-hidden">
+                      
+                      {/* Chain Icon - Furthest Left Column */}
+                      <div className="flex space-x-2 items-center justify-center min-w-[18px]">
+                        <CoinLogo
+                          symbol="PLS-white"
+                          size="sm"
+                          className="grayscale opacity-50"
+                        />
+                      </div>
+                      
+                      {/* Token Info - Left Column */}
+                      <div className="flex items-center space-x-2 sm:space-x-3 min-w-[70px] md:min-w-[140px] overflow-hidden">
+                        <div className="flex-shrink-0">
+                          {(() => {
+                            // Check if this is a multi-token farm pair (contains " / ") or single token farm
+                            const hasMultipleTokens = token.symbol.includes(' / ') || token.symbol.includes('\\/')
+                            
+                            if (!hasMultipleTokens) {
+                              // Single token farm - use the cleaned ticker for logo
+                              const cleanedSymbol = cleanTickerForLogo(token.symbol)
+                              return (
+                                <div className="w-8 h-8 flex items-center justify-center">
+                                  <CoinLogo 
+                                    symbol={cleanedSymbol} 
+                                    size="lg" 
+                                    className="w-8 h-8"
+                                    customImageUrl={customTokens.find(t => t.ticker === cleanedSymbol)?.logoUrl}
+                                  />
+                                </div>
+                              )
+                            }
+                            
+                            // Extract token symbols from farm pair name
+                            // Handle both "HEX / PLS" and "USDT  \/ USDC \/ DAI" formats
+                            const tokenSymbols = token.symbol.includes('\\/')
+                              ? token.symbol.split(/\s*\\\/ \s*/) // Split on \/ with optional spaces
+                              : token.symbol.split(' / ')
+                            
+                            // Clean up all token symbols for logo lookup using centralized logic
+                            const cleanedSymbols = tokenSymbols.map(symbol => cleanTickerForLogo(symbol || 'PLS'))
+                            
+                            const token0Symbol = cleanedSymbols[0] || 'PLS'
+                            const token1Symbol = cleanedSymbols[1] || 'HEX'
+                            const token2Symbol = cleanedSymbols[2]
+                            
+                            // Handle 3-token pools with triangle layout (same as LP section)
+                            if (token2Symbol) {
+                              return (
+                                <div className="relative w-8 h-8">
+                                  {/* First token (top center) */}
+                                  <div className="absolute top-0 left-1.5 w-5 h-5">
+                                    <CoinLogo
+                                      symbol={token0Symbol}
+                                      size="sm"
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                  </div>
+                                  {/* Second token (bottom left) */}
+                                  <div className="absolute top-3 left-0 w-5 h-5">
+                                    <CoinLogo
+                                      symbol={token1Symbol}
+                                      size="sm"
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                  </div>
+                                  {/* Third token (bottom right) */}
+                                  <div className="absolute top-3 left-3 w-5 h-5">
+                                    <CoinLogo
+                                      symbol={token2Symbol}
+                                      size="sm"
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                  </div>
+                                </div>
+                              )
+                            }
+                            
+                            // Regular 2-token farm layout (same as LP section)
+                            return (
+                              <div className="relative w-8 h-8">
+                                {/* First token (back) */}
+                                <div className="absolute top-0 left-0 w-6 h-6">
+                                  <CoinLogo
+                                    symbol={token0Symbol}
+                                    size="sm"
+                                    className="w-6 h-6 border border-black/20 rounded-full"
+                                  />
+                                </div>
+                                {/* Second token (front, overlapping) */}
+                                <div className="absolute top-2 left-2.5 w-6 h-6">
+                                  <CoinLogo
+                                    symbol={token1Symbol}
+                                    size="sm"
+                                    className="w-6 h-6 border border-black/20 rounded-full"
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })()}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-medium text-sm md:text-md break-words">
+                            {getDisplayTicker(token.symbol)}
+                          </div>
+                          <div className="text-gray-400 text-[10px] break-words leading-tight">
+                            <span className="sm:hidden">{displayAmount} tokens</span>
+                            <span className="hidden sm:block">{tokenConfig?.name || `${getDisplayTicker(token.symbol)} Farm`}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Price Column - Hidden on Mobile */}
+                      <div className="hidden sm:block text-center">
+                        <div className="text-gray-400 text-xs font-medium">
+                          {tokenPrice === 0 ? '--' : `$${formatLPTokenPrice(tokenPrice)}`}
+                        </div>
+                      </div>
+
+                      {/* 24h Price Change Column - Pool Ownership on Mobile */}
+                      <div className="text-center">
+                        <div className="text-gray-400 text-xs sm:hidden">--</div>
+                      </div>
+
+                      {/* League Column - Pool Ownership Percentage on Desktop */}
+                      <div className="hidden sm:flex flex-col items-center justify-center min-w-[60px]">
+                        <div className="text-gray-400 text-xs">--</div>
+                      </div>
+                      
+                      {/* Value - Right Column */}
+                      <div className="text-right overflow-hidden">
+                        <div className="text-white font-medium text-sm md:text-lg transition-all duration-200">
+                          ${formatDollarValue(usdValue)}
+                        </div>
+                        <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
+                          {displayAmount} tokens
+                        </div>
+                      </div>
+                      
+                      {/* Expand Icon */}
+                      <div className="flex justify-center min-w-[20px]">
+                        {underlyingTokens && underlyingTokens.length > 0 && (
+                          <button className="text-zinc-500 hover:text-white transition-colors">
+                            <Icons.ChevronDown className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Underlying Tokens Display */}
+                    {underlyingTokens && underlyingTokens.length > 0 && (
+                      <div className="mx-2 sm:mx-4 pb-4 pt-2">
+                        <div className="text-xs text-zinc-500 mb-2">Your share of underlying tokens:</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {underlyingTokens.map((underlying, idx) => (
+                            <div key={idx} className="flex items-center justify-between bg-white/5 rounded-lg p-2">
+                              <div className="flex items-center space-x-2">
+                                <CoinLogo 
+                                  symbol={underlying.symbol} 
+                                  size="sm" 
+                                  className="w-4 h-4"
+                                />
+                                <span className="text-xs text-white">{underlying.symbol}</span>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xs text-white font-medium">
+                                  ${formatDollarValue(underlying.value)}
+                                </div>
+                                <div className="text-xs text-zinc-500">
+                                  {formatBalance(underlying.amount)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -10451,6 +10727,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                           const currentEnabled = pendingEnabledCoins || enabledCoins
                           const isEnabled = currentEnabled.has(token.ticker)
                           const isLP = token.type === 'lp'
+                          const isFarm = token.type === 'farm'
                           
                           return (
                             <div
@@ -10560,13 +10837,53 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                     })()}
                                   </div>
                                 ) : (
-                                  <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                                    <CoinLogo 
-                                      symbol={token.ticker} 
-                                      size="lg" 
-                                      className="w-8 h-8"
-                                      customImageUrl={customTokens.find(t => t.ticker === token.ticker)?.logoUrl}
-                                    />
+                                  <div className="relative w-8 h-8 flex-shrink-0">
+                                    {(() => {
+                                      // Check if this is a farm token with dual logos (contains " / ")
+                                      const hasDualLogos = isFarm && token.ticker.includes(' / ')
+                                      
+                                      if (!hasDualLogos) {
+                                        // Single logo for regular tokens
+                                        return (
+                                          <CoinLogo 
+                                            symbol={token.ticker} 
+                                            size="lg" 
+                                            className="w-8 h-8"
+                                            customImageUrl={customTokens.find(t => t.ticker === token.ticker)?.logoUrl}
+                                          />
+                                        )
+                                      }
+                                      
+                                      // Dual logos for farm tokens - match LP token styling exactly
+                                      const tokenSymbols = token.ticker.split(' / ')
+                                      const cleanedSymbols = tokenSymbols.map(symbol => cleanTickerForLogo(symbol || 'PLS'))
+                                      
+                                      const token0Symbol = cleanedSymbols[0] || 'PLS'
+                                      const token1Symbol = cleanedSymbols[1] || 'HEX'
+                                      
+                                      return (
+                                        <div className="relative w-8 h-8 flex-shrink-0">
+                                          {/* First token (back) */}
+                                          <div className="absolute top-0 left-0 w-6 h-6 flex-shrink-0">
+                                            <CoinLogo
+                                              symbol={token0Symbol}
+                                              size="sm"
+                                              className="w-6 h-6 rounded-full shadow-sm"
+                                              customImageUrl={customTokens.find(t => t.ticker === token0Symbol)?.logoUrl}
+                                            />
+                                          </div>
+                                          {/* Second token (front, overlapping) */}
+                                          <div className="absolute top-2 left-2.5 w-6 h-6 flex-shrink-0">
+                                            <CoinLogo
+                                              symbol={token1Symbol}
+                                              size="sm"
+                                              className="w-6 h-6 rounded-full shadow-sm"
+                                              customImageUrl={customTokens.find(t => t.ticker === token1Symbol)?.logoUrl}
+                                            />
+                                          </div>
+                                        </div>
+                                      )
+                                    })()}
                                   </div>
                                 )}
                                 <div className="min-w-0 flex-1 max-w-[50%] sm:max-w-none">
@@ -10575,6 +10892,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                     {isLP && (
                                       <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded">
                                         LP
+                                      </span>
+                                    )}
+                                    {isFarm && (
+                                      <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-300 rounded">
+                                        Farm
                                       </span>
                                     )}
                                     {(() => {

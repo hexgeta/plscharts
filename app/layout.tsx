@@ -246,7 +246,7 @@ export default function RootLayout({
         ))}
       </head>
       <body className="no-select min-h-screen bg-black text-white overflow-y-auto scrollbar-hide">
-        <Providers enableWallet={true}>
+        <Providers enableWallet={false}>
           <div className="flex flex-col min-h-screen scrollbar-hide">
             <NavBar />
             <main className="flex-grow scrollbar-hide">{children}</main>
