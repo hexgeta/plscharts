@@ -10061,7 +10061,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                       <div className="flex-1">
                           <div className="font-medium text-white mb-1">Include More Tokens</div>
                         <div className="text-sm text-gray-400">
-                            Scan an additional ~400 tokens from an extended whitelist. (This will increase loading time by around 3X.)
+                            Auto scan an additional ~400 tokens from an extended whitelist. Adds support for manually adding farm positions.(This will increase loading time by around 3X.)
                         </div>
                       </div>
                       <button
