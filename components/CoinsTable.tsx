@@ -39,6 +39,8 @@ export default function CoinsTable() {
       .filter(token => !token.ticker.includes('(EARN)')) // Exclude EARN staked tokens
       .filter(token => !token.name.includes('(EARN)')) // Exclude EARN staked tokens by name too
       .filter(token => !token.ticker.startsWith('st')) // Exclude all staked tokens (stPLSX, stLOAN, etc.)
+      .filter(token => !token.ticker.includes('(Liquid Loans)')) // Exclude Liquid Loans deposit tokens
+      .filter(token => !token.name.includes('Liquid Loans')) // Exclude Liquid Loans deposit tokens by name too
       .map(token => ({
         chain: token.chain,
         address: token.a,
@@ -49,14 +51,14 @@ export default function CoinsTable() {
       .sort((a, b) => a.ticker.localeCompare(b.ticker)) // Default alphabetical sort
   }, [])
 
-  // Get unique tickers for price fetching
+  // Get unique tickers for price fetching - this should NEVER change based on search/filter
   const uniqueTickers = useMemo(() => {
     const tickerSet = new Set(allCoins.map(coin => coin.ticker))
     return Array.from(tickerSet)
-  }, [allCoins])
+  }, []) // Remove allCoins dependency to prevent refetching on search/filter
 
-  // Fetch prices for all tokens
-  const { prices, isLoading: pricesLoading } = useTokenPrices(uniqueTickers)
+  // Fetch prices for all tokens in the background - no loading state needed for UI interactions
+  const { prices } = useTokenPrices(uniqueTickers, { disableRefresh: false })
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('liquidity')
@@ -173,7 +175,7 @@ export default function CoinsTable() {
               placeholder="Search coins..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 bg-black/50 border border-2 border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-white/40"
+              className="w-full px-4 py-2 bg-black/50 border-2 border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-white/40"
             />
           </div>
 
@@ -284,11 +286,7 @@ export default function CoinsTable() {
                 {/* Price Column - Hidden on Mobile */}
                 <div className="hidden sm:block text-center">
                   <div className="text-white text-xs font-medium">
-                    {pricesLoading ? (
-                      <div className="animate-pulse bg-white h-4 w-16 rounded mx-auto"></div>
-                    ) : (
-                      coin.price === 0 ? '--' : formatPrice(coin.price)
-                    )}
+                    {coin.price === 0 ? '--' : formatPrice(coin.price)}
                   </div>
                 </div>
 

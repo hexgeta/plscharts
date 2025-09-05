@@ -370,12 +370,33 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // If no balance data at all, show loading
     if (!rawBalances || rawBalances.length === 0) return null
     
+    // Filter balances the same way as mainTokensWithBalances
+    const filtered = rawBalances.filter(addressData => {
+      // Filter out removed addresses
+      const addressObj = effectiveAddresses.find(addr => addr.address === addressData.address)
+      if (addressObj && removedAddressIds.has(addressObj.id)) {
+        return false
+      }
+      
+      // Filter by chain - only apply if not 'both'
+      const chainMatch = chainFilter === 'both' || 
+        (chainFilter === 'pulsechain' && addressData.chain === 369) ||
+        (chainFilter === 'ethereum' && addressData.chain === 1)
+      
+      // Filter by selected addresses
+      const addressMatch = selectedAddressIds.length > 0 
+        ? selectedAddressIds.some(id => effectiveAddresses.find(addr => addr.id === id && addr.address === addressData.address))
+        : true
+      
+      return chainMatch && addressMatch
+    })
+    
     let totalBalance = 0
     let foundToken = false
     let hasValidData = false
     let hasPlaceholder = false
     
-    rawBalances.forEach(balanceData => {
+    filtered.forEach(balanceData => {
       // Check native balance
       if (balanceData.nativeBalance && balanceData.nativeBalance.symbol === tokenSymbol) {
         foundToken = true
@@ -9461,7 +9482,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                       const daysServed = Math.round((stake.progress / 100) * totalDays)
                       
                       // Special numbers that get gradient styling
-                      const specialNumbers = [5555, 555, 369]
+                      const specialNumbers = [5555, 555, 369, 55]
                       const isSpecialTotal = specialNumbers.includes(totalDays)
                       const isSpecialDaysLeft = specialNumbers.includes(stake.daysLeft)
                       
