@@ -12,6 +12,11 @@ export function cleanTickerForLogo(symbol: string): string {
   
   let cleanedSymbol = symbol.trim()
   
+  // Remove farm suffix "(f)" for logo lookup - farms use same logo as their LP counterpart
+  if (cleanedSymbol.endsWith(' (f)')) {
+    cleanedSymbol = cleanedSymbol.replace(' (f)', '').trim()
+  }
+  
   // Handle pump.tires tokens: "DAI (from pump.tires)" -> "DAI"
   if (cleanedSymbol.includes('(from pump.tires)')) {
     cleanedSymbol = cleanedSymbol.replace(' (from pump.tires)', '').trim()
@@ -107,6 +112,11 @@ export function getDisplayTicker(ticker: string): string {
   if (!ticker) return ''
   
   let displayTicker = ticker.trim()
+  
+  // Remove farm suffix "(f)" for display - farms are already labeled with "Farm" badge
+  if (displayTicker.endsWith(' (f)')) {
+    displayTicker = displayTicker.replace(' (f)', '')
+  }
   
   // Handle LP token pairs that contain "/" - convert "we" prefix to "e" in token names
   if (displayTicker.includes(' / ')) {

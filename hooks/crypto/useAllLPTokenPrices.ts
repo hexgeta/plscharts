@@ -305,14 +305,14 @@ export function useAllLPTokenPrices(lpTokenAddresses: { ticker: string; address:
 // Helper hook that automatically finds all LP tokens with type: "lp"
 export function useAllDefinedLPTokenPrices(tokenConstants: any[], options?: { disableRefresh?: boolean }): UseAllLPTokenPricesResult {
   const lpTokenAddresses = useMemo(() => {
-    return TOKEN_CONSTANTS
+    return tokenConstants
       .filter(token => token.type === 'lp')
       .map(token => ({
         ticker: token.ticker,
         address: token.a || ''
       }))
       .filter(lp => lp.address !== '') // Only include tokens with valid addresses
-  }, []) // TOKEN_CONSTANTS is static, no dependencies needed
+  }, [tokenConstants])
 
   return useAllLPTokenPrices(lpTokenAddresses, options)
 }

@@ -367,6 +367,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       return null
     }
     
+    // Check if this is a farm token - farm tokens should not have regular ERC-20 balances
+    const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]
+    const tokenConfig = allTokens.find(t => t.ticker === tokenSymbol)
+    if (tokenConfig?.type === 'farm') {
+      return 0 // Farm tokens don't have regular token balances, they represent staked amounts
+    }
+    
     // If no balance data at all, show loading
     if (!rawBalances || rawBalances.length === 0) return null
     
@@ -2859,6 +2866,62 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     console.error(`[Portfolio] Batch LP price fetch error:`, allLPError)
   }
 
+  // Farm token to LP token mapping for pricing
+  const farmToLPMapping: Record<string, string> = {
+    // PLSX V1 Farms - Map farm tokens to their corresponding V1 LP tokens
+    "PLSX / WPLS": "PLSX \\/ WPLS (v1)",
+    "WPLS \\/ weDAI": "WPLS \\/ weDAI (v1)",
+    "WPLS \/ weDAI": "WPLS \\/ weDAI (v1)", // Fix: single backslash version
+    "weUSDC \\/ WPLS": "weUSDC \\/ WPLS",
+    "WETH / WPLS": "WETH \\/ WPLS (v1)",
+    "weUSDT / WPLS": "weUSDT \\/ WPLS (v1)",
+    "HEX / WPLS": "HEX \\/ WPLS (v1)",
+    "INC / WPLS": "INC \\/ WPLS (v1)",
+    "INC / PLSX": "INC \\/ PLSX (v1)",
+    // PHUX Farms - Map farm tokens (f) to their corresponding LP tokens
+    "Prime PHUX (f)": "Prime PHUX",
+    "BridgedSP (f)": "BridgedSP", 
+    "RH Maxi (f)": "RH Maxi",
+    "Piteas Prime (f)": "Piteas Prime",
+    "Great Time (f)": "Great Time",
+    "Maximus Perps Maxi (f)": "Maximus Perps Maxi",
+    "Alex Hedron Maxi (f)": "Alex Hedron Maxi",
+    "Pareto Pool (f)": "Pareto Pool",
+    "Piteas Maxi Pool (f)": "Piteas Maxi Pool",
+    "PLSX Single Sided Staking (Almost) (f)": "PLSX Single Sided Staking (Almost)",
+    "33puP-33WBTC-33uPX (f)": "33puP-33WBTC-33uPX",
+    "RH PHLPV2 (f)": "RH PHLPV2",
+    "PHORGY Pool (f)": "PHORGY Pool",
+    "SOLaPLSooZa (f)": "SOLaPLSooZa",
+    "Native PHLPV2 (f)": "Native PHLPV2",
+    "BriBerry Farm🍓 (f)": "BriBerry Farm🍓",
+    "Staked Pulse Multivault🏛 (f)": "Staked Pulse Multivault🏛",
+    "NOPEpls (f)": "NOPEpls",
+    "Quad Pool (f)": "Quad Pool",
+    "50uPX-50DAI (f)": "50uPX-50DAI",
+    "33puP-33uPX-33DAI (f)": "33puP-33uPX-33DAI",
+    "CST Stable Pool (f)": "CST Stable Pool",
+    "MAXIMUS TEAM Pool (f)": "MAXIMUS TEAM Pool",
+    "Fire Whale🔥🐋 (f)": "Fire Whale🔥🐋",
+    "Quattro Rico's Heart (f)": "Quattro Rico's Heart",
+    "2Solid Pool (f)": "2Solid Pool",
+    "PULSING for PHIAT (f)": "PULSING for PHIAT",
+    "FUSION (f)": "FUSION",
+    "REFINERY (f)": "REFINERY",
+    "TETRA Gas Station (f)": "TETRA Gas Station",
+    "Quattro Rico's Pool (f)": "Quattro Rico's Pool",
+    "Jeet Pool (f)": "Jeet Pool",
+    "Pulsechain Dark Web Pool 🧿 (f)": "Pulsechain Dark Web Pool 🧿",
+    "Vouch Liquid Staked PLS Pool (f)": "Vouch Liquid Staked PLS Pool",
+    "HEXFIRE 🔥 (f)": "HEXFIRE 🔥",
+    "She'll be apples (f)": "She'll be apples",
+    "USDL Stable Pool (f)": "USDL Stable Pool",
+    "CODEAK Communis Maxi (f)": "CODEAK Communis Maxi",
+    "RH Stable Stack 🏛 (f)": "RH Stable Stack 🏛",
+    "HEX Time Complex (f)": "HEX Time Complex",
+    "eMaximus Perps Maxi (f)": "eMaximus Perps Maxi"
+  }
+
   // Helper function to route LP token pricing based on DEX platform
   const getLPTokenPrice = useCallback((symbol: string): number => {
     // Find the token config to determine which DEX it belongs to
@@ -2869,23 +2932,72 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       return 0
     }
     
-    // Special handling for farm tokens - they use the LP contract address in dexs field
+    // Special handling for farm tokens - use address matching for PLSX V1, ticker mapping for PHUX
     if (tokenConfig.type === 'farm') {
-      // Find the corresponding LP token by matching the dexs address
-      const correspondingLP = [...TOKEN_CONSTANTS, ...MORE_COINS].find(token => 
-        token.type === 'lp' && token.a === tokenConfig.dexs
-      )
+      console.log(`[Farm Pricing] Processing farm token: ${symbol}`)
       
-      if (correspondingLP) {
-        // Use the LP token's price
-        const lpPrice = lpTokenPrices[correspondingLP.ticker]
-        if (lpPrice && lpPrice > 0) {
-          console.log(`[Farm Pricing] ${symbol} using LP ${correspondingLP.ticker} price = $${lpPrice}`)
-          return lpPrice
+      // For PLSX V1 farms, match by contract address since they share the same address as their LP token
+      if (tokenConfig.name === 'PLSX V1 Farm' && tokenConfig.a) {
+        console.log(`[Farm Pricing] PLSX V1 farm detected, matching by address: ${tokenConfig.a}`)
+        
+        // Find LP token with the same contract address
+        const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
+        const lpTokenConfig = allTokens.find(token => 
+          token.type === 'lp' && 
+          token.a === tokenConfig.a && 
+          (token.platform === 'PLSX V1' || token.platform === 'PLSX V2')
+        )
+        
+        if (lpTokenConfig) {
+          console.log(`[Farm Pricing] Found matching LP token by address: ${lpTokenConfig.ticker}`)
+          console.log(`[Farm Pricing] Available LP prices:`, Object.keys(lpTokenPrices))
+          const lpPrice = lpTokenPrices[lpTokenConfig.ticker]
+          if (lpPrice && lpPrice > 0) {
+            console.log(`[Farm Pricing] ${symbol} using PLSX LP ${lpTokenConfig.ticker} price = $${lpPrice}`)
+            return lpPrice
+          } else {
+            console.warn(`[Farm Pricing] No PLSX LP price found for ${lpTokenConfig.ticker}. Price value:`, lpPrice)
+          }
+        } else {
+          console.warn(`[Farm Pricing] No LP token found with matching address ${tokenConfig.a}`)
+        }
+        return 0
+      }
+      
+      // For PHUX farms, use the existing ticker-based mapping
+      const correspondingLPTicker = farmToLPMapping[symbol]
+      console.log(`[Farm Pricing] PHUX farm, mapped to LP ticker: ${correspondingLPTicker}`)
+      
+      if (correspondingLPTicker) {
+        // Find the actual LP token config to get its address and platform
+        const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
+        const lpTokenConfig = allTokens.find(token => token.ticker === correspondingLPTicker && token.type === 'lp')
+        console.log(`[Farm Pricing] LP token config found:`, lpTokenConfig?.ticker, lpTokenConfig?.platform)
+        
+        if (lpTokenConfig) {
+          // For PHUX LP tokens, use PHUX pricing
+          if (lpTokenConfig.platform === 'PHUX') {
+            const phuxPrice = getPhuxLPTokenPrice(lpTokenConfig.a)
+            if (phuxPrice?.pricePerShare && phuxPrice.pricePerShare > 0) {
+              console.log(`[Farm Pricing] ${symbol} using PHUX LP ${correspondingLPTicker} (${lpTokenConfig.a}) price = $${phuxPrice.pricePerShare}`)
+              return phuxPrice.pricePerShare
+            }
+          } else {
+            // For PulseX LP tokens, use PulseX pricing
+            console.log(`[Farm Pricing] Looking for PulseX LP price for farm ${symbol} -> LP ${correspondingLPTicker}`)
+            console.log(`[Farm Pricing] Available LP prices:`, Object.keys(lpTokenPrices))
+            const lpPrice = lpTokenPrices[correspondingLPTicker]
+            if (lpPrice && lpPrice > 0) {
+              console.log(`[Farm Pricing] ${symbol} using PulseX LP ${correspondingLPTicker} price = $${lpPrice}`)
+              return lpPrice
+            } else {
+              console.warn(`[Farm Pricing] No PulseX LP price found for ${correspondingLPTicker}. Price value:`, lpPrice)
+            }
+          }
         }
       }
       
-      console.warn(`[Farm Pricing] No corresponding LP token found for farm ${symbol} (dexs: ${tokenConfig.dexs})`)
+      console.warn(`[Farm Pricing] No corresponding LP token found for farm ${symbol}`)
       return 0
     }
     
@@ -3831,16 +3943,40 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Memoized Farm tokens with balances
   const farmTokensWithBalances = useMemo(() => {
-    if (!mainTokensWithBalances.length) return []
-    
-    // Filter for Farm tokens (tokens with type: "farm")
+    // Start with farm tokens from mainTokensWithBalances
     const farmTokens = mainTokensWithBalances.filter(token => {
       const tokenConfig = [...TOKEN_CONSTANTS, ...MORE_COINS].find(t => t.ticker === token.symbol)
       return tokenConfig?.type === 'farm'
     })
     
+    // Add farm tokens with custom balances that might not be in mainTokensWithBalances
+    const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]
+    const farmTokensWithCustomBalances = allTokens
+      .filter(tokenConfig => tokenConfig.type === 'farm' && customBalances.has(tokenConfig.ticker))
+      .map(tokenConfig => {
+        const customBalance = parseFloat(customBalances.get(tokenConfig.ticker) || '0')
+        if (customBalance <= 0) return null // Skip if custom balance is 0 or negative
+        
+        // Check if this farm token is already in the list from mainTokensWithBalances
+        const existingToken = farmTokens.find(t => t.symbol === tokenConfig.ticker)
+        if (existingToken) return null // Skip if already included
+        
+        // Create a farm token entry with custom balance
+        return {
+          symbol: tokenConfig.ticker,
+          balanceFormatted: customBalance,
+          chain: tokenConfig.chain || 369, // Default to PulseChain
+          displaySymbol: tokenConfig.ticker,
+          address: tokenConfig.a
+        }
+      })
+      .filter(token => token !== null) // Remove null entries
+    
+    // Combine both lists
+    const allFarmTokens = [...farmTokens, ...farmTokensWithCustomBalances]
+    
     // Sort by USD value (highest first)
-    return [...farmTokens].sort((a, b) => {
+    return allFarmTokens.sort((a, b) => {
       const aPrice = getLPTokenPrice(a.symbol) || 0
       const bPrice = getLPTokenPrice(b.symbol) || 0
       const aValue = a.balanceFormatted * aPrice
@@ -3850,7 +3986,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     })
   }, [
     mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted?.toFixed(6) || '0'}`).join('|'),
-    lpTokenPrices
+    lpTokenPrices,
+    Array.from(customBalances.entries()).map(([symbol, balance]) => `${symbol}:${balance}`).join('|')
   ])
 
   // Extract underlying token tickers from LP pairs for price fetching
