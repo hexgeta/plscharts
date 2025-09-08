@@ -2950,13 +2950,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
      "HEX Time Complex (f)": "HEX Time Complex",
      "eMaximus Perps Maxi (f)": "eMaximus Perps Maxi",
      // 9INCH Farms - Map farm tokens (f) to their corresponding LP tokens
-     "9INCH \\/ WPLS (f)": "9INCH \\/ WPLS",
-     "9INCH \\/ weDAI (f)": "9INCH \\/ weDAI",
-     "9INCH \\/ weUSDC (f)": "9INCH \\/ weUSDC",
-     "9INCH \\/ weUSDT (f)": "9INCH \\/ weUSDT",
-     "9INCH \\/ BBC (f)": "9INCH \\/ BBC",
-     "9INCH \\/ we9INCH (f)": "9INCH \\/ we9INCH",
-     "9INCH \\/ PLSX (f)": "9INCH \\/ PLSX"
+     "9INCH / WPLS (f)": "9INCH / WPLS",
+     "9INCH / weDAI (f)": "9INCH / weDAI", 
+     "9INCH / weUSDC (f)": "9INCH / weUSDC",
+     "9INCH / weUSDT (f)": "9INCH / weUSDT",
+     "9INCH / BBC (f)": "9INCH / BBC",
+     "9INCH / we9INCH (f)": "9INCH / we9INCH",
+     "9INCH / PLSX (f)": "9INCH / PLSX"
   }
 
   // Helper function to route LP token pricing based on DEX platform
@@ -2969,9 +2969,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       return 0
     }
     
-    // Special handling for farm tokens - use address matching for PLSX V1, ticker mapping for PHUX
+    // Special handling for farm tokens - use address matching for PLSX V1, ticker mapping for others
     if (tokenConfig.type === 'farm') {
       console.log(`[Farm Pricing] Processing farm token: ${symbol}`)
+      console.log(`[Farm Pricing] Token config:`, { name: tokenConfig.name, platform: tokenConfig.platform, address: tokenConfig.a })
       
       // For PLSX V1 farms, match by contract address since they share the same address as their LP token
       if (tokenConfig.name === 'PLSX V1 Farm' && tokenConfig.a) {
@@ -3005,12 +3006,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       const correspondingLPTicker = farmToLPMapping[symbol]
       console.log(`[Farm Pricing] Farm token ${symbol}, mapped to LP ticker: ${correspondingLPTicker}`)
       console.log(`[Farm Pricing] Available farm mappings:`, Object.keys(farmToLPMapping).filter(k => k.includes('9INCH')))
+      console.log(`[Farm Pricing] Exact farm token ticker:`, JSON.stringify(symbol))
+      console.log(`[Farm Pricing] Mapping keys that contain BBC:`, Object.keys(farmToLPMapping).filter(k => k.includes('BBC')))
       
       if (correspondingLPTicker) {
         // Find the actual LP token config to get its address and platform
         const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
         const lpTokenConfig = allTokens.find(token => token.ticker === correspondingLPTicker && token.type === 'lp')
         console.log(`[Farm Pricing] LP token config found:`, lpTokenConfig?.ticker, lpTokenConfig?.platform)
+        console.log(`[Farm Pricing] Looking for LP ticker:`, JSON.stringify(correspondingLPTicker))
+        console.log(`[Farm Pricing] Available 9INCH LP tickers:`, allTokens.filter(t => t.type === 'lp' && t.ticker.includes('9INCH')).map(t => t.ticker))
         
         if (lpTokenConfig) {
         // For PHUX LP tokens, use PHUX pricing
@@ -3040,9 +3045,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             }
           }
         }
+      } else {
+        console.warn(`[Farm Pricing] No corresponding LP token found for farm ${symbol}. Checked mapping:`, correspondingLPTicker)
       }
       
-      console.warn(`[Farm Pricing] No corresponding LP token found for farm ${symbol}`)
+      console.warn(`[Farm Pricing] Returning 0 for farm ${symbol}`)
       return 0
     }
     
