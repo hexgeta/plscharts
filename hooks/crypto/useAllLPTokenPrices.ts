@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import useSWR from 'swr'
 import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { MORE_COINS } from '@/constants/more-coins'
 import { LP_PRICE_CACHE_KEYS } from './utils/cache-keys'
 
 const PULSEX_V2_SUBGRAPH = 'https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsexv2'
@@ -99,24 +100,33 @@ async function fetchLPDataFromEndpoint(subgraph: string, addresses: string[], en
 
 async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]): Promise<LPTokenPrice[]> {
   try {
-    // Separate V1 and V2 pools based on platform in constants
+    // Separate V1, V2, and other pools based on platform in constants
     const v1Pools: { ticker: string; address: string }[] = []
     const v2Pools: { ticker: string; address: string }[] = []
+    const phuxPools: { ticker: string; address: string }[] = []
+    const nineInchPools: { ticker: string; address: string }[] = []
     
     lpAddresses.forEach(({ ticker, address }) => {
-      const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === ticker)
-      if (tokenConfig?.platform === 'PLSX V1') {
+      const tokenConfig = [...TOKEN_CONSTANTS, ...MORE_COINS].find(token => token.ticker === ticker)
+      const platform = (tokenConfig as any)?.platform
+      if (platform === 'PLSX V1') {
         v1Pools.push({ ticker, address })
-      } else if (tokenConfig?.platform === 'PLSX V2') {
+      } else if (platform === 'PLSX V2') {
         v2Pools.push({ ticker, address })
+      } else if (platform === 'PHUX') {
+        phuxPools.push({ ticker, address })
+      } else if (platform === '9INCH') {
+        nineInchPools.push({ ticker, address })
       } else {
-        console.warn(`[All LP Prices] Unknown platform for ${ticker}: ${tokenConfig?.platform}`)
+        console.warn(`[All LP Prices] Unknown platform for ${ticker}: ${platform}`)
       }
     })
     
-    console.log(`[All LP Prices] Separating pools - V1: ${v1Pools.length}, V2: ${v2Pools.length}`)
+    console.log(`[All LP Prices] Separating pools - V1: ${v1Pools.length}, V2: ${v2Pools.length}, PHUX: ${phuxPools.length}, 9INCH: ${nineInchPools.length}`)
     console.log(`[All LP Prices] V1 pools:`, v1Pools.map(p => `${p.ticker} (${p.address})`))
     console.log(`[All LP Prices] V2 pools:`, v2Pools.map(p => `${p.ticker} (${p.address})`))
+    console.log(`[All LP Prices] PHUX pools:`, phuxPools.map(p => `${p.ticker} (${p.address})`))
+    console.log(`[All LP Prices] 9INCH pools:`, nineInchPools.map(p => `${p.ticker} (${p.address})`))
     
     const allResults: LPTokenPrice[] = []
     
@@ -235,6 +245,74 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
             data: null,
             loading: false,
             error: `V1 fetch failed: ${error}`
+          })
+        })
+      }
+    }
+    
+    // Fetch PHUX pools if any exist
+    if (phuxPools.length > 0) {
+      try {
+        console.log(`[All LP Prices] Processing ${phuxPools.length} PHUX pools`)
+        
+        // For PHUX pools, we don't fetch detailed pool data here since they use composition data
+        phuxPools.forEach(({ ticker, address }) => {
+          const result: LPTokenPrice = {
+            ticker,
+            address,
+            pricePerToken: null, // Will be handled by getPhuxLPTokenPrice
+            data: null, // PHUX uses composition data from token config
+            loading: false,
+            error: null
+          }
+          
+          console.log(`[All LP Prices] ➡️ PHUX ${ticker}: Delegating to PHUX pricing system`)
+          allResults.push(result)
+        })
+      } catch (error) {
+        console.error('[All LP Prices] PHUX processing failed:', error)
+        phuxPools.forEach(({ ticker, address }) => {
+          allResults.push({
+            ticker,
+            address,
+            pricePerToken: null,
+            data: null,
+            loading: false,
+            error: `PHUX processing failed: ${error}`
+          })
+        })
+      }
+    }
+    
+    // Fetch 9INCH pools if any exist
+    if (nineInchPools.length > 0) {
+      try {
+        console.log(`[All LP Prices] Processing ${nineInchPools.length} 9INCH pools`)
+        
+        // For 9INCH pools, we'll need to create a different breakdown system
+        nineInchPools.forEach(({ ticker, address }) => {
+          const result: LPTokenPrice = {
+            ticker,
+            address,
+            pricePerToken: null, // Will be handled by getPhuxLPTokenPrice for 9INCH
+            data: null, // 9INCH breakdown needs special handling
+            loading: false,
+            error: null
+          }
+          
+          console.log(`[All LP Prices] ➡️ 9INCH ${ticker}: Delegating to 9INCH pricing system`)
+          allResults.push(result)
+        })
+      } catch (error) {
+        console.error('[All LP Prices] 9INCH processing failed:', error)
+        nineInchPools.forEach(({ ticker, address }) => {
+          allResults.push({
+            ticker,
+            address,
+            pricePerToken: null,
+            data: null,
+            loading: false,
+            error: `9INCH processing failed: ${error}`
           })
         })
       }

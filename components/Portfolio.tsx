@@ -743,6 +743,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   
   // Pending state for includeMoreTokens (like pendingCoinDetectionMode)
   const [pendingIncludeMoreTokens, setPendingIncludeMoreTokens] = useState<boolean | null>(null)
+  
+  // Pending state for showLiquidityPositions
+  const [pendingShowLiquidityPositions, setPendingShowLiquidityPositions] = useState<boolean | null>(null)
 
 
 
@@ -1409,9 +1412,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     const grouped: Record<number, typeof TOKEN_CONSTANTS> = {}
     
     // Determine which token list to use based on includeMoreTokens setting (same for both auto and manual modes)
-    const tokensToUse = includeMoreTokens 
+    let tokensToUse = includeMoreTokens 
       ? [...TOKEN_CONSTANTS, ...MORE_COINS, ...displayCustomTokens]  // Extended list when includeMoreTokens is enabled
       : [...TOKEN_CONSTANTS, ...displayCustomTokens]  // Main list + custom tokens when includeMoreTokens is disabled
+    
+    // Filter out farm/LP tokens if liquidity positions are disabled
+    if (!showLiquidityPositions) {
+      tokensToUse = tokensToUse.filter(token => {
+        const isLP = token.type === 'lp'
+        const isFarm = token.platform === 'PHUX' || token.type === 'farm'
+        return !isLP && !isFarm
+      })
+    }
     
     tokensToUse.forEach(token => {
       if (!grouped[token.chain]) {
@@ -1425,7 +1437,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       grouped[parseInt(chain)].sort((a, b) => a.name.localeCompare(b.name))
     })
     return grouped
-  }, [coinDetectionMode, includeMoreTokens, displayCustomTokens])
+  }, [coinDetectionMode, includeMoreTokens, displayCustomTokens, showLiquidityPositions])
 
   // Filter and sort tokens based on search term and enabled status
   const filteredTokensByChain = useMemo(() => {
@@ -1484,6 +1496,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     Object.entries(tokensByChain).forEach(([chain, tokens]) => {
       const searchLower = tokenSearchTerm.toLowerCase()
       const filteredTokens = tokens.filter(token => {
+        // Filter out LP tokens and farms if liquidity positions are disabled
+        if (!showLiquidityPositions) {
+          const isLP = token.type === 'lp'
+          const isFarm = token.platform === 'PHUX' || token.type === 'farm'
+          if (isLP || isFarm) {
+            return false
+          }
+        }
+        
         // Standard name and ticker matching
         const nameMatch = token.name.toLowerCase().includes(searchLower)
         const tickerMatch = token.ticker.toLowerCase().includes(searchLower)
@@ -1506,7 +1527,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     })
     
     return filtered
-  }, [tokensByChain, tokenSearchTerm, enabledCoins, pendingEnabledCoins])
+  }, [tokensByChain, tokenSearchTerm, enabledCoins, pendingEnabledCoins, showLiquidityPositions])
 
   // Get available chains for the coins tab
   const availableChains = useMemo(() => {
@@ -2070,6 +2091,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       console.log('[Portfolio] Committing pending Include More Tokens change:', includeMoreTokens, '->', pendingIncludeMoreTokens)
       setIncludeMoreTokens(pendingIncludeMoreTokens)
       setPendingIncludeMoreTokens(null)
+      hasChanges = true
+    }
+    
+    // Commit pending Liquidity Positions changes
+    if (pendingShowLiquidityPositions !== null) {
+      console.log('[Portfolio] Committing pending Liquidity Positions change:', showLiquidityPositions, '->', pendingShowLiquidityPositions)
+      setShowLiquidityPositions(pendingShowLiquidityPositions)
+      setPendingShowLiquidityPositions(null)
       hasChanges = true
     }
     
@@ -2918,8 +2947,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     "USDL Stable Pool (f)": "USDL Stable Pool",
     "CODEAK Communis Maxi (f)": "CODEAK Communis Maxi",
     "RH Stable Stack 🏛 (f)": "RH Stable Stack 🏛",
-    "HEX Time Complex (f)": "HEX Time Complex",
-    "eMaximus Perps Maxi (f)": "eMaximus Perps Maxi"
+     "HEX Time Complex (f)": "HEX Time Complex",
+     "eMaximus Perps Maxi (f)": "eMaximus Perps Maxi",
+     // 9INCH Farms - Map farm tokens (f) to their corresponding LP tokens
+     "9INCH \\/ WPLS (f)": "9INCH \\/ WPLS",
+     "9INCH \\/ weDAI (f)": "9INCH \\/ weDAI",
+     "9INCH \\/ weUSDC (f)": "9INCH \\/ weUSDC",
+     "9INCH \\/ weUSDT (f)": "9INCH \\/ weUSDT",
+     "9INCH \\/ BBC (f)": "9INCH \\/ BBC",
+     "9INCH \\/ we9INCH (f)": "9INCH \\/ we9INCH",
+     "9INCH \\/ PLSX (f)": "9INCH \\/ PLSX"
   }
 
   // Helper function to route LP token pricing based on DEX platform
@@ -2964,9 +3001,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         return 0
       }
       
-      // For PHUX farms, use the existing ticker-based mapping
+      // For PHUX/9INCH farms, use the existing ticker-based mapping
       const correspondingLPTicker = farmToLPMapping[symbol]
-      console.log(`[Farm Pricing] PHUX farm, mapped to LP ticker: ${correspondingLPTicker}`)
+      console.log(`[Farm Pricing] Farm token ${symbol}, mapped to LP ticker: ${correspondingLPTicker}`)
+      console.log(`[Farm Pricing] Available farm mappings:`, Object.keys(farmToLPMapping).filter(k => k.includes('9INCH')))
       
       if (correspondingLPTicker) {
         // Find the actual LP token config to get its address and platform
@@ -2975,14 +3013,21 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         console.log(`[Farm Pricing] LP token config found:`, lpTokenConfig?.ticker, lpTokenConfig?.platform)
         
         if (lpTokenConfig) {
-          // For PHUX LP tokens, use PHUX pricing
-          if (lpTokenConfig.platform === 'PHUX') {
-            const phuxPrice = getPhuxLPTokenPrice(lpTokenConfig.a)
-            if (phuxPrice?.pricePerShare && phuxPrice.pricePerShare > 0) {
-              console.log(`[Farm Pricing] ${symbol} using PHUX LP ${correspondingLPTicker} (${lpTokenConfig.a}) price = $${phuxPrice.pricePerShare}`)
-              return phuxPrice.pricePerShare
-            }
-          } else {
+        // For PHUX LP tokens, use PHUX pricing
+        if (lpTokenConfig.platform === 'PHUX') {
+          const phuxPrice = getPhuxLPTokenPrice(lpTokenConfig.a)
+          if (phuxPrice?.pricePerShare && phuxPrice.pricePerShare > 0) {
+            console.log(`[Farm Pricing] ${symbol} using PHUX LP ${correspondingLPTicker} (${lpTokenConfig.a}) price = $${phuxPrice.pricePerShare}`)
+            return phuxPrice.pricePerShare
+          }
+        } else if (lpTokenConfig.platform === '9INCH') {
+          // For 9INCH LP tokens, use 9INCH pricing (same getPhuxLPTokenPrice function now handles both)
+          const nineInchPrice = getPhuxLPTokenPrice(lpTokenConfig.a)
+          if (nineInchPrice?.pricePerShare && nineInchPrice.pricePerShare > 0) {
+            console.log(`[Farm Pricing] ${symbol} using 9INCH LP ${correspondingLPTicker} (${lpTokenConfig.a}) price = $${nineInchPrice.pricePerShare}`)
+            return nineInchPrice.pricePerShare
+          }
+        } else {
             // For PulseX LP tokens, use PulseX pricing
             console.log(`[Farm Pricing] Looking for PulseX LP price for farm ${symbol} -> LP ${correspondingLPTicker}`)
             console.log(`[Farm Pricing] Available LP prices:`, Object.keys(lpTokenPrices))
@@ -3015,6 +3060,46 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         console.warn(`[LP Pricing] PHUX price not found for ${symbol}`)
         return 0
         
+      case '9INCH':
+        // Use 9INCH GraphQL TVL/shares pricing
+        console.log(`[LP Pricing] 9INCH lookup for ${symbol}, address: ${tokenConfig.a}, type: ${tokenConfig.type}`)
+        
+        if (tokenConfig.type === 'farm') {
+          // For farm tokens, we need to map to the corresponding LP token address
+          // Farm tokens use placeholder addresses, but we need the real LP address for pricing
+          const farmToLPMapping = {
+            '0xFARM9INCH000000000000000000000000000001': '0x1164dab36cd7036668ddcbb430f7e0b15416ef0b', // 9INCH-WPLS
+            '0xFARM9INCH000000000000000000000000000002': '0x31acf819060ae711f63bd6b682640598e250c689', // 9INCH-weDAI
+            '0xFARM9INCH000000000000000000000000000003': '0x6c5a0f22b459973a0305e2a565fc208a35a13850', // 9INCH-weUSDC
+            '0xFARM9INCH000000000000000000000000000004': '0x5449a776797b55a4aac0b4a76b2ac878bff3d3e3', // 9INCH-weUSDT
+            '0xFARM9INCH000000000000000000000000000005': '0xb543812ddebc017976f867da710ddb30cca22929', // 9INCH-BBC
+            '0xFARM9INCH000000000000000000000000000006': '0x097d19b2061c5f31b68852349187c664920b4ba4', // 9INCH-we9INCH
+            '0xFARM9INCH000000000000000000000000000007': '0x898bb93f4629c73f0c519415a85d6bd2977cb0b5', // 9INCH-PLSX
+          }
+          
+          const lpAddress = farmToLPMapping[tokenConfig.a]
+          console.log(`[LP Pricing] 9INCH farm ${symbol} -> LP address: ${lpAddress}`)
+          
+          if (lpAddress && getPhuxLPTokenPrice) {
+            const nineInchPrice = getPhuxLPTokenPrice(lpAddress)
+            if (nineInchPrice?.pricePerShare && nineInchPrice.pricePerShare > 0) {
+              console.log(`[LP Pricing] 9INCH Farm: ${symbol} = $${nineInchPrice.pricePerShare}`)
+              return nineInchPrice.pricePerShare
+            } else {
+              console.warn(`[LP Pricing] 9INCH Farm: No price data for LP ${lpAddress}`)
+            }
+          }
+        } else if (tokenConfig.a && getPhuxLPTokenPrice) {
+          // For LP tokens, use the address directly
+          const nineInchPrice = getPhuxLPTokenPrice(tokenConfig.a)
+          if (nineInchPrice?.pricePerShare && nineInchPrice.pricePerShare > 0) {
+            console.log(`[LP Pricing] 9INCH LP: ${symbol} = $${nineInchPrice.pricePerShare}`)
+            return nineInchPrice.pricePerShare
+          }
+        }
+        console.warn(`[LP Pricing] 9INCH price not found for ${symbol}`)
+        return 0
+        
       case 'PLSX V1':
       case 'PLSX V2':
         // Use existing PulseX pricing system
@@ -3042,6 +3127,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         return 0
     }
   }, [lpTokenPrices, getPhuxLPTokenPrice, customTokens])
+
 
   // Helper function to calculate user's share of underlying tokens in LP
   const calculateLPUnderlyingTokens = useCallback((lpSymbol: string, userLPBalance: number) => {
@@ -3529,6 +3615,60 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     return { tokens: underlyingTokens }
   }, [customTokens, getLPTokenPrice, getTokenPrice])
 
+  // Helper function to calculate user's share of underlying tokens in 9INCH LP
+  const calculate9InchLPUnderlyingTokens = useCallback((lpSymbol: string, userLPBalance: number, lpAddress: string) => {
+    if (userLPBalance <= 0) {
+      console.log(`[9INCH LP Debug] Early return: userLPBalance=${userLPBalance}`)
+      return null
+    }
+    
+    // Get 9INCH pool data from the GraphQL hook
+    const nineInchPrice = getPhuxLPTokenPrice ? getPhuxLPTokenPrice(lpAddress) : null
+    
+    if (!nineInchPrice || !nineInchPrice.tokens || nineInchPrice.tokens.length !== 2) {
+      console.log(`[9INCH LP Debug] No valid pool data for ${lpSymbol} at ${lpAddress}`)
+      return null
+    }
+    
+    console.log(`[9INCH LP Debug] Pool data tokens:`, nineInchPrice.tokens.map(t => ({ symbol: t.symbol, address: t.address })))
+    
+    // Use the actual token symbols from the pool data instead of parsing the ticker
+    const token0Symbol = nineInchPrice.tokens[0].symbol
+    const token1Symbol = nineInchPrice.tokens[1].symbol
+    
+    console.log(`[9INCH LP Debug] Using actual pool token symbols: ${token0Symbol}, ${token1Symbol}`)
+    
+    // For 9INCH pools, we'll estimate 50/50 split since we don't have exact reserve data
+    const totalUsdValue = userLPBalance * (nineInchPrice.pricePerShare || 0)
+    const token0UsdValue = totalUsdValue * 0.5
+    const token1UsdValue = totalUsdValue * 0.5
+    
+    // Get token prices to convert USD values to token amounts
+    const token0Price = getTokenPrice(token0Symbol)
+    const token1Price = getTokenPrice(token1Symbol)
+    
+    console.log(`[9INCH LP Debug] Token prices: ${token0Symbol}=$${token0Price}, ${token1Symbol}=$${token1Price}`)
+    console.log(`[9INCH LP Debug] USD values: ${token0Symbol}=$${token0UsdValue.toFixed(2)}, ${token1Symbol}=$${token1UsdValue.toFixed(2)}`)
+    
+    const token0Amount = token0Price > 0 ? token0UsdValue / token0Price : 0
+    const token1Amount = token1Price > 0 ? token1UsdValue / token1Price : 0
+    
+    console.log(`[9INCH LP Debug] ${lpSymbol}: Total=$${totalUsdValue.toFixed(2)}, ${token0Symbol}=${token0Amount.toFixed(4)} ($${token0UsdValue.toFixed(2)}), ${token1Symbol}=${token1Amount.toFixed(4)} ($${token1UsdValue.toFixed(2)})`)
+    
+    return {
+      token0: {
+        symbol: token0Symbol,
+        amount: token0Amount,
+        decimals: 18 // Default to 18 decimals
+      },
+      token1: {
+        symbol: token1Symbol, // This will be "e9INCH" for display consistency
+        amount: token1Amount,
+        decimals: 18 // Default to 18 decimals
+      }
+    }
+  }, [getPhuxLPTokenPrice, getTokenPrice])
+
   // Helper function to get token supply from constants
   const getTokenSupply = (symbol: string): number | null => {
     const tokenConfig = TOKEN_CONSTANTS.find(token => token.ticker === symbol)
@@ -3911,16 +4051,34 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Memoized LP tokens with balances
   const lpTokensWithBalances = useMemo(() => {
-    if (!mainTokensWithBalances.length) return []
+    // Return empty array if liquidity positions are disabled
+    if (!showLiquidityPositions) return []
     
-    // Filter for LP tokens (tokens with type: "lp")
-    const lpTokens = mainTokensWithBalances.filter(token => {
+    // Get LP tokens from actual balances
+    const lpTokensFromBalances = mainTokensWithBalances.filter(token => {
       const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
       return tokenConfig?.type === 'lp' ||
              token.symbol.includes('LP') || 
              token.name?.includes(' LP') ||
              token.name?.includes(' / ')
     })
+    
+    // Add manual override LP tokens (even if user doesn't own them)
+    const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
+    const manualLPTokens = allTokens.filter(tokenConfig => {
+      return tokenConfig.type === 'lp' && 
+             (coinDetectionMode === 'manual' ? enabledCoins.has(tokenConfig.ticker) : false) &&
+             !lpTokensFromBalances.some(existing => existing.symbol === tokenConfig.ticker)
+    }).map(tokenConfig => ({
+      symbol: tokenConfig.ticker,
+      name: tokenConfig.name || tokenConfig.ticker,
+      balanceFormatted: 1000, // Default manual balance
+      address: tokenConfig.a,
+      chain: tokenConfig.chain,
+      decimals: tokenConfig.decimals || 18
+    }))
+    
+    const lpTokens = [...lpTokensFromBalances, ...manualLPTokens]
     
 
     
@@ -3938,19 +4096,37 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     })
   }, [
     mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted?.toFixed(6) || '0'}`).join('|'),
-    lpTokenPrices
+    lpTokenPrices,
+    showLiquidityPositions
   ])
 
   // Memoized Farm tokens with balances
   const farmTokensWithBalances = useMemo(() => {
-    // Start with farm tokens from mainTokensWithBalances
-    const farmTokens = mainTokensWithBalances.filter(token => {
+    // Return empty array if liquidity positions are disabled
+    if (!showLiquidityPositions) return []
+    
+    // Get farm tokens from actual balances
+    const farmTokensFromBalances = mainTokensWithBalances.filter(token => {
       const tokenConfig = [...TOKEN_CONSTANTS, ...MORE_COINS].find(t => t.ticker === token.symbol)
       return tokenConfig?.type === 'farm'
     })
     
+    // Add manual override farm tokens (even if user doesn't own them)
+    const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
+    const manualFarmTokens = allTokens.filter(tokenConfig => {
+      return tokenConfig.type === 'farm' && 
+             (coinDetectionMode === 'manual' ? enabledCoins.has(tokenConfig.ticker) : false) &&
+             !farmTokensFromBalances.some(existing => existing.symbol === tokenConfig.ticker)
+    }).map(tokenConfig => ({
+      symbol: tokenConfig.ticker,
+      name: tokenConfig.name || tokenConfig.ticker,
+      balanceFormatted: 1000, // Default manual balance
+      address: tokenConfig.a,
+      chain: tokenConfig.chain,
+      decimals: tokenConfig.decimals || 18
+    }))
+    
     // Add farm tokens with custom balances that might not be in mainTokensWithBalances
-    const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]
     const farmTokensWithCustomBalances = allTokens
       .filter(tokenConfig => tokenConfig.type === 'farm' && customBalances.has(tokenConfig.ticker))
       .map(tokenConfig => {
@@ -3958,7 +4134,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         if (customBalance <= 0) return null // Skip if custom balance is 0 or negative
         
         // Check if this farm token is already in the list from mainTokensWithBalances
-        const existingToken = farmTokens.find(t => t.symbol === tokenConfig.ticker)
+        const existingToken = [...farmTokensFromBalances, ...manualFarmTokens].find(t => t.symbol === tokenConfig.ticker)
         if (existingToken) return null // Skip if already included
         
         // Create a farm token entry with custom balance
@@ -3972,8 +4148,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       })
       .filter(token => token !== null) // Remove null entries
     
-    // Combine both lists
-    const allFarmTokens = [...farmTokens, ...farmTokensWithCustomBalances]
+    // Combine all lists
+    const allFarmTokens = [...farmTokensFromBalances, ...manualFarmTokens, ...farmTokensWithCustomBalances]
     
     // Sort by USD value (highest first)
     return allFarmTokens.sort((a, b) => {
@@ -3987,7 +4163,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   }, [
     mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted?.toFixed(6) || '0'}`).join('|'),
     lpTokenPrices,
-    Array.from(customBalances.entries()).map(([symbol, balance]) => `${symbol}:${balance}`).join('|')
+    Array.from(customBalances.entries()).map(([symbol, balance]) => `${symbol}:${balance}`).join('|'),
+    showLiquidityPositions
   ])
 
   // Extract underlying token tickers from LP pairs for price fetching
@@ -6656,34 +6833,33 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 const displayAmount = token.balanceFormatted !== null ? formatBalance(token.balanceFormatted) : '?'
                 const usdValue = token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
                 
-                // Calculate underlying tokens - use PHUX method for PHUX LPs, PulseX method for others
+                // Calculate underlying tokens - use specific method for each platform
                 const underlyingTokens = tokenConfig?.platform === 'PHUX' && tokenConfig.a
                   ? calculatePhuxLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0, tokenConfig.a)
+                  : tokenConfig?.platform === '9INCH' && tokenConfig.a
+                  ? calculate9InchLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0, tokenConfig.a)
                   : calculateLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0)
                 
                 // Calculate pool ownership percentage
                 const lpData = lpTokenData[token.symbol]
                 
-                // Get pool ownership percentage - check if it's a PHUX LP  
+                // Get pool ownership percentage - check platform type
                 let poolOwnershipPercentage = null
                 
-                if (tokenConfig?.platform === 'PHUX' && tokenConfig.a && getPhuxLPTokenPrice) {
-                  // For PHUX pools, get total shares from PHUX pool data
-                  const phuxPrice = getPhuxLPTokenPrice(tokenConfig.a)
-                  if (phuxPrice?.totalShares && token.balanceFormatted) {
-                    poolOwnershipPercentage = (token.balanceFormatted / phuxPrice.totalShares) * 100
+                if ((tokenConfig?.platform === 'PHUX' || tokenConfig?.platform === '9INCH') && tokenConfig.a && getPhuxLPTokenPrice) {
+                  // For PHUX and 9INCH pools, get total shares from GraphQL pool data
+                  const poolPrice = getPhuxLPTokenPrice(tokenConfig.a)
+                  if (poolPrice?.totalShares && token.balanceFormatted) {
+                    poolOwnershipPercentage = (token.balanceFormatted / poolPrice.totalShares) * 100
+                    console.log(`[${tokenConfig.platform} LP Ownership] ${token.symbol}: ${token.balanceFormatted} / ${poolPrice.totalShares} = ${poolOwnershipPercentage.toFixed(4)}% of pool`)
                   }
                 } else if (lpData && lpData.totalSupply && token.balanceFormatted) {
                   // For PulseX pools, use existing lpTokenData
                   poolOwnershipPercentage = (token.balanceFormatted / parseFloat(lpData.totalSupply)) * 100
+                  console.log(`[PulseX LP Ownership] ${token.symbol}: ${token.balanceFormatted} / ${lpData.totalSupply} = ${poolOwnershipPercentage.toFixed(4)}% of pool`)
                 }
                 
-                if (poolOwnershipPercentage !== null) {
-                  const totalSupplyOrShares = tokenConfig?.platform === 'PHUX' 
-                    ? getPhuxLPTokenPrice(tokenConfig.a)?.totalShares
-                    : lpData?.totalSupply
-                  console.log(`[LP Ownership] ${token.symbol}: ${token.balanceFormatted} / ${totalSupplyOrShares} = ${poolOwnershipPercentage.toFixed(4)}% of pool`)
-                }
+                // This logging was moved above to the individual platform sections
                 
                 return (
                   <div key={stableKey}>
@@ -10061,8 +10237,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                   <button
                     onClick={() => {
                       setActiveTab('settings')
-                      // Reset pending states when entering settings
-                      setPendingIncludeMoreTokens(null)
+                      // Don't reset pending states when switching tabs - preserve user selections
                     }}
                     className={`plausible-event-name=Clicks+Settings+Tab px-6 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 relative z-10 ${
                       activeTab === 'settings' 
@@ -10198,7 +10373,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                       <div className="flex-1">
                           <div className="font-medium text-white mb-1">Include More Tokens</div>
                         <div className="text-sm text-gray-400">
-                            Auto scan an additional ~400 tokens from an extended whitelist. Adds support for manually adding farm positions.(This will increase loading time by around 3X.)
+                            Auto scan an additional ~400 tokens from an extended whitelist. Adds support for manually adding farm positions. (This will increase loading time by around 3X.)
                         </div>
                       </div>
                       <button
@@ -10221,20 +10396,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex-1">
-                        <div className="font-medium text-white mb-1">Liquidity Positions</div>
+                        <div className="font-medium text-white mb-1">Liquidity & Farms</div>
                         <div className="text-sm text-gray-400">
-                          Show liquidity pool positions in your portfolio. (May increase loading time.)
+                          Show PLSX liquidity pool positions in your portfolio. Allows for the manual addition of farm/lp postitions across PLSX, PHUX, 9MM, 9INCH, Uniswap, etc via the settings.
                         </div>
                       </div>
                       <button
-                        onClick={() => setShowLiquidityPositions(!showLiquidityPositions)}
+                        onClick={() => {
+                          const currentValue = pendingShowLiquidityPositions !== null ? pendingShowLiquidityPositions : showLiquidityPositions
+                          setPendingShowLiquidityPositions(!currentValue)
+                        }}
                         className={`plausible-event-name=Toggles+Liquidity+Positions ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                          showLiquidityPositions ? 'bg-white' : 'bg-gray-600'
+                          (pendingShowLiquidityPositions !== null ? pendingShowLiquidityPositions : showLiquidityPositions) ? 'bg-white' : 'bg-gray-600'
                         }`}
                       >
                         <span
                           className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
-                            showLiquidityPositions ? 'translate-x-6' : 'translate-x-1'
+                            (pendingShowLiquidityPositions !== null ? pendingShowLiquidityPositions : showLiquidityPositions) ? 'translate-x-6' : 'translate-x-1'
                           }`}
                         />
                       </button>
@@ -10242,7 +10420,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex-1">
-                        <div className="font-medium text-white mb-1">MAXI Tokens</div>
+                        <div className="font-medium text-white mb-1">MAXI Token Backing</div>
                         <div className="text-sm text-gray-400">
                           Use the backing price instead of the current market price
                           {detectiveMode && <span className="block text-xs text-blue-400 mt-1">Detective mode defaults: OFF</span>}
@@ -10264,9 +10442,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex-1">
-                        <div className="font-medium text-white mb-1">Include Pooled & HSI Stakes?</div>
+                        <div className="font-medium text-white mb-1">Include Maxi & HSI Stake Data</div>
                         <div className="text-sm text-gray-400">
-                          This will add support for pooled MAXI & HEDRON HSI Stakes to your portfolio.
+                          This will add support for pooled MAXI & HEDRON HSI Stake data to your HEX stake section in your portfolio.
                           {detectiveMode && <span className="block text-xs text-blue-400 mt-1">Detective mode defaults: ON</span>}
                         </div>
                       </div>
@@ -10821,7 +10999,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                         className="text-red-400 underline text-sm hover:text-red-300 transition-colors cursor-pointer"
                         title="Reset selection to match auto-detect mode (only tokens with balances from the curated list)"
                       >
-                        Clear all manual selections
+                        Clear all manual selections & resync with what you actually hold
                       </button>
                     </div>
                   )}
@@ -10982,11 +11160,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                       if (!hasDualLogos) {
                                         // Single logo for regular tokens
                                         return (
-                                          <CoinLogo 
-                                            symbol={token.ticker} 
-                                            size="lg" 
-                                            className="w-8 h-8"
-                                            customImageUrl={customTokens.find(t => t.ticker === token.ticker)?.logoUrl}
+                                    <CoinLogo 
+                                      symbol={token.ticker} 
+                                      size="lg" 
+                                      className="w-8 h-8"
+                                      customImageUrl={customTokens.find(t => t.ticker === token.ticker)?.logoUrl}
                                           />
                                         )
                                       }
@@ -11089,6 +11267,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         const parsedValue = parseInputValue(e.target.value)
                                         console.log(`[Custom Balance Input] ${token.ticker}: input="${e.target.value}" -> parsed="${parsedValue}"`)
                                         newCustomBalances.set(token.ticker, parsedValue)
+                                        
+                                        // Auto-enable liquidity positions if this is a farm or LP token
+                                        const tokenType = (token as any).type
+                                        if ((tokenType === 'farm' || tokenType === 'lp') && parseFloat(parsedValue) > 0) {
+                                          const currentLiquidityPositions = pendingShowLiquidityPositions !== null ? pendingShowLiquidityPositions : showLiquidityPositions
+                                          if (!currentLiquidityPositions) {
+                                            console.log(`[Auto-Enable] Enabling liquidity positions for ${tokenType} token: ${token.ticker}`)
+                                            setPendingShowLiquidityPositions(true)
+                                          }
+                                        }
                                       }
                                       setCustomBalances(newCustomBalances)
                                     }}

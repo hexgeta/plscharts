@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { usePhuxPools } from './usePhuxPools'
+import { use9InchSpecificPools } from './use9InchPools'
 
 // Types for LP position calculations
 export interface LPTokenPrice {
@@ -32,59 +33,118 @@ export interface LPPosition {
   }>
 }
 
-// Hook to get LP token prices from PHUX pools
+// Hook to get LP token prices from PHUX and 9INCH pools
 export function useLPTokenPrices() {
-  const { pools, isLoading, error } = usePhuxPools({
+  const { pools: phuxPools, isLoading: phuxLoading, error: phuxError } = usePhuxPools({
     first: 1000, // Get all pools to have comprehensive LP pricing
     orderBy: 'totalLiquidity',
     orderDirection: 'desc'
   })
 
-  const lpTokenPrices = useMemo(() => {
-    if (!pools || pools.length === 0) return new Map<string, LPTokenPrice>()
+  // Define the specific 9INCH pool addresses we need
+  const nineInchPoolAddresses = [
+    '0x1164dab36cd7036668ddcbb430f7e0b15416ef0b', // 9INCH-WPLS
+    '0x31acf819060ae711f63bd6b682640598e250c689', // 9INCH-weDAI
+    '0x6c5a0f22b459973a0305e2a565fc208a35a13850', // 9INCH-weUSDC
+    '0x5449a776797b55a4aac0b4a76b2ac878bff3d3e3', // 9INCH-weUSDT
+    '0xb543812ddebc017976f867da710ddb30cca22929', // 9INCH-BBC
+    '0x097d19b2061c5f31b68852349187c664920b4ba4', // 9INCH-we9INCH
+    '0x898bb93f4629c73f0c519415a85d6bd2977cb0b5', // 9INCH-PLSX
+  ]
 
+  const { pools: nineInchPools, isLoading: nineInchLoading, error: nineInchError } = use9InchSpecificPools(nineInchPoolAddresses)
+
+  const lpTokenPrices = useMemo(() => {
     const priceMap = new Map<string, LPTokenPrice>()
 
-    pools.forEach(pool => {
-      const totalLiquidity = parseFloat(pool.totalLiquidity) || 0
-      const totalShares = parseFloat(pool.totalShares) || 0
-      
-      // Calculate price per share (TVL / total shares)
-      const pricePerShare = totalShares > 0 ? totalLiquidity / totalShares : 0
-
-      if (pricePerShare > 0) {
-        const lpTokenPrice: LPTokenPrice = {
-          poolId: pool.id,
-          poolAddress: pool.address.toLowerCase(),
-          poolName: pool.name || pool.tokens.map(t => t.symbol).join(' / '),
-          symbol: pool.symbol || pool.tokens.map(t => t.symbol).join('-'),
-          pricePerShare,
-          totalLiquidity,
-          totalShares,
-          tokens: pool.tokens.map(token => ({
-            symbol: token.symbol,
-            name: token.name,
-            address: token.address.toLowerCase()
-          }))
-        }
-
-
-
-        // Map by pool address (the LP token contract address)
-        priceMap.set(pool.address.toLowerCase(), lpTokenPrice)
+    // Process PHUX pools
+    if (phuxPools && phuxPools.length > 0) {
+      phuxPools.forEach(pool => {
+        const totalLiquidity = parseFloat(pool.totalLiquidity) || 0
+        const totalShares = parseFloat(pool.totalShares) || 0
         
-        // Also map by pool ID for convenience
-        priceMap.set(pool.id, lpTokenPrice)
-      }
-    })
+        // Calculate price per share (TVL / total shares)
+        const pricePerShare = totalShares > 0 ? totalLiquidity / totalShares : 0
+
+        if (pricePerShare > 0) {
+          const lpTokenPrice: LPTokenPrice = {
+            poolId: pool.id,
+            poolAddress: pool.address.toLowerCase(),
+            poolName: pool.name || pool.tokens.map(t => t.symbol).join(' / '),
+            symbol: pool.symbol || pool.tokens.map(t => t.symbol).join('-'),
+            pricePerShare,
+            totalLiquidity,
+            totalShares,
+            tokens: pool.tokens.map(token => ({
+              symbol: token.symbol,
+              name: token.name,
+              address: token.address.toLowerCase()
+            }))
+          }
+
+          // Map by pool address (the LP token contract address)
+          priceMap.set(pool.address.toLowerCase(), lpTokenPrice)
+          
+          // Also map by pool ID for convenience
+          priceMap.set(pool.id, lpTokenPrice)
+        }
+      })
+    }
+
+    // Process 9INCH pools
+    if (nineInchPools && nineInchPools.length > 0) {
+      console.log(`[LP Pricing] Processing ${nineInchPools.length} 9INCH pools`)
+      console.log(`[LP Pricing] Looking for 9INCH/BBC pool with address: 0xb543812ddebc017976f867da710ddb30cca22929`)
+      nineInchPools.forEach(pool => {
+        const totalLiquidity = parseFloat(pool.totalLiquidity) || 0
+        const totalShares = parseFloat(pool.totalShares) || 0
+        
+        // Calculate price per share (TVL / total shares)
+        const pricePerShare = totalShares > 0 ? totalLiquidity / totalShares : 0
+
+        console.log(`[LP Pricing] 9INCH pool ${pool.address}: TVL=$${totalLiquidity}, Shares=${totalShares}, PricePerShare=$${pricePerShare}`)
+        console.log(`[LP Pricing] 9INCH pool tokens: ${pool.tokens.map(t => t.symbol).join('/')} (${pool.name})`)
+
+        if (pricePerShare > 0) {
+          const lpTokenPrice: LPTokenPrice = {
+            poolId: pool.id,
+            poolAddress: pool.address.toLowerCase(),
+            poolName: pool.name || pool.tokens.map(t => t.symbol).join(' / '),
+            symbol: pool.symbol || pool.tokens.map(t => t.symbol).join('-'),
+            pricePerShare,
+            totalLiquidity,
+            totalShares,
+            tokens: pool.tokens.map(token => ({
+              symbol: token.symbol,
+              name: token.name,
+              address: token.address.toLowerCase()
+            }))
+          }
+
+          // Map by pool address (the LP token contract address)
+          priceMap.set(pool.address.toLowerCase(), lpTokenPrice)
+          
+          // Also map by pool ID for convenience
+          priceMap.set(pool.id, lpTokenPrice)
+          
+          console.log(`[LP Pricing] Added 9INCH LP token: ${pool.address.toLowerCase()} = $${pricePerShare}`)
+        } else {
+          console.warn(`[LP Pricing] Skipping 9INCH pool ${pool.address}: invalid price (TVL=${totalLiquidity}, Shares=${totalShares})`)
+        }
+      })
+    } else {
+      console.warn(`[LP Pricing] No 9INCH pools available. nineInchPools:`, nineInchPools)
+      console.warn(`[LP Pricing] 9INCH loading state:`, nineInchLoading)
+      console.warn(`[LP Pricing] 9INCH error:`, nineInchError)
+    }
 
     return priceMap
-  }, [pools])
+  }, [phuxPools, nineInchPools])
 
       return {
       lpTokenPrices,
-      isLoading,
-      error,
+      isLoading: phuxLoading || nineInchLoading,
+      error: phuxError || nineInchError,
       getLPTokenPrice: (tokenAddress: string) => {
         if (!tokenAddress) return undefined
         const price = lpTokenPrices.get(tokenAddress.toLowerCase())
