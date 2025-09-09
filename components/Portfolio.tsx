@@ -19,6 +19,7 @@ import { useBackgroundPreloader } from '@/hooks/crypto/useBackgroundPreloader'
 import { useHexDailyDataCache, calculateYieldForStake } from '@/hooks/crypto/useHexDailyData'
 import { usePulseXLPDataSWR } from '@/hooks/crypto/usePulseXLPData'
 import { useAllDefinedLPTokenPrices } from '@/hooks/crypto/useAllLPTokenPrices'
+import { use9MmV3Positions } from '@/hooks/crypto/use9MmV3Positions'
 import { useAddressTransactions } from '@/hooks/crypto/useAddressTransactions'
 import { useEnrichedTransactions } from '@/hooks/crypto/useEnrichedTransactions'
 import { useFontContext, AVAILABLE_FONTS } from '@/contexts/FontContext'
@@ -146,6 +147,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   const [displayedStakesCount, setDisplayedStakesCount] = useState(20)
   // Add state for LP token expanded sections
   const [expandedLPTokens, setExpandedLPTokens] = useState<Set<string>>(new Set())
+  const [expandedV3Groups, setExpandedV3Groups] = useState<Set<string>>(new Set())
+  const [expandedV3Positions, setExpandedV3Positions] = useState<Set<string>>(new Set())
   // Add state for backing price toggle
   const [useBackingPrice, setUseBackingPrice] = useState<boolean>(() => {
     if (detectiveMode) {
@@ -299,6 +302,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           return new Map(Object.entries(parsed))
         } catch (e) {
           console.warn('Failed to parse saved custom balances:', e)
+        }
+      }
+    }
+    return new Map()
+  })
+
+  // Add state for custom V3 position USD value overrides
+  const [customV3Values, setCustomV3Values] = useState<Map<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('portfolioCustomV3Values')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          return new Map(Object.entries(parsed))
+        } catch (e) {
+          console.warn('Failed to parse saved custom V3 values:', e)
         }
       }
     }
@@ -507,6 +526,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       localStorage.setItem('portfolioCustomBalances', JSON.stringify(balancesObject))
     }
   }, [customBalances])
+
+  // Save custom V3 values to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const v3ValuesObject = Object.fromEntries(customV3Values)
+      localStorage.setItem('portfolioCustomV3Values', JSON.stringify(v3ValuesObject))
+    }
+  }, [customV3Values])
 
 
 
@@ -2280,6 +2307,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   
   const { balances: allRawBalances, isLoading: balancesLoading, error: balancesError, mutate: mutateBalances } = usePortfolioBalance(allAddressStrings, enabledCoinsForHook, customTokens, effectiveMode, showLiquidityPositions)
   
+  // Primary address for V3 positions (will be used later after getTokenPrice is defined)
+  const primaryAddress = allAddressStrings[0] || null
+  
+  // V3 positions debug logging will be added after the hook is defined
+
   // DEBUG: Log tokens found in balances
   useEffect(() => {
     if (allRawBalances && allRawBalances.length > 0) {
@@ -2341,7 +2373,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   const rawBalances = useMemo(() => {
     if (!allRawBalances) return allRawBalances
     
-    const applyCustomBalances = (balances: any[]) => {
+    const applyCustomBalances = (balances: any[], selectedAddressIds: string[]) => {
       // First apply custom balances to existing tokens
       const updatedBalances = balances.map(addressData => ({
         ...addressData,
@@ -2381,7 +2413,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         const tokensToAdd: any[] = []
         
         // Add tokens with custom balances (only if enabled)
+        // Skip custom balance tokens if address filtering is active (they're not tied to specific addresses)
         const currentEnabled = pendingEnabledCoins || enabledCoins
+        const isAddressFilterActive = selectedAddressIds && selectedAddressIds.length > 0
+        
+        if (!isAddressFilterActive) {
         customBalances.forEach((balance, symbol) => {
           if (!existingTokenSymbols.has(symbol) && parseFloat(balance) > 0 && currentEnabled.has(symbol)) {
             console.log(`[Portfolio] Adding custom balance token: ${symbol} (enabled: ${currentEnabled.has(symbol)})`)
@@ -2401,9 +2437,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             }
           }
         })
+        } else {
+          console.log(`[Portfolio] Skipping custom balance tokens due to address filtering`)
+        }
         
         // Add enabled tokens that don't have balance data yet (in manual mode)
-        if (coinDetectionMode === 'manual') {
+        // Skip these if address filtering is active (they're not tied to specific addresses)
+        if (coinDetectionMode === 'manual' && !isAddressFilterActive) {
           currentEnabledCoins.forEach(symbol => {
             if (!existingTokenSymbols.has(symbol) && !customBalances.has(symbol)) {
               // Find token config to get proper details - include custom tokens
@@ -2423,6 +2463,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
               }
             }
           })
+        } else if (coinDetectionMode === 'manual' && isAddressFilterActive) {
+          console.log(`[Portfolio] Skipping manual enabled tokens due to address filtering`)
         }
         
         if (tokensToAdd.length > 0) {
@@ -2451,7 +2493,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         ) || []
       }))
       
-      return applyCustomBalances(filteredForAutoDetect)
+      return applyCustomBalances(filteredForAutoDetect, selectedAddressIds)
     }
     
     // In manual mode, filter based on enabled coins and apply custom balances
@@ -2472,8 +2514,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       }) || []
     }))
     
-    return applyCustomBalances(filteredBalances)
-  }, [allRawBalances, coinDetectionMode, enabledCoins, pendingEnabledCoins, customBalances])
+    return applyCustomBalances(filteredBalances, selectedAddressIds)
+  }, [allRawBalances, coinDetectionMode, enabledCoins, pendingEnabledCoins, customBalances, selectedAddressIds])
   console.log('Portfolio Debug - Balance hook result:', { balances: rawBalances, balancesLoading, balancesError })
 
   // Clear newly enabled tokens when there's a significant data change (but not when just editing balances)
@@ -2950,13 +2992,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
      "HEX Time Complex (f)": "HEX Time Complex",
      "eMaximus Perps Maxi (f)": "eMaximus Perps Maxi",
      // 9INCH Farms - Map farm tokens (f) to their corresponding LP tokens
-     "9INCH / WPLS (f)": "9INCH / WPLS",
-     "9INCH / weDAI (f)": "9INCH / weDAI", 
-     "9INCH / weUSDC (f)": "9INCH / weUSDC",
-     "9INCH / weUSDT (f)": "9INCH / weUSDT",
-     "9INCH / BBC (f)": "9INCH / BBC",
-     "9INCH / we9INCH (f)": "9INCH / we9INCH",
-     "9INCH / PLSX (f)": "9INCH / PLSX"
+     "9INCH / WPLS (f)": "9INCH \\/ WPLS",
+     "9INCH / weDAI (f)": "9INCH \\/ weDAI", 
+     "9INCH / weUSDC (f)": "9INCH \\/ weUSDC",
+     "9INCH / weUSDT (f)": "9INCH \\/ weUSDT",
+     "9INCH / BBC (f)": "9INCH \\/ BBC",
+     "9INCH / we9INCH (f)": "9INCH \\/ we9INCH",
+     "9INCH / PLSX (f)": "9INCH \\/ PLSX"
   }
 
   // Helper function to route LP token pricing based on DEX platform
@@ -3032,6 +3074,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             console.log(`[Farm Pricing] ${symbol} using 9INCH LP ${correspondingLPTicker} (${lpTokenConfig.a}) price = $${nineInchPrice.pricePerShare}`)
             return nineInchPrice.pricePerShare
           }
+        } else if (lpTokenConfig.platform === '9MM') {
+          // For 9MM LP tokens, use 9MM pricing (same getPhuxLPTokenPrice function handles 9MM too)
+          const nineMmPrice = getPhuxLPTokenPrice(lpTokenConfig.a)
+          if (nineMmPrice?.pricePerShare && nineMmPrice.pricePerShare > 0) {
+            console.log(`[Farm Pricing] ${symbol} using 9MM LP ${correspondingLPTicker} (${lpTokenConfig.a}) price = $${nineMmPrice.pricePerShare}`)
+            return nineMmPrice.pricePerShare
+          }
         } else {
             // For PulseX LP tokens, use PulseX pricing
             console.log(`[Farm Pricing] Looking for PulseX LP price for farm ${symbol} -> LP ${correspondingLPTicker}`)
@@ -3105,6 +3154,21 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           }
         }
         console.warn(`[LP Pricing] 9INCH price not found for ${symbol}`)
+        return 0
+        
+      case '9MM':
+        // Use 9MM GraphQL TVL/shares pricing (same system as PHUX/9INCH)
+        console.log(`[LP Pricing] 9MM lookup for ${symbol}, address: ${tokenConfig.a}, type: ${tokenConfig.type}`)
+        
+        if (tokenConfig.a && getPhuxLPTokenPrice) {
+          // For 9MM LP tokens, use the address directly (no farms for 9MM)
+          const nineMmPrice = getPhuxLPTokenPrice(tokenConfig.a)
+          if (nineMmPrice?.pricePerShare && nineMmPrice.pricePerShare > 0) {
+            console.log(`[LP Pricing] 9MM LP: ${symbol} = $${nineMmPrice.pricePerShare}`)
+            return nineMmPrice.pricePerShare
+          }
+        }
+        console.warn(`[LP Pricing] 9MM price not found for ${symbol}`)
         return 0
         
       case 'PLSX V1':
@@ -3565,9 +3629,178 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       return plsPrice
     }
     
+    // Handle DAI -> weDAI price mapping (9MM V3 API returns "DAI" but our constants use "weDAI")
+    if (symbol === 'DAI') {
+      const weDaiPrice = prices['weDAI']?.price || 0
+      console.log(`[Token Price] DAI mapped to weDAI: ${weDaiPrice}`)
+      return weDaiPrice
+    }
+    
     // Use market price
-    return prices[symbol]?.price || 0
+    const marketPrice = prices[symbol]?.price || 0
+    if (marketPrice === 0) {
+      console.warn(`[Token Price] No price found for symbol: ${symbol}. Available prices:`, Object.keys(prices))
+    }
+    return marketPrice
   }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken, getLPTokenPrice, useTimeShift, timeMachineHexPrice, timeMachineEHexPrice])
+
+  // Get up to 5 addresses from portfolio (most common case)
+  const address1 = effectiveAddresses[0]?.address || null
+  const address2 = effectiveAddresses[1]?.address || null
+  const address3 = effectiveAddresses[2]?.address || null
+  const address4 = effectiveAddresses[3]?.address || null
+  const address5 = effectiveAddresses[4]?.address || null
+  
+  // Fetch V3 positions for each address using the original hook
+  const v3Result1 = use9MmV3Positions(address1, { getTokenPrice })
+  const v3Result2 = use9MmV3Positions(address2, { getTokenPrice })
+  const v3Result3 = use9MmV3Positions(address3, { getTokenPrice })
+  const v3Result4 = use9MmV3Positions(address4, { getTokenPrice })
+  const v3Result5 = use9MmV3Positions(address5, { getTokenPrice })
+  
+  // Combine all results
+  const allV3Results = [v3Result1, v3Result2, v3Result3, v3Result4, v3Result5]
+  const nineMmV3Positions = allV3Results.flatMap(result => result.positions || [])
+  const total9MmV3Value = allV3Results.reduce((sum, result) => sum + (result.totalValue || 0), 0)
+  const is9MmV3Loading = allV3Results.some(result => result.isLoading)
+  const nineMmV3Error = allV3Results.find(result => result.error)?.error || null
+  
+  const validAddressCount = [address1, address2, address3, address4, address5].filter(Boolean).length
+  console.log(`[V3 Fetch] Fetching V3 positions for ${validAddressCount} addresses using original hook`)
+  console.log(`[V3 Fetch] Found ${nineMmV3Positions.length} V3 positions, $${total9MmV3Value.toFixed(2)} total value`)
+
+  // DEBUG: Log 9MM V3 positions
+  useEffect(() => {
+    if (nineMmV3Positions && nineMmV3Positions.length > 0) {
+      console.log(`[9MM V3 Debug] Found ${nineMmV3Positions.length} V3 positions across ${validAddressCount} addresses:`)
+      nineMmV3Positions.forEach(position => {
+        console.log(`  - ${position.displayName}: $${position.values.totalValue.toFixed(2)} (Position ID: ${position.id})`)
+      })
+      console.log(`[9MM V3 Debug] Total V3 portfolio value: $${total9MmV3Value.toFixed(2)}`)
+      
+      // COMPREHENSIVE JSON DEBUG OUTPUT FOR UI DEBUGGING
+      console.log('=== 9MM V3 POSITIONS COMPLETE JSON DEBUG DATA ===')
+      console.log(JSON.stringify({
+        summary: {
+          totalPositions: nineMmV3Positions.length,
+          totalValue: total9MmV3Value,
+          totalCurrentValue: nineMmV3Positions.reduce((sum, pos) => sum + pos.values.currentValue, 0),
+          totalFeesValue: nineMmV3Positions.reduce((sum, pos) => sum + pos.values.feesValue, 0),
+          primaryAddress: primaryAddress,
+          isLoading: is9MmV3Loading
+        },
+        positions: nineMmV3Positions.map(position => ({
+          // Basic Position Info
+          id: position.id,
+          owner: position.owner,
+          displayName: position.displayName,
+          feePercent: position.feePercent,
+          poolAddress: position.poolAddress,
+          
+          // Pool Information
+          pool: {
+            id: position.pool.id,
+            feeTier: position.pool.feeTier,
+            tick: position.pool.tick,
+            sqrtPrice: position.pool.sqrtPrice,
+            token0Price: position.pool.token0Price,
+            token1Price: position.pool.token1Price,
+            totalValueLockedUSD: position.pool.totalValueLockedUSD,
+            volumeUSD: position.pool.volumeUSD,
+            liquidity: position.pool.liquidity,
+            token0: {
+              id: position.pool.token0.id,
+              symbol: position.pool.token0.symbol,
+              name: position.pool.token0.name,
+              decimals: position.pool.token0.decimals
+            },
+            token1: {
+              id: position.pool.token1.id,
+              symbol: position.pool.token1.symbol,
+              name: position.pool.token1.name,
+              decimals: position.pool.token1.decimals
+            }
+          },
+          
+          // Position Range & Liquidity
+          tickLower: position.tickLower,
+          tickUpper: position.tickUpper,
+          liquidity: position.liquidity,
+          
+          // Token Amounts (Raw from GraphQL)
+          depositedToken0: position.depositedToken0,
+          depositedToken1: position.depositedToken1,
+          withdrawnToken0: position.withdrawnToken0,
+          withdrawnToken1: position.withdrawnToken1,
+          collectedFeesToken0: position.collectedFeesToken0,
+          collectedFeesToken1: position.collectedFeesToken1,
+          
+          // Calculated Values
+          values: {
+            currentValue: position.values.currentValue,
+            feesValue: position.values.feesValue,
+            totalValue: position.values.totalValue,
+            token0Amount: position.values.token0Amount,
+            token1Amount: position.values.token1Amount
+          },
+          
+          // Token Prices Used in Calculation
+          tokenPrices: {
+            token0Symbol: position.pool.token0.symbol,
+            token1Symbol: position.pool.token1.symbol,
+            token0USDPrice: getTokenPrice(position.pool.token0.symbol),
+            token1USDPrice: getTokenPrice(position.pool.token1.symbol)
+          },
+          
+          // Calculated Metrics for UI Display
+          metrics: {
+            currentValueFormatted: position.values.currentValue.toLocaleString('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }),
+            feesValueFormatted: position.values.feesValue.toLocaleString('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 6
+            }),
+            totalValueFormatted: position.values.totalValue.toLocaleString('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }),
+            feePercentFormatted: `${position.feePercent}%`,
+            token0AmountFormatted: position.values.token0Amount.toLocaleString('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 6
+            }),
+            token1AmountFormatted: position.values.token1Amount.toLocaleString('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 6
+            }),
+            
+            // Net calculations
+            netToken0: parseFloat(position.depositedToken0) - parseFloat(position.withdrawnToken0),
+            netToken1: parseFloat(position.depositedToken1) - parseFloat(position.withdrawnToken1),
+            
+            // Pool-relative calculations
+            token0PriceInPool: parseFloat(position.pool.token0Price),
+            token1PriceInPool: parseFloat(position.pool.token1Price),
+            
+            // Position health metrics
+            isInRange: true, // You'd need to calculate this based on current tick vs tick range
+            liquidityUtilization: parseFloat(position.liquidity) > 0 ? 'Active' : 'Inactive'
+          }
+        }))
+      }, null, 2))
+      console.log('=== END 9MM V3 POSITIONS DEBUG DATA ===')
+    } else if (validAddressCount > 0 && !is9MmV3Loading) {
+      console.log(`[9MM V3 Debug] No V3 positions found for any of the ${validAddressCount} addresses`)
+    }
+  }, [nineMmV3Positions, total9MmV3Value, validAddressCount, is9MmV3Loading, getTokenPrice])
 
   // Helper function to calculate user's share of underlying tokens in PHUX LP using hardcoded composition
   const calculatePhuxLPUnderlyingTokens = useCallback((lpSymbol: string, userLPBalance: number, lpAddress: string) => {
@@ -3956,8 +4189,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                        token.name?.includes(' LP') ||
                        token.name?.includes(' / ')
       
-      if (isLPToken) {
-        return false // Always hide LP tokens from main table (they show in LP section)
+      // Also filter out V3 positions (they appear in LP section)
+      const isV3Position = token.symbol.includes('#') && token.name?.includes('9MM V3 LP')
+      
+      if (isLPToken || isV3Position) {
+        return false // Always hide LP tokens and V3 positions from main table (they show in LP section)
       }
       
       // Filter by price data availability
@@ -4061,9 +4297,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // Return empty array if liquidity positions are disabled
     if (!showLiquidityPositions) return []
     
-    // Get LP tokens from actual balances
+    // Get LP tokens from actual balances, but exclude V3 LP tokens (we handle those separately)
     const lpTokensFromBalances = mainTokensWithBalances.filter(token => {
       const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
+      
+      // Skip V3 LP tokens - we handle these through our dynamic V3 grouping
+      // EXCEPT if they have manual overrides set
+      if (tokenConfig?.name?.includes('9MM LP V3')) {
+        const hasCustomValue = customV3Values.has(token.symbol) && parseFloat(customV3Values.get(token.symbol) || '0') > 0
+        if (!hasCustomValue) {
+          console.log(`[LP Filter] Skipping static V3 LP token (no override): ${token.symbol}`)
+          return false
+        } else {
+          console.log(`[LP Filter] Keeping static V3 LP token (has override): ${token.symbol}`)
+        }
+      }
+      
       return tokenConfig?.type === 'lp' ||
              token.symbol.includes('LP') || 
              token.name?.includes(' LP') ||
@@ -4071,8 +4320,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     })
     
     // Add manual override LP tokens (even if user doesn't own them)
+    // But skip them if address filtering is active (since they're not associated with any specific address)
     const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
-    const manualLPTokens = allTokens.filter(tokenConfig => {
+    const manualLPTokens = selectedAddressIds.length > 0 ? [] : allTokens.filter(tokenConfig => {
+      // Skip V3 LP tokens from manual tokens too - we handle these through dynamic V3 grouping
+      // EXCEPT if they have manual overrides set AND are enabled
+      if (tokenConfig.name?.includes('9MM LP V3')) {
+        const hasCustomValue = customV3Values.has(tokenConfig.ticker) && parseFloat(customV3Values.get(tokenConfig.ticker) || '0') > 0
+        const isEnabled = enabledCoins.has(tokenConfig.ticker)
+        if (!hasCustomValue || !isEnabled) {
+          console.log(`[Manual LP Filter] Skipping static V3 LP token: ${tokenConfig.ticker} (hasCustomValue: ${hasCustomValue}, isEnabled: ${isEnabled})`)
+          return false
+        } else {
+          console.log(`[Manual LP Filter] Keeping static V3 LP token (has override and enabled): ${tokenConfig.ticker}`)
+        }
+      }
+      
       return tokenConfig.type === 'lp' && 
              (coinDetectionMode === 'manual' ? enabledCoins.has(tokenConfig.ticker) : false) &&
              !lpTokensFromBalances.some(existing => existing.symbol === tokenConfig.ticker)
@@ -4085,26 +4348,195 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       decimals: tokenConfig.decimals || 18
     }))
     
-    const lpTokens = [...lpTokensFromBalances, ...manualLPTokens]
+    console.log(`[LP Debug] Manual LP tokens: ${selectedAddressIds.length > 0 ? 'filtered out due to address selection' : `${manualLPTokens.length} tokens`}`)
     
-
+    // Convert 9MM V3 positions to LP token format for display
+    console.log(`[LP Debug] Converting ${nineMmV3Positions.length} V3 positions to LP token format`)
+    
+    // Filter V3 positions based on selected addresses
+    let filteredV3Positions = nineMmV3Positions
+    if (selectedAddressIds.length > 0) {
+      // Only show V3 positions for addresses that are currently selected
+      const selectedAddresses = selectedAddressIds.map(id => {
+        const foundAddr = effectiveAddresses.find(addr => addr.id === id)
+        const address = foundAddr?.address?.toLowerCase()
+        console.log(`[Address Debug] ID ${id} -> found address: ${address}`)
+        return address
+      }).filter(Boolean)
+      console.log(`[Address Debug] effectiveAddresses:`, effectiveAddresses.map(a => ({id: a.id, address: a.address})))
+      
+      filteredV3Positions = nineMmV3Positions.filter(position => {
+        const positionOwner = position.owner.toLowerCase()
+        const isMatch = selectedAddresses.includes(positionOwner)
+        console.log(`[V3 Filter Debug] Position ${position.id} owner: ${positionOwner}, matches selected: ${isMatch}`)
+        return isMatch
+      })
+      console.log(`[LP Debug] Filtered V3 positions from ${nineMmV3Positions.length} to ${filteredV3Positions.length} based on selected addresses:`, selectedAddresses)
+      console.log(`[V3 Debug] All V3 position owners:`, nineMmV3Positions.map(p => p.owner.toLowerCase()))
+      console.log(`[V3 Debug] Selected addresses:`, selectedAddresses)
+    }
+    
+    // Filter out detected V3 positions if there are manual V3 overrides active AND enabled
+    // This prevents showing both manual overrides AND detected positions for the same pool type
+    if (customV3Values.size > 0) {
+      const manualV3PoolTypes = new Set<string>()
+      
+      // Extract pool types from manual V3 overrides that are both enabled and have values
+      customV3Values.forEach((value, symbol) => {
+        const isEnabled = enabledCoins.has(symbol)
+        const hasValue = parseFloat(value) > 0
+        
+        if (isEnabled && hasValue) { // Only consider overrides that are enabled AND have actual values
+          // Normalize pool type for comparison - handle different token symbol variations
+          let poolType = symbol.replace(/\s*\/\s*/g, '/').replace(/\s*\d+(\.\d+)?%.*/, '') // "HEX / CST 1%" -> "HEX/CST"
+          
+          // Handle token symbol variations (e.g., "eDAI" vs "DAI", "weDAI" vs "DAI")
+          poolType = poolType
+            .replace(/\be(\w+)\b/g, '$1') // "HEX/eDAI" -> "HEX/DAI"  
+            .replace(/\bwe(\w+)\b/g, '$1') // "HEX/weDAI" -> "HEX/DAI"
+          
+          console.log(`[V3 Override Debug] Manual override pool type: ${symbol} -> ${poolType}`)
+          
+          manualV3PoolTypes.add(poolType)
+          console.log(`[V3 Override] Manual override active and enabled for pool type: ${poolType} (${symbol})`)
+        } else if (!isEnabled) {
+          console.log(`[V3 Override] Manual override exists but token is disabled: ${symbol}`)
+        } else if (!hasValue) {
+          console.log(`[V3 Override] Manual override exists but no value set: ${symbol}`)
+        }
+      })
+      
+      if (manualV3PoolTypes.size > 0) {
+        const originalCount = filteredV3Positions.length
+        filteredV3Positions = filteredV3Positions.filter(position => {
+          let detectedPoolType = `${position.pool.token0.symbol}/${position.pool.token1.symbol}`
+          
+          // Normalize detected pool type to match manual override normalization
+          // Handle token symbol variations more comprehensively
+          detectedPoolType = detectedPoolType
+            .replace(/\be(\w+)\b/g, '$1') // "eDAI" -> "DAI"  
+            .replace(/\bwe(\w+)\b/g, '$1') // "weDAI" -> "DAI"
+          
+          console.log(`[V3 Override Debug] Original: ${position.pool.token0.symbol}/${position.pool.token1.symbol}, Normalized: ${detectedPoolType}`)
+          
+          const shouldHide = manualV3PoolTypes.has(detectedPoolType)
+          
+          if (shouldHide) {
+            console.log(`[V3 Override] Hiding detected position ${position.displayName} #${position.id} because manual override exists for ${detectedPoolType}`)
+          }
+          
+          return !shouldHide
+        })
+        console.log(`[V3 Override] Filtered detected V3 positions from ${originalCount} to ${filteredV3Positions.length} due to manual overrides`)
+      }
+    }
+    
+    const v3PositionsAsLPTokens = filteredV3Positions.map(position => {
+      const positionSymbol = `${position.displayName} #${position.id}` // e.g., "HEX / DAI 0.25% #12345" - unique per position
+      
+      // Check if there's a custom USD value override for this position
+      const customValue = customV3Values.get(positionSymbol)
+      const effectivePositionValue = customValue ? parseFloat(customValue) : position.values.totalValue
+      
+      console.log(`[V3 Position] ${positionSymbol}: original=$${position.values.totalValue}, custom=${customValue}, effective=$${effectivePositionValue}`)
+      
+      return {
+        symbol: positionSymbol,
+      name: `9MM V3 LP`,
+      balanceFormatted: 1, // V3 positions don't have traditional "balance"
+      address: position.pool.id,
+      chain: 369, // PulseChain
+      decimals: 18,
+      // Custom fields for V3 positions
+      isV3Position: true,
+      positionId: position.id,
+        positionValue: effectivePositionValue, // Use custom value if available
+        originalPositionValue: position.values.totalValue, // Keep original for reference
+      currentValue: position.values.currentValue,
+      feesValue: position.values.feesValue,
+      feePercent: position.feePercent,
+      token0Symbol: position.pool.token0.symbol,
+      token1Symbol: position.pool.token1.symbol,
+        ownerAddress: position.owner
+      }
+    })
+    
+    // Group V3 positions by ticker (e.g., "PLSX / WPLS 1%")
+    const groupedV3Positions = v3PositionsAsLPTokens.reduce((groups, position) => {
+      // Extract base ticker without position ID (e.g., "PLSX / WPLS 1%" from "PLSX / WPLS 1% #134858")
+      const baseTicker = position.symbol.replace(/ #\d+$/, '')
+      
+      if (!groups[baseTicker]) {
+        groups[baseTicker] = {
+          baseTicker,
+          positions: [],
+          totalValue: 0,
+          // Use the first position's metadata for the group
+          name: position.name,
+          chain: position.chain,
+          decimals: position.decimals,
+          address: position.address,
+          isV3Position: true,
+          isGroupedV3: true // Flag to identify grouped V3 positions
+        }
+      }
+      
+      groups[baseTicker].positions.push(position)
+      groups[baseTicker].totalValue += position.positionValue || 0
+      
+      return groups
+    }, {} as Record<string, any>)
+    
+    // Convert grouped positions to LP tokens format
+    const groupedV3TokensAsLPTokens = Object.values(groupedV3Positions).map((group: any) => ({
+      symbol: group.baseTicker,
+      name: group.name,
+      balanceFormatted: group.positions.length, // Show number of positions instead of balance
+      address: group.address,
+      chain: group.chain,
+      decimals: group.decimals,
+      isV3Position: group.isV3Position,
+      isGroupedV3: group.isGroupedV3,
+      positionValue: group.totalValue,
+      positions: group.positions, // Store individual positions for dropdown
+      // For compatibility with existing code
+      currentValue: group.totalValue,
+      feesValue: 0,
+      originalPositionValue: group.totalValue
+    }))
+    
+    // Only use grouped V3 positions if both toggles are enabled
+    const finalV3Tokens = (showLiquidityPositions && includeLiquidityPositionsFilter) ? groupedV3TokensAsLPTokens : []
+    const lpTokens = [...lpTokensFromBalances, ...manualLPTokens, ...finalV3Tokens]
+    
+    console.log(`[LP Debug] Toggle states: showLiquidityPositions=${showLiquidityPositions}, includeLiquidityPositionsFilter=${includeLiquidityPositionsFilter}`)
+    console.log(`[LP Debug] Final LP tokens array: ${lpTokens.length} total (${lpTokensFromBalances.length} from balances + ${manualLPTokens.length} manual + ${finalV3Tokens.length} V3 grouped)`)
+    console.log(`[LP Debug] Raw V3 positions: ${v3PositionsAsLPTokens.length}, Grouped V3 tokens: ${groupedV3TokensAsLPTokens.length}`)
+    console.log(`[LP Debug] Static V3 tokens filtered out from balances and manual tokens`)
+    if (finalV3Tokens.length > 0) {
+      console.log(`[LP Debug] Grouped V3 tokens:`, finalV3Tokens.map(token => `${token.symbol} (${token.positions?.length} positions, $${token.positionValue})`))
+    }
     
     // Sort by USD value (highest first)
     return [...lpTokens].sort((a, b) => {
-      const aPrice = getLPTokenPrice(a.symbol) || 0
-      const bPrice = getLPTokenPrice(b.symbol) || 0
-      const aValue = a.balanceFormatted * aPrice
-      const bValue = b.balanceFormatted * bPrice
+      // For V3 positions, use the positionValue directly
+      const aValue = a.isV3Position ? a.positionValue : (a.balanceFormatted * (getLPTokenPrice(a.symbol) || 0))
+      const bValue = b.isV3Position ? b.positionValue : (b.balanceFormatted * (getLPTokenPrice(b.symbol) || 0))
       
-      console.log(`[LP Sorting] ${a.symbol}: ${a.balanceFormatted} × $${aPrice} = $${aValue}`)
-      console.log(`[LP Sorting] ${b.symbol}: ${b.balanceFormatted} × $${bPrice} = $${bValue}`)
+      console.log(`[LP Sorting] ${a.symbol}: ${a.isV3Position ? `V3 Position $${a.positionValue}` : `${a.balanceFormatted} × $${getLPTokenPrice(a.symbol) || 0}`} = $${aValue}`)
+      console.log(`[LP Sorting] ${b.symbol}: ${b.isV3Position ? `V3 Position $${b.positionValue}` : `${b.balanceFormatted} × $${getLPTokenPrice(b.symbol) || 0}`} = $${bValue}`)
       
       return bValue - aValue // Higher value first
     })
   }, [
     mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted?.toFixed(6) || '0'}`).join('|'),
     lpTokenPrices,
-    showLiquidityPositions
+    showLiquidityPositions,
+    nineMmV3Positions,
+    primaryAddress,
+    selectedAddressIds,
+    effectiveAddresses,
+    customV3Values
   ])
 
   // Memoized Farm tokens with balances
@@ -4119,8 +4551,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     })
     
     // Add manual override farm tokens (even if user doesn't own them)
+    // But skip them if address filtering is active (since they're not associated with any specific address)
     const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
-    const manualFarmTokens = allTokens.filter(tokenConfig => {
+    const manualFarmTokens = selectedAddressIds.length > 0 ? [] : allTokens.filter(tokenConfig => {
       return tokenConfig.type === 'farm' && 
              (coinDetectionMode === 'manual' ? enabledCoins.has(tokenConfig.ticker) : false) &&
              !farmTokensFromBalances.some(existing => existing.symbol === tokenConfig.ticker)
@@ -4133,8 +4566,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       decimals: tokenConfig.decimals || 18
     }))
     
+    console.log(`[Farm Debug] Manual farm tokens: ${selectedAddressIds.length > 0 ? 'filtered out due to address selection' : `${manualFarmTokens.length} tokens`}`)
+    
     // Add farm tokens with custom balances that might not be in mainTokensWithBalances
-    const farmTokensWithCustomBalances = allTokens
+    // But skip them if address filtering is active (since they're not associated with any specific address)
+    const farmTokensWithCustomBalances = selectedAddressIds.length > 0 ? [] : allTokens
       .filter(tokenConfig => tokenConfig.type === 'farm' && customBalances.has(tokenConfig.ticker))
       .map(tokenConfig => {
         const customBalance = parseFloat(customBalances.get(tokenConfig.ticker) || '0')
@@ -5239,18 +5675,56 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // Add LP token values if liquidity positions are enabled AND filter is on
     if (showLiquidityPositions && includeLiquidityPositionsFilter && lpTokensWithBalances) {
       lpTokensWithBalances.forEach(lpToken => {
+        // Check if this is any type of V3 position (dynamic from API or static from constants)
+        const allTokensForConfig = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
+        const tokenConfig = allTokensForConfig.find(t => t.ticker === lpToken.symbol)
+        const isAnyV3Position = lpToken.isV3Position || (tokenConfig?.name?.includes('9MM LP V3'))
+        
+        // Skip manual V3 overrides when address filtering is active
+        if (isAnyV3Position && !lpToken.ownerAddress && selectedAddressIds.length > 0) {
+          console.log(`[Portfolio Total] Skipping manual V3 override ${lpToken.symbol} due to address filtering`)
+          return // Skip this token entirely when address filtering is active
+        }
+        
+        // Handle V3 positions differently from regular LP tokens
+        let lpValue = 0
+        
+        if (isAnyV3Position) {
+          // For V3 positions, use custom USD value or position value
+          lpValue = customV3Values.get(lpToken.symbol) ? parseFloat(customV3Values.get(lpToken.symbol) || '0') : (lpToken.positionValue || 0)
+          console.log(`[Portfolio Total] Adding V3 position ${lpToken.symbol}: $${lpValue} ${customV3Values.has(lpToken.symbol) ? '(custom override)' : '(calculated)'}`)
+        } else {
         // Use PLS API price for USDT/USDC/DAI pool, regular pricing for others
         const isStablePool = lpToken.symbol === 'USDT  \/ USDC \/ DAI'
         const lpPrice = isStablePool && plsVirtualPrice 
           ? plsVirtualPrice 
           : getLPTokenPrice(lpToken.symbol) || 0
-        const lpValue = lpToken.balanceFormatted * lpPrice
+          lpValue = lpToken.balanceFormatted * lpPrice
+          console.log(`[Portfolio Total] Adding LP token ${lpToken.symbol}: ${lpToken.balanceFormatted} × $${lpPrice} = $${lpValue}`)
+        }
         totalValue += lpValue
         
-        // Add to address values array (find the address that holds this LP token)
-        const addressData = filteredBalances.find(balance => 
+        // Add to address values array
+        let addressData
+        if (isAnyV3Position) {
+          // For V3 positions, find the address by owner
+          if (lpToken.ownerAddress) {
+            // Dynamic V3 position - use actual owner address
+            addressData = filteredBalances.find(balance => 
+              balance.address.toLowerCase() === lpToken.ownerAddress.toLowerCase()
+            )
+          } else {
+            // Manual V3 override - don't attribute to any specific address
+            addressData = null
+            console.log(`[Portfolio Total] Manual V3 override ${lpToken.symbol} included in total but not attributed to specific address`)
+          }
+        } else {
+          // For regular LP tokens, find the address that holds this LP token
+          addressData = filteredBalances.find(balance => 
           balance.tokenBalances?.some(token => token.symbol === lpToken.symbol)
         )
+        }
+        
         if (addressData) {
           const existingIndex = addressVals.findIndex(av => av.address === addressData.address)
           if (existingIndex >= 0) {
@@ -6820,11 +7294,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           <div className="bg-black/60 backdrop-blur-md border-2 border-white/10 rounded-2xl p-1 sm:p-6">
             <div className="space-y-3">
               {lpTokensWithBalances.map((token, tokenIndex) => {
-                // Use PLS API price for USDT/USDC/DAI pool, regular pricing for others
+                // Handle V3 positions differently from regular LP tokens
+                const isV3Position = token.isV3Position
                 const isStablePool = token.symbol === 'USDT  \/ USDC \/ DAI'
-                const tokenPrice = isStablePool && plsVirtualPrice 
-                  ? plsVirtualPrice 
-                  : getLPTokenPrice(token.symbol) || 0
+                
+                // For V3 positions, set tokenPrice to 0 (will show blank in col 3); for LP tokens use price lookup
+                const tokenPrice = isV3Position 
+                  ? 0 // Don't show price in column 3 for V3 positions
+                  : isStablePool && plsVirtualPrice 
+                    ? plsVirtualPrice 
+                    : getLPTokenPrice(token.symbol) || 0
                   
                 const stableKey = `${token.chain}-${token.symbol}-${token.address || 'lp'}`
                 // Look for token in all sources: TOKEN_CONSTANTS, MORE_COINS, and custom tokens
@@ -6837,15 +7316,46 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                   console.log(`[LP Config] ${token.symbol}: found config = ${!!tokenConfig}, name = "${tokenConfig?.name}", platform = "${tokenConfig?.platform}"`)
                   console.log(`[LP Config] Available tokens with 'PHUX':`, allTokensForConfig.filter(t => t.ticker.includes('PHUX')).map(t => ({ticker: t.ticker, name: t.name})))
                 }
-                const displayAmount = token.balanceFormatted !== null ? formatBalance(token.balanceFormatted) : '?'
-                const usdValue = token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
                 
-                // Calculate underlying tokens - use specific method for each platform
-                const underlyingTokens = tokenConfig?.platform === 'PHUX' && tokenConfig.a
-                  ? calculatePhuxLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0, tokenConfig.a)
-                  : tokenConfig?.platform === '9INCH' && tokenConfig.a
-                  ? calculate9InchLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0, tokenConfig.a)
-                  : calculateLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0)
+                // Check if this is any type of V3 position (dynamic from API or static from constants)
+                const isAnyV3Position = isV3Position || (tokenConfig?.name?.includes('9MM LP V3'))
+                const isGroupedV3 = token.isGroupedV3 // New flag for grouped V3 positions
+                
+                // For V3 positions, display empty string instead of balance; for grouped V3 show position count; for LP tokens show balance
+                // Only show position count for actual detected V3 positions (grouped), not manual overrides
+                const isManualV3Override = isAnyV3Position && !token.ownerAddress
+                const displayAmount = isGroupedV3 && !isManualV3Override
+                  ? `${token.positions?.length || 0} ${(token.positions?.length || 0) === 1 ? 'position' : 'positions'}`
+                  : isAnyV3Position 
+                  ? ''
+                  : token.balanceFormatted !== null ? formatBalance(token.balanceFormatted) : '?'
+                
+                // For V3 positions, use custom USD value or position value; for LP tokens calculate from balance × price
+                const usdValue = isAnyV3Position 
+                  ? (customV3Values.get(token.symbol) ? parseFloat(customV3Values.get(token.symbol) || '0') : (token.positionValue || 0))
+                  : token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
+                
+                // Calculate underlying tokens - handle V3 positions differently
+                const underlyingTokens = isAnyV3Position 
+                  ? {
+                      token0: {
+                        symbol: token.token0Symbol,
+                        amount: token.currentValue / 2 / (getTokenPrice(token.token0Symbol) || 1), // Rough estimate
+                        decimals: 18 // Default decimals
+                      },
+                      token1: {
+                        symbol: token.token1Symbol,
+                        amount: token.currentValue / 2 / (getTokenPrice(token.token1Symbol) || 1), // Rough estimate
+                        decimals: 18 // Default decimals
+                      }
+                    }
+                  : tokenConfig?.platform === 'PHUX' && tokenConfig.a
+                    ? calculatePhuxLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0, tokenConfig.a)
+                    : tokenConfig?.platform === '9INCH' && tokenConfig.a
+                    ? calculate9InchLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0, tokenConfig.a)
+                    : tokenConfig?.platform === '9MM' && tokenConfig.a
+                    ? calculate9InchLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0, tokenConfig.a) // 9MM uses same logic as 9INCH
+                    : calculateLPUnderlyingTokens(token.symbol, token.balanceFormatted || 0)
                 
                 // Calculate pool ownership percentage
                 const lpData = lpTokenData[token.symbol]
@@ -6853,8 +7363,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 // Get pool ownership percentage - check platform type
                 let poolOwnershipPercentage = null
                 
-                if ((tokenConfig?.platform === 'PHUX' || tokenConfig?.platform === '9INCH') && tokenConfig.a && getPhuxLPTokenPrice) {
-                  // For PHUX and 9INCH pools, get total shares from GraphQL pool data
+                if (isAnyV3Position) {
+                  // For V3 positions, we can't easily calculate pool ownership percentage
+                  // V3 positions are concentrated in specific price ranges
+                  poolOwnershipPercentage = null
+                } else if ((tokenConfig?.platform === 'PHUX' || tokenConfig?.platform === '9INCH' || tokenConfig?.platform === '9MM') && tokenConfig.a && getPhuxLPTokenPrice) {
+                  // For PHUX, 9INCH, and 9MM pools, get total shares from GraphQL pool data
                   const poolPrice = getPhuxLPTokenPrice(tokenConfig.a)
                   if (poolPrice?.totalShares && token.balanceFormatted) {
                     poolOwnershipPercentage = (token.balanceFormatted / poolPrice.totalShares) * 100
@@ -6977,8 +7491,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                             {getDisplayTicker(token.symbol)}
                           </div>
                           <div className="text-gray-400 text-[10px] break-words leading-tight">
-                            <span className="sm:hidden">{displayAmount} tokens</span>
-                            <span className="hidden sm:block">{tokenConfig?.name || `${getDisplayTicker(token.symbol)} Liquidity Pool`}</span>
+                            <span className="sm:hidden">{displayAmount && (isGroupedV3 ? displayAmount : `${displayAmount} tokens`)}</span>
+                            <span className="hidden sm:block">{isV3Position ? '9MM V3 LP' : (tokenConfig?.name || `${getDisplayTicker(token.symbol)} Liquidity Pool`)}</span>
                           </div>
                         </div>
                       </div>
@@ -7018,17 +7532,43 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                           ${formatDollarValue(usdValue)}
                         </div>
                         <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
-                          {displayAmount} tokens
+                          {displayAmount && (isGroupedV3 ? displayAmount : `${displayAmount} tokens`)}
                         </div>
                       </div>
 
                       {/* Chart & Copy Icons - Far Right Column */}
                       <div className="flex flex-col items-center ml-2">
-                        {/* Hide toggle arrow for USDT/USDC/DAI pool and single-asset PHUX pools */}
-                        {!(token.symbol === 'BridgedSP' || token.symbol === 'CSTStable') && (
+                        {/* Hide toggle arrow for USDT/USDC/DAI pool, single-asset PHUX pools, and manual V3 overrides */}
+                        {(() => {
+                          // Don't show dropdown for specific pools
+                          if (token.symbol === 'BridgedSP' || token.symbol === 'CSTStable') return false
+                          
+                          // Don't show dropdown for manual V3 overrides (we don't have breakdown details)
+                          if (isAnyV3Position && customV3Values.has(token.symbol)) {
+                            const hasCustomValue = parseFloat(customV3Values.get(token.symbol) || '0') > 0
+                            if (hasCustomValue) {
+                              console.log(`[V3 Dropdown] Hiding dropdown for manual V3 override: ${token.symbol}`)
+                              return false
+                            }
+                          }
+                          
+                          return true
+                        })() && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
+                            if (isGroupedV3) {
+                              // Handle grouped V3 positions
+                              const isExpanded = expandedV3Groups.has(token.symbol)
+                              const newExpanded = new Set(expandedV3Groups)
+                              if (isExpanded) {
+                                newExpanded.delete(token.symbol)
+                              } else {
+                                newExpanded.add(token.symbol)
+                              }
+                              setExpandedV3Groups(newExpanded)
+                            } else {
+                              // Handle regular LP tokens
                             const isExpanded = expandedLPTokens.has(token.symbol)
                             const newExpanded = new Set(expandedLPTokens)
                             if (isExpanded) {
@@ -7037,13 +7577,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                               newExpanded.add(token.symbol)
                             }
                             setExpandedLPTokens(newExpanded)
+                            }
                           }}
                           className="p-1 text-gray-400 hover:text-white transition-colors"
-                          title={expandedLPTokens.has(token.symbol) ? "Hide underlying tokens" : "Show underlying tokens"}
+                          title={
+                            isGroupedV3 
+                              ? (expandedV3Groups.has(token.symbol) ? "Hide positions" : "Show positions")
+                              : (expandedLPTokens.has(token.symbol) ? "Hide underlying tokens" : "Show underlying tokens")
+                          }
                         >
                           <ChevronDown 
                             className={`w-4 h-4 transition-transform duration-200 ${
-                              expandedLPTokens.has(token.symbol) ? '' : 'rotate-180'
+                              (isGroupedV3 ? expandedV3Groups.has(token.symbol) : expandedLPTokens.has(token.symbol)) ? '' : 'rotate-180'
                             }`}
                           />
                         </button>
@@ -7051,9 +7596,109 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                       </div>
                     </div>
                     
+                    {/* Grouped V3 Positions Breakdown */}
+                    <AnimatePresence>
+                      {isGroupedV3 && expandedV3Groups.has(token.symbol) && token.positions && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: "easeInOut" }}
+                          className="px-4 pb-3 border-t border-white/5 overflow-hidden"
+                        >
+                          <div className="text-xs text-gray-400 mb-3 mt-2">Individual positions:</div>
+                          <div className="space-y-2">
+                            {token.positions.map((position, posIndex) => (
+                              <div key={position.positionId} className="bg-black/30 rounded-lg p-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="text-white text-sm font-medium">
+                                      #{position.positionId}
+                                    </div>
+                                    <div className="text-white text-sm font-medium">
+                                      ${formatDollarValue(position.positionValue || 0)}
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      const positionKey = `${token.symbol}-${position.positionId}`
+                                      const isExpanded = expandedV3Positions.has(positionKey)
+                                      const newExpanded = new Set(expandedV3Positions)
+                                      if (isExpanded) {
+                                        newExpanded.delete(positionKey)
+                                      } else {
+                                        newExpanded.add(positionKey)
+                                      }
+                                      setExpandedV3Positions(newExpanded)
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-white transition-colors"
+                                    title="Show token breakdown"
+                                  >
+                                    <ChevronDown 
+                                      className={`w-3 h-3 transition-transform duration-200 ${
+                                        expandedV3Positions.has(`${token.symbol}-${position.positionId}`) ? '' : 'rotate-180'
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
+                                
+                                {/* Nested token breakdown for individual position */}
+                                <AnimatePresence>
+                                  {expandedV3Positions.has(`${token.symbol}-${position.positionId}`) && (
+                                    <motion.div
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: "auto", opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      transition={{ duration: 0.15, ease: "easeInOut" }}
+                                      className="mt-2 pt-2 border-t border-white/10 overflow-hidden"
+                                    >
+                                      <div className="text-xs text-gray-400 mb-2">Token breakdown:</div>
+                                      <div className="flex gap-4">
+                                        <div className="flex items-center space-x-2">
+                                          <CoinLogo
+                                            symbol={cleanTickerForLogo(position.token0Symbol)}
+                                            size="sm"
+                                            className="rounded-none"
+                                          />
+                                          <div>
+                                            <div className="text-white text-xs font-medium">
+                                              ${formatDollarValue((position.positionValue || 0) / 2)}
+                                            </div>
+                                            <div className="text-gray-400 text-xs">
+                                              {formatBalance((position.positionValue || 0) / 2 / (getTokenPrice(position.token0Symbol) || 1))} {getDisplayTicker(position.token0Symbol)}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          <CoinLogo
+                                            symbol={cleanTickerForLogo(position.token1Symbol)}
+                                            size="sm"
+                                            className="rounded-none"
+                                          />
+                                          <div>
+                                            <div className="text-white text-xs font-medium">
+                                              ${formatDollarValue((position.positionValue || 0) / 2)}
+                                            </div>
+                                            <div className="text-gray-400 text-xs">
+                                              {formatBalance((position.positionValue || 0) / 2 / (getTokenPrice(position.token1Symbol) || 1))} {getDisplayTicker(position.token1Symbol)}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    
                     {/* Underlying Tokens Breakdown */}
                     <AnimatePresence>
-                      {underlyingTokens && expandedLPTokens.has(token.symbol) && (
+                      {underlyingTokens && !isGroupedV3 && expandedLPTokens.has(token.symbol) && (
                         <motion.div
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: "auto", opacity: 1 }}
@@ -7315,7 +7960,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                             {getDisplayTicker(token.symbol)}
                           </div>
                           <div className="text-gray-400 text-[10px] break-words leading-tight">
-                            <span className="sm:hidden">{displayAmount} tokens</span>
+                            <span className="sm:hidden">{isGroupedV3 ? displayAmount : `${displayAmount} tokens`}</span>
                             <span className="hidden sm:block">{tokenConfig?.name || `${getDisplayTicker(token.symbol)} Farm`}</span>
                           </div>
                         </div>
@@ -7344,7 +7989,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                           ${formatDollarValue(usdValue)}
                         </div>
                         <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
-                          {displayAmount} tokens
+                          {displayAmount && (isGroupedV3 ? displayAmount : `${displayAmount} tokens`)}
                         </div>
                       </div>
                       
@@ -11225,6 +11870,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                       // Show "Watchlist" label for tokens that are toggled ON and have 0 in input (not ?)
                                       if (!isEnabled) return null // Only show if token is toggled on
                                       
+                                      // Check if this is a V3 position
+                                      const isV3Position = token.name?.includes('9MM LP V3')
+                                      
+                                      if (isV3Position) {
+                                        // For V3 positions, check customV3Values instead of customBalances
+                                        const hasCustomV3Value = customV3Values.has(token.ticker)
+                                        const customV3Value = hasCustomV3Value ? customV3Values.get(token.ticker) : ''
+                                        const isZeroV3Value = !hasCustomV3Value || customV3Value === '0' || customV3Value === ''
+                                        
+                                        return isZeroV3Value && (
+                                          <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded">
+                                            <span className="hidden md:inline">Watchlist</span>
+                                            <span className="md:hidden">W</span>
+                                          </span>
+                                        )
+                                      } else {
+                                        // For regular tokens, use existing logic
                                       const currentBalance = getCurrentBalance(token.ticker)
                                       const hasCustomValue = customBalances.has(token.ticker)
                                       const customValue = hasCustomValue ? customBalances.get(token.ticker) : ''
@@ -11238,6 +11900,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           <span className="md:hidden">W</span>
                                         </span>
                                       )
+                                      }
                                     })()}
                                     {/* Custom label - show inline on all screen sizes */}
                                     {token.id && token.id.startsWith('custom_') && (
@@ -11261,6 +11924,47 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 <div className={`xs:w-[100px] sm:w-[140px] md:w-[160px] mr-6 ${  
                                   token.id && token.id.startsWith('custom_') ? 'w-20' : 'w-20'
                                 }`}>
+                                  {(() => {
+                                    // Check if this is a V3 position (has 9MM LP V3 name, includes both static and dynamic V3 positions)
+                                    const isV3Position = token.name?.includes('9MM LP V3')
+                                    
+                                    console.log(`[V3 Detection] ${token.ticker}: isV3Position=${isV3Position}, name="${token.name}"`)
+                                    
+                                    if (isV3Position) {
+                                      // V3 Position: Use USD value input
+                                      return (
+                                        <div className="relative">
+                                          <span className="absolute left-2 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs md:text-sm">$</span>
+                                          <input
+                                            type="text"
+                                            placeholder="0.00"
+                                            value={formatInputValue(customV3Values.get(token.ticker) || '')}
+                                            onChange={(e) => {
+                                              const newCustomV3Values = new Map(customV3Values)
+                                              if (e.target.value === '') {
+                                                newCustomV3Values.delete(token.ticker)
+                                              } else {
+                                                const parsedValue = parseInputValue(e.target.value)
+                                                console.log(`[Custom V3 Value Input] ${token.ticker}: input="${e.target.value}" -> parsed="${parsedValue}"`)
+                                                newCustomV3Values.set(token.ticker, parsedValue)
+                                                
+                                                // Auto-enable liquidity positions for V3 positions
+                                                const currentLiquidityPositions = pendingShowLiquidityPositions !== null ? pendingShowLiquidityPositions : showLiquidityPositions
+                                                if (!currentLiquidityPositions) {
+                                                  console.log(`[Auto-Enable] Enabling liquidity positions for V3 position: ${token.ticker}`)
+                                                  setPendingShowLiquidityPositions(true)
+                                                }
+                                              }
+                                              setCustomV3Values(newCustomV3Values)
+                                            }}
+                                            className="w-full h-8 pl-5 md:pl-6 pr-2 md:pr-3 bg-black border border-white/20 rounded text-white placeholder-gray-500 focus:border-white/20 focus:outline-none text-xs md:text-sm text-right"
+                                            title="Enter USD value for this V3 position"
+                                          />
+                                        </div>
+                                      )
+                                    } else {
+                                      // Regular Token: Use token amount input
+                                      return (
                                   <input
                                     type="text"
                                     placeholder={formatBalanceForPlaceholder(getCurrentBalance(token.ticker))}
@@ -11289,6 +11993,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                     }}
                                     className="w-full h-8 px-2 md:px-3 bg-black border border-white/20 rounded text-white placeholder-gray-500 focus:border-white/20 focus:outline-none text-xs md:text-sm text-right"
                                   />
+                                      )
+                                    }
+                                  })()}
                                 </div>
                               )}
                               
@@ -11327,6 +12034,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                   if (isEnabled) {
                                     newEnabled.delete(token.ticker)
                                     console.log('[Portfolio] Toggled OFF:', token.ticker, 'pending enabled:', Array.from(newEnabled))
+                                    
+                                    // Clear custom V3 value when toggled off
+                                    const isV3Position = token.name?.includes('9MM LP V3')
+                                    if (isV3Position) {
+                                      const newCustomV3Values = new Map(customV3Values)
+                                      newCustomV3Values.delete(token.ticker)
+                                      setCustomV3Values(newCustomV3Values)
+                                      console.log(`[V3 Toggle OFF] Cleared custom V3 value for ${token.ticker}`)
+                                    }
                                     
                                     // Remove green styling when toggling OFF non-custom tokens
                                     const isCustomToken = (token as any).id?.startsWith('custom_')

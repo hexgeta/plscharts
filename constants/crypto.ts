@@ -2921,6 +2921,106 @@ decimals: 18,
 name: "PHUX Farm",
 type: "farm"
 },
+{
+chain: 369,
+a: "0x8c357be2cf2c1de1c4dca8aea0af1529f789976b", // 9MM LP token address
+dexs: null,
+ticker: "HEX \/ WPLS 0.25%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
+{
+chain: 369,
+a: "0x98bB7FE00F82C495229eb302D1Ae708fF931728E", // 9MM LP token address
+dexs: null,
+ticker: "PLSX \/ WPLS 0.25%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
+{
+chain: 369,
+a: "0x6ace474a9fde57e663e47a4c7965964440b35f71",
+dexs: null,
+ticker: "HEX \/ weDAI 0.25%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
+{
+chain: 369,
+a: "0x96737676cb25396a9f857272cddc8e3a346d63da", 
+dexs: null,
+ticker: "PLSX \/ WPLS 1%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
+{
+chain: 369,
+a: "0xc9ec71281200d564d119918cb927f6c1ea2939f8",
+dexs: null,
+ticker: "WBTC \/ weDAI 2%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
+{
+chain: 369,
+a: "0x5828b419f4d98bdbc45438f8fba0fe89772615c9",
+dexs: null,
+ticker: "HEX \/ CST 1%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
+{
+chain: 369,
+a: "0xf91d0cbfba8e11ccd203e97aefda4352accffeeb",
+dexs: null,
+ticker: "weWETH \/ WPLS 0.25%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
+{
+chain: 369,
+a: "0x55b432ad0518a4285ded6bb4d15e9a7182ef7a4d",
+dexs: null,
+ticker: "pDAI \/ WPLS 1%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
+{
+chain: 369,
+a: "0x1dd2ce7320a0a7cb6581bf3fcccb042366e5c089",
+dexs: null,
+ticker: "HEX \/ weDAI 2%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
+{
+chain: 369,
+a: "0xe37a2c1755151ff910ff895a14fad5570730f6e9",
+dexs: null,
+ticker: "WPLS \/ weDAI 0.25%",
+decimals: 18,
+name: "9MM LP V3",
+type: "lp",
+platform: "9MM"
+},
 // 9INCH LP tokens (add these first so farms can reference them)
 {
 chain: 369,

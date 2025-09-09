@@ -12,6 +12,12 @@ export function cleanTickerForLogo(symbol: string): string {
   
   let cleanedSymbol = symbol.trim()
   
+  // Remove V3 position ID (e.g., "HEX / WPLS 0.25% #143462" -> "HEX / WPLS 0.25%")
+  cleanedSymbol = cleanedSymbol.replace(/\s+#\d+$/, '').trim()
+  
+  // Remove percentage fees from LP tokens (e.g., "CST 1%" -> "CST", "WPLS 0.25%" -> "WPLS")
+  cleanedSymbol = cleanedSymbol.replace(/\s+\d+(\.\d+)?%$/, '').trim()
+  
   // Remove farm suffix "(f)" for logo lookup - farms use same logo as their LP counterpart
   if (cleanedSymbol.endsWith(' (f)')) {
     cleanedSymbol = cleanedSymbol.replace(' (f)', '').trim()
