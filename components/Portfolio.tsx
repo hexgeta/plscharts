@@ -4353,13 +4353,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // Convert 9MM V3 positions to LP token format for display
     console.log(`[LP Debug] Converting ${nineMmV3Positions.length} V3 positions to LP token format`)
     
-    // Filter out closed positions (positions with very low total value)
+    // Filter out closed positions (positions with zero or very low liquidity)
     const activeV3Positions = nineMmV3Positions.filter(position => {
       const totalValue = position.values?.totalValue || 0
       const currentValue = position.values?.currentValue || 0
-      const isActive = totalValue > 1.0 && currentValue > 0.10 // Filter out positions worth less than $1 total or $0.10 current
+      const liquidity = parseFloat(position.liquidity || '0')
+      
+      // A position is closed if:
+      // 1. Liquidity is 0 (completely closed)
+      // 2. Both current value and total value are very low (effectively empty)
+      const isActive = liquidity > 0 && (totalValue > 0.01 || currentValue > 0.01)
+      
       if (!isActive) {
-        console.log(`[V3 Filter] Filtering out closed/empty position ${position.id}: total=$${totalValue.toFixed(4)}, current=$${currentValue.toFixed(4)}`)
+        console.log(`[V3 Filter] Filtering out closed position ${position.id}: liquidity=${liquidity}, total=$${totalValue.toFixed(4)}, current=$${currentValue.toFixed(4)}`)
       }
       return isActive
     })
@@ -4473,6 +4479,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       tickLower: position.tickLower,
       tickUpper: position.tickUpper,
       tick: position.pool.tick, // Current pool tick for price calculation
+      // Pool data for ownership calculation
+      pool: {
+        totalValueLockedUSD: position.pool.totalValueLockedUSD,
+        volumeUSD: position.pool.volumeUSD,
+        liquidity: position.pool.liquidity
+      },
         ownerAddress: position.owner
       }
     })
@@ -7328,9 +7340,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 const isV3Position = token.isV3Position
                 const isStablePool = token.symbol === 'USDT  \/ USDC \/ DAI'
                 
-                // For V3 positions, set tokenPrice to 0 (will show blank in col 3); for LP tokens use price lookup
+                // For V3 positions, set tokenPrice to 0 (will show link in col 3); for LP tokens use price lookup
                 const tokenPrice = isV3Position 
-                  ? 0 // Don't show price in column 3 for V3 positions
+                  ? 0 // Don't show price in column 3 for V3 positions, will show pool info link instead
                   : isStablePool && plsVirtualPrice 
                     ? plsVirtualPrice 
                     : getLPTokenPrice(token.symbol) || 0
@@ -7391,9 +7403,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 let poolOwnershipPercentage = null
                 
                 if (isAnyV3Position) {
-                  // For V3 positions, we can't easily calculate pool ownership percentage
-                  // V3 positions are concentrated in specific price ranges
-                  poolOwnershipPercentage = null
+                  // For V3 positions, calculate ownership as position value / pool TVL
+                  if (isGroupedV3 && token.positions && token.positions.length > 0) {
+                    // For grouped V3 positions, use the pool TVL from the first position
+                    const firstPosition = token.positions[0]
+                    const poolTVL = parseFloat(firstPosition.pool?.totalValueLockedUSD || '0')
+                    const totalPositionValue = token.positionValue || 0
+                    
+                    if (poolTVL > 0 && totalPositionValue > 0) {
+                      poolOwnershipPercentage = (totalPositionValue / poolTVL) * 100
+                      console.log(`[V3 Pool Ownership] ${token.symbol}: $${totalPositionValue} / $${poolTVL} = ${poolOwnershipPercentage.toFixed(4)}% of pool TVL`)
+                    }
+                  } else if (token.pool?.totalValueLockedUSD && token.positionValue) {
+                    // For single V3 positions
+                    const poolTVL = parseFloat(token.pool.totalValueLockedUSD)
+                    const positionValue = token.positionValue
+                    
+                    if (poolTVL > 0) {
+                      poolOwnershipPercentage = (positionValue / poolTVL) * 100
+                      console.log(`[V3 Pool Ownership] ${token.symbol}: $${positionValue} / $${poolTVL} = ${poolOwnershipPercentage.toFixed(4)}% of pool TVL`)
+                    }
+                  }
                 } else if ((tokenConfig?.platform === 'PHUX' || tokenConfig?.platform === '9INCH' || tokenConfig?.platform === '9MM') && tokenConfig.a && getPhuxLPTokenPrice) {
                   // For PHUX, 9INCH, and 9MM pools, get total shares from GraphQL pool data
                   const poolPrice = getPhuxLPTokenPrice(tokenConfig.a)
@@ -7526,9 +7556,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                       
                       {/* Price Column - Hidden on Mobile */}
                       <div className="hidden sm:block text-center">
+                        {isAnyV3Position ? (
+                          // For V3 positions, show link to 9MM pool info page
+                          <a 
+                            href={`https://base.9mm.pro/info/v3/pairs/${token.address}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 text-xs font-medium underline transition-colors"
+                          >
+                            Pool Info
+                          </a>
+                        ) : (
+                          // For regular LP tokens, show price
                         <div className="text-gray-400 text-xs font-medium">
                           {tokenPrice === 0 ? '--' : `$${formatLPTokenPrice(tokenPrice)}`}
                         </div>
+                        )}
                       </div>
 
                       {/* 24h Price Change Column - Pool Ownership on Mobile */}

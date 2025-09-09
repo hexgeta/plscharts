@@ -38,15 +38,15 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
   console.log('STM token found:', stmToken)
   
   // Debug: Check for the specific contract addresses
-  const contractSearch1 = ALL_TOKENS.find(token => token.a.toLowerCase() === '0xb6a3af5d5198e19abf5eaba0fa074c881fdc970a')
-  const contractSearch2 = ALL_TOKENS.find(token => token.a.toLowerCase() === '0x62bd78d40a9fcb4d29f6ff183cfbcaf2f5ca9b52')
+  const contractSearch1 = ALL_TOKENS.find(token => token.a && token.a.toLowerCase() === '0xb6a3af5d5198e19abf5eaba0fa074c881fdc970a')
+  const contractSearch2 = ALL_TOKENS.find(token => token.a && token.a.toLowerCase() === '0x62bd78d40a9fcb4d29f6ff183cfbcaf2f5ca9b52')
   console.log('Contract 0xB6a3... found:', contractSearch1)
   console.log('Contract 0x62bd... found:', contractSearch2)
   
   // Test exact matching logic
   if (stmToken) {
     const testSearch = '0x62bd78d40A9FCb4D29F6fF183CFbcaf2f5ca9B52'.toLowerCase()
-    const tokenContract = stmToken.a.toLowerCase()
+    const tokenContract = stmToken.a ? stmToken.a.toLowerCase() : ''
     console.log('STM contract in DB:', stmToken.a)
     console.log('Search term:', testSearch)
     console.log('Contract match test:', tokenContract.includes(testSearch))
@@ -86,7 +86,7 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
       const searchLower = search.toLowerCase()
       const tickerLower = token.ticker.toLowerCase()
       const nameLower = token.name.toLowerCase()
-      const contractLower = token.a.toLowerCase()
+      const contractLower = token.a ? token.a.toLowerCase() : ''
       
       // Standard matching - check if ticker, name, or contract address contains search term
       const tickerMatch = tickerLower.includes(searchLower)
@@ -160,8 +160,8 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
         }
         
         // Prioritize exact contract address matches above all else
-        const aContractExact = a.a.toLowerCase() === searchLower
-        const bContractExact = b.a.toLowerCase() === searchLower
+        const aContractExact = a.a && a.a.toLowerCase() === searchLower
+        const bContractExact = b.a && b.a.toLowerCase() === searchLower
         if (aContractExact && !bContractExact) return -1
         if (bContractExact && !aContractExact) return 1
         
@@ -171,8 +171,8 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
         if (bTickerExact && !aTickerExact) return 1
         
         // Then contract address matches, then ticker matches, then name matches
-        const aContractMatch = a.a.toLowerCase().includes(searchLower)
-        const bContractMatch = b.a.toLowerCase().includes(searchLower)
+        const aContractMatch = a.a && a.a.toLowerCase().includes(searchLower)
+        const bContractMatch = b.a && b.a.toLowerCase().includes(searchLower)
         const aTickerMatch = a.ticker.toLowerCase().includes(searchLower)
         const bTickerMatch = b.ticker.toLowerCase().includes(searchLower)
         

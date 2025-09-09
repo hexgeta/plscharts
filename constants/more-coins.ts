@@ -150,7 +150,21 @@ export const MORE_COINS = [
     ticker: "stICARUS",
     decimals: 18,
     name: "Staked Icarus"
-  },
+  }, {
+    chain: 369,
+    a: null,
+    dexs: "0xf5a89a6487d62df5308cdda89c566c5b5ef94c11",
+    ticker: "stPTGC",
+    decimals: 18,
+    name: "Staked Grays Currency"
+  }, {
+    chain: 369,
+    a: "0x5ca97D93D06A0B35a70FEf2F7E8fF88dD1d2DA65",
+    dexs: "0x6734ec4debe7756593cdc3DC6A42aB079e084954",
+    ticker: "ERECTION",
+    decimals: 18,
+    name: "Erection"
+  }, 
 {
     chain: 369,
     a: "0xe101c848620e762ecb942356962dd415342b4feb",

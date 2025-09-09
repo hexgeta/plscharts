@@ -879,7 +879,7 @@ export const TOKEN_CONSTANTS = [{
   chain: 369,
   a: "0x94534eeee131840b1c0f61847c572228bdfdde93",
   dexs: "0xf5a89a6487d62df5308cdda89c566c5b5ef94c11",
-  ticker: "pTGC",
+  ticker: "PTGC",
   decimals: 18,
   name: "Grays Currency"
 }, {
