@@ -173,8 +173,9 @@ function calculateV3PositionValue(position: NineMmPosition, getTokenPrice?: (sym
   const netToken1 = parseFloat(position.depositedToken1) - parseFloat(position.withdrawnToken1)
   
   // The V3 subgraph already returns human-readable amounts (not raw blockchain values)
-  token0Amount = netToken0
-  token1Amount = Math.abs(netToken1) // Use absolute value since negative just means net withdrawal
+  // For current position value, we only count positive net amounts (remaining liquidity)
+  token0Amount = Math.max(0, netToken0) // Only positive amounts represent actual remaining tokens
+  token1Amount = Math.max(0, netToken1) // Negative means more withdrawn than deposited
   
   // Get USD prices with fallback strategy
   let token0USDPrice = getTokenPrice ? getTokenPrice(pool.token0.symbol) : 0

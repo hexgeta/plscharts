@@ -4353,8 +4353,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // Convert 9MM V3 positions to LP token format for display
     console.log(`[LP Debug] Converting ${nineMmV3Positions.length} V3 positions to LP token format`)
     
+    // Filter out closed positions (positions with very low total value)
+    const activeV3Positions = nineMmV3Positions.filter(position => {
+      const totalValue = position.values?.totalValue || 0
+      const currentValue = position.values?.currentValue || 0
+      const isActive = totalValue > 1.0 && currentValue > 0.10 // Filter out positions worth less than $1 total or $0.10 current
+      if (!isActive) {
+        console.log(`[V3 Filter] Filtering out closed/empty position ${position.id}: total=$${totalValue.toFixed(4)}, current=$${currentValue.toFixed(4)}`)
+      }
+      return isActive
+    })
+    console.log(`[LP Debug] Filtered out ${nineMmV3Positions.length - activeV3Positions.length} closed V3 positions`)
+    
     // Filter V3 positions based on selected addresses
-    let filteredV3Positions = nineMmV3Positions
+    let filteredV3Positions = activeV3Positions
     if (selectedAddressIds.length > 0) {
       // Only show V3 positions for addresses that are currently selected
       const selectedAddresses = selectedAddressIds.map(id => {
@@ -4457,6 +4469,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       feePercent: position.feePercent,
       token0Symbol: position.pool.token0.symbol,
       token1Symbol: position.pool.token1.symbol,
+      // V3 position tick data for price ranges
+      tickLower: position.tickLower,
+      tickUpper: position.tickUpper,
+      tick: position.pool.tick, // Current pool tick for price calculation
         ownerAddress: position.owner
       }
     })
@@ -7639,13 +7655,35 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                               const currentTick = parseInt(token.positions[0]?.tick || '0')
                               const currentPrice = tickToPrice(currentTick)
                               
+                              console.log(`[V3 Price Debug] Pool: ${token.symbol}`)
+                              console.log(`[V3 Price Debug] Current tick: ${currentTick}`)
+                              console.log(`[V3 Price Debug] Current price: ${currentPrice}`)
+                              console.log(`[V3 Price Debug] First position data:`, {
+                                tick: token.positions[0]?.tick,
+                                tickLower: token.positions[0]?.tickLower,
+                                tickUpper: token.positions[0]?.tickUpper
+                              })
+                              
                               // Create array with positions and current price indicator
                               const items: any[] = []
                               
                               token.positions.forEach((position: any, posIndex: number) => {
-                                const lowerPrice = tickToPrice(parseInt(position.tickLower))
-                                const upperPrice = tickToPrice(parseInt(position.tickUpper))
-                                const isInRange = currentTick >= parseInt(position.tickLower) && currentTick <= parseInt(position.tickUpper)
+                                const lowerTick = parseInt(position.tickLower || '0')
+                                const upperTick = parseInt(position.tickUpper || '0')
+                                const lowerPrice = isNaN(lowerTick) ? 0 : tickToPrice(lowerTick)
+                                const upperPrice = isNaN(upperTick) ? 0 : tickToPrice(upperTick)
+                                const isInRange = !isNaN(currentTick) && !isNaN(lowerTick) && !isNaN(upperTick) && 
+                                                 currentTick >= lowerTick && currentTick <= upperTick
+                                
+                                console.log(`[V3 Position Debug] Position ${position.positionId}:`, {
+                                  tickLower: position.tickLower,
+                                  tickUpper: position.tickUpper,
+                                  lowerTick,
+                                  upperTick,
+                                  lowerPrice: lowerPrice.toFixed(8),
+                                  upperPrice: upperPrice.toFixed(8),
+                                  isInRange
+                                })
                                 
                                 // Add current price indicator before this position if it falls in this range
                                 if (posIndex === 0 || (currentPrice >= lowerPrice && currentPrice <= upperPrice)) {
@@ -7689,7 +7727,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                       <div className="flex items-center space-x-2 bg-green-500/20 px-3 py-1 rounded-full border border-green-500/30">
                                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                         <div className="text-green-400 text-xs font-medium">
-                                          Current Price: {item.price.toExponential(3)}
+                                          Current Price: {item.price.toFixed(8)}
                                         </div>
                                       </div>
                                     </div>
@@ -7740,7 +7778,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                     
                                     {/* Price Range Display */}
                                     <div className="mt-2 text-xs text-gray-400">
-                                      Range: {item.lowerPrice.toExponential(3)} - {item.upperPrice.toExponential(3)}
+                                      Range: {item.lowerPrice > 0 ? item.lowerPrice.toFixed(8) : 'N/A'} - {item.upperPrice > 0 ? item.upperPrice.toFixed(8) : 'N/A'}
                                     </div>
                                 
                                     {/* Nested token breakdown for individual position */}
