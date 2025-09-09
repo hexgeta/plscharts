@@ -4487,6 +4487,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       return groups
     }, {} as Record<string, any>)
     
+    // Helper function to convert tick to price
+    const tickToPrice = (tick: number): number => {
+      return Math.pow(1.0001, tick)
+    }
+    
+    // Sort positions within each group by price range (lowest to highest)
+    Object.values(groupedV3Positions).forEach((group: any) => {
+      group.positions.sort((a: any, b: any) => {
+        const aLowerPrice = tickToPrice(parseInt(a.tickLower))
+        const bLowerPrice = tickToPrice(parseInt(b.tickLower))
+        return aLowerPrice - bLowerPrice
+      })
+    })
+    
     // Convert grouped positions to LP tokens format
     const groupedV3TokensAsLPTokens = Object.values(groupedV3Positions).map((group: any) => ({
       symbol: group.baseTicker,
@@ -7321,12 +7335,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 const isAnyV3Position = isV3Position || (tokenConfig?.name?.includes('9MM LP V3'))
                 const isGroupedV3 = token.isGroupedV3 // New flag for grouped V3 positions
                 
-                // For V3 positions, display empty string instead of balance; for grouped V3 show position count; for LP tokens show balance
-                // Only show position count for actual detected V3 positions (grouped), not manual overrides
+                // For V3 positions, display empty string instead of balance; for LP tokens show balance
                 const isManualV3Override = isAnyV3Position && !token.ownerAddress
-                const displayAmount = isGroupedV3 && !isManualV3Override
-                  ? `${token.positions?.length || 0} ${(token.positions?.length || 0) === 1 ? 'position' : 'positions'}`
-                  : isAnyV3Position 
+                const displayAmount = isAnyV3Position 
                   ? ''
                   : token.balanceFormatted !== null ? formatBalance(token.balanceFormatted) : '?'
                 
@@ -7532,7 +7543,17 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                           ${formatDollarValue(usdValue)}
                         </div>
                         <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
-                          {displayAmount && (isGroupedV3 ? displayAmount : `${displayAmount} tokens`)}
+                          {(() => {
+                            if (isGroupedV3 && !isManualV3Override) {
+                              // Show position count for actual detected V3 positions
+                              return `${token.positions?.length || 0} ${(token.positions?.length || 0) === 1 ? 'position' : 'positions'}`
+                            } else if (displayAmount && !isAnyV3Position) {
+                              // Show token count for regular LP tokens
+                              return `${displayAmount} tokens`
+                            }
+                            // Don't show anything for manual V3 overrides or single V3 positions
+                            return ''
+                          })()}
                         </div>
                       </div>
 
@@ -7608,44 +7629,123 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                         >
                           <div className="text-xs text-gray-400 mb-3 mt-2">Individual positions:</div>
                           <div className="space-y-2">
-                            {token.positions.map((position, posIndex) => (
-                              <div key={position.positionId} className="bg-black/30 rounded-lg p-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-3">
-                                    <div className="text-white text-sm font-medium">
-                                      #{position.positionId}
-                                    </div>
-                                    <div className="text-white text-sm font-medium">
-                                      ${formatDollarValue(position.positionValue || 0)}
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      const positionKey = `${token.symbol}-${position.positionId}`
-                                      const isExpanded = expandedV3Positions.has(positionKey)
-                                      const newExpanded = new Set(expandedV3Positions)
-                                      if (isExpanded) {
-                                        newExpanded.delete(positionKey)
-                                      } else {
-                                        newExpanded.add(positionKey)
-                                      }
-                                      setExpandedV3Positions(newExpanded)
-                                    }}
-                                    className="p-1 text-gray-400 hover:text-white transition-colors"
-                                    title="Show token breakdown"
-                                  >
-                                    <ChevronDown 
-                                      className={`w-3 h-3 transition-transform duration-200 ${
-                                        expandedV3Positions.has(`${token.symbol}-${position.positionId}`) ? '' : 'rotate-180'
-                                      }`}
-                                    />
-                                  </button>
-                                </div>
+                            {(() => {
+                              // Helper function to convert tick to price
+                              const tickToPrice = (tick: number): number => {
+                                return Math.pow(1.0001, tick)
+                              }
+                              
+                              // Get current pool price
+                              const currentTick = parseInt(token.positions[0]?.tick || '0')
+                              const currentPrice = tickToPrice(currentTick)
+                              
+                              // Create array with positions and current price indicator
+                              const items: any[] = []
+                              
+                              token.positions.forEach((position: any, posIndex: number) => {
+                                const lowerPrice = tickToPrice(parseInt(position.tickLower))
+                                const upperPrice = tickToPrice(parseInt(position.tickUpper))
+                                const isInRange = currentTick >= parseInt(position.tickLower) && currentTick <= parseInt(position.tickUpper)
                                 
-                                {/* Nested token breakdown for individual position */}
-                                <AnimatePresence>
-                                  {expandedV3Positions.has(`${token.symbol}-${position.positionId}`) && (
+                                // Add current price indicator before this position if it falls in this range
+                                if (posIndex === 0 || (currentPrice >= lowerPrice && currentPrice <= upperPrice)) {
+                                  // Check if we haven't already added the current price indicator
+                                  const hasCurrentPriceAbove = items.some(item => item.type === 'currentPrice')
+                                  if (!hasCurrentPriceAbove && (currentPrice <= lowerPrice || isInRange)) {
+                                    items.push({
+                                      type: 'currentPrice',
+                                      price: currentPrice,
+                                      key: `current-price-${posIndex}`
+                                    })
+                                  }
+                                }
+                                
+                                items.push({
+                                  type: 'position',
+                                  position,
+                                  lowerPrice,
+                                  upperPrice,
+                                  isInRange,
+                                  key: position.positionId
+                                })
+                                
+                                // Add current price indicator after last position if it's higher than all ranges
+                                if (posIndex === token.positions.length - 1 && currentPrice > upperPrice) {
+                                  const hasCurrentPrice = items.some(item => item.type === 'currentPrice')
+                                  if (!hasCurrentPrice) {
+                                    items.push({
+                                      type: 'currentPrice',
+                                      price: currentPrice,
+                                      key: `current-price-end`
+                                    })
+                                  }
+                                }
+                              })
+                              
+                              return items.map((item) => {
+                                if (item.type === 'currentPrice') {
+                                  return (
+                                    <div key={item.key} className="flex items-center justify-center py-2">
+                                      <div className="flex items-center space-x-2 bg-green-500/20 px-3 py-1 rounded-full border border-green-500/30">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                        <div className="text-green-400 text-xs font-medium">
+                                          Current Price: {item.price.toExponential(3)}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                }
+                                
+                                return (
+                                  <div key={item.key} className="bg-black/30 rounded-lg p-3">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-3">
+                                        <div className="text-white text-sm font-medium">
+                                          #{item.position.positionId}
+                                        </div>
+                                        <div className="text-white text-sm font-medium">
+                                          ${formatDollarValue(item.position.positionValue || 0)}
+                                        </div>
+                                        <div className={`text-xs px-2 py-1 rounded-full ${
+                                          item.isInRange 
+                                            ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                                            : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                                        }`}>
+                                          {item.isInRange ? 'In Range' : 'Out of Range'}
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          const positionKey = `${token.symbol}-${item.position.positionId}`
+                                          const isExpanded = expandedV3Positions.has(positionKey)
+                                          const newExpanded = new Set(expandedV3Positions)
+                                          if (isExpanded) {
+                                            newExpanded.delete(positionKey)
+                                          } else {
+                                            newExpanded.add(positionKey)
+                                          }
+                                          setExpandedV3Positions(newExpanded)
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-white transition-colors"
+                                        title="Show token breakdown"
+                                      >
+                                        <ChevronDown 
+                                          className={`w-3 h-3 transition-transform duration-200 ${
+                                            expandedV3Positions.has(`${token.symbol}-${item.position.positionId}`) ? '' : 'rotate-180'
+                                          }`}
+                                        />
+                                      </button>
+                                    </div>
+                                    
+                                    {/* Price Range Display */}
+                                    <div className="mt-2 text-xs text-gray-400">
+                                      Range: {item.lowerPrice.toExponential(3)} - {item.upperPrice.toExponential(3)}
+                                    </div>
+                                
+                                    {/* Nested token breakdown for individual position */}
+                                    <AnimatePresence>
+                                      {expandedV3Positions.has(`${token.symbol}-${item.position.positionId}`) && (
                                     <motion.div
                                       initial={{ height: 0, opacity: 0 }}
                                       animate={{ height: "auto", opacity: 1 }}
@@ -7657,40 +7757,42 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                       <div className="flex gap-4">
                                         <div className="flex items-center space-x-2">
                                           <CoinLogo
-                                            symbol={cleanTickerForLogo(position.token0Symbol)}
+                                            symbol={cleanTickerForLogo(item.position.token0Symbol)}
                                             size="sm"
                                             className="rounded-none"
                                           />
                                           <div>
                                             <div className="text-white text-xs font-medium">
-                                              ${formatDollarValue((position.positionValue || 0) / 2)}
+                                              ${formatDollarValue((item.position.positionValue || 0) / 2)}
                                             </div>
                                             <div className="text-gray-400 text-xs">
-                                              {formatBalance((position.positionValue || 0) / 2 / (getTokenPrice(position.token0Symbol) || 1))} {getDisplayTicker(position.token0Symbol)}
+                                              {formatBalance((item.position.positionValue || 0) / 2 / (getTokenPrice(item.position.token0Symbol) || 1))} {getDisplayTicker(item.position.token0Symbol)}
                                             </div>
                                           </div>
                                         </div>
                                         <div className="flex items-center space-x-2">
                                           <CoinLogo
-                                            symbol={cleanTickerForLogo(position.token1Symbol)}
+                                            symbol={cleanTickerForLogo(item.position.token1Symbol)}
                                             size="sm"
                                             className="rounded-none"
                                           />
                                           <div>
                                             <div className="text-white text-xs font-medium">
-                                              ${formatDollarValue((position.positionValue || 0) / 2)}
+                                              ${formatDollarValue((item.position.positionValue || 0) / 2)}
                                             </div>
                                             <div className="text-gray-400 text-xs">
-                                              {formatBalance((position.positionValue || 0) / 2 / (getTokenPrice(position.token1Symbol) || 1))} {getDisplayTicker(position.token1Symbol)}
+                                              {formatBalance((item.position.positionValue || 0) / 2 / (getTokenPrice(item.position.token1Symbol) || 1))} {getDisplayTicker(item.position.token1Symbol)}
                                             </div>
                                           </div>
                                         </div>
                                       </div>
                                     </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            ))}
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+                                )
+                              })
+                            })()}
                           </div>
                         </motion.div>
                       )}
@@ -7960,7 +8062,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                             {getDisplayTicker(token.symbol)}
                           </div>
                           <div className="text-gray-400 text-[10px] break-words leading-tight">
-                            <span className="sm:hidden">{isGroupedV3 ? displayAmount : `${displayAmount} tokens`}</span>
+                            <span className="sm:hidden">{displayAmount} tokens</span>
                             <span className="hidden sm:block">{tokenConfig?.name || `${getDisplayTicker(token.symbol)} Farm`}</span>
                           </div>
                         </div>
@@ -7989,22 +8091,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                           ${formatDollarValue(usdValue)}
                         </div>
                         <div className="text-gray-400 text-[10px] mt-0.5 hidden sm:block transition-all duration-200">
-                          {displayAmount && (isGroupedV3 ? displayAmount : `${displayAmount} tokens`)}
+                          {displayAmount && `${displayAmount} tokens`}
                         </div>
                       </div>
                       
                       {/* Expand Icon */}
                       <div className="flex justify-center min-w-[20px]">
-                        {underlyingTokens && underlyingTokens.length > 0 && (
+                        {underlyingTokens && Array.isArray(underlyingTokens) && underlyingTokens.length > 0 && (
                           <button className="text-zinc-500 hover:text-white transition-colors">
-                            <Icons.ChevronDown className="w-4 h-4" />
+                            <ChevronDown className="w-4 h-4" />
                           </button>
                         )}
                       </div>
                     </div>
                     
                     {/* Underlying Tokens Display */}
-                    {underlyingTokens && underlyingTokens.length > 0 && (
+                    {underlyingTokens && Array.isArray(underlyingTokens) && underlyingTokens.length > 0 && (
                       <div className="mx-2 sm:mx-4 pb-4 pt-2">
                         <div className="text-xs text-zinc-500 mb-2">Your share of underlying tokens:</div>
                         <div className="grid grid-cols-2 gap-2">
