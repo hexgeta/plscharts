@@ -93,12 +93,12 @@ export function cleanTickerForLogo(symbol: string): string {
     // wSOL -> SOL, wBNB -> BNB
     cleanedSymbol = cleanedSymbol.slice(1)
   } else if (cleanedSymbol.startsWith('e')) {
-    // Special case: keep "eMaximus Perps Maxi" as-is to use the specific logo
-    if (cleanedSymbol === 'eMaximus Perps Maxi') {
-      // Keep as-is - don't remove the 'e' prefix
+    // Special cases: keep specific tokens as-is to use their specific logos
+    if (cleanedSymbol === 'eMaximus Perps Maxi' || cleanedSymbol === 'eHEX' || cleanedSymbol === 'weHEX') {
+      // Keep as-is - don't remove the 'e'/'we' prefix for tokens that have specific logos
     } else {
       // Remove 'e' prefix for other Ethereum tokens
-      // eDECI -> DECI, eHEX -> HEX
+      // eDECI -> DECI, but not eHEX -> HEX
       cleanedSymbol = cleanedSymbol.slice(1)
     }
   } else if (cleanedSymbol.startsWith('w')) {

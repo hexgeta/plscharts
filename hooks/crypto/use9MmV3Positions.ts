@@ -186,7 +186,6 @@ function calculateV3PositionValue(position: NineMmPosition, getTokenPrice?: (sym
     const plsPrice = getTokenPrice ? getTokenPrice('PLS') : 0
     const plsSymbols = ['PLS', 'WPLS', 'PULSE']
     
-    console.log(`[V3 Fallback] USD prices not available for ${pool.token0.symbol}/${pool.token1.symbol}, using PLS fallback @ $${plsPrice}`)
     
     if (plsPrice > 0) {
       // Get relative prices from V3 subgraph (these are token0/token1 relative prices)
@@ -197,11 +196,9 @@ function calculateV3PositionValue(position: NineMmPosition, getTokenPrice?: (sym
       if (plsSymbols.includes(pool.token0.symbol.toUpperCase()) && token1RelativePrice > 0) {
         token0USDPrice = plsPrice
         token1USDPrice = plsPrice * token1RelativePrice
-        console.log(`[V3 Fallback] ${pool.token0.symbol} is PLS @ $${plsPrice}, ${pool.token1.symbol} @ $${token1USDPrice} (${token1RelativePrice}x PLS)`)
       } else if (plsSymbols.includes(pool.token1.symbol.toUpperCase()) && token0RelativePrice > 0) {
         token1USDPrice = plsPrice
         token0USDPrice = plsPrice * token0RelativePrice
-        console.log(`[V3 Fallback] ${pool.token1.symbol} is PLS @ $${plsPrice}, ${pool.token0.symbol} @ $${token0USDPrice} (${token0RelativePrice}x PLS)`)
       }
     }
   }
@@ -214,13 +211,6 @@ function calculateV3PositionValue(position: NineMmPosition, getTokenPrice?: (sym
   const feesToken1 = parseFloat(position.collectedFeesToken1) / Math.pow(10, token1Decimals)
   const feesValue = (feesToken0 * token0USDPrice) + (feesToken1 * token1USDPrice)
   
-  console.log(`[V3 Position Value] ${pool.token0.symbol}/${pool.token1.symbol}:`)
-  console.log(`  - Raw amounts: deposited0=${position.depositedToken0}, withdrawn0=${position.withdrawnToken0}`)
-  console.log(`  - Raw amounts: deposited1=${position.depositedToken1}, withdrawn1=${position.withdrawnToken1}`)
-  console.log(`  - Net raw amounts: token0=${netToken0}, token1=${netToken1}`)
-  console.log(`  - Token0 Amount: ${token0Amount.toFixed(6)} ${pool.token0.symbol} @ $${token0USDPrice}`)
-  console.log(`  - Token1 Amount: ${token1Amount.toFixed(6)} ${pool.token1.symbol} @ $${token1USDPrice}`)
-  console.log(`  - Current Value: $${currentValue.toFixed(2)}, Fees Value: $${feesValue.toFixed(2)}, Total: $${(currentValue + feesValue).toFixed(2)}`)
   
   const totalValue = currentValue + feesValue
   

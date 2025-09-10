@@ -125,12 +125,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
       }
     })
     
-    console.log(`[All LP Prices] Separating pools - V1: ${v1Pools.length}, V2: ${v2Pools.length}, PHUX: ${phuxPools.length}, 9INCH: ${nineInchPools.length}, 9MM: ${nineMmPools.length}`)
-    console.log(`[All LP Prices] V1 pools:`, v1Pools.map(p => `${p.ticker} (${p.address})`))
-    console.log(`[All LP Prices] V2 pools:`, v2Pools.map(p => `${p.ticker} (${p.address})`))
-    console.log(`[All LP Prices] PHUX pools:`, phuxPools.map(p => `${p.ticker} (${p.address})`))
-    console.log(`[All LP Prices] 9INCH pools:`, nineInchPools.map(p => `${p.ticker} (${p.address})`))
-    console.log(`[All LP Prices] 9MM pools:`, nineMmPools.map(p => `${p.ticker} (${p.address})`))
     
     const allResults: LPTokenPrice[] = []
     
@@ -139,9 +133,7 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
       const v2Addresses = v2Pools.map(lp => lp.address.toLowerCase())
       
       try {
-        console.log(`[All LP Prices] Fetching ${v2Pools.length} V2 pools from ${PULSEX_V2_SUBGRAPH}`)
         const v2Pairs = await fetchLPDataFromEndpoint(PULSEX_V2_SUBGRAPH, v2Addresses, 'V2')
-        console.log(`[All LP Prices] V2 endpoint returned ${v2Pairs.length} pairs out of ${v2Addresses.length} requested`)
         
         // Process V2 results
         v2Pools.forEach(({ ticker, address }) => {
@@ -168,12 +160,7 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
           }
           
           if (pricePerToken) {
-            console.log(`[All LP Prices] ✅ V2 ${ticker}: $${pricePerToken.toFixed(6)} (${pairData?.token0?.symbol}/${pairData?.token1?.symbol})`)
           } else {
-            console.warn(`[All LP Prices] ❌ No V2 price data found for ${ticker} (${address})`)
-            if (pairData) {
-              console.log(`[All LP Prices] V2 pair data exists but missing pricing:`, pairData)
-            }
           }
           
           allResults.push(result)
@@ -199,9 +186,7 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
       const v1Addresses = v1Pools.map(lp => lp.address.toLowerCase())
       
       try {
-        console.log(`[All LP Prices] Fetching ${v1Pools.length} V1 pools from ${PULSEX_V1_SUBGRAPH}`)
         const v1Pairs = await fetchLPDataFromEndpoint(PULSEX_V1_SUBGRAPH, v1Addresses, 'V1')
-        console.log(`[All LP Prices] V1 endpoint returned ${v1Pairs.length} pairs out of ${v1Addresses.length} requested`)
         
         // Process V1 results
         v1Pools.forEach(({ ticker, address }) => {
@@ -228,12 +213,7 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
           }
           
           if (pricePerToken) {
-            console.log(`[All LP Prices] ✅ V1 ${ticker}: $${pricePerToken.toFixed(6)} (${pairData?.token0?.symbol}/${pairData?.token1?.symbol})`)
           } else {
-            console.warn(`[All LP Prices] ❌ No V1 price data found for ${ticker} (${address})`)
-            if (pairData) {
-              console.log(`[All LP Prices] V1 pair data exists but missing pricing:`, pairData)
-            }
           }
           
           allResults.push(result)
@@ -257,7 +237,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
     // Fetch PHUX pools if any exist
     if (phuxPools.length > 0) {
       try {
-        console.log(`[All LP Prices] Processing ${phuxPools.length} PHUX pools`)
         
         // For PHUX pools, we don't fetch detailed pool data here since they use composition data
         phuxPools.forEach(({ ticker, address }) => {
@@ -270,7 +249,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
             error: null
           }
           
-          console.log(`[All LP Prices] ➡️ PHUX ${ticker}: Delegating to PHUX pricing system`)
           allResults.push(result)
         })
       } catch (error) {
@@ -291,7 +269,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
     // Fetch 9INCH pools if any exist
     if (nineInchPools.length > 0) {
       try {
-        console.log(`[All LP Prices] Processing ${nineInchPools.length} 9INCH pools`)
         
         // For 9INCH pools, we'll need to create a different breakdown system
         nineInchPools.forEach(({ ticker, address }) => {
@@ -304,7 +281,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
             error: null
           }
           
-          console.log(`[All LP Prices] ➡️ 9INCH ${ticker}: Delegating to 9INCH pricing system`)
           allResults.push(result)
         })
       } catch (error) {
