@@ -71,6 +71,104 @@ const POSITION_MANAGER_ABI = [
 // 9MM V3 Position Manager contract address on PulseChain
 const POSITION_MANAGER_ADDRESS = '0xCC05bf158202b4F461Ede8843d76dcd7Bbad07f2'
 
+// V3 Pool ABI - just the slot0 function to get current tick
+const V3_POOL_ABI = [
+  {
+    name: 'slot0',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      {
+        name: 'sqrtPriceX96',
+        type: 'uint160'
+      },
+      {
+        name: 'tick',
+        type: 'int24'
+      },
+      {
+        name: 'observationIndex',
+        type: 'uint16'
+      },
+      {
+        name: 'observationCardinality',
+        type: 'uint16'
+      },
+      {
+        name: 'observationCardinalityNext',
+        type: 'uint16'
+      },
+      {
+        name: 'feeProtocol',
+        type: 'uint8'
+      },
+      {
+        name: 'unlocked',
+        type: 'bool'
+      }
+    ]
+  }
+] as const
+
+// Helper function to get current tick from pool contract
+async function getCurrentTickFromPool(poolAddress: string): Promise<number> {
+  try {
+    const result = await client.readContract({
+      address: poolAddress as `0x${string}`,
+      abi: V3_POOL_ABI,
+      functionName: 'slot0'
+    })
+    
+    const [sqrtPriceX96, tick] = result
+    return Number(tick)
+  } catch (error) {
+    console.error(`[V3 RPC] Error getting current tick from pool ${poolAddress}:`, error)
+    return 0
+  }
+}
+
+// Helper function to calculate current token amounts from liquidity and price
+function calculateTokenAmounts(
+  liquidity: bigint,
+  tickLower: number,
+  tickUpper: number,
+  currentTick: number,
+  token0Decimals: number = 18,
+  token1Decimals: number = 18
+): { token0Amount: number; token1Amount: number } {
+  if (liquidity === 0n) {
+    return { token0Amount: 0, token1Amount: 0 }
+  }
+
+  // Convert ticks to sqrt prices
+  const sqrtPriceLower = Math.sqrt(Math.pow(1.0001, tickLower))
+  const sqrtPriceUpper = Math.sqrt(Math.pow(1.0001, tickUpper))
+  const sqrtPriceCurrent = Math.sqrt(Math.pow(1.0001, currentTick))
+
+  // Calculate token amounts based on current tick position
+  let token0Amount = 0
+  let token1Amount = 0
+
+  if (currentTick < tickLower) {
+    // Position is entirely in token0
+    const amount0 = Number(liquidity) * (1 / sqrtPriceLower - 1 / sqrtPriceUpper)
+    token0Amount = amount0 / Math.pow(10, token0Decimals)
+  } else if (currentTick >= tickUpper) {
+    // Position is entirely in token1
+    const amount1 = Number(liquidity) * (sqrtPriceUpper - sqrtPriceLower)
+    token1Amount = amount1 / Math.pow(10, token1Decimals)
+  } else {
+    // Position is active (current tick is within range)
+    const amount0 = Number(liquidity) * (1 / sqrtPriceCurrent - 1 / sqrtPriceUpper)
+    const amount1 = Number(liquidity) * (sqrtPriceCurrent - sqrtPriceLower)
+    token0Amount = amount0 / Math.pow(10, token0Decimals)
+    token1Amount = amount1 / Math.pow(10, token1Decimals)
+  }
+
+  return { token0Amount, token1Amount }
+}
+
 // Create public client for PulseChain with better configuration
 const client = createPublicClient({
   chain: pulsechain,
@@ -86,10 +184,19 @@ export interface V3PositionTickData {
   tickUpper: number
   lowerPrice: number
   upperPrice: number
+  liquidity: string // Raw liquidity value from contract
+  token0: string // Token0 address
+  token1: string // Token1 address
+  fee: number // Fee tier
+  tokensOwed0: string // Unclaimed fees for token0
+  tokensOwed1: string // Unclaimed fees for token1
+  currentTick: number // Current pool tick
+  token0Amount: number // Current token0 amount in position
+  token1Amount: number // Current token1 amount in position
 }
 
 // SWR fetcher function for V3 position data
-const fetchV3Position = async (tokenId: string): Promise<V3PositionTickData> => {
+const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V3PositionTickData> => {
   console.log(`[V3 SWR] Fetching position ${tokenId}`)
   
   const result = await client.readContract({
@@ -102,33 +209,82 @@ const fetchV3Position = async (tokenId: string): Promise<V3PositionTickData> => 
   // Extract tick data from the result
   const [nonce, operator, token0, token1, fee, tickLower, tickUpper, liquidity, feeGrowthInside0LastX128, feeGrowthInside1LastX128, tokensOwed0, tokensOwed1] = result
   
-  // Convert ticks to prices
-  const lowerPrice = Math.pow(1.0001, Number(tickLower))
-  const upperPrice = Math.pow(1.0001, Number(tickUpper))
+  // Get current tick from pool if pool address is provided
+  let currentTick = 0
+  if (poolAddress) {
+    currentTick = await getCurrentTickFromPool(poolAddress)
+  }
+  
+  // Convert ticks to prices with decimal adjustment
+  // For V3, price = (1.0001^tick) * (10^(token1Decimals - token0Decimals))
+  // But we need to get the token decimals from the position data
+  // For now, assume standard 18 decimals for both tokens (will be corrected later)
+  const rawLowerPrice = Math.pow(1.0001, Number(tickLower))
+  const rawUpperPrice = Math.pow(1.0001, Number(tickUpper))
+  
+  // Apply decimal adjustment - assuming 18 decimals for both tokens initially
+  // This will be corrected when we have the actual token decimal data
+  const lowerPrice = rawLowerPrice
+  const upperPrice = rawUpperPrice
+
+  // Calculate current token amounts if we have the current tick
+  let token0Amount = 0
+  let token1Amount = 0
+  const tickLowerNum = Number(tickLower)
+  const tickUpperNum = Number(tickUpper)
+  
+  if (currentTick !== undefined && liquidity > 0n) {
+    const amounts = calculateTokenAmounts(
+      liquidity,
+      tickLowerNum,
+      tickUpperNum,
+      currentTick,
+      18, // token0Decimals
+      18  // token1Decimals
+    )
+    token0Amount = amounts.token0Amount
+    token1Amount = amounts.token1Amount
+  }
 
   console.log(`[V3 SWR] Position ${tokenId} fetched successfully:`, {
-    tickLower: Number(tickLower),
-    tickUpper: Number(tickUpper),
+    tickLower: tickLowerNum,
+    tickUpper: tickUpperNum,
     lowerPrice: lowerPrice.toFixed(8),
-    upperPrice: upperPrice.toFixed(8)
+    upperPrice: upperPrice.toFixed(8),
+    liquidity: liquidity.toString(),
+    token0: token0,
+    token1: token1,
+    fee: Number(fee),
+    currentTick,
+    token0Amount,
+    token1Amount
   })
 
   return {
     tokenId,
-    tickLower: Number(tickLower),
-    tickUpper: Number(tickUpper),
+    tickLower: tickLowerNum,
+    tickUpper: tickUpperNum,
     lowerPrice,
-    upperPrice
+    upperPrice,
+    liquidity: liquidity.toString(),
+    token0: token0,
+    token1: token1,
+    fee: Number(fee),
+    tokensOwed0: tokensOwed0.toString(),
+    tokensOwed1: tokensOwed1.toString(),
+    currentTick: currentTick || 0,
+    token0Amount,
+    token1Amount
   }
 }
 
 /**
  * Hook to fetch a single V3 position's tick data using SWR
  */
-export function useV3PositionTick(tokenId: string | null) {
+export function useV3PositionTick(tokenId: string | null, poolAddress?: string) {
   const { data, error, isLoading } = useSWR(
-    tokenId ? `v3-position-${tokenId}` : null,
-    () => tokenId ? fetchV3Position(tokenId) : null,
+    tokenId ? `v3-position-${tokenId}-${poolAddress || 'no-pool'}` : null,
+    () => tokenId ? fetchV3Position(tokenId, poolAddress) : null,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
@@ -158,41 +314,58 @@ export function useV3PositionTicks(): {
   tickData: Record<string, V3PositionTickData | null>
   isLoading: Record<string, boolean>
   errors: Record<string, any>
-  fetchPositionTicks: (tokenId: string) => void
+  fetchPositionTicks: (tokenId: string, poolAddress?: string) => void
 } {
   const [requestedTokenIds, setRequestedTokenIds] = useState<Set<string>>(new Set())
   const [tickData, setTickData] = useState<Record<string, V3PositionTickData | null>>({})
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, any>>({})
 
-  const fetchPositionTicks = useCallback((tokenId: string) => {
-    if (!requestedTokenIds.has(tokenId)) {
-      setRequestedTokenIds(prev => new Set([...prev, tokenId]))
+  const fetchPositionTicks = useCallback((tokenId: string, poolAddress?: string) => {
+    console.log(`[V3 HOOK DEBUG] fetchPositionTicks called for ${tokenId} with pool ${poolAddress}`)
+    const key = `${tokenId}-${poolAddress || 'no-pool'}`
+    if (!requestedTokenIds.has(key)) {
+      console.log(`[V3 HOOK DEBUG] Adding ${key} to requested set`)
+      setRequestedTokenIds(prev => new Set([...prev, key]))
+    } else {
+      console.log(`[V3 HOOK DEBUG] ${key} already requested`)
     }
   }, [requestedTokenIds])
 
   // Use SWR for each requested token ID
   useEffect(() => {
-    requestedTokenIds.forEach(tokenId => {
-      // Use SWR hook for each position
-      const key = `v3-position-${tokenId}`
+    console.log(`[V3 HOOK DEBUG] useEffect triggered with ${requestedTokenIds.size} requested IDs:`, Array.from(requestedTokenIds))
+    
+    requestedTokenIds.forEach(key => {
+      const [tokenId, poolAddress] = key.split('-')
+      const actualPoolAddress = poolAddress === 'no-pool' ? undefined : poolAddress
+      
+      // Skip if already loading or loaded
+      if (isLoading[tokenId] || tickData[tokenId]) {
+        console.log(`[V3 HOOK DEBUG] Skipping ${tokenId} - already loading/loaded`)
+        return
+      }
+      
+      console.log(`[V3 HOOK DEBUG] Starting fetch for ${tokenId} with pool ${actualPoolAddress}`)
       
       // Set loading state
       setIsLoading(prev => ({ ...prev, [tokenId]: true }))
       
-      fetchV3Position(tokenId)
+      fetchV3Position(tokenId, actualPoolAddress)
         .then(data => {
+          console.log(`[V3 HOOK DEBUG] Success for ${tokenId}:`, data)
           setTickData(prev => ({ ...prev, [tokenId]: data }))
           setIsLoading(prev => ({ ...prev, [tokenId]: false }))
           setErrors(prev => ({ ...prev, [tokenId]: null }))
         })
         .catch(error => {
+          console.error(`[V3 HOOK DEBUG] Error for ${tokenId}:`, error)
           setErrors(prev => ({ ...prev, [tokenId]: error }))
           setIsLoading(prev => ({ ...prev, [tokenId]: false }))
           setTickData(prev => ({ ...prev, [tokenId]: null }))
         })
     })
-  }, [requestedTokenIds])
+  }, [requestedTokenIds, isLoading, tickData])
 
   return {
     tickData,

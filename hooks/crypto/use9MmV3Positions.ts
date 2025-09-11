@@ -219,7 +219,10 @@ function calculateV3PositionValue(position: NineMmPosition, getTokenPrice?: (sym
     feesValue,
     totalValue,
     token0Amount,
-    token1Amount
+    token1Amount,
+    // Also return raw net amounts for display purposes
+    netToken0Amount: netToken0,
+    netToken1Amount: netToken1
   }
 }
 
