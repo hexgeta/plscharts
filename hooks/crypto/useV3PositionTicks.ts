@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { createPublicClient, http } from 'viem'
 import { pulsechain } from 'viem/chains'
 import useSWR from 'swr'
+import { TOKEN_CONSTANTS } from '../../constants/crypto'
+import { MORE_COINS } from '../../constants/more-coins'
 
 // 9MM V3 NonfungiblePositionManager ABI (just the positions function we need)
 const POSITION_MANAGER_ABI = [
@@ -70,6 +72,21 @@ const POSITION_MANAGER_ABI = [
 
 // 9MM V3 Position Manager contract address on PulseChain
 const POSITION_MANAGER_ADDRESS = '0xCC05bf158202b4F461Ede8843d76dcd7Bbad07f2'
+
+// Helper function to get token decimals from constants
+function getTokenDecimals(tokenAddress: string): number {
+  const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS]
+  const token = allTokens.find(t => t.a.toLowerCase() === tokenAddress.toLowerCase())
+  return token?.decimals || 18 // Default to 18 if not found
+}
+
+// Helper function to convert tick to price (Uniswap V3 formula)
+function tickToPrice(tick: number, token0Decimals: number = 18, token1Decimals: number = 18): number {
+  const price = Math.pow(1.0001, tick)
+  // Adjust for token decimals
+  const adjustedPrice = price * Math.pow(10, token0Decimals - token1Decimals)
+  return adjustedPrice
+}
 
 // V3 Pool ABI - just the slot0 function to get current tick
 const V3_POOL_ABI = [
@@ -188,8 +205,8 @@ export interface V3PositionTickData {
   token0: string // Token0 address
   token1: string // Token1 address
   fee: number // Fee tier
-  tokensOwed0: string // Unclaimed fees for token0
-  tokensOwed1: string // Unclaimed fees for token1
+  tokensOwed0: number // Unclaimed fees for token0 (decimal adjusted)
+  tokensOwed1: number // Unclaimed fees for token1 (decimal adjusted)
   currentTick: number // Current pool tick
   token0Amount: number // Current token0 amount in position
   token1Amount: number // Current token1 amount in position
@@ -209,23 +226,21 @@ const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V
   // Extract tick data from the result
   const [nonce, operator, token0, token1, fee, tickLower, tickUpper, liquidity, feeGrowthInside0LastX128, feeGrowthInside1LastX128, tokensOwed0, tokensOwed1] = result
   
+  // Get token decimals from constants
+  const token0Decimals = getTokenDecimals(token0)
+  const token1Decimals = getTokenDecimals(token1)
+  
+  console.log(`[V3 Position ${tokenId}] Token decimals - token0: ${token0Decimals}, token1: ${token1Decimals}`)
+  
   // Get current tick from pool if pool address is provided
   let currentTick = 0
   if (poolAddress) {
     currentTick = await getCurrentTickFromPool(poolAddress)
   }
   
-  // Convert ticks to prices with decimal adjustment
-  // For V3, price = (1.0001^tick) * (10^(token1Decimals - token0Decimals))
-  // But we need to get the token decimals from the position data
-  // For now, assume standard 18 decimals for both tokens (will be corrected later)
-  const rawLowerPrice = Math.pow(1.0001, Number(tickLower))
-  const rawUpperPrice = Math.pow(1.0001, Number(tickUpper))
-  
-  // Apply decimal adjustment - assuming 18 decimals for both tokens initially
-  // This will be corrected when we have the actual token decimal data
-  const lowerPrice = rawLowerPrice
-  const upperPrice = rawUpperPrice
+  // Convert ticks to prices with proper decimal adjustment
+  const lowerPrice = tickToPrice(Number(tickLower), token0Decimals, token1Decimals)
+  const upperPrice = tickToPrice(Number(tickUpper), token0Decimals, token1Decimals)
 
   // Calculate current token amounts if we have the current tick
   let token0Amount = 0
@@ -239,8 +254,8 @@ const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V
       tickLowerNum,
       tickUpperNum,
       currentTick,
-      18, // token0Decimals
-      18  // token1Decimals
+      token0Decimals,
+      token1Decimals
     )
     token0Amount = amounts.token0Amount
     token1Amount = amounts.token1Amount
@@ -249,8 +264,8 @@ const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V
   console.log(`[V3 SWR] Position ${tokenId} fetched successfully:`, {
     tickLower: tickLowerNum,
     tickUpper: tickUpperNum,
-    lowerPrice: lowerPrice.toFixed(8),
-    upperPrice: upperPrice.toFixed(8),
+    lowerPrice: lowerPrice,
+    upperPrice: upperPrice,
     liquidity: liquidity.toString(),
     token0: token0,
     token1: token1,
@@ -260,18 +275,22 @@ const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V
     token1Amount
   })
 
+  // Apply decimal adjustment to unclaimed fees
+  const tokensOwed0Adjusted = Number(tokensOwed0) / Math.pow(10, token0Decimals)
+  const tokensOwed1Adjusted = Number(tokensOwed1) / Math.pow(10, token1Decimals)
+
   return {
     tokenId,
     tickLower: tickLowerNum,
     tickUpper: tickUpperNum,
-    lowerPrice,
-    upperPrice,
+    lowerPrice: lowerPrice,
+    upperPrice: upperPrice,
     liquidity: liquidity.toString(),
     token0: token0,
     token1: token1,
     fee: Number(fee),
-    tokensOwed0: tokensOwed0.toString(),
-    tokensOwed1: tokensOwed1.toString(),
+    tokensOwed0: tokensOwed0Adjusted,
+    tokensOwed1: tokensOwed1Adjusted,
     currentTick: currentTick || 0,
     token0Amount,
     token1Amount

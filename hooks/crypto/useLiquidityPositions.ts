@@ -166,6 +166,7 @@ export function useLiquidityPositions(
     balance: string
     name?: string
     symbol?: string
+    balanceFormatted?: number
   }>,
   enabled: boolean = true
 ) {
@@ -251,6 +252,7 @@ export function useEnhancedPortfolioHoldings(
     name?: string
     symbol?: string
     price_usd?: number
+    balanceFormatted?: number
   }>,
   includeLPPositions: boolean = false
 ) {

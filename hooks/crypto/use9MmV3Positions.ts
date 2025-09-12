@@ -80,8 +80,6 @@ const POSITIONS_BY_OWNER_QUERY = `
         volumeUSD
         liquidity
       }
-      tickLower
-      tickUpper
       liquidity
       depositedToken0
       depositedToken1

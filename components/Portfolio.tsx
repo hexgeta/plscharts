@@ -2344,19 +2344,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   // Enhanced portfolio holdings with LP pricing (PHUX integration)
   const allHoldingsFlat = useMemo(() => {
     if (!allRawBalances) return []
-    const holdings: Array<{ contract_address: string; balance: string; name?: string; symbol?: string }> = []
+    const holdings: Array<{ contract_address: string; balance: string; name?: string; symbol?: string; balanceFormatted?: number }> = []
     
     allRawBalances.forEach(balanceData => {
       // Add token balances
       balanceData.tokenBalances?.forEach(token => {
         if (token.balance && token.balance !== '0') {
-
-          
           holdings.push({
             contract_address: token.address,
             balance: token.balance,
             name: token.name,
-            symbol: token.symbol
+            symbol: token.symbol,
+            balanceFormatted: token.balanceFormatted
           })
         }
       })
@@ -4453,7 +4452,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       
       console.log(`[V3 Position] ${positionSymbol}: original=$${position.values.totalValue}, custom=${customValue}, effective=$${effectivePositionValue}`)
       console.log(`[V3 Token Symbols] Position ${position.id}: token0="${position.pool.token0.symbol}", token1="${position.pool.token1.symbol}"`)
-      console.log(`[V3 Tick Data] Position ${position.id}: tickLower="${position.tickLower}", tickUpper="${position.tickUpper}", poolTick="${position.pool.tick}"`)
+      console.log(`[V3 Tick Data] Position ${position.id}: poolTick="${position.pool.tick}" (tickLower/tickUpper from RPC)`)
       
       return {
         symbol: positionSymbol,
@@ -4680,8 +4679,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Apply V3 position filter
     const filteredLpTokens = allLpTokens.map(token => {
-      // Only filter V3 positions, let other LP tokens through
-      if (!token.isV3Position) return token
+      // Only filter V3 positions, let other LP tokens through (except for 'closed' filter)
+      if (!token.isV3Position) {
+        // For 'closed' filter, only show V3 positions, exclude all other LP tokens
+        if (v3PositionFilter === 'closed') return null
+        return token
+      }
       
       // For V3 positions, filter the individual positions within each group
       if (token.positions && Array.isArray(token.positions)) {
@@ -5686,12 +5689,39 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         
         // Add native PLS value
         if (addressData.nativeBalance) {
+          // In manual mode, exclude native tokens that are not enabled
+          if (coinDetectionMode === 'manual') {
+            const currentEnabledCoins = pendingEnabledCoins || enabledCoins
+            if (!currentEnabledCoins.has(addressData.nativeBalance.symbol)) {
+              console.log(`[Portfolio Total] Skipping disabled native token ${addressData.nativeBalance.symbol} in manual mode`)
+            } else {
         const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
         addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+            }
+          } else {
+            // In auto-detect mode, include native balance if it has actual balance
+            const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
+            addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
+          }
         }
         
         // Add token values, but exclude pooled tokens if they're included as stakes to avoid double counting
         addressData.tokenBalances?.forEach(token => {
+          // In auto-detect mode, exclude manually toggled tokens that don't have real balances
+          if (coinDetectionMode === 'auto-detect' && token.isPlaceholder) {
+            console.log(`[Portfolio Total] Skipping placeholder token ${token.symbol} in auto-detect mode`)
+            return
+          }
+          
+          // In manual mode, exclude tokens that are not enabled
+          if (coinDetectionMode === 'manual') {
+            const currentEnabledCoins = pendingEnabledCoins || enabledCoins
+            if (!currentEnabledCoins.has(token.symbol)) {
+              console.log(`[Portfolio Total] Skipping disabled token ${token.symbol} in manual mode`)
+              return
+            }
+          }
+          
           const tokenPrice = getTokenPrice(token.symbol)
           const tokenValue = token.balanceFormatted * tokenPrice
           
@@ -5896,75 +5926,152 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
     // Add LP token values if liquidity positions are enabled AND filter is on
     if (showLiquidityPositions && includeLiquidityPositionsFilter && lpTokensWithBalances) {
+      // Apply the same filtering logic as the UI, then sum the usdValue
       lpTokensWithBalances.forEach(lpToken => {
-        // Check if this is any type of V3 position (dynamic from API or static from constants)
-        const allTokensForConfig = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
-        const tokenConfig = allTokensForConfig.find(t => t.ticker === lpToken.symbol)
-        const isAnyV3Position = lpToken.isV3Position || (tokenConfig?.name?.includes('9MM LP V3'))
-        
-        // Skip manual V3 overrides when address filtering is active
-        if (isAnyV3Position && !lpToken.ownerAddress && selectedAddressIds.length > 0) {
-          console.log(`[Portfolio Total] Skipping manual V3 override ${lpToken.symbol} due to address filtering`)
-          return // Skip this token entirely when address filtering is active
-        }
-        
-        // Handle V3 positions differently from regular LP tokens
-        let lpValue = 0
-        
-        if (isAnyV3Position) {
-          // For V3 positions, use custom USD value or position value
-          lpValue = customV3Values.get(lpToken.symbol) ? parseFloat(customV3Values.get(lpToken.symbol) || '0') : (lpToken.positionValue || 0)
-          console.log(`[Portfolio Total] Adding V3 position ${lpToken.symbol}: $${lpValue} ${customV3Values.has(lpToken.symbol) ? '(custom override)' : '(calculated)'}`)
-        } else {
-        // Use PLS API price for USDT/USDC/DAI pool, regular pricing for others
-        const isStablePool = lpToken.symbol === 'USDT  \/ USDC \/ DAI'
-        const lpPrice = isStablePool && plsVirtualPrice 
-          ? plsVirtualPrice 
-          : getLPTokenPrice(lpToken.symbol) || 0
-          lpValue = lpToken.balanceFormatted * lpPrice
-          console.log(`[Portfolio Total] Adding LP token ${lpToken.symbol}: ${lpToken.balanceFormatted} × $${lpPrice} = $${lpValue}`)
-        }
-        totalValue += lpValue
-        
-        // Add to address values array
-        let addressData
-        if (isAnyV3Position) {
-          // For V3 positions, find the address by owner
-          if (lpToken.ownerAddress) {
-            // Dynamic V3 position - use actual owner address
-            addressData = filteredBalances.find(balance => 
-              balance.address.toLowerCase() === lpToken.ownerAddress.toLowerCase()
-            )
+        // Apply the same V3 position filter logic as the UI
+        if (lpToken.isV3Position) {
+          // For V3 positions, apply the same filtering logic as the UI
+          if (lpToken.positions && Array.isArray(lpToken.positions)) {
+            // Filter positions based on v3PositionFilter
+            const filteredPositions = lpToken.positions.filter((position: any) => {
+              const positionValue = position.positionValue || 0
+              const netToken0Amount = position.netToken0Amount || 0
+              const netToken1Amount = position.netToken1Amount || 0
+              const liquidity = position.liquidity || "0"
+              const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
+              const isClosed = positionValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 0.000001 && Math.abs(netToken1Amount) < 0.000001 && positionValue < 10)
+              
+              switch (v3PositionFilter) {
+                case 'active':
+                  return !isClosed
+                case 'closed':
+                  return isClosed
+                case 'all':
+                default:
+                  return true
+              }
+            })
+            
+            // If no positions remain after filtering, skip this token entirely
+            if (filteredPositions.length === 0) {
+              console.log(`[Portfolio Total] Skipping V3 token ${lpToken.symbol} - no positions match filter '${v3PositionFilter}'`)
+              return
+            }
           } else {
-            // Manual V3 override - don't attribute to any specific address
-            addressData = null
-            console.log(`[Portfolio Total] Manual V3 override ${lpToken.symbol} included in total but not attributed to specific address`)
+            // For individual V3 positions (not grouped), apply the same filter logic
+            const positionValue = lpToken.positionValue || 0
+            const netToken0Amount = lpToken.netToken0Amount || 0
+            const netToken1Amount = lpToken.netToken1Amount || 0
+            const liquidity = lpToken.liquidity || "0"
+            const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
+            const isClosed = positionValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 0.000001 && Math.abs(netToken1Amount) < 0.000001 && positionValue < 10)
+            
+            switch (v3PositionFilter) {
+              case 'active':
+                if (isClosed) {
+                  console.log(`[Portfolio Total] Skipping closed V3 position ${lpToken.symbol}`)
+                  return
+                }
+                break
+              case 'closed':
+                if (!isClosed) {
+                  console.log(`[Portfolio Total] Skipping active V3 position ${lpToken.symbol}`)
+                  return
+                }
+                break
+              case 'all':
+              default:
+                // Include all positions
+                break
+            }
           }
         } else {
-          // For regular LP tokens, find the address that holds this LP token
-          addressData = filteredBalances.find(balance => 
+          // For non-V3 LP tokens, only include them if the filter is 'all'
+          if (v3PositionFilter !== 'all') {
+            console.log(`[Portfolio Total] Skipping non-V3 LP token ${lpToken.symbol} - filter is '${v3PositionFilter}', only showing V3 positions`)
+            return
+          }
+        }
+        // Calculate the same usdValue that's displayed in the UI
+        let usdValue = 0
+        
+        if (lpToken.isV3Position) {
+          // For V3 positions, use positionValue (same as displayed in UI)
+          usdValue = lpToken.positionValue || 0
+          console.log(`[Portfolio Total] Adding V3 position ${lpToken.symbol}: $${usdValue}`)
+          } else {
+          // For regular LP tokens, use balanceFormatted * tokenPrice
+          const tokenPrice = getLPTokenPrice(lpToken.symbol) || 0
+          usdValue = lpToken.balanceFormatted ? lpToken.balanceFormatted * tokenPrice : 0
+          console.log(`[Portfolio Total] Adding LP token ${lpToken.symbol}: ${lpToken.balanceFormatted} × $${tokenPrice} = $${usdValue}`)
+        }
+        
+        totalValue += usdValue
+        
+        // Add to address values array
+        const addressData = filteredBalances.find(balance => 
           balance.tokenBalances?.some(token => token.symbol === lpToken.symbol)
         )
-        }
         
         if (addressData) {
           const existingIndex = addressVals.findIndex(av => av.address === addressData.address)
           if (existingIndex >= 0) {
-            addressVals[existingIndex].value += lpValue
+            addressVals[existingIndex].value += usdValue
           } else {
             addressVals.push({
               address: addressData.address,
               label: effectiveAddresses.find(a => a.address === addressData.address)?.label || '',
-              value: lpValue
+              value: usdValue
             })
           }
         }
       })
     }
 
-    // Add PHUX LP positions value
+    // Add PHUX LP positions value (farms are always included when LP filter is active)
     if (showLiquidityPositions && includeLiquidityPositionsFilter && phuxTotalLPValue > 0) {
+      console.log(`[Portfolio Total] Adding PHUX LP value: $${phuxTotalLPValue} (${phuxLPPositions.length} positions)`)
       totalValue += phuxTotalLPValue
+    }
+
+    // Add farm tokens value (farms are always included when LP filter is active)
+    if (showLiquidityPositions && includeLiquidityPositionsFilter) {
+      let farmTokensValue = 0
+      
+      // Calculate farm tokens value using the farm token mapping
+      allHoldingsFlat.forEach(holding => {
+        if (holding.symbol && holding.symbol.includes('(f)')) {
+          const correspondingLPTicker = farmToLPMapping[holding.symbol]
+          if (correspondingLPTicker) {
+            // Get the LP token price
+            const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...displayCustomTokens]
+            const lpTokenConfig = allTokens.find(token => token.ticker === correspondingLPTicker)
+            if (lpTokenConfig) {
+              const lpPrice = getLPTokenPrice(lpTokenConfig.a)
+              if (lpPrice && lpPrice > 0) {
+                const shares = holding.balanceFormatted || parseFloat(holding.balance) || 0
+                const valueUSD = shares * lpPrice
+                farmTokensValue += valueUSD
+                console.log(`[Portfolio Total] Adding farm token ${holding.symbol}: ${shares} shares × $${lpPrice} = $${valueUSD}`)
+              } else {
+                console.log(`[Portfolio Total] No LP price found for farm token ${holding.symbol} -> ${correspondingLPTicker}`)
+              }
+            } else {
+              console.log(`[Portfolio Total] No LP token config found for ${correspondingLPTicker}`)
+            }
+          } else {
+            console.log(`[Portfolio Total] No mapping found for farm token ${holding.symbol}`)
+          }
+        }
+      })
+      
+      if (farmTokensValue > 0) {
+        console.log(`[Portfolio Total] Adding farm tokens value: $${farmTokensValue}`)
+        totalValue += farmTokensValue
+      } else {
+        console.log(`[Portfolio Total] No farm tokens value calculated. allHoldingsFlat length: ${allHoldingsFlat.length}`)
+      }
+    }
       
       // Add PHUX LP positions to address values
       // Note: PHUX positions are mapped by pool address, we need to find which user address holds them
@@ -5990,10 +6097,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           }
         }
       })
-    }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
-  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, showLiquidityPositions, lpTokensWithBalances, getLPTokenPrice, phuxLPPositions, phuxTotalLPValue, includeLiquidityPositionsFilter])
+  }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, showLiquidityPositions, lpTokensWithBalances, getLPTokenPrice, phuxLPPositions, phuxTotalLPValue, includeLiquidityPositionsFilter, v3PositionFilter, coinDetectionMode, enabledCoins, pendingEnabledCoins])
 
   // Calculate 24h portfolio change percentage using weighted average
   const portfolio24hChange = useMemo(() => {
@@ -6009,6 +6115,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     filteredBalances.forEach(addressData => {
       // Native token (PLS/ETH)
       if (addressData.nativeBalance) {
+        // In manual mode, exclude native tokens that are not enabled
+        if (coinDetectionMode === 'manual') {
+          const currentEnabledCoins = pendingEnabledCoins || enabledCoins
+          if (!currentEnabledCoins.has(addressData.nativeBalance.symbol)) {
+            // Skip disabled native token
+            return
+          }
+        }
+        
       const nativeSymbol = addressData.nativeBalance.symbol
       const nativeBalance = addressData.nativeBalance.balanceFormatted
       const nativePriceData = prices[nativeSymbol]
@@ -6022,6 +6137,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
       // Token balances - exclude pooled tokens if they're included as stakes
       addressData.tokenBalances?.forEach(token => {
+        // In auto-detect mode, exclude manually toggled tokens that don't have real balances
+        if (coinDetectionMode === 'auto-detect' && token.isPlaceholder) {
+          return
+        }
+        
+        // In manual mode, exclude tokens that are not enabled
+        if (coinDetectionMode === 'manual') {
+          const currentEnabledCoins = pendingEnabledCoins || enabledCoins
+          if (!currentEnabledCoins.has(token.symbol)) {
+            return
+          }
+        }
+        
         const tokenBalance = token.balanceFormatted
         let tokenCurrentPrice = 0
         let tokenPrevPrice = 0
@@ -6230,7 +6358,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
     // Calculate weighted average percentage change
     return totalValue > 0 ? weightedPriceChange / totalValue : 0
-  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate])
+  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, coinDetectionMode, enabledCoins, pendingEnabledCoins])
 
   // Calculate portfolio dollar change for 24h
   const portfolio24hDollarChange = useMemo(() => {
@@ -7601,16 +7729,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                        if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
                          const token0Price = getTokenPrice(position.token0Symbol) || 0
                          const token1Price = getTokenPrice(position.token1Symbol) || 0
-                         const token0Decimals = rpcTickData.token0?.decimals || 18
-                         const token1Decimals = rpcTickData.token1?.decimals || 18
-                         const unclaimedFeesToken0 = parseFloat(rpcTickData.tokensOwed0 || "0") / Math.pow(10, token0Decimals)
-                         const unclaimedFeesToken1 = parseFloat(rpcTickData.tokensOwed1 || "0") / Math.pow(10, token1Decimals)
+                         // tokensOwed0 and tokensOwed1 are now already decimal adjusted from the V3 hook
+                         const unclaimedFeesToken0 = rpcTickData.tokensOwed0
+                         const unclaimedFeesToken1 = rpcTickData.tokensOwed1
                          const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
                          const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
                          totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
                        }
                        
-                       return total + (position.positionValue || 0) + totalUnclaimedFeesUSD
+                       // Calculate position value using RPC data (tokens + unclaimed fees)
+                       const rpcPositionValue = (rpcTickData?.token0Amount || 0) * (getTokenPrice(position.token0Symbol) || 0) + 
+                                               (rpcTickData?.token1Amount || 0) * (getTokenPrice(position.token1Symbol) || 0) + 
+                                               totalUnclaimedFeesUSD
+                       
+                       return total + rpcPositionValue
                      }, 0)
                     )
                   : token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
@@ -7643,13 +7775,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 // Get pool ownership percentage - check platform type
                 let poolOwnershipPercentage = null
                 
+                // Check if V3 position is closed (for display purposes)
+                const totalPositionValue = token.positionValue || 0
+                const isV3PoolClosed = isAnyV3Position && totalPositionValue === 0
+                
                 if (isAnyV3Position) {
                   // For V3 positions, calculate ownership as position value / pool TVL
+                  // But don't show percentage for closed positions (value = 0)
+                  
+                  if (!isV3PoolClosed) {
                   if (isGroupedV3 && token.positions && token.positions.length > 0) {
                     // For grouped V3 positions, use the pool TVL from the first position
                     const firstPosition = token.positions[0]
                     const poolTVL = parseFloat(firstPosition.pool?.totalValueLockedUSD || '0')
-                    const totalPositionValue = token.positionValue || 0
                     
                     if (poolTVL > 0 && totalPositionValue > 0) {
                       poolOwnershipPercentage = (totalPositionValue / poolTVL) * 100
@@ -7663,6 +7801,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                     if (poolTVL > 0) {
                       poolOwnershipPercentage = (positionValue / poolTVL) * 100
                       console.log(`[V3 Pool Ownership] ${token.symbol}: $${positionValue} / $${poolTVL} = ${poolOwnershipPercentage.toFixed(4)}% of pool TVL`)
+                      }
                     }
                   }
                 } else if ((tokenConfig?.platform === 'PHUX' || tokenConfig?.platform === '9INCH' || tokenConfig?.platform === '9MM') && tokenConfig.a && getPhuxLPTokenPrice) {
@@ -7820,7 +7959,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
                       {/* 24h Price Change Column - Pool Ownership on Mobile */}
                       <div className="text-center">
-                        {poolOwnershipPercentage !== null ? (
+                        {poolOwnershipPercentage !== null && !isV3PoolClosed ? (
                           <div className="text-purple-400 text-xs font-medium sm:hidden">
                             {poolOwnershipPercentage.toFixed(2)}%
                           </div>
@@ -7831,7 +7970,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
                       {/* League Column - Pool Ownership Percentage on Desktop */}
                       <div className="hidden sm:flex flex-col items-center justify-center min-w-[60px]">
-                        {poolOwnershipPercentage !== null ? (
+                        {poolOwnershipPercentage !== null && !isV3PoolClosed ? (
                           <div className="text-purple-400 text-xs font-medium">
                             {poolOwnershipPercentage.toFixed(2)}%
                           </div>
@@ -8002,10 +8141,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                               const items: any[] = []
                               
                               sortedPositions.forEach((position: any, posIndex: number) => {
-                                // Use the already-calculated price ranges from the position object
-                                // These are calculated correctly in the main processing logic using RPC data
-                                const rawLowerPrice = position.rawLowerPrice || 0
-                                const rawUpperPrice = position.rawUpperPrice || 0
+                                // Get RPC tick data for this position to calculate price ranges
+                                const positionId = position.positionId
+                                const rpcTickData = tickData[positionId]
+                                
+                                // Use RPC data if available, otherwise fallback to position data
+                                const rawLowerPrice = rpcTickData?.lowerPrice || position.rawLowerPrice || 0
+                                const rawUpperPrice = rpcTickData?.upperPrice || position.rawUpperPrice || 0
                                 const lowerPrice = rawLowerPrice
                                 const upperPrice = rawUpperPrice
                                 
@@ -8046,7 +8188,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 const currentPoolPrice = parseFloat(token.positions[0]?.token1Price || '0') // Current price from pool
                                 
                                 // Handle infinite ranges (0 to infinity or very large upper bounds)
-                                const isInfiniteUpper = rawUpperPrice > 1e10 || rawUpperPrice === Infinity
+                                // Check if upper price is more than 100x higher than current price
+                                const upperTick = rpcTickData?.tickUpper
+                                const currentPrice = parseFloat(token.positions[0]?.token1Price || '0')
+                                
+                                // Use the actual RPC-derived upper price for comparison
+                                const isInfiniteUpper = rawUpperPrice > currentPrice * 1000 // More than 1000x current price = infinite
                                 const isInfiniteLower = rawLowerPrice <= 0
                                 
                                 const isInRange = (isInfiniteLower || currentPoolPrice >= rawLowerPrice) && 
@@ -8056,11 +8203,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                   currentPoolPrice,
                                   rawLowerPrice,
                                   rawUpperPrice,
+                                  upperTick,
                                   isInfiniteUpper,
                                   isInfiniteLower,
                                   isInRange,
                                   comparison: `${currentPoolPrice} >= ${rawLowerPrice} && ${currentPoolPrice} <= ${rawUpperPrice}`,
-                                  infiniteLogic: `(${isInfiniteLower} || ${currentPoolPrice} >= ${rawLowerPrice}) && (${isInfiniteUpper} || ${currentPoolPrice} <= ${rawUpperPrice})`
+                                  infiniteLogic: `(${isInfiniteLower} || ${currentPoolPrice} >= ${rawLowerPrice}) && (${isInfiniteUpper} || ${currentPoolPrice} <= ${rawUpperPrice})`,
+                                  relativeCheck: `${rawUpperPrice} > ${currentPrice} * 1000 = ${rawUpperPrice > currentPrice * 1000}`
                                 })
                                 
                                 // Add current price indicator before this position if it falls in this range
@@ -8115,10 +8264,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
                                   const token0Price = getTokenPrice(item.position.token0Symbol) || 0
                                   const token1Price = getTokenPrice(item.position.token1Symbol) || 0
-                                  const token0Decimals = rpcTickData.token0?.decimals || 18
-                                  const token1Decimals = rpcTickData.token1?.decimals || 18
-                                  const unclaimedFeesToken0 = parseFloat(rpcTickData.tokensOwed0 || "0") / Math.pow(10, token0Decimals)
-                                  const unclaimedFeesToken1 = parseFloat(rpcTickData.tokensOwed1 || "0") / Math.pow(10, token1Decimals)
+                                  // tokensOwed0 and tokensOwed1 are now already decimal adjusted from the V3 hook
+                                  const unclaimedFeesToken0 = rpcTickData.tokensOwed0
+                                  const unclaimedFeesToken1 = rpcTickData.tokensOwed1
                                   const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
                                   const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
                                   totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
@@ -8129,7 +8277,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                     <div className="space-y-3">
                                       <div className="flex items-center space-x-3">
                                         <div className="text-white text-xl font-medium">
-                                          ${formatDollarValue((item.position.positionValue || 0) + totalUnclaimedFeesUSD)}
+                                          ${formatDollarValue((rpcTickData?.token0Amount || 0) * (getTokenPrice(item.position.token0Symbol) || 0) + 
+                                                             (rpcTickData?.token1Amount || 0) * (getTokenPrice(item.position.token1Symbol) || 0) + 
+                                                             totalUnclaimedFeesUSD)}
                                         </div>
                                         <div className={`text-xs px-2 py-1 rounded-full ${
                                           item.isClosed
@@ -8153,27 +8303,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           </svg>
                                         </button>
                                         <div className="flex-1"></div>
-                                        <button
+                                      <button
                                           onClick={() => {
-                                            const newExpanded = new Set(expandedV3Positions)
+                                          const newExpanded = new Set(expandedV3Positions)
                                             const key = `${token.symbol}-${item.position.positionId}`
                                             if (newExpanded.has(key)) {
                                               newExpanded.delete(key)
-                                            } else {
+                                          } else {
                                               newExpanded.add(key)
-                                            }
-                                            setExpandedV3Positions(newExpanded)
-                                          }}
-                                          className="p-1 text-gray-400 hover:text-white transition-colors"
-                                          title="Show token breakdown"
-                                        >
-                                          <ChevronDown 
-                                            className={`w-3 h-3 transition-transform duration-200 ${
-                                              expandedV3Positions.has(`${token.symbol}-${item.position.positionId}`) ? '' : 'rotate-180'
-                                            }`}
-                                          />
-                                        </button>
-                                      </div>
+                                          }
+                                          setExpandedV3Positions(newExpanded)
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-white transition-colors"
+                                        title="Show token breakdown"
+                                      >
+                                        <ChevronDown 
+                                          className={`w-3 h-3 transition-transform duration-200 ${
+                                            expandedV3Positions.has(`${token.symbol}-${item.position.positionId}`) ? '' : 'rotate-180'
+                                          }`}
+                                        />
+                                      </button>
+                                    </div>
                                     </div>
                                 
                                     {/* Nested token breakdown for individual position */}
@@ -8211,11 +8361,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                             token0Amount = rpcTickData.token0Amount
                                             token1Amount = rpcTickData.token1Amount
                                             
-                                            // Get unclaimed fees from RPC data (tokensOwed0/1 are raw blockchain values, need decimal adjustment)
-                                            const token0Decimals = rpcTickData.token0?.decimals || 18
-                                            const token1Decimals = rpcTickData.token1?.decimals || 18
-                                            unclaimedFeesToken0 = parseFloat(rpcTickData.tokensOwed0 || "0") / Math.pow(10, token0Decimals)
-                                            unclaimedFeesToken1 = parseFloat(rpcTickData.tokensOwed1 || "0") / Math.pow(10, token1Decimals)
+                                            // Get unclaimed fees from RPC data (tokensOwed0/1 are now already decimal adjusted)
+                                            unclaimedFeesToken0 = rpcTickData.tokensOwed0
+                                            unclaimedFeesToken1 = rpcTickData.tokensOwed1
                                           } else {
                                             // Fallback to net amounts if RPC calculation fails
                                             const isPositionClosed = item.isClosed
@@ -8283,63 +8431,63 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                               <div className="py-4">
                                                 <div className="text-xs text-gray-400 mb-2">Tokens in lp:</div>
                                                 <div className="flex items-center justify-between space-x-2">
-                                                  <div className="flex items-center space-x-2">
-                                                    {(() => {
-                                                      const originalSymbol = item.position.token0Symbol
-                                                      const cleanedSymbol = cleanTickerForLogo(originalSymbol)
-                                                      return (
-                                                        <CoinLogo
-                                                          symbol={cleanedSymbol}
-                                                          size="sm"
-                                                          className="rounded-none"
-                                                        />
-                                                      )
-                                                    })()}
-                                                    <div>
-                                                      <div className="text-white text-xs font-medium">
-                                                        {token0Value}
-                                                      </div>
-                                                      <div className="text-gray-400 text-xs">
-                                                        {token0Display}
-                                                      </div>
-                                                    </div>
+                                              <div className="flex items-center space-x-2">
+                                                {(() => {
+                                                  const originalSymbol = item.position.token0Symbol
+                                                  const cleanedSymbol = cleanTickerForLogo(originalSymbol)
+                                                  return (
+                                                    <CoinLogo
+                                                      symbol={cleanedSymbol}
+                                                      size="sm"
+                                                      className="rounded-none"
+                                                    />
+                                                  )
+                                                })()}
+                                                <div>
+                                                  <div className="text-white text-xs font-medium">
+                                                    {token0Value}
                                                   </div>
-                                                  
-                                                  {/* Swap Icon */}
-                                                  <button
-                                                    onClick={() => {
-                                                      const newToggles = new Set(v3PriceToggles)
-                                                      if (newToggles.has(positionKey)) {
-                                                        newToggles.delete(positionKey)
-                                                      } else {
-                                                        newToggles.add(positionKey)
-                                                      }
-                                                      setV3PriceToggles(newToggles)
-                                                    }}
-                                                    className="p-1 rounded-full hover:bg-white/10 transition-colors"
-                                                    title={isPriceToggled ? `Show chart in ${getDisplayTicker(item.position.token0Symbol)} terms` : `Show chart in ${getDisplayTicker(item.position.token1Symbol)} terms`}
-                                                  >
-                                                    <ArrowLeftRight className="w-4 h-4 text-gray-400 hover:text-white transition-colors" />
-                                                  </button>
-                                                  
-                                                  <div className="flex items-center space-x-2">
-                                                    {(() => {
-                                                      const originalSymbol = item.position.token1Symbol
-                                                      const cleanedSymbol = cleanTickerForLogo(originalSymbol)
-                                                      return (
-                                                        <CoinLogo
-                                                          symbol={cleanedSymbol}
-                                                          size="sm"
-                                                          className="rounded-none"
-                                                        />
-                                                      )
-                                                    })()}
-                                                    <div>
-                                                      <div className="text-white text-xs font-medium">
-                                                        {token1Value}
-                                                      </div>
-                                                      <div className="text-gray-400 text-xs">
-                                                        {token1Display}
+                                                  <div className="text-gray-400 text-xs">
+                                                    {token0Display}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              
+                                              {/* Swap Icon */}
+                                              <button
+                                                onClick={() => {
+                                                  const newToggles = new Set(v3PriceToggles)
+                                                  if (newToggles.has(positionKey)) {
+                                                    newToggles.delete(positionKey)
+                                                  } else {
+                                                    newToggles.add(positionKey)
+                                                  }
+                                                  setV3PriceToggles(newToggles)
+                                                }}
+                                                className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                                                title={isPriceToggled ? `Show chart in ${getDisplayTicker(item.position.token0Symbol)} terms` : `Show chart in ${getDisplayTicker(item.position.token1Symbol)} terms`}
+                                              >
+                                                <ArrowLeftRight className="w-4 h-4 text-gray-400 hover:text-white transition-colors" />
+                                              </button>
+                                              
+                                              <div className="flex items-center space-x-2">
+                                                {(() => {
+                                                  const originalSymbol = item.position.token1Symbol
+                                                  const cleanedSymbol = cleanTickerForLogo(originalSymbol)
+                                                  return (
+                                                    <CoinLogo
+                                                      symbol={cleanedSymbol}
+                                                      size="sm"
+                                                      className="rounded-none"
+                                                    />
+                                                  )
+                                                })()}
+                                                <div>
+                                                  <div className="text-white text-xs font-medium">
+                                                    {token1Value}
+                                                  </div>
+                                                  <div className="text-gray-400 text-xs">
+                                                    {token1Display}
                                                       </div>
                                                     </div>
                                                   </div>
@@ -8348,7 +8496,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                               
                                               {/* Unclaimed Fees Section */}
                                               <div className="ml-14">
-                                                <div className="text-xs text-gray-400 mb-2">Unclaimed Fees:</div>
+                                                <div className="text-xs text-gray-400 mb-2">Unclaimed fees:</div>
                                                 <div className="flex items-start justify-between">
                                                   <div className="flex items-center space-x-2 min-h-[2.5rem]">
                                                     {(() => {
@@ -8405,15 +8553,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                       
                                       {/* Individual Position Price Range Chart */}
                                       {(() => {
-                                        // Debug: Log position data to understand what's missing
-                                        console.log(`[V3 Chart Render Debug] Position ${item.position.positionId || item.position.id}:`, {
-                                          rawLowerPrice: item.rawLowerPrice,
-                                          rawUpperPrice: item.rawUpperPrice,
-                                          hasValidRange: item.rawLowerPrice > 0 && item.rawUpperPrice > 0,
-                                          tickDataSource: item.position.tickDataSource,
-                                          realTickLower: item.position.realTickLower,
-                                          realTickUpper: item.position.realTickUpper
-                                        })
+                                        
+                                        // Get current price from pool data (always available)
+                                        const currentPrice = parseFloat(token.positions[0]?.token1Price || '0')
+                                        const priceUnit = token.positions[0]?.token1Symbol || 'TOKEN'
                                         
                                         // Show chart if we have valid price range data
                                         if (!(item.rawLowerPrice > 0 && item.rawUpperPrice > 0)) {
@@ -8428,8 +8571,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           })()
                                           
                                           return (
+                                            <div className="mt-2">
                                             <div className="text-xs text-gray-500 italic text-center py-2">
                                               {statusMessage}
+                                              </div>
+                                              {/* Show current price even when range data is missing */}
+                                              <div className="text-center">
+                                                <div className="text-green-400 text-xs font-medium">
+                                                  Current Price: {currentPrice.toPrecision(4)} {priceUnit}
+                                                </div>
+                                              </div>
                                             </div>
                                           )
                                         }
@@ -8445,25 +8596,31 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         const baseCurrentPrice = parseFloat(token.positions[0]?.token1Price || '0')
                                         
                                         // Convert prices based on toggle state
-                                        let currentPrice, lowerPrice, upperPrice, priceUnit
+                                        let displayCurrentPrice, displayLowerPrice, displayUpperPrice, priceUnit
                                         
                                         if (isPriceToggled) {
                                           // Show in token0/token1 terms (inverted)
-                                          currentPrice = baseCurrentPrice > 0 ? 1 / baseCurrentPrice : 0
-                                          lowerPrice = baseUpperPrice > 0 ? 1 / baseUpperPrice : 0  // Note: inverted range
-                                          upperPrice = baseLowerPrice > 0 ? 1 / baseLowerPrice : 0  // Note: inverted range
+                                          displayCurrentPrice = baseCurrentPrice > 0 ? 1 / baseCurrentPrice : 0
+                                          displayLowerPrice = baseUpperPrice > 0 ? 1 / baseUpperPrice : 0  // Note: inverted range
+                                          displayUpperPrice = baseLowerPrice > 0 ? 1 / baseLowerPrice : 0  // Note: inverted range
                                           priceUnit = getDisplayTicker(item.position.token0Symbol)
                                         } else {
                                           // Show in token1/token0 terms (default)
-                                          currentPrice = baseCurrentPrice
-                                          lowerPrice = baseLowerPrice
-                                          upperPrice = baseUpperPrice
+                                          displayCurrentPrice = baseCurrentPrice
+                                          displayLowerPrice = baseLowerPrice
+                                          displayUpperPrice = baseUpperPrice
                                           priceUnit = getDisplayTicker(item.position.token1Symbol)
                                         }
                                         
-                                        // Calculate chart bounds - start from 0, max based on position + current price
-                                        const minPrice = 0
-                                        const rawMaxPrice = Math.max(upperPrice, currentPrice * 1.2)
+                                        // Calculate chart bounds with padding for better visibility
+                                        const rangeSize = displayUpperPrice - displayLowerPrice
+                                        const currentPrice = displayCurrentPrice
+                                        
+                                        // Add padding around the range (20% on each side)
+                                        const padding = Math.max(rangeSize * 0.2, currentPrice * 0.1)
+                                        const minPrice = Math.max(0, displayLowerPrice - padding)
+                                        const rawMaxPrice = displayUpperPrice + padding
+                                        
                                         const maxPrice = (() => {
                                           // Use 1 significant figure for max price
                                           if (rawMaxPrice === 0) return 1
@@ -8475,16 +8632,39 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           // Return the rounded value with 1 significant figure
                                           const result = firstDigit * Math.pow(10, magnitude)
                                           
-                                          // Ensure minimum sensible values
-                                          if (result < 0.1) return 0.1
-                                          if (result < 1 && rawMaxPrice > 0.1) return Math.ceil(rawMaxPrice * 10) / 10
+                                          // For very small values, use more precision
+                                          if (result < 1 && rawMaxPrice > 0) {
+                                            return Math.ceil(rawMaxPrice * 100) / 100
+                                          }
                                           
                                           return result
                                         })()
                                         
                                         // Check if the range should be considered infinite
-                                        const isInfiniteRange = upperPrice > 1e10 || rawMaxPrice > 1e10
-                                        const isInfiniteLower = lowerPrice <= 0
+                                        // Check if this is an infinite range using relative price comparison
+                                        const positionId = item.position.positionId
+                                        const rpcTickData = tickData[positionId]
+                                        const upperTick = rpcTickData?.tickUpper
+                                        
+                                        // Use the actual RPC-derived upper price for comparison
+                                        const isInfiniteRange = displayUpperPrice > currentPrice * 1000 // More than 1000x current price = infinite
+                                        const isInfiniteLower = displayLowerPrice <= 0
+                                        
+                                        // Debug: Log position data to understand what's missing
+                                        console.log(`[V3 Chart Render Debug] Position ${item.position.positionId || item.position.id}:`, {
+                                          rawLowerPrice: item.rawLowerPrice,
+                                          rawUpperPrice: item.rawUpperPrice,
+                                          displayLowerPrice,
+                                          displayUpperPrice,
+                                          upperTick,
+                                          currentPrice,
+                                          isInfiniteRange,
+                                          hasValidRange: item.rawLowerPrice > 0 && item.rawUpperPrice > 0,
+                                          tickDataSource: item.position.tickDataSource,
+                                          realTickLower: item.position.realTickLower,
+                                          realTickUpper: item.position.realTickUpper,
+                                          relativeCheck: `${displayUpperPrice} > ${currentPrice} * 1000 = ${displayUpperPrice > currentPrice * 1000}`
+                                        })
                                         
                                         const priceRange = maxPrice - minPrice
                                         
@@ -8498,23 +8678,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           width = 100
                                         } else if (isInfiniteRange) {
                                           // Finite lower, infinite upper - extend to end of bar
-                                          lowerPercent = priceRange > 0 ? (lowerPrice / priceRange) * 100 : 0
+                                          lowerPercent = priceRange > 0 ? ((displayLowerPrice - minPrice) / priceRange) * 100 : 0
                                           upperPercent = 100
                                           width = 100 - lowerPercent
                                         } else if (isInfiniteLower) {
                                           // 0 to finite upper - start from beginning
                                           lowerPercent = 0
-                                          upperPercent = priceRange > 0 ? (upperPrice / priceRange) * 100 : 100
+                                          upperPercent = priceRange > 0 ? ((displayUpperPrice - minPrice) / priceRange) * 100 : 100
                                           width = upperPercent
                                         } else {
-                                          // Normal finite range
-                                          lowerPercent = priceRange > 0 ? (lowerPrice / priceRange) * 100 : 0
-                                          upperPercent = priceRange > 0 ? (upperPrice / priceRange) * 100 : 100
+                                          // Normal finite range with padding
+                                          lowerPercent = priceRange > 0 ? ((displayLowerPrice - minPrice) / priceRange) * 100 : 0
+                                          upperPercent = priceRange > 0 ? ((displayUpperPrice - minPrice) / priceRange) * 100 : 100
                                           width = upperPercent - lowerPercent
                                         }
                                         
-                                        // For infinite ranges, position current price in the middle
-                                        const currentPricePercent = isInfiniteRange ? 50 : (priceRange > 0 ? (currentPrice / priceRange) * 100 : 50)
+                                        // Position current price on the chart
+                                        const currentPricePercent = isInfiniteRange ? 50 : (priceRange > 0 ? ((displayCurrentPrice - minPrice) / priceRange) * 100 : 50)
                                         
                                         console.log(`[V3 Chart Debug] Position ${item.position.positionId}:`, {
                                           rawLowerPrice: item.rawLowerPrice,
@@ -8529,7 +8709,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           upperPercent,
                                           currentPricePercent,
                                           width,
-                                          hasRealData: item.rawLowerPrice > 0 && item.rawUpperPrice > 0
+                                          hasRealData: item.rawLowerPrice > 0 && item.rawUpperPrice > 0,
+                                          rangeType: isInfiniteRange && isInfiniteLower ? '0-to-infinity' : isInfiniteRange ? 'finite-to-infinity' : 'finite'
                                         })
                                         
                                         // Format very large or very small numbers appropriately
@@ -8544,8 +8725,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         }
                                         
                                         // Handle infinite ranges for display
-                                        const lowerDisplay = isInfiniteLower ? "0" : formatTickPrice(lowerPrice)
-                                        const upperDisplay = isInfiniteRange ? "∞" : formatTickPrice(upperPrice)
+                                        // Hide lower price if it's 100x smaller than current price (essentially zero)
+                                        const isLowerPriceTooSmall = displayLowerPrice < currentPrice / 100
+                                        const lowerDisplay = isInfiniteLower || isLowerPriceTooSmall ? "0" : formatTickPrice(displayLowerPrice)
+                                        const upperDisplay = isInfiniteRange ? "∞" : formatTickPrice(displayUpperPrice)
                                         
                                         // Calculate if labels would overlap
                                         // Estimate character width (~6px) and add padding
@@ -8568,7 +8751,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                     className="absolute -top-8 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10"
                                                     style={{ left: `${lowerPercent + width/2}%` }}
                                                   >
-                                                    {lowerDisplay} - {upperDisplay}
+                                                    {lowerDisplay} - {isInfiniteRange ? '' : upperDisplay}
                                                   </div>
                                               {/* Position range bar */}
                                               <div
@@ -8594,18 +8777,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                   <div 
                                                     className="absolute text-[10px] text-gray-500"
                                                     style={{ 
-                                                      left: `${lowerPercent}%`,
+                                                      left: `${Math.max(5, lowerPercent)}%`, // Ensure at least 5% from edge
                                                       transform: 'translateX(-50%)'
                                                     }}
                                                   >
                                                     {lowerDisplay}
                                                   </div>
                                                   
-                                                  {/* Max Range - Positioned at Right Edge of Range Bar */}
+                                                  {/* Max Range - Positioned at Right Edge of Range Bar or Center for Infinity */}
                                                   <div 
                                                     className="absolute text-[10px] text-gray-500"
                                                     style={{ 
-                                                      left: `${upperPercent}%`,
+                                                      left: isInfiniteRange ? '50%' : `${Math.min(95, upperPercent)}%`, // Center for infinity, otherwise right edge with padding
                                                       transform: 'translateX(-50%)'
                                                     }}
                                                   >
@@ -8655,7 +8838,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                 className="absolute transform -translate-x-1/2 text-green-400 text-[10px] font-medium"
                                                 style={{ left: `${currentPricePercent}%` }}
                                               >
-                                                {currentPrice.toPrecision(4)} {priceUnit}
+                                                {displayCurrentPrice.toPrecision(4)} {priceUnit}
                                               </div>
                                             </div>
                                           </div>
