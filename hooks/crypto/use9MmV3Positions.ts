@@ -205,8 +205,9 @@ function calculateV3PositionValue(position: NineMmPosition, getTokenPrice?: (sym
   const currentValue = (token0Amount * token0USDPrice) + (token1Amount * token1USDPrice)
   
   // Calculate unclaimed fees value
-  const feesToken0 = parseFloat(position.collectedFeesToken0) / Math.pow(10, token0Decimals)
-  const feesToken1 = parseFloat(position.collectedFeesToken1) / Math.pow(10, token1Decimals)
+  // Note: GraphQL API already returns human-readable values, no decimal adjustment needed
+  const feesToken0 = parseFloat(position.collectedFeesToken0)
+  const feesToken1 = parseFloat(position.collectedFeesToken1)
   const feesValue = (feesToken0 * token0USDPrice) + (feesToken1 * token1USDPrice)
   
   

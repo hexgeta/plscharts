@@ -1016,7 +1016,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Save chain filter to localStorage whenever it changes
   useEffect(() => {
-    console.log('[Portfolio] Saving chain filter:', chainFilter)
     if (typeof window !== 'undefined') {
       localStorage.setItem('portfolioChainFilter', chainFilter)
     }
@@ -1024,7 +1023,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Save selected address IDs to localStorage whenever they change
   useEffect(() => {
-    console.log('[Portfolio] Saving selected addresses:', selectedAddressIds.length, 'addresses')
     if (typeof window !== 'undefined') {
       localStorage.setItem('portfolioSelectedAddresses', JSON.stringify(selectedAddressIds))
     }
@@ -1037,14 +1035,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       const staleIds = selectedAddressIds.filter(id => !validAddressIds.has(id))
       
       if (staleIds.length > 0) {
-        console.log('[Portfolio] Cleaning up stale selected address IDs:', staleIds, 'Valid IDs:', Array.from(validAddressIds))
         const cleanedIds = selectedAddressIds.filter(id => validAddressIds.has(id))
         setSelectedAddressIds(cleanedIds)
       }
     }
     // Also clear if no addresses exist but filters are still selected
     else if (selectedAddressIds.length > 0 && effectiveAddresses.length === 0) {
-      console.log('[Portfolio] No addresses exist, clearing all selected filters')
       setSelectedAddressIds([])
     }
   }, [selectedAddressIds, effectiveAddresses])
@@ -1475,7 +1471,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   const filteredTokensByChain = useMemo(() => {
     const currentEnabled = pendingEnabledCoins || enabledCoins
     
-    console.log('[Portfolio] filteredTokensByChain - current enabled:', Array.from(currentEnabled))
     
     const sortTokens = (tokens: typeof TOKEN_CONSTANTS) => {
       return tokens.sort((a, b) => {
@@ -1954,26 +1949,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Only update if there are actual changes
     if (removedAddressIds.size > 0 || pendingAddresses.length > 0) {
-      console.log('[Portfolio] Committing address changes:', {
-        removals: removedAddressIds.size,
-        additions: pendingAddresses.length,
-        finalCount: finalAddresses.length,
-        beforeCommit: { 
-          addresses: addresses?.length || 0, 
-          pending: pendingAddresses?.length || 0,
-          pendingAddresses: pendingAddresses?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || []
-        },
-        afterCommit: { 
-          finalAddresses: finalAddresses?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || []
-        }
-      })
       setAddresses(finalAddresses)
       localStorage.setItem('portfolioAddresses', JSON.stringify(finalAddresses))
       setPendingAddresses([])
       
       // Reset initial load state when adding new addresses to ensure proper loading flow
       if (pendingAddresses.length > 0) {
-        console.log('[Portfolio] New addresses added, resetting to initial load state')
         setIsInitialLoad(true)
       }
     }
@@ -1987,11 +1968,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Only update if there are actual changes
     if (pendingDeletedTokenIds.size > 0 || pendingCustomTokens.length > 0) {
-      console.log('[Portfolio] Committing custom token changes:', {
-        deletions: pendingDeletedTokenIds.size,
-        additions: pendingCustomTokens.length,
-        finalCount: finalTokens.length
-      })
       setCustomTokens(finalTokens)
       setPendingCustomTokens([])
       setPendingDeletedTokenIds(new Set())
@@ -2000,23 +1976,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Handle reset to auto-detect confirmation
   const handleResetToAutoDetect = () => {
-    console.log('[Portfolio] Starting complete reset to auto-detect mode')
     
     // 1. Clear custom balance input overrides
     setCustomBalances(new Map())
-    console.log('[Portfolio] Cleared all custom balance overrides')
     
     // 2. Close dialogs
     setShowResetConfirmDialog(false)
     setShowEditModal(false)
     
     // 3. Temporarily clear enabled coins to force a fresh scan
-    console.log('[Portfolio] Temporarily clearing enabled coins for fresh scan')
     setEnabledCoins(new Set())
     
     // 4. Switch to auto-detect mode after clearing
     setTimeout(() => {
-      console.log('[Portfolio] Switching to auto-detect mode')
       setCoinDetectionMode('auto-detect')
       
       // 5. Enable all tokens so auto-detect can find everything
@@ -2026,11 +1998,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         MORE_COINS.forEach(token => allCuratedTokens.add(token.ticker))
       }
       
-      console.log('[Portfolio] Enabling all curated tokens for auto-detection scan:', allCuratedTokens.size)
       setEnabledCoins(allCuratedTokens)
       
       // 6. Force a reload after enabling all tokens
-      console.log('[Portfolio] Forcing balance reload - auto-detect will apply after data loads')
       mutateBalances()
     }, 100) // Small delay to ensure state updates are processed
     
@@ -2039,7 +2009,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Handle mode switching with smart token preservation - use pending state to avoid immediate reload
   const handleModeSwitch = (newMode: 'auto-detect' | 'manual') => {
-    console.log('[Portfolio] Mode switch:', coinDetectionMode, '->', newMode)
     
     const currentMode = pendingCoinDetectionMode || coinDetectionMode
     if (currentMode === newMode) {
@@ -2071,7 +2040,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         })
       }
       
-      console.log('[Portfolio] Preserving tokens with balances:', Array.from(tokensWithBalances))
       
       // Update pending enabled coins instead of immediate state
       const currentEnabledCoins = pendingEnabledCoins || enabledCoins
@@ -2080,7 +2048,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       setHasUserMadeManualChanges(true) // Mark that user has made manual changes
     } else if (newMode === 'auto-detect' && currentMode === 'manual') {
       // Switching from manual to auto-detect: keep enabled coins but let auto-detect override
-      console.log('[Portfolio] Switching to auto-detect mode - keeping manual selections as fallback')
       
       // Don't clear pendingEnabledCoins - auto-detect mode ignores it anyway
       // Don't clear custom balances - users should keep their manual balance overrides
@@ -2090,7 +2057,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Handle modal close - commit any pending addresses and removals
   const handleModalClose = () => {
-    console.log('[Portfolio] handleModalClose called')
     commitPendingAddresses()
     commitPendingCustomTokens()
     
@@ -2099,7 +2065,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Commit pending mode changes
     if (pendingCoinDetectionMode !== null) {
-      console.log('[Portfolio] Committing pending mode change:', coinDetectionMode, '->', pendingCoinDetectionMode)
       setCoinDetectionMode(pendingCoinDetectionMode)
       setPendingCoinDetectionMode(null)
       hasChanges = true
@@ -2107,11 +2072,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Commit pending coin changes
     if (pendingEnabledCoins !== null) {
-      console.log('[Portfolio] Committing pending coin changes:', {
-        currentEnabled: Array.from(enabledCoins),
-        pendingEnabled: Array.from(pendingEnabledCoins),
-        coinDetectionMode: pendingCoinDetectionMode || coinDetectionMode
-      })
       
       setEnabledCoins(pendingEnabledCoins)
       setPendingEnabledCoins(null)
@@ -2120,7 +2080,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Commit pending Include More Tokens changes
     if (pendingIncludeMoreTokens !== null) {
-      console.log('[Portfolio] Committing pending Include More Tokens change:', includeMoreTokens, '->', pendingIncludeMoreTokens)
       setIncludeMoreTokens(pendingIncludeMoreTokens)
       setPendingIncludeMoreTokens(null)
       hasChanges = true
@@ -2128,7 +2087,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Commit pending Liquidity Positions changes
     if (pendingShowLiquidityPositions !== null) {
-      console.log('[Portfolio] Committing pending Liquidity Positions change:', showLiquidityPositions, '->', pendingShowLiquidityPositions)
       setShowLiquidityPositions(pendingShowLiquidityPositions)
       setPendingShowLiquidityPositions(null)
       hasChanges = true
@@ -2136,10 +2094,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Only reload if changes were made
     if (hasChanges) {
-      console.log('[Portfolio] Settings changed, forcing full reload')
       mutateBalances()
     } else {
-      console.log('[Portfolio] No pending changes to commit')
     }
     
     // Apply font changes when modal closes
@@ -2332,12 +2288,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         })
       })
       
-      // Removed excessive debug logging
-      console.log('[Portfolio] Missing tokens:', missingTokens.map(token => ({
-        token,
-        found: foundTokens.has(token),
-        alternateFound: foundTokens.has(`w${token}`) || foundTokens.has(`we${token}`) || foundTokens.has(`p${token}`)
-      })))
     }
   }, [allRawBalances])
   
@@ -2424,7 +2374,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         if (!isAddressFilterActive) {
         customBalances.forEach((balance, symbol) => {
           if (!existingTokenSymbols.has(symbol) && parseFloat(balance) > 0 && currentEnabled.has(symbol)) {
-            console.log(`[Portfolio] Adding custom balance token: ${symbol} (enabled: ${currentEnabled.has(symbol)})`)
             // Find token config to get proper details - include custom tokens
             const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...customTokens]
             const tokenConfig = allTokens.find(t => t.ticker === symbol)
@@ -2442,7 +2391,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           }
         })
         } else {
-          console.log(`[Portfolio] Skipping custom balance tokens due to address filtering`)
         }
         
         // Add enabled tokens that don't have balance data yet (in manual mode)
@@ -2468,7 +2416,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             }
           })
         } else if (coinDetectionMode === 'manual' && isAddressFilterActive) {
-          console.log(`[Portfolio] Skipping manual enabled tokens due to address filtering`)
         }
         
         if (tokensToAdd.length > 0) {
@@ -2502,7 +2449,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // In manual mode, filter based on enabled coins and apply custom balances
     const currentEnabledCoins = pendingEnabledCoins || enabledCoins
-    console.log('[Portfolio] Manual mode filtering - enabled coins:', Array.from(currentEnabledCoins))
     
     const filteredBalances = allRawBalances.map(addressData => ({
       ...addressData,
@@ -2513,7 +2459,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       // Filter token balances to only enabled tokens
       tokenBalances: addressData.tokenBalances?.filter(token => {
         const isEnabled = currentEnabledCoins.has(token.symbol)
-        console.log(`[Portfolio] Token ${token.symbol}: enabled=${isEnabled}`)
         return isEnabled
       }) || []
     }))
@@ -2572,7 +2517,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       
       // Only update if this is the initial auto-population and we have tokens with balances
       if (tokensWithBalances.size > 0 && enabledCoins.size === 0) {
-        console.log('[Portfolio] Initial auto-population of enabled coins based on balances:', Array.from(tokensWithBalances))
         setEnabledCoins(tokensWithBalances)
       }
     }
@@ -2600,7 +2544,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       })
     })
 
-    console.log('[Portfolio] Auto-detected coins:', Array.from(detectedCoins))
     return detectedCoins
   }, [coinDetectionMode, rawBalances])
 
@@ -2612,7 +2555,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       const detectedCoins = Array.from(autoDetectedCoins).sort()
       
       if (JSON.stringify(currentCoins) !== JSON.stringify(detectedCoins)) {
-        console.log('[Portfolio] Applying auto-detected coins to enabled coins:', detectedCoins)
         setEnabledCoins(autoDetectedCoins)
       }
     }
@@ -2785,7 +2727,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Start background preloading of token supplies and images
   const { supplies: preloadedSupplies, totalSupplies, lastUpdated } = useBackgroundPreloader()
-  console.log(`[Portfolio] Background preloader - ${totalSupplies} supplies loaded, last updated:`, lastUpdated)
 
   // Stabilize prices reference to prevent unnecessary re-renders
   const prices = useMemo(() => {
@@ -2874,8 +2815,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     })
     
     const tokensWithBalances = Array.from(tokenGroups.values())
-    console.log(`[Portfolio] Found ${tokensWithBalances.length} tokens with balances across ${filtered.length} address/chain combinations`)
-    console.log(`[Portfolio] Tokens found:`, tokensWithBalances.map(t => `${t.symbol} (${t.balanceFormatted}) on chain ${t.chain}`))
     
     return {
       filteredBalances: filtered,
@@ -2922,10 +2861,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       lpTokenPrices[ticker] = lpPrice.pricePerToken
     } else if (lpPrice.error) {
       console.error(`[Portfolio] Error fetching ${ticker} LP price:`, lpPrice.error)
-    } else if (lpPrice.loading) {
-      console.log(`[Portfolio] Loading ${ticker} LP price...`)
-    } else {
-      console.log(`[Portfolio] ${ticker} LP price not available yet`)
     }
     
     // Store LP data for detailed display (underlying token breakdown)
@@ -2935,7 +2870,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   })
   
   if (allLPError) {
-    console.error(`[Portfolio] Batch LP price fetch error:`, allLPError)
   }
 
   // Farm token to LP token mapping for pricing
@@ -3600,7 +3534,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         }
       } else {
         // Fallback to old calculation if API data not available
-        console.warn(`[Portfolio] No backing data found for ${symbol}, using fallback calculation`)
         if (symbol.startsWith('e') || symbol.startsWith('we')) {
           // Use time machine override if available, otherwise market price
           const eHexPrice = (useTimeShift && timeMachineEHexPrice && !isNaN(parseFloat(timeMachineEHexPrice))) 
@@ -3666,27 +3599,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Background effect to fetch tick data for V3 positions
   useEffect(() => {
-    console.log(`[V3 TICK DEBUG] useEffect triggered:`, {
-      is9MmV3Loading,
-      nineMmV3PositionsLength: nineMmV3Positions.length,
-      positionIds: nineMmV3Positions.map(p => p.positionId).filter(Boolean)
-    })
-    
     if (!is9MmV3Loading && nineMmV3Positions.length > 0) {
-      console.log(`[V3 TICK DEBUG] Starting tick fetch for ${nineMmV3Positions.length} positions`)
       // Fetch tick data for each position in the background
       nineMmV3Positions.forEach(position => {
         const tokenId = position.positionId || position.id
         const poolAddress = position.pool?.id
         if (tokenId) {
-          console.log(`[V3 TICK DEBUG] Calling fetchPositionTicks for ${tokenId} with pool ${poolAddress}`)
           fetchPositionTicks(tokenId, poolAddress)
-        } else {
-          console.warn(`[V3 TICK DEBUG] Position missing both positionId and id:`, position)
         }
       })
-    } else {
-      console.log(`[V3 TICK DEBUG] Skipping fetch - loading: ${is9MmV3Loading}, positions: ${nineMmV3Positions.length}`)
     }
   }, [is9MmV3Loading, nineMmV3Positions, fetchPositionTicks])
   
@@ -4314,6 +4235,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     const lpTokensFromBalances = mainTokensWithBalances.filter(token => {
       const tokenConfig = TOKEN_CONSTANTS.find(t => t.ticker === token.symbol)
       
+      // Apply chain filter
+      if (chainFilter !== 'both' && 
+          ((chainFilter === 'pulsechain' && token.chain !== 369) ||
+           (chainFilter === 'ethereum' && token.chain !== 1))) {
+        return false
+      }
+      
       // Skip V3 LP tokens - we handle these through our dynamic V3 grouping
       // EXCEPT if they have manual overrides set
       if (tokenConfig?.name?.includes('9MM LP V3')) {
@@ -4336,6 +4264,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // But skip them if address filtering is active (since they're not associated with any specific address)
     const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
     const manualLPTokens = selectedAddressIds.length > 0 ? [] : allTokens.filter(tokenConfig => {
+      // Apply chain filter
+      if (chainFilter !== 'both' && 
+          ((chainFilter === 'pulsechain' && tokenConfig.chain !== 369) ||
+           (chainFilter === 'ethereum' && tokenConfig.chain !== 1))) {
+        return false
+      }
+      
       // Skip V3 LP tokens from manual tokens too - we handle these through dynamic V3 grouping
       // EXCEPT if they have manual overrides set AND are enabled
       if (tokenConfig.name?.includes('9MM LP V3')) {
@@ -4382,6 +4317,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         const positionOwner = position.owner.toLowerCase()
         const isMatch = selectedAddresses.includes(positionOwner)
         return isMatch
+      })
+    }
+    
+    // Apply chain filter to V3 positions
+    if (chainFilter !== 'both') {
+      filteredV3Positions = filteredV3Positions.filter(position => {
+        // V3 positions are typically on PulseChain (chain 369)
+        const positionChain = position.pool?.chain || 369
+        if (chainFilter === 'pulsechain') {
+          return positionChain === 369
+        } else if (chainFilter === 'ethereum') {
+          return positionChain === 1
+        }
+        return true
       })
     }
     
@@ -4477,6 +4426,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       // Net amounts (deposits - withdrawals) for display - use values from hook
       netToken0Amount: position.values.netToken0Amount || 0,
       netToken1Amount: position.values.netToken1Amount || 0,
+      // Claimed fees data from GraphQL API
+      collectedFeesToken0: rawPosition ? rawPosition.collectedFeesToken0 : '0',
+      collectedFeesToken1: rawPosition ? rawPosition.collectedFeesToken1 : '0',
+      withdrawnToken0: rawPosition ? rawPosition.withdrawnToken0 : '0',
+      withdrawnToken1: rawPosition ? rawPosition.withdrawnToken1 : '0',
       // Debug logging for net amounts
       debugNetAmounts: rawPosition ? {
         // Raw API data
@@ -4747,8 +4701,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       const aValue = a.isV3Position ? a.positionValue : (a.balanceFormatted * (getLPTokenPrice(a.symbol) || 0))
       const bValue = b.isV3Position ? b.positionValue : (b.balanceFormatted * (getLPTokenPrice(b.symbol) || 0))
       
-      console.log(`[LP Sorting] ${a.symbol}: ${a.isV3Position ? `V3 Position $${a.positionValue}` : `${a.balanceFormatted} × $${getLPTokenPrice(a.symbol) || 0}`} = $${aValue}`)
-      console.log(`[LP Sorting] ${b.symbol}: ${b.isV3Position ? `V3 Position $${b.positionValue}` : `${b.balanceFormatted} × $${getLPTokenPrice(b.symbol) || 0}`} = $${bValue}`)
       
       return bValue - aValue // Higher value first
     })
@@ -4761,7 +4713,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     selectedAddressIds,
     effectiveAddresses,
     customV3Values,
-    v3PositionFilter
+    v3PositionFilter,
+    chainFilter
   ])
 
   // Memoized Farm tokens with balances
@@ -4772,6 +4725,22 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // Get farm tokens from actual balances
     const farmTokensFromBalances = mainTokensWithBalances.filter(token => {
       const tokenConfig = [...TOKEN_CONSTANTS, ...MORE_COINS].find(t => t.ticker === token.symbol)
+      
+      // Apply chain filter
+      if (chainFilter !== 'both' && 
+          ((chainFilter === 'pulsechain' && token.chain !== 369) ||
+           (chainFilter === 'ethereum' && token.chain !== 1))) {
+        return false
+      }
+      
+      // In manual mode, only show farm tokens that are enabled
+      if (coinDetectionMode === 'manual') {
+        const currentEnabled = pendingEnabledCoins || enabledCoins
+        if (!currentEnabled.has(token.symbol)) {
+          return false
+        }
+      }
+      
       return tokenConfig?.type === 'farm'
     })
     
@@ -4779,8 +4748,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // But skip them if address filtering is active (since they're not associated with any specific address)
     const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
     const manualFarmTokens = selectedAddressIds.length > 0 ? [] : allTokens.filter(tokenConfig => {
+      // Apply chain filter
+      if (chainFilter !== 'both' && 
+          ((chainFilter === 'pulsechain' && tokenConfig.chain !== 369) ||
+           (chainFilter === 'ethereum' && tokenConfig.chain !== 1))) {
+        return false
+      }
+      
       return tokenConfig.type === 'farm' && 
-             (coinDetectionMode === 'manual' ? enabledCoins.has(tokenConfig.ticker) : false) &&
+             (coinDetectionMode === 'manual' ? (pendingEnabledCoins || enabledCoins).has(tokenConfig.ticker) : false) &&
              !farmTokensFromBalances.some(existing => existing.symbol === tokenConfig.ticker)
     }).map(tokenConfig => ({
       symbol: tokenConfig.ticker,
@@ -4796,7 +4772,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // Add farm tokens with custom balances that might not be in mainTokensWithBalances
     // But skip them if address filtering is active (since they're not associated with any specific address)
     const farmTokensWithCustomBalances = selectedAddressIds.length > 0 ? [] : allTokens
-      .filter(tokenConfig => tokenConfig.type === 'farm' && customBalances.has(tokenConfig.ticker))
+      .filter(tokenConfig => {
+        // Apply chain filter
+        if (chainFilter !== 'both' && 
+            ((chainFilter === 'pulsechain' && tokenConfig.chain !== 369) ||
+             (chainFilter === 'ethereum' && tokenConfig.chain !== 1))) {
+          return false
+        }
+        
+        return tokenConfig.type === 'farm' && customBalances.has(tokenConfig.ticker)
+      })
       .map(tokenConfig => {
         const customBalance = parseFloat(customBalances.get(tokenConfig.ticker) || '0')
         if (customBalance <= 0) return null // Skip if custom balance is 0 or negative
@@ -4832,7 +4817,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     mainTokensWithBalances.map(t => `${t.symbol}-${t.balanceFormatted?.toFixed(6) || '0'}`).join('|'),
     lpTokenPrices,
     Array.from(customBalances.entries()).map(([symbol, balance]) => `${symbol}:${balance}`).join('|'),
-    showLiquidityPositions
+    showLiquidityPositions,
+    chainFilter,
+    coinDetectionMode,
+    enabledCoins,
+    pendingEnabledCoins
   ])
 
   // Extract underlying token tickers from LP pairs for price fetching
@@ -5572,16 +5561,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   const sortedAddressesForFilters = useMemo(() => {
     // Use displayAddresses instead of effectiveAddresses to include pending addresses with labels
     const addressesToSort = detectiveMode ? effectiveAddresses : displayAddresses
-    console.log('[Portfolio] sortedAddressesForFilters - Debug:', {
-      detectiveMode,
-      selectedAddressIds: selectedAddressIds,
-      selectedCount: selectedAddressIds.length,
-      addressesToSort: addressesToSort?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || [],
-      effectiveAddresses: effectiveAddresses?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || [],
-      displayAddresses: displayAddresses?.map(a => ({ id: a.id, label: a.label, address: a.address.slice(0, 10) + '...' })) || [],
-      addresses: addresses?.length || 0,
-      pendingAddresses: pendingAddresses?.length || 0
-    })
     if (!addressesToSort.length) return []
     
     // Get address values for secondary sorting - use ALL balances, not filtered ones
@@ -5596,7 +5575,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
         const nativeValue = addressData.nativeBalance.balanceFormatted * nativePrice
         addressValue += nativeValue
-        console.log(`[Portfolio] ${addressData.address.slice(0, 8)}... native ${addressData.nativeBalance.symbol}: ${addressData.nativeBalance.balanceFormatted.toFixed(4)} @ $${nativePrice.toFixed(4)} = $${nativeValue.toFixed(2)}`)
         }
         
         // Add token values
@@ -5604,13 +5582,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           const tokenPrice = getTokenPrice(token.symbol)
           const tokenValue = token.balanceFormatted * tokenPrice
           addressValue += tokenValue
-          if (tokenValue > 0.01) { // Only log significant values
-            console.log(`[Portfolio] ${addressData.address.slice(0, 8)}... token ${token.symbol}: ${token.balanceFormatted.toFixed(4)} @ $${tokenPrice.toFixed(4)} = $${tokenValue.toFixed(2)}`)
-          }
         })
         
-        // Debug log address values for sorting
-        console.log(`[Portfolio] Address ${addressData.address.slice(0, 8)}... value: $${addressValue.toFixed(2)}`)
         addressValueMap.set(addressData.address, addressValue)
       })
     }
@@ -5668,7 +5641,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       // Debug log the final sorted order
       const hasLabel = !!addr.label
       const value = addressValueMap.get(addr.address) || 0
-      console.log(`[Portfolio] Sorted address ${index + 1}: ${addr.address.slice(0, 8)}... (${hasLabel ? `"${addr.label}"` : 'no label'}) - $${value.toFixed(2)}`)
       return addr
     })
   }, [detectiveMode, effectiveAddresses, displayAddresses, balances, getTokenPrice])
@@ -5693,7 +5665,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           if (coinDetectionMode === 'manual') {
             const currentEnabledCoins = pendingEnabledCoins || enabledCoins
             if (!currentEnabledCoins.has(addressData.nativeBalance.symbol)) {
-              console.log(`[Portfolio Total] Skipping disabled native token ${addressData.nativeBalance.symbol} in manual mode`)
             } else {
         const nativePrice = getTokenPrice(addressData.nativeBalance.symbol)
         addressValue += addressData.nativeBalance.balanceFormatted * nativePrice
@@ -5709,7 +5680,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         addressData.tokenBalances?.forEach(token => {
           // In auto-detect mode, exclude manually toggled tokens that don't have real balances
           if (coinDetectionMode === 'auto-detect' && token.isPlaceholder) {
-            console.log(`[Portfolio Total] Skipping placeholder token ${token.symbol} in auto-detect mode`)
             return
           }
           
@@ -5717,7 +5687,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           if (coinDetectionMode === 'manual') {
             const currentEnabledCoins = pendingEnabledCoins || enabledCoins
             if (!currentEnabledCoins.has(token.symbol)) {
-              console.log(`[Portfolio Total] Skipping disabled token ${token.symbol} in manual mode`)
               return
             }
           }
@@ -5736,7 +5705,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           // If liquidity positions are enabled, check if this token is an LP token to avoid double counting
           if (showLiquidityPositions && includeLiquidityPositionsFilter && getPhuxLPTokenPrice && token.contract_address && getPhuxLPTokenPrice(token.contract_address)) {
             // Skip adding this token value as it will be counted as an LP position instead
-            console.log(`[Portfolio] Skipping LP token ${token.symbol} to avoid double counting`)
             return
           }
           
@@ -5954,7 +5922,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             
             // If no positions remain after filtering, skip this token entirely
             if (filteredPositions.length === 0) {
-              console.log(`[Portfolio Total] Skipping V3 token ${lpToken.symbol} - no positions match filter '${v3PositionFilter}'`)
               return
             }
           } else {
@@ -5969,13 +5936,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             switch (v3PositionFilter) {
               case 'active':
                 if (isClosed) {
-                  console.log(`[Portfolio Total] Skipping closed V3 position ${lpToken.symbol}`)
                   return
                 }
                 break
               case 'closed':
                 if (!isClosed) {
-                  console.log(`[Portfolio Total] Skipping active V3 position ${lpToken.symbol}`)
                   return
                 }
                 break
@@ -5988,7 +5953,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         } else {
           // For non-V3 LP tokens, only include them if the filter is 'all'
           if (v3PositionFilter !== 'all') {
-            console.log(`[Portfolio Total] Skipping non-V3 LP token ${lpToken.symbol} - filter is '${v3PositionFilter}', only showing V3 positions`)
             return
           }
         }
@@ -5998,12 +5962,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         if (lpToken.isV3Position) {
           // For V3 positions, use positionValue (same as displayed in UI)
           usdValue = lpToken.positionValue || 0
-          console.log(`[Portfolio Total] Adding V3 position ${lpToken.symbol}: $${usdValue}`)
           } else {
           // For regular LP tokens, use balanceFormatted * tokenPrice
           const tokenPrice = getLPTokenPrice(lpToken.symbol) || 0
           usdValue = lpToken.balanceFormatted ? lpToken.balanceFormatted * tokenPrice : 0
-          console.log(`[Portfolio Total] Adding LP token ${lpToken.symbol}: ${lpToken.balanceFormatted} × $${tokenPrice} = $${usdValue}`)
+        }
+        
+        // If filter is 'closed', don't contribute to total value (force to 0)
+        if (v3PositionFilter === 'closed') {
+          usdValue = 0
         }
         
         totalValue += usdValue
@@ -6030,7 +5997,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
     // Add PHUX LP positions value (farms are always included when LP filter is active)
     if (showLiquidityPositions && includeLiquidityPositionsFilter && phuxTotalLPValue > 0) {
-      console.log(`[Portfolio Total] Adding PHUX LP value: $${phuxTotalLPValue} (${phuxLPPositions.length} positions)`)
       totalValue += phuxTotalLPValue
     }
 
@@ -6038,7 +6004,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     if (showLiquidityPositions && includeLiquidityPositionsFilter) {
       let farmTokensValue = 0
       
-      // Calculate farm tokens value using the farm token mapping
+      // Calculate farm tokens value from farmTokensWithBalances (the same data used in UI)
+      farmTokensWithBalances.forEach(farmToken => {
+        const tokenPrice = getLPTokenPrice(farmToken.symbol) || 0
+        const valueUSD = farmToken.balanceFormatted ? farmToken.balanceFormatted * tokenPrice : 0
+        farmTokensValue += valueUSD
+      })
+      
+      // Also calculate farm tokens value using the farm token mapping from allHoldingsFlat
       allHoldingsFlat.forEach(holding => {
         if (holding.symbol && holding.symbol.includes('(f)')) {
           const correspondingLPTicker = farmToLPMapping[holding.symbol]
@@ -6052,24 +6025,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 const shares = holding.balanceFormatted || parseFloat(holding.balance) || 0
                 const valueUSD = shares * lpPrice
                 farmTokensValue += valueUSD
-                console.log(`[Portfolio Total] Adding farm token ${holding.symbol}: ${shares} shares × $${lpPrice} = $${valueUSD}`)
-              } else {
-                console.log(`[Portfolio Total] No LP price found for farm token ${holding.symbol} -> ${correspondingLPTicker}`)
               }
-            } else {
-              console.log(`[Portfolio Total] No LP token config found for ${correspondingLPTicker}`)
             }
-          } else {
-            console.log(`[Portfolio Total] No mapping found for farm token ${holding.symbol}`)
           }
         }
       })
       
       if (farmTokensValue > 0) {
-        console.log(`[Portfolio Total] Adding farm tokens value: $${farmTokensValue}`)
         totalValue += farmTokensValue
-      } else {
-        console.log(`[Portfolio Total] No farm tokens value calculated. allHoldingsFlat length: ${allHoldingsFlat.length}`)
       }
     }
       
@@ -6358,7 +6321,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
     // Calculate weighted average percentage change
     return totalValue > 0 ? weightedPriceChange / totalValue : 0
-  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, coinDetectionMode, enabledCoins, pendingEnabledCoins])
+  }, [filteredBalances, prices, addresses, getTokenPrice, useBackingPrice, shouldUseBackingPrice, isStablecoin, showLiquidBalances, showValidators, validatorCount, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, pooledStakesData.totalHex, pooledStakesData.totalEHex, pooledStakesData.totalHexValue, pooledStakesData.totalEHexValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, coinDetectionMode, enabledCoins, pendingEnabledCoins, showLiquidityPositions, lpTokensWithBalances, getLPTokenPrice, phuxLPPositions, phuxTotalLPValue, includeLiquidityPositionsFilter, v3PositionFilter, farmTokensWithBalances, allHoldingsFlat, farmToLPMapping, displayCustomTokens])
 
   // Calculate portfolio dollar change for 24h
   const portfolio24hDollarChange = useMemo(() => {
@@ -7791,7 +7754,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                     
                     if (poolTVL > 0 && totalPositionValue > 0) {
                       poolOwnershipPercentage = (totalPositionValue / poolTVL) * 100
-                      console.log(`[V3 Pool Ownership] ${token.symbol}: $${totalPositionValue} / $${poolTVL} = ${poolOwnershipPercentage.toFixed(4)}% of pool TVL`)
                     }
                   } else if (token.pool?.totalValueLockedUSD && token.positionValue) {
                     // For single V3 positions
@@ -7800,7 +7762,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                     
                     if (poolTVL > 0) {
                       poolOwnershipPercentage = (positionValue / poolTVL) * 100
-                      console.log(`[V3 Pool Ownership] ${token.symbol}: $${positionValue} / $${poolTVL} = ${poolOwnershipPercentage.toFixed(4)}% of pool TVL`)
                       }
                     }
                   }
@@ -8087,15 +8048,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                               // Use the pool's calculated token1Price (token1 per token0) instead of tick calculation
                               const currentPrice = parseFloat(token.positions[0]?.token1Price || '0')
                               
-                              console.log(`[V3 Price Debug] Pool: ${token.symbol}`)
-                              console.log(`[V3 Price Debug] Current tick: ${currentTick}`)
-                              console.log(`[V3 Price Debug] Token decimals: ${token0Decimals}/${token1Decimals}`)
-                              console.log(`[V3 Price Debug] Current price (decimal adjusted): ${currentPrice.toFixed(8)}`)
-                              console.log(`[V3 Price Debug] First position data:`, {
-                                tick: token.positions[0]?.tick,
-                                tickLower: token.positions[0]?.tickLower,
-                                tickUpper: token.positions[0]?.tickUpper
-                              })
                               
                               // Sort positions by status and dollar amount
                               const sortedPositions = [...token.positions].sort((a, b) => {
@@ -8350,6 +8302,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           const positionId = item.position.positionId
                                           const rpcTickData = tickData[positionId]
                                           
+                                          // Debug logging for position #134858
+                                          if (positionId === '134858') {
+                                            console.log('🔍 [DEBUG] Position #134858 rpcTickData:', rpcTickData)
+                                            console.log('🔍 [DEBUG] Position #134858 tokensOwed0:', rpcTickData?.tokensOwed0)
+                                            console.log('🔍 [DEBUG] Position #134858 tokensOwed1:', rpcTickData?.tokensOwed1)
+                                            console.log('🔍 [DEBUG] Position #134858 netToken0Amount:', item.position.netToken0Amount)
+                                            console.log('🔍 [DEBUG] Position #134858 netToken1Amount:', item.position.netToken1Amount)
+                                            console.log('🔍 [DEBUG] Position #134858 isClosed:', item.isClosed)
+                                          }
+                                          
                                           // Use RPC token amounts if available, otherwise fallback to net amounts
                                           let token0Amount = 0
                                           let token1Amount = 0
@@ -8362,8 +8324,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                             token1Amount = rpcTickData.token1Amount
                                             
                                             // Get unclaimed fees from RPC data (tokensOwed0/1 are now already decimal adjusted)
-                                            unclaimedFeesToken0 = rpcTickData.tokensOwed0
-                                            unclaimedFeesToken1 = rpcTickData.tokensOwed1
+                                              unclaimedFeesToken0 = rpcTickData.tokensOwed0
+                                              unclaimedFeesToken1 = rpcTickData.tokensOwed1
+                                              
+                                            // Debug logging for position #134858
+                                            if (positionId === '134858') {
+                                              console.log('🔍 [DEBUG] Position #134858 using RPC data path')
+                                            }
                                           } else {
                                             // Fallback to net amounts if RPC calculation fails
                                             const isPositionClosed = item.isClosed
@@ -8371,8 +8338,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                             token1Amount = isPositionClosed ? 0 : (item.position.netToken1Amount || 0)
                                             
                                             // No unclaimed fees if no RPC data (collectedFeesToken0/1 are already claimed fees)
-                                            unclaimedFeesToken0 = 0
-                                            unclaimedFeesToken1 = 0
+                                              unclaimedFeesToken0 = 0
+                                              unclaimedFeesToken1 = 0
+                                              
+                                            // Debug logging for position #134858
+                                            if (positionId === '134858') {
+                                              console.log('🔍 [DEBUG] Position #134858 using FALLBACK data path')
+                                              console.log('🔍 [DEBUG] Position #134858 fallback token0Amount:', token0Amount)
+                                              console.log('🔍 [DEBUG] Position #134858 fallback token1Amount:', token1Amount)
+                                            }
                                           }
                                           
                                           // Calculate USD values for both current amounts and unclaimed fees
@@ -8391,6 +8365,66 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           const unclaimedFeesToken1Value = `$${formatDollarValue(unclaimedFeesToken1USD)}`
                                           const unclaimedFeesToken0Display = `${formatBalance(unclaimedFeesToken0)} ${getDisplayTicker(item.position.token0Symbol)}`
                                           const unclaimedFeesToken1Display = `${formatBalance(unclaimedFeesToken1)} ${getDisplayTicker(item.position.token1Symbol)}`
+                                          
+                                          
+                                          // Calculate claimed fees for closed positions
+                                          // Claimed fees = collectedFeesToken0/1 - withdrawnToken0/1
+                                          // This gives us the actual fees that were claimed (not just the total collected)
+                                          const totalWithdrawnToken0 = parseFloat(item.position.withdrawnToken0 || '0')
+                                          const totalWithdrawnToken1 = parseFloat(item.position.withdrawnToken1 || '0')
+                                          const totalCollectedFeesToken0 = parseFloat(item.position.collectedFeesToken0 || '0')
+                                          const totalCollectedFeesToken1 = parseFloat(item.position.collectedFeesToken1 || '0')
+                                          
+                                          // Calculate actual claimed fees (collected fees minus withdrawn principal)
+                                          const claimedFeesToken0 = totalCollectedFeesToken0 - totalWithdrawnToken0
+                                          const claimedFeesToken1 = totalCollectedFeesToken1 - totalWithdrawnToken1
+                                          
+                                          // Enhanced debug logging for claimed fees
+                                          console.log(`[CLAIMED FEES DEBUG] Position ${item.position.positionId}:`, {
+                                            isClosed: item.isClosed,
+                                            positionData: {
+                                              withdrawnToken0: item.position.withdrawnToken0,
+                                              withdrawnToken1: item.position.withdrawnToken1,
+                                              collectedFeesToken0: item.position.collectedFeesToken0,
+                                              collectedFeesToken1: item.position.collectedFeesToken1,
+                                              depositedToken0: item.position.depositedToken0,
+                                              depositedToken1: item.position.depositedToken1
+                                            },
+                                            calculatedValues: {
+                                              totalWithdrawnToken0,
+                                              totalWithdrawnToken1,
+                                              claimedFeesToken0,
+                                              claimedFeesToken1
+                                            },
+                                            tokenPrices: {
+                                              token0Price,
+                                              token1Price,
+                                              token0Symbol: item.position.token0Symbol,
+                                              token1Symbol: item.position.token1Symbol
+                                            }
+                                          })
+                                          
+                                          // Calculate claimed fees USD values
+                                          const claimedFeesToken0USD = claimedFeesToken0 * token0Price
+                                          const claimedFeesToken1USD = claimedFeesToken1 * token1Price
+                                          const totalClaimedFeesUSD = claimedFeesToken0USD + claimedFeesToken1USD
+                                          
+                                          // Debug USD calculations
+                                          console.log(`[CLAIMED FEES USD DEBUG] Position ${item.position.positionId}:`, {
+                                            claimedFeesToken0,
+                                            claimedFeesToken1,
+                                            token0Price,
+                                            token1Price,
+                                            claimedFeesToken0USD,
+                                            claimedFeesToken1USD,
+                                            totalClaimedFeesUSD
+                                          })
+                                          
+                                          // Create claimed fees displays
+                                          const claimedFeesToken0Value = `$${formatDollarValue(claimedFeesToken0USD)}`
+                                          const claimedFeesToken1Value = `$${formatDollarValue(claimedFeesToken1USD)}`
+                                          const claimedFeesToken0Display = `${formatBalance(claimedFeesToken0)} ${getDisplayTicker(item.position.token0Symbol)}`
+                                          const claimedFeesToken1Display = `${formatBalance(claimedFeesToken1)} ${getDisplayTicker(item.position.token1Symbol)}`
                                           
                                           // Debug logging for UI display
                                           console.log(`[V3 UI Debug] Position ${item.position.positionId} display:`, {
@@ -8422,6 +8456,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                             unclaimedFeesToken0USD,
                                             unclaimedFeesToken1USD,
                                             totalUnclaimedFeesUSD,
+                                            // Claimed fees data
+                                            isClosed: item.isClosed,
+                                            totalWithdrawnToken0,
+                                            totalWithdrawnToken1,
+                                            claimedFeesToken0,
+                                            claimedFeesToken1,
+                                            claimedFeesToken0USD,
+                                            claimedFeesToken1USD,
+                                            totalClaimedFeesUSD,
                                             debugNetAmounts: item.position.debugNetAmounts
                                           })
                                           
@@ -8494,9 +8537,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                 </div>
                                               </div>
                                               
-                                              {/* Unclaimed Fees Section */}
-                                              <div className="ml-14">
-                                                <div className="text-xs text-gray-400 mb-2">Unclaimed fees:</div>
+                                              {/* Unclaimed Fees Section - Only show for active positions */}
+                                              {!item.isClosed && (
+                                                <div className="ml-14">
+                                                  <div className="text-xs text-gray-400 mb-2">Unclaimed fees:</div>
                                                 <div className="flex items-start justify-between">
                                                   <div className="flex items-center space-x-2 min-h-[2.5rem]">
                                                     {(() => {
@@ -8546,6 +8590,62 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                   </div>
                                                 </div>
                                               </div>
+                                              )}
+                                              
+                                              {/* Claimed Fees Section - Only show for closed positions */}
+                                              {item.isClosed && (
+                                                <div className="ml-14 mt-3">
+                                                  <div className="text-xs text-gray-400 mb-2">Claimed fees:</div>
+                                                  <div className="flex items-start justify-between">
+                                                    <div className="flex items-center space-x-2 min-h-[2.5rem]">
+                                                      {(() => {
+                                                        const originalSymbol = item.position.token0Symbol
+                                                        const cleanedSymbol = cleanTickerForLogo(originalSymbol)
+                                                        return (
+                                                          <CoinLogo
+                                                            symbol={cleanedSymbol}
+                                                            size="sm"
+                                                            className="rounded-none"
+                                                          />
+                                                        )
+                                                      })()}
+                                                      <div className="flex flex-col justify-center">
+                                                        <div className="text-white text-xs font-medium">
+                                                          {claimedFeesToken0Value}
+                                                        </div>
+                                                        <div className="text-gray-400 text-xs">
+                                                          {claimedFeesToken0Display}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                    
+                                                    {/* Spacer for alignment */}
+                                                    <div className="w-8"></div>
+                                                    
+                                                    <div className="flex items-center space-x-2 min-h-[2.5rem]">
+                                                      {(() => {
+                                                        const originalSymbol = item.position.token1Symbol
+                                                        const cleanedSymbol = cleanTickerForLogo(originalSymbol)
+                                                        return (
+                                                          <CoinLogo
+                                                            symbol={cleanedSymbol}
+                                                            size="sm"
+                                                            className="rounded-none"
+                                                          />
+                                                        )
+                                                      })()}
+                                                      <div className="flex flex-col justify-center">
+                                                        <div className="text-white text-xs font-medium">
+                                                          {claimedFeesToken1Value}
+                                                        </div>
+                                                        <div className="text-gray-400 text-xs">
+                                                          {claimedFeesToken1Display}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              )}
                                             </>
                                           )
                                         })()}
@@ -8595,6 +8695,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         const baseUpperPrice = item.rawUpperPrice
                                         const baseCurrentPrice = parseFloat(token.positions[0]?.token1Price || '0')
                                         
+                                        
                                         // Convert prices based on toggle state
                                         let displayCurrentPrice, displayLowerPrice, displayUpperPrice, priceUnit
                                         
@@ -8612,14 +8713,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           priceUnit = getDisplayTicker(item.position.token1Symbol)
                                         }
                                         
-                                        // Calculate chart bounds with padding for better visibility
+                                        // Calculate chart bounds to center the range and current price
                                         const rangeSize = displayUpperPrice - displayLowerPrice
                                         const currentPrice = displayCurrentPrice
                                         
-                                        // Add padding around the range (20% on each side)
-                                        const padding = Math.max(rangeSize * 0.2, currentPrice * 0.1)
-                                        const minPrice = Math.max(0, displayLowerPrice - padding)
-                                        const rawMaxPrice = displayUpperPrice + padding
+                                        // Find the center point of the range and current price
+                                        const rangeCenter = (displayLowerPrice + displayUpperPrice) / 2
+                                        const centerPoint = (rangeCenter + currentPrice) / 2
+                                        
+                                        // Calculate padding to ensure good visibility (30% of the range or current price, whichever is larger)
+                                        const padding = Math.max(rangeSize * 0.3, Math.abs(currentPrice) * 0.2, rangeSize * 0.1)
+                                        
+                                        // Calculate min and max prices centered around the center point
+                                        const minPrice = Math.max(0, centerPoint - padding)
+                                        const rawMaxPrice = centerPoint + padding
                                         
                                         const maxPrice = (() => {
                                           // Use 1 significant figure for max price
@@ -8632,9 +8739,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           // Return the rounded value with 1 significant figure
                                           const result = firstDigit * Math.pow(10, magnitude)
                                           
-                                          // For very small values, use more precision
+                                          // For very small values, use more precision (no 0.01 minimum)
                                           if (result < 1 && rawMaxPrice > 0) {
-                                            return Math.ceil(rawMaxPrice * 100) / 100
+                                            return Math.ceil(rawMaxPrice * 1000) / 1000  // More precision for small values
+                                          }
+                                          
+                                          // For values between 1-10, use more precision to avoid rounding down too much
+                                          if (result >= 1 && result < 10 && rawMaxPrice > result) {
+                                            return Math.ceil(rawMaxPrice * 100) / 100  // Round up to nearest 0.01
+                                          }
+                                          
+                                          // For values around 1-2, be more conservative with rounding
+                                          if (result >= 1 && result <= 2 && rawMaxPrice > result * 0.9) {
+                                            return Math.ceil(rawMaxPrice * 100) / 100  // Round up to nearest 0.01
                                           }
                                           
                                           return result
@@ -8649,6 +8766,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         // Use the actual RPC-derived upper price for comparison
                                         const isInfiniteRange = displayUpperPrice > currentPrice * 1000 // More than 1000x current price = infinite
                                         const isInfiniteLower = displayLowerPrice <= 0
+                                        
+                                        
                                         
                                         // Debug: Log position data to understand what's missing
                                         console.log(`[V3 Chart Render Debug] Position ${item.position.positionId || item.position.id}:`, {
@@ -8688,10 +8807,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           width = upperPercent
                                         } else {
                                           // Normal finite range with padding
-                                          lowerPercent = priceRange > 0 ? ((displayLowerPrice - minPrice) / priceRange) * 100 : 0
-                                          upperPercent = priceRange > 0 ? ((displayUpperPrice - minPrice) / priceRange) * 100 : 100
+                                          // Ensure we use the actual range values, not 0
+                                          const actualLowerPrice = Math.max(displayLowerPrice, minPrice + 0.001) // Ensure it's not 0
+                                          const actualUpperPrice = Math.min(displayUpperPrice, maxPrice)
+                                          
+                                          lowerPercent = priceRange > 0 ? ((actualLowerPrice - minPrice) / priceRange) * 100 : 0
+                                          upperPercent = priceRange > 0 ? ((actualUpperPrice - minPrice) / priceRange) * 100 : 100
                                           width = upperPercent - lowerPercent
                                         }
+                                        
+                                        
                                         
                                         // Position current price on the chart
                                         const currentPricePercent = isInfiniteRange ? 50 : (priceRange > 0 ? ((displayCurrentPrice - minPrice) / priceRange) * 100 : 50)
@@ -8748,7 +8873,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                 <div className="relative w-full h-4 bg-white/10 rounded-full overflow-visible group cursor-pointer">
                                                   {/* Hover popup - centered over the range bar */}
                                                   <div 
-                                                    className="absolute -top-8 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10"
+                                                    className="absolute -top-8 transform -translate-x-1/2  border-2 border-white/10 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10"
                                                     style={{ left: `${lowerPercent + width/2}%` }}
                                                   >
                                                     {lowerDisplay} - {isInfiniteRange ? '' : upperDisplay}
@@ -8767,33 +8892,42 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                   width: `${width}%`
                                                 }}
                                               />
+                                              {/* Current price indicator - green line */}
+                                              <div
+                                                className="absolute top-0 w-0.5 h-full bg-green-400"
+                                                style={{ left: `${currentPricePercent}%` }}
+                                              />
                                                 </div>
                                               </>
                                             ) : (
                                               // Show labels directly on chart when they won't overlap
                                               <>
                                                 <div className="relative text-xs text-gray-400 mb-2 h-4 flex items-center">
-                                                  {/* Min Range - Positioned at Left Edge of Range Bar */}
-                                                  <div 
-                                                    className="absolute text-[10px] text-gray-500"
-                                                    style={{ 
-                                                      left: `${Math.max(5, lowerPercent)}%`, // Ensure at least 5% from edge
-                                                      transform: 'translateX(-50%)'
-                                                    }}
-                                                  >
-                                                    {lowerDisplay}
-                                                  </div>
+                                                  {/* Min Range - Positioned at Left Edge of Range Bar - Only show if not "0" */}
+                                                  {lowerDisplay !== "0" && (
+                                                    <div 
+                                                      className="absolute text-[10px] text-gray-500"
+                                                      style={{ 
+                                                        left: `${Math.max(5, lowerPercent)}%`, // Ensure at least 5% from edge
+                                                        transform: 'translateX(-50%)'
+                                                      }}
+                                                    >
+                                                      {lowerDisplay}
+                                                    </div>
+                                                  )}
                                                   
-                                                  {/* Max Range - Positioned at Right Edge of Range Bar or Center for Infinity */}
-                                                  <div 
-                                                    className="absolute text-[10px] text-gray-500"
-                                                    style={{ 
-                                                      left: isInfiniteRange ? '50%' : `${Math.min(95, upperPercent)}%`, // Center for infinity, otherwise right edge with padding
-                                                      transform: 'translateX(-50%)'
-                                                    }}
-                                                  >
-                                                    {upperDisplay}
-                                                  </div>
+                                                  {/* Max Range - Positioned at Right Edge of Range Bar or Center for Infinity - Only show if not "∞" */}
+                                                  {upperDisplay !== "∞" && (
+                                                    <div 
+                                                      className="absolute text-[10px] text-gray-500"
+                                                      style={{ 
+                                                        left: isInfiniteRange ? '50%' : `${Math.min(95, upperPercent)}%`, // Center for infinity, otherwise right edge with padding
+                                                        transform: 'translateX(-50%)'
+                                                      }}
+                                                    >
+                                                      {upperDisplay}
+                                                    </div>
+                                                  )}
                                                 </div>
                                                 <div className="relative w-full h-4 bg-white/10 rounded-full overflow-hidden">
                                                   {/* Position range bar */}
@@ -13197,7 +13331,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                   const newEnabled = new Set(currentEnabled)
                                   if (isEnabled) {
                                     newEnabled.delete(token.ticker)
-                                    console.log('[Portfolio] Toggled OFF:', token.ticker, 'pending enabled:', Array.from(newEnabled))
                                     
                                     // Clear custom V3 value when toggled off
                                     const isV3Position = token.name?.includes('9MM LP V3')
@@ -13221,7 +13354,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                     newEnabled.add(token.ticker)
                                     // Track that this token was just toggled on
                                     setNewlyEnabledTokens(prev => new Set([...prev, token.ticker]))
-                                    console.log('[Portfolio] Toggled ON:', token.ticker, 'pending enabled:', Array.from(newEnabled))
                                     
                                     // Track Plausible event for toggling ON regular tokens (not custom tokens)
                                     const isCustomToken = (token as any).id?.startsWith('custom_')

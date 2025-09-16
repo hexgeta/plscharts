@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { TOKEN_CONSTANTS } from '../../constants/crypto'
 import { MORE_COINS } from '../../constants/more-coins'
 
-// 9MM V3 NonfungiblePositionManager ABI (just the positions function we need)
+// 9MM V3 NonfungiblePositionManager ABI (positions and collect functions)
 const POSITION_MANAGER_ABI = [
   {
     name: 'positions',
@@ -67,6 +67,45 @@ const POSITION_MANAGER_ABI = [
         type: 'uint128'
       }
     ]
+  },
+  {
+    name: 'collect',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      {
+        name: 'params',
+        type: 'tuple',
+        components: [
+          {
+            name: 'tokenId',
+            type: 'uint256'
+          },
+          {
+            name: 'recipient',
+            type: 'address'
+          },
+          {
+            name: 'amount0Max',
+            type: 'uint128'
+          },
+          {
+            name: 'amount1Max',
+            type: 'uint128'
+          }
+        ]
+      }
+    ],
+    outputs: [
+      {
+        name: 'amount0',
+        type: 'uint256'
+      },
+      {
+        name: 'amount1',
+        type: 'uint256'
+      }
+    ]
   }
 ] as const
 
@@ -76,7 +115,16 @@ const POSITION_MANAGER_ADDRESS = '0xCC05bf158202b4F461Ede8843d76dcd7Bbad07f2'
 // Helper function to get token decimals from constants
 function getTokenDecimals(tokenAddress: string): number {
   const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS]
-  const token = allTokens.find(t => t.a.toLowerCase() === tokenAddress.toLowerCase())
+  const token = allTokens.find(t => t.a?.toLowerCase() === tokenAddress.toLowerCase())
+  
+  // Handle specific token addresses that might not be in constants
+  if (tokenAddress.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39') {
+    return 8 // HEX token
+  }
+  if (tokenAddress.toLowerCase() === '0x57fde0a71132198bbec939b98976993d8d89d225') {
+    return 8 // weHEX token (not WPLS as originally thought)
+  }
+  
   return token?.decimals || 18 // Default to 18 if not found
 }
 
@@ -154,7 +202,7 @@ function calculateTokenAmounts(
   token0Decimals: number = 18,
   token1Decimals: number = 18
 ): { token0Amount: number; token1Amount: number } {
-  if (liquidity === 0n) {
+  if (liquidity === BigInt(0)) {
     return { token0Amount: 0, token1Amount: 0 }
   }
 
@@ -248,7 +296,7 @@ const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V
   const tickLowerNum = Number(tickLower)
   const tickUpperNum = Number(tickUpper)
   
-  if (currentTick !== undefined && liquidity > 0n) {
+  if (currentTick !== undefined && liquidity > BigInt(0)) {
     const amounts = calculateTokenAmounts(
       liquidity,
       tickLowerNum,
@@ -275,9 +323,38 @@ const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V
     token1Amount
   })
 
-  // Apply decimal adjustment to unclaimed fees
-  const tokensOwed0Adjusted = Number(tokensOwed0) / Math.pow(10, token0Decimals)
-  const tokensOwed1Adjusted = Number(tokensOwed1) / Math.pow(10, token1Decimals)
+  // Get real-time unclaimed fees using static call to collect function
+  let tokensOwed0Adjusted = 0
+  let tokensOwed1Adjusted = 0
+  
+  try {
+    // Use static call to collect function to get current unclaimed fees
+    const collectResult = await client.simulateContract({
+      address: POSITION_MANAGER_ADDRESS as `0x${string}`,
+      abi: POSITION_MANAGER_ABI,
+      functionName: 'collect',
+      args: [{
+        tokenId: BigInt(tokenId),
+        recipient: '0x0000000000000000000000000000000000000000', // Dummy address for simulation
+        amount0Max: BigInt('340282366920938463463374607431768211455'), // Max uint128
+        amount1Max: BigInt('340282366920938463463374607431768211455')  // Max uint128
+      }]
+    })
+    
+    // Extract the amounts from the simulation result
+    tokensOwed0Adjusted = Number(collectResult.result[0]) / Math.pow(10, token0Decimals)
+    tokensOwed1Adjusted = Number(collectResult.result[1]) / Math.pow(10, token1Decimals)
+    
+    console.log(`[V3 SWR] Position ${tokenId} real-time unclaimed fees:`, {
+      token0: tokensOwed0Adjusted,
+      token1: tokensOwed1Adjusted
+    })
+  } catch (error) {
+    console.warn(`[V3 SWR] Failed to get real-time fees for position ${tokenId}, using tokensOwed:`, error)
+    // Fallback to tokensOwed values
+    tokensOwed0Adjusted = Number(tokensOwed0) / Math.pow(10, token0Decimals)
+    tokensOwed1Adjusted = Number(tokensOwed1) / Math.pow(10, token1Decimals)
+  }
 
   return {
     tokenId,
@@ -341,44 +418,33 @@ export function useV3PositionTicks(): {
   const [errors, setErrors] = useState<Record<string, any>>({})
 
   const fetchPositionTicks = useCallback((tokenId: string, poolAddress?: string) => {
-    console.log(`[V3 HOOK DEBUG] fetchPositionTicks called for ${tokenId} with pool ${poolAddress}`)
     const key = `${tokenId}-${poolAddress || 'no-pool'}`
     if (!requestedTokenIds.has(key)) {
-      console.log(`[V3 HOOK DEBUG] Adding ${key} to requested set`)
       setRequestedTokenIds(prev => new Set([...prev, key]))
-    } else {
-      console.log(`[V3 HOOK DEBUG] ${key} already requested`)
     }
   }, [requestedTokenIds])
 
   // Use SWR for each requested token ID
   useEffect(() => {
-    console.log(`[V3 HOOK DEBUG] useEffect triggered with ${requestedTokenIds.size} requested IDs:`, Array.from(requestedTokenIds))
-    
     requestedTokenIds.forEach(key => {
       const [tokenId, poolAddress] = key.split('-')
       const actualPoolAddress = poolAddress === 'no-pool' ? undefined : poolAddress
       
       // Skip if already loading or loaded
       if (isLoading[tokenId] || tickData[tokenId]) {
-        console.log(`[V3 HOOK DEBUG] Skipping ${tokenId} - already loading/loaded`)
         return
       }
-      
-      console.log(`[V3 HOOK DEBUG] Starting fetch for ${tokenId} with pool ${actualPoolAddress}`)
       
       // Set loading state
       setIsLoading(prev => ({ ...prev, [tokenId]: true }))
       
       fetchV3Position(tokenId, actualPoolAddress)
         .then(data => {
-          console.log(`[V3 HOOK DEBUG] Success for ${tokenId}:`, data)
           setTickData(prev => ({ ...prev, [tokenId]: data }))
           setIsLoading(prev => ({ ...prev, [tokenId]: false }))
           setErrors(prev => ({ ...prev, [tokenId]: null }))
         })
         .catch(error => {
-          console.error(`[V3 HOOK DEBUG] Error for ${tokenId}:`, error)
           setErrors(prev => ({ ...prev, [tokenId]: error }))
           setIsLoading(prev => ({ ...prev, [tokenId]: false }))
           setTickData(prev => ({ ...prev, [tokenId]: null }))

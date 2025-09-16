@@ -55,15 +55,12 @@ const getCachedTokenSupplies = (): TokenSuppliesCache | null => {
     const data: TokenSuppliesCache = JSON.parse(cached);
     
     if (isCacheValid(data.lastUpdated)) {
-      console.log('[Background Preloader] Using cached token supplies:', data.count, 'tokens');
       return data;
     } else {
-      console.log('[Background Preloader] Token supplies cache expired, removing');
       localStorage.removeItem(CACHE_KEYS.TOKEN_SUPPLIES);
       return null;
     }
   } catch (error) {
-    console.error('[Background Preloader] Error reading token supplies cache:', error);
     localStorage.removeItem(CACHE_KEYS.TOKEN_SUPPLIES);
     return null;
   }
@@ -75,21 +72,16 @@ const saveCachedTokenSupplies = (data: TokenSuppliesCache): void => {
   
   try {
     localStorage.setItem(CACHE_KEYS.TOKEN_SUPPLIES, JSON.stringify(data));
-    console.log('[Background Preloader] Cached', data.count, 'token supplies');
   } catch (error) {
-    console.error('[Background Preloader] Error saving token supplies cache:', error);
   }
 };
 
 const fetcher = async (url: string) => {
-  console.log('[Background Preloader] Fetching from:', url);
   const response = await fetch(url);
   if (!response.ok) {
-    console.error('[Background Preloader] Fetch failed:', response.status, response.statusText);
     throw new Error('Failed to fetch token supplies');
   }
   const data = await response.json();
-  console.log('[Background Preloader] Successfully fetched:', data.count, 'tokens');
   return data;
 };
 
@@ -109,14 +101,11 @@ const shouldPreloadImages = (cacheKey: string): boolean => {
     const shouldReload = preloadTime < (next1am - 24 * 60 * 60 * 1000) || now >= next1am;
     
     if (shouldReload) {
-      console.log(`[Background Preloader] ${cacheKey} cache expired, will preload`);
     } else {
-      console.log(`[Background Preloader] ${cacheKey} already preloaded today`);
     }
     
     return shouldReload;
   } catch (error) {
-    console.log(`[Background Preloader] Error checking ${cacheKey} cache, will preload`);
     return true;
   }
 };
@@ -129,7 +118,6 @@ const preloadLeagueImages = async (): Promise<void> => {
       'squid.png', 'turtle.png', 'crab.png', 'shrimp.png', 'shell.png'
     ];
     
-    console.log(`[Background Preloader] Starting to preload ${leagueImages.length} league images...`);
     
     const preloadPromises = leagueImages.map(async (imageName) => {
       try {
@@ -138,11 +126,9 @@ const preloadLeagueImages = async (): Promise<void> => {
         
         return new Promise<void>((resolve) => {
           img.onload = () => {
-            console.log(`[Background Preloader] ✅ Preloaded league image: ${imageName}`);
             resolve();
           };
           img.onerror = () => {
-            console.warn(`[Background Preloader] ❌ Failed to preload league image: ${imageName}`);
             resolve();
           };
           img.src = imageUrl;
@@ -156,10 +142,8 @@ const preloadLeagueImages = async (): Promise<void> => {
     
     // Mark as preloaded in localStorage
     localStorage.setItem(CACHE_KEYS.LEAGUE_IMAGES, new Date().toISOString());
-    console.log(`[Background Preloader] Completed preloading ${leagueImages.length} league images`);
     
   } catch (error) {
-    console.error('[Background Preloader] Error preloading league images:', error);
   }
 };
 
@@ -168,7 +152,6 @@ const preloadRankingBadges = async (): Promise<void> => {
   try {
     const rankingBadges = ['1.png', '2.png', '3.png'];
     
-    console.log(`[Background Preloader] Starting to preload ${rankingBadges.length} ranking badges...`);
     
     const preloadPromises = rankingBadges.map(async (badgeName) => {
       try {
@@ -177,11 +160,9 @@ const preloadRankingBadges = async (): Promise<void> => {
         
         return new Promise<void>((resolve) => {
           img.onload = () => {
-            console.log(`[Background Preloader] ✅ Preloaded ranking badge: ${badgeName}`);
             resolve();
           };
           img.onerror = () => {
-            console.warn(`[Background Preloader] ❌ Failed to preload ranking badge: ${badgeName}`);
             resolve();
           };
           img.src = badgeUrl;
@@ -195,10 +176,8 @@ const preloadRankingBadges = async (): Promise<void> => {
     
     // Mark as preloaded in localStorage
     localStorage.setItem(CACHE_KEYS.RANKING_BADGES, new Date().toISOString());
-    console.log(`[Background Preloader] Completed preloading ${rankingBadges.length} ranking badges`);
     
   } catch (error) {
-    console.error('[Background Preloader] Error preloading ranking badges:', error);
   }
 };
 
@@ -210,7 +189,6 @@ export const useTokenSuppliesCache = () => {
     refreshInterval: 0, // Disable automatic refresh
     dedupingInterval: 24 * 60 * 60 * 1000, // 24 hours
     onSuccess: (data) => {
-      console.log('[Background Preloader] Caching token supplies:', data.count, 'tokens');
       // Store in localStorage with current timestamp
       const cacheData = {
         supplies: data.supplies,
@@ -220,7 +198,6 @@ export const useTokenSuppliesCache = () => {
       localStorage.setItem(CACHE_KEYS.TOKEN_SUPPLIES, JSON.stringify(cacheData));
     },
     onError: (error) => {
-      console.error('[Background Preloader] Failed to fetch token supplies:', error);
     }
   });
 };
@@ -241,13 +218,11 @@ const preloadCoinLogos = async (): Promise<void> => {
       'DECI', 'MAXI', 'EARN', 'FLEX', 'ASIC', 'MINT', 'TEXAN'
     ];
     
-    console.log(`[Background Preloader] Phase 1: Preloading ${commonLogos.length} common coin logos...`);
     
     const tryLoadImage = (url: string, logoName: string): Promise<boolean> => {
       return new Promise<boolean>((resolve) => {
         const img = new Image();
         img.onload = () => {
-          console.log(`[Background Preloader] ✅ Preloaded logo: ${logoName} (${url})`);
           resolve(true);
         };
         img.onerror = () => resolve(false);
@@ -275,10 +250,8 @@ const preloadCoinLogos = async (): Promise<void> => {
     });
     
     await Promise.allSettled(commonPreloadPromises);
-    console.log(`[Background Preloader] Phase 1 complete: Common logos loaded`);
     
     // Phase 2: Load all remaining logos in background (comprehensive list from actual token data)
-    console.log(`[Background Preloader] Phase 2: Starting comprehensive logo loading...`);
     
     // Extract tickers from all available token sources
     const allTokenTickers = [
@@ -302,7 +275,6 @@ const preloadCoinLogos = async (): Promise<void> => {
     
     // Remove duplicates and use Set for performance
     const uniqueLogos = [...new Set(allLogos)];
-    console.log(`[Background Preloader] Phase 2: Will preload ${uniqueLogos.length} total logos (including ${allTokenTickers.length} from TOKEN_CONSTANTS and MORE_COINS)`);
     
     // Phase 2: Load remaining logos more slowly to not overwhelm the browser
     const loadRemainingLogos = async () => {
@@ -340,15 +312,12 @@ const preloadCoinLogos = async (): Promise<void> => {
     
     // Run Phase 2 in background (don't await)
     loadRemainingLogos().then(() => {
-      console.log(`[Background Preloader] Phase 2 complete: All logos loaded`);
     });
     
     // Mark Phase 1 as complete in localStorage
     localStorage.setItem(CACHE_KEYS.COIN_LOGOS, new Date().toISOString());
-    console.log(`[Background Preloader] Logo preloading initialized (Phase 1 complete, Phase 2 running in background)`);
     
   } catch (error) {
-    console.error('[Background Preloader] Error preloading coin logos:', error);
   }
 };
 
@@ -361,21 +330,17 @@ export const useBackgroundPreloader = () => {
     badges: false
   });
   
-  console.log('[Background Preloader] Hook called, preload status:', hasStartedImagePreload.current);
   
   // Also trigger HEX data preloading
   useHexDailyDataPreloader();
   
   // Consolidated image preloading - check on every hook run
   useEffect(() => {
-    console.log('[Background Preloader] useEffect running, checking all image preloads...');
     
     // Preload coin logos
     if (!hasStartedImagePreload.current.logos && shouldPreloadImages(CACHE_KEYS.COIN_LOGOS)) {
       hasStartedImagePreload.current.logos = true;
-      console.log('[Background Preloader] Starting coin logo preload...');
       preloadCoinLogos().catch(error => {
-        console.error('[Background Preloader] Coin logo preload failed:', error);
         hasStartedImagePreload.current.logos = false;
       });
     }
@@ -383,9 +348,7 @@ export const useBackgroundPreloader = () => {
     // Preload league images
     if (!hasStartedImagePreload.current.leagues && shouldPreloadImages(CACHE_KEYS.LEAGUE_IMAGES)) {
       hasStartedImagePreload.current.leagues = true;
-      console.log('[Background Preloader] Starting league image preload...');
       preloadLeagueImages().catch(error => {
-        console.error('[Background Preloader] League image preload failed:', error);
         hasStartedImagePreload.current.leagues = false;
       });
     }
@@ -393,9 +356,7 @@ export const useBackgroundPreloader = () => {
     // Preload ranking badges
     if (!hasStartedImagePreload.current.badges && shouldPreloadImages(CACHE_KEYS.RANKING_BADGES)) {
       hasStartedImagePreload.current.badges = true;
-      console.log('[Background Preloader] Starting ranking badge preload...');
       preloadRankingBadges().catch(error => {
-        console.error('[Background Preloader] Ranking badge preload failed:', error);
         hasStartedImagePreload.current.badges = false;
       });
     }

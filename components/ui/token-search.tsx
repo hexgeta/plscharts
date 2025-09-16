@@ -22,35 +22,23 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
   const [search, setSearch] = useState('')
   const router = useRouter()
 
-  console.log('TokenSearch render - open:', open);
 
   // Combine all available tokens from both constants files
   const ALL_TOKENS = useMemo(() => [...TOKEN_CONSTANTS, ...MORE_COINS], [])
   
-  console.log('Total TOKEN_CONSTANTS:', TOKEN_CONSTANTS.length)
-  console.log('Total MORE_COINS:', MORE_COINS.length)
-  console.log('Total ALL_TOKENS:', ALL_TOKENS.length)
   
   // Debug: Check if specific tokens are in the array
   const extractorToken = ALL_TOKENS.find(token => token.ticker === 'Extractor')
   const stmToken = ALL_TOKENS.find(token => token.ticker === 'STM')
-  console.log('Extractor token found:', extractorToken)
-  console.log('STM token found:', stmToken)
   
   // Debug: Check for the specific contract addresses
   const contractSearch1 = ALL_TOKENS.find(token => token.a && token.a.toLowerCase() === '0xb6a3af5d5198e19abf5eaba0fa074c881fdc970a')
   const contractSearch2 = ALL_TOKENS.find(token => token.a && token.a.toLowerCase() === '0x62bd78d40a9fcb4d29f6ff183cfbcaf2f5ca9b52')
-  console.log('Contract 0xB6a3... found:', contractSearch1)
-  console.log('Contract 0x62bd... found:', contractSearch2)
   
   // Test exact matching logic
   if (stmToken) {
     const testSearch = '0x62bd78d40A9FCb4D29F6fF183CFbcaf2f5ca9B52'.toLowerCase()
     const tokenContract = stmToken.a ? stmToken.a.toLowerCase() : ''
-    console.log('STM contract in DB:', stmToken.a)
-    console.log('Search term:', testSearch)
-    console.log('Contract match test:', tokenContract.includes(testSearch))
-    console.log('Exact match test:', tokenContract === testSearch)
   }
 
   // Validate Ethereum address format
@@ -77,9 +65,6 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
 
   // Filter and sort tokens based on search query
   const filteredTokens = (() => {
-    console.log('=== DEBUGGING TOKEN SEARCH ===')
-    console.log('Search term:', search)
-    console.log('Total tokens available:', ALL_TOKENS.length)
     
     let tokens = ALL_TOKENS.filter(token => {
       if (!search) return true
