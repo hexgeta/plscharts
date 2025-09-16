@@ -20,7 +20,9 @@ import { useHexDailyDataCache, calculateYieldForStake } from '@/hooks/crypto/use
 import { usePulseXLPDataSWR } from '@/hooks/crypto/usePulseXLPData'
 import { useAllDefinedLPTokenPrices } from '@/hooks/crypto/useAllLPTokenPrices'
 import { use9MmV3Positions } from '@/hooks/crypto/use9MmV3Positions'
+import { useMultiple9MmV3Positions } from '@/hooks/crypto/useMultiple9MmV3Positions'
 import { useV3PositionTicks } from '@/hooks/crypto/useV3PositionTicks'
+import { useSurroundingTicks } from '@/hooks/crypto/useSurroundingTicks'
 import { useAddressTransactions } from '@/hooks/crypto/useAddressTransactions'
 import { useEnrichedTransactions } from '@/hooks/crypto/useEnrichedTransactions'
 import { useFontContext, AVAILABLE_FONTS } from '@/contexts/FontContext'
@@ -778,6 +780,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   
   // Pending state for showLiquidityPositions
   const [pendingShowLiquidityPositions, setPendingShowLiquidityPositions] = useState<boolean | null>(null)
+  
+  // State for showing surrounding ticks overlay
+  const [showSurroundingTicks, setShowSurroundingTicks] = useState<boolean>(false)
 
 
 
@@ -3572,30 +3577,53 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     return marketPrice
   }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken, getLPTokenPrice, useTimeShift, timeMachineHexPrice, timeMachineEHexPrice])
 
-  // Get up to 5 addresses from portfolio (most common case)
-  const address1 = effectiveAddresses[0]?.address || null
-  const address2 = effectiveAddresses[1]?.address || null
-  const address3 = effectiveAddresses[2]?.address || null
-  const address4 = effectiveAddresses[3]?.address || null
-  const address5 = effectiveAddresses[4]?.address || null
-  
-  // Fetch V3 positions for each address using the original hook
-  const v3Result1 = use9MmV3Positions(address1, { getTokenPrice })
-  const v3Result2 = use9MmV3Positions(address2, { getTokenPrice })
-  const v3Result3 = use9MmV3Positions(address3, { getTokenPrice })
-  const v3Result4 = use9MmV3Positions(address4, { getTokenPrice })
-  const v3Result5 = use9MmV3Positions(address5, { getTokenPrice })
+  // Fetch V3 positions for ALL addresses using the new multiple addresses hook
+  const addressStrings = effectiveAddresses.map(addr => addr.address)
+  const {
+    positions: nineMmV3Positions,
+    rawPositions: nineMmV3RawPositions,
+    isLoading: is9MmV3Loading,
+    error: nineMmV3Error,
+    totalValue: total9MmV3Value,
+    totalCurrentValue: total9MmV3CurrentValue,
+    totalFeesValue: total9MmV3FeesValue,
+    positionCount: nineMmV3PositionCount,
+    refetch: refetchV3Positions
+  } = useMultiple9MmV3Positions(addressStrings, { getTokenPrice })
   
   // Hook for fetching actual tick data from position manager contract
   const { tickData, isLoading: tickIsLoading, errors: tickErrors, fetchPositionTicks } = useV3PositionTicks()
   
-  // Combine all results
-  const allV3Results = [v3Result1, v3Result2, v3Result3, v3Result4, v3Result5]
-  const nineMmV3Positions = allV3Results.flatMap(result => result.positions || [])
-  const nineMmV3RawPositions = allV3Results.flatMap(result => result.rawPositions || [])
-  const total9MmV3Value = allV3Results.reduce((sum, result) => sum + (result.totalValue || 0), 0)
-  const is9MmV3Loading = allV3Results.some(result => result.isLoading)
-  const nineMmV3Error = allV3Results.find(result => result.error)?.error || null
+  // Get unique pool addresses from V3 positions for surrounding ticks data
+  const v3PoolAddresses = useMemo(() => {
+    if (!nineMmV3Positions) return []
+    const uniqueAddresses = new Set<string>()
+    nineMmV3Positions.forEach(position => {
+      if (position.pool?.id) {
+        uniqueAddresses.add(position.pool.id)
+      }
+    })
+    return Array.from(uniqueAddresses)
+  }, [nineMmV3Positions])
+  
+  // Fetch surrounding ticks data for all unique pools
+  const surroundingTicksData = useMemo(() => {
+    const ticksMap = new Map<string, any[]>()
+    
+    // For each unique pool address, we need to fetch ticks data
+    // Since we can't call hooks in a loop, we'll create a simple approach
+    // that fetches for the first few pools (you can expand this later)
+    v3PoolAddresses.slice(0, 3).forEach(poolAddress => {
+      // This is a placeholder - in a real implementation you'd need to
+      // fetch data for each pool address individually
+      ticksMap.set(poolAddress, [])
+    })
+    
+    return ticksMap
+  }, [v3PoolAddresses])
+  
+  // Fetch surrounding ticks data for the first pool as demo
+  const { ticks: demoSurroundingTicks } = useSurroundingTicks(v3PoolAddresses[0] || null)
 
   // Background effect to fetch tick data for V3 positions
   useEffect(() => {
@@ -3611,7 +3639,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     }
   }, [is9MmV3Loading, nineMmV3Positions, fetchPositionTicks])
   
-  const validAddressCount = [address1, address2, address3, address4, address5].filter(Boolean).length
+  const validAddressCount = addressStrings.length
   
   // Helper function to calculate user's share of underlying tokens in PHUX LP using hardcoded composition
   const calculatePhuxLPUnderlyingTokens = useCallback((lpSymbol: string, userLPBalance: number, lpAddress: string) => {
@@ -7727,6 +7755,20 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
+              
+              {/* Surrounding Ticks Toggle */}
+              <button
+                onClick={() => setShowSurroundingTicks(!showSurroundingTicks)}
+                className={`px-3 py-1 rounded-full text-xs font-medium focus:outline-none flex items-center justify-center gap-1 ${
+                  showSurroundingTicks 
+                    ? 'bg-red-400/10 border border-red-400 text-red-400' 
+                    : 'bg-white/10 border border-white/20 hover:border-white/40 text-zinc-400'
+                }`}
+                title="Show other people's liquidity positions"
+              >
+                <div className="w-2 h-2 bg-red-500/30 rounded-sm"></div>
+                Others
+              </button>
             </div>
           </div>
           
@@ -8634,7 +8676,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                               {/* Unclaimed Fees Section - Only show for active positions */}
                                               {!item.isClosed && (
                                               <div className="ml-14">
-                                                <div className="text-xs text-gray-400 mb-2">Unclaimed fees:</div>
+                                                <div className="text-xs text-gray-400 mb-2">Unclaimed fees (based on today's price):</div>
                                                 <div className="flex items-start justify-between">
                                                   <div className="flex items-center space-x-2 min-h-[2.5rem]">
                                                     {(() => {
@@ -9044,6 +9086,48 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                 className="absolute top-0 w-0.5 h-full bg-green-400"
                                                 style={{ left: `${currentPricePercent}%` }}
                                               />
+                                              
+                                              {/* Surrounding ticks overlay */}
+                                              {showSurroundingTicks && (() => {
+                                                // Get the pool address for this specific position
+                                                const poolAddress = item.position.pool?.id
+                                                
+                                                // Use demo data for now - in a real implementation you'd fetch for each pool
+                                                // For now, only show ticks for positions that match the first pool address
+                                                const ticks = (poolAddress === v3PoolAddresses[0]) ? (demoSurroundingTicks || []) : []
+                                                
+                                                if (!ticks || ticks.length === 0) return null
+                                                
+                                                return ticks.map((tick, tickIndex) => {
+                                                  const tickPrice = parseFloat(tick.price0)
+                                                  const liquidity = parseFloat(tick.liquidityGross)
+                                                  
+                                                  // Only show ticks within the visible range
+                                                  if (tickPrice < minPrice || tickPrice > maxPrice) return null
+                                                  
+                                                  // Calculate position on the bar
+                                                  const tickPercent = priceRange > 0 ? ((tickPrice - minPrice) / priceRange) * 100 : 0
+                                                  
+                                                  // Normalize liquidity for bar height (log scale)
+                                                  const normalizedLiquidity = liquidity > 0 ? Math.log10(liquidity + 1) : 0
+                                                  const maxLiquidity = Math.max(...ticks.map(t => Math.log10(parseFloat(t.liquidityGross) + 1)))
+                                                  const barHeight = maxLiquidity > 0 ? (normalizedLiquidity / maxLiquidity) * 100 : 0
+                                                  
+                                                  return (
+                                                    <div
+                                                      key={`tick-${tickIndex}`}
+                                                      className="absolute top-0 bg-red-500/30 rounded-sm"
+                                                      style={{
+                                                        left: `${tickPercent}%`,
+                                                        width: '2px',
+                                                        height: `${Math.max(10, barHeight)}%`,
+                                                        transform: 'translateX(-50%)'
+                                                      }}
+                                                      title={`Tick: ${tick.tickIdx}, Price: ${tickPrice.toFixed(6)}, Liquidity: ${liquidity.toLocaleString()}`}
+                                                    />
+                                                  )
+                                                })
+                                              })()}
                                             </div>
                                               </>
                                             )}
