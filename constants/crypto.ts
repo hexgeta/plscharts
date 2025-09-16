@@ -1790,7 +1790,7 @@ name: "Immutable X"
   dexs: null,
   ticker: "Great Time",
   decimals: 18,
-  name: "Great Time",
+  name: "PHUX LP",
   type: "lp",
   platform: "PHUX",
   composition: [

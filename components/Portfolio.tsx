@@ -4622,19 +4622,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       })
       
       return {
-        symbol: group.baseTicker,
-        name: group.name,
-        balanceFormatted: group.positions.length, // Show number of positions instead of balance
-        address: group.address,
-        chain: group.chain,
-        decimals: group.decimals,
-        isV3Position: group.isV3Position,
-        isGroupedV3: group.isGroupedV3,
-        positionValue: group.totalValue,
-        positions: group.positions, // Store individual positions for dropdown
-        // For compatibility with existing code
-        currentValue: group.totalValue,
-        feesValue: 0,
+      symbol: group.baseTicker,
+      name: group.name,
+      balanceFormatted: group.positions.length, // Show number of positions instead of balance
+      address: group.address,
+      chain: group.chain,
+      decimals: group.decimals,
+      isV3Position: group.isV3Position,
+      isGroupedV3: group.isGroupedV3,
+      positionValue: group.totalValue,
+      positions: group.positions, // Store individual positions for dropdown
+      // For compatibility with existing code
+      currentValue: group.totalValue,
+      feesValue: 0,
         originalPositionValue: group.totalValue,
         isClosed: hasClosedPositions
       }
@@ -4646,10 +4646,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Apply V3 position filter
     const filteredLpTokens = allLpTokens.map(token => {
-      // Only filter V3 positions, let other LP tokens through (except for 'closed' filter)
+      // Only filter V3 positions, let other LP tokens through
       if (!token.isV3Position) {
-        // For 'closed' filter, only show V3 positions, exclude all other LP tokens
-        if (v3PositionFilter === 'closed') return null
+        // When filter is 'closed', exclude non-V3 LP tokens (only show V3 positions that are closed)
+        if (v3PositionFilter === 'closed') {
+          return null
+        }
+        // Always show non-V3 LP tokens (9INCH, PLSX, etc.) for 'active' and 'all' filters
         return token
       }
       
@@ -5907,7 +5910,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
     // Add LP token values if liquidity positions are enabled AND filter is on
     if (showLiquidityPositions && includeLiquidityPositionsFilter && lpTokensWithBalances) {
-      // Apply the same filtering logic as the UI, then sum the usdValue
+      // Separate LP types for better tracking and debugging
+      let v3PositionsValue = 0
+      let phuxLPValue = 0
+      let nineInchLPValue = 0
+      let pulsexLPValue = 0
+      let otherLPValue = 0
+      
+      // Apply the same filtering logic as the UI, then sum the usdValue by type
       lpTokensWithBalances.forEach(lpToken => {
         // Apply the same V3 position filter logic as the UI
         if (lpToken.isV3Position) {
@@ -5964,29 +5974,79 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             }
           }
         } else {
-          // For non-V3 LP tokens, only include them if the filter is 'all'
-          if (v3PositionFilter !== 'all') {
+          // For non-V3 LP tokens (9INCH, PLSX, etc.), exclude them when filter is 'closed'
+          // When filter is 'closed', only show V3 positions that are actually closed
+          if (v3PositionFilter === 'closed') {
             return
           }
         }
+        
         // Calculate the same usdValue that's displayed in the UI
         let usdValue = 0
         
         if (lpToken.isV3Position) {
           // For V3 positions, use positionValue (same as displayed in UI)
           usdValue = lpToken.positionValue || 0
-          } else {
+          v3PositionsValue += usdValue
+        } else {
           // For regular LP tokens, use balanceFormatted * tokenPrice
           const tokenPrice = getLPTokenPrice(lpToken.symbol) || 0
           usdValue = lpToken.balanceFormatted ? lpToken.balanceFormatted * tokenPrice : 0
+          
+          // Categorize by platform type
+          const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
+          const tokenConfig = allTokens.find(token => token.ticker === lpToken.symbol)
+          const platform = tokenConfig?.platform || 'unknown'
+          
+          switch (platform) {
+            case 'PHUX':
+              phuxLPValue += usdValue
+              break
+            case '9INCH':
+              nineInchLPValue += usdValue
+              break
+            case 'PLSX V1':
+            case 'PLSX V2':
+              pulsexLPValue += usdValue
+              break
+            default:
+              otherLPValue += usdValue
+              break
+          }
         }
         
         // If filter is 'closed', don't contribute to total value (force to 0)
         if (v3PositionFilter === 'closed') {
           usdValue = 0
+          // Reset the categorized values too
+          if (lpToken.isV3Position) {
+            v3PositionsValue -= (lpToken.positionValue || 0)
+          } else {
+            const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
+            const tokenConfig = allTokens.find(token => token.ticker === lpToken.symbol)
+            const platform = tokenConfig?.platform || 'unknown'
+            const tokenPrice = getLPTokenPrice(lpToken.symbol) || 0
+            const originalValue = lpToken.balanceFormatted ? lpToken.balanceFormatted * tokenPrice : 0
+            
+            switch (platform) {
+              case 'PHUX':
+                phuxLPValue -= originalValue
+                break
+              case '9INCH':
+                nineInchLPValue -= originalValue
+                break
+              case 'PLSX V1':
+              case 'PLSX V2':
+                pulsexLPValue -= originalValue
+                break
+              default:
+                otherLPValue -= originalValue
+                break
+            }
+          }
         }
         
-        totalValue += usdValue
+        console.log(`[LP Total Debug] ${lpToken.symbol}: usdValue=$${usdValue.toFixed(2)}, isV3=${lpToken.isV3Position}, positionValue=${lpToken.positionValue}`)
         
         // Add to address values array
         const addressData = filteredBalances.find(balance => 
@@ -6006,12 +6066,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           }
         }
       })
+      
+      // Add each LP type subtotal to the main total
+      console.log(`[LP Subtotal Debug] V3 Positions: $${v3PositionsValue.toFixed(2)}`)
+      console.log(`[LP Subtotal Debug] PHUX LP: $${phuxLPValue.toFixed(2)}`)
+      console.log(`[LP Subtotal Debug] 9INCH LP: $${nineInchLPValue.toFixed(2)}`)
+      console.log(`[LP Subtotal Debug] PulseX LP: $${pulsexLPValue.toFixed(2)}`)
+      console.log(`[LP Subtotal Debug] Other LP: $${otherLPValue.toFixed(2)}`)
+      
+      totalValue += v3PositionsValue
+      totalValue += phuxLPValue
+      totalValue += nineInchLPValue
+      totalValue += pulsexLPValue
+      totalValue += otherLPValue
     }
 
-    // Add PHUX LP positions value (farms are always included when LP filter is active)
-    if (showLiquidityPositions && includeLiquidityPositionsFilter && phuxTotalLPValue > 0) {
-      totalValue += phuxTotalLPValue
-    }
+    // Note: PHUX LP positions are now handled in the categorized section above
+    // This separate addition was causing double counting
 
     // Add farm tokens value (farms are always included when LP filter is active)
     if (showLiquidityPositions && includeLiquidityPositionsFilter) {
@@ -6049,9 +6120,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       }
     }
       
-      // Add PHUX LP positions to address values
+      // Add PHUX LP positions to address values (only when filter is not 'closed')
       // Note: PHUX positions are mapped by pool address, we need to find which user address holds them
-      phuxLPPositions.forEach(position => {
+      if (v3PositionFilter !== 'closed') {
+        phuxLPPositions.forEach(position => {
         // Find which user address holds this LP token
         const addressData = filteredBalances.find(balance => 
           balance.tokenBalances?.some(token => 
@@ -6072,7 +6144,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             })
           }
         }
-      })
+        })
+      }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
   }, [filteredBalances, prices, addresses, getTokenPrice, showValidators, validatorCount, showLiquidBalances, showHexStakes, hexStakes, hsiStakes, includePooledStakes, pooledStakesData.totalValue, detectiveMode, chainFilter, selectedAddressIds, effectiveAddresses, removedAddressIds, timeShiftDate, useTimeShift, timeShiftDateString, useEESValue, calculateEESDetailsWithDate, calculateEESValueWithDate, showLiquidityPositions, lpTokensWithBalances, getLPTokenPrice, phuxLPPositions, phuxTotalLPValue, includeLiquidityPositionsFilter, v3PositionFilter, coinDetectionMode, enabledCoins, pendingEnabledCoins])
@@ -7937,11 +8010,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                           <div className="text-gray-400 text-xs sm:hidden">--</div>
                         ) : (
                           poolOwnershipPercentage !== null && !isV3PoolClosed ? (
-                            <div className="text-purple-400 text-xs font-medium sm:hidden">
-                              {poolOwnershipPercentage.toFixed(2)}%
-                            </div>
-                          ) : (
-                            <div className="text-gray-400 text-xs sm:hidden">--</div>
+                          <div className="text-purple-400 text-xs font-medium sm:hidden">
+                            {poolOwnershipPercentage.toFixed(2)}%
+                          </div>
+                        ) : (
+                          <div className="text-gray-400 text-xs sm:hidden">--</div>
                           )
                         )}
                       </div>
@@ -7952,11 +8025,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                           <div className="text-gray-400 text-xs">--</div>
                         ) : (
                           poolOwnershipPercentage !== null && !isV3PoolClosed ? (
-                            <div className="text-purple-400 text-xs font-medium">
-                              {poolOwnershipPercentage.toFixed(2)}%
-                            </div>
-                          ) : (
-                            <div className="text-gray-400 text-xs">--</div>
+                          <div className="text-purple-400 text-xs font-medium">
+                            {poolOwnershipPercentage.toFixed(2)}%
+                          </div>
+                        ) : (
+                          <div className="text-gray-400 text-xs">--</div>
                           )
                         )}
                       </div>
@@ -8373,8 +8446,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           // Calculate USD values for both current amounts and unclaimed fees
                                           const token0Value = `$${formatDollarValue(token0Amount * token0Price)}`
                                           const token1Value = `$${formatDollarValue(token1Amount * token1Price)}`
-                                          const token0Display = `${formatBalance(token0Amount)} ${getDisplayTicker(item.position.token0Symbol)}`
-                                          const token1Display = `${formatBalance(token1Amount)} ${getDisplayTicker(item.position.token1Symbol)}`
+                                          const token0Display = `${formatBalance(token0Amount)} ${getDisplayTicker(item.position.token0Symbol, item.position.token0?.id)}`
+                                          const token1Display = `${formatBalance(token1Amount)} ${getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)}`
                                           
                                           // Calculate unclaimed fees USD values
                                           const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
@@ -8384,8 +8457,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           // Create unclaimed fees displays
                                           const unclaimedFeesToken0Value = `$${formatDollarValue(unclaimedFeesToken0USD)}`
                                           const unclaimedFeesToken1Value = `$${formatDollarValue(unclaimedFeesToken1USD)}`
-                                          const unclaimedFeesToken0Display = `${formatBalance(unclaimedFeesToken0)} ${getDisplayTicker(item.position.token0Symbol)}`
-                                          const unclaimedFeesToken1Display = `${formatBalance(unclaimedFeesToken1)} ${getDisplayTicker(item.position.token1Symbol)}`
+                                          const unclaimedFeesToken0Display = `${formatBalance(unclaimedFeesToken0)} ${getDisplayTicker(item.position.token0Symbol, item.position.token0?.id)}`
+                                          const unclaimedFeesToken1Display = `${formatBalance(unclaimedFeesToken1)} ${getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)}`
                                           
                                           
                                           // Calculate claimed fees for closed positions
@@ -8444,8 +8517,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           // Create claimed fees displays
                                           const claimedFeesToken0Value = `$${formatDollarValue(claimedFeesToken0USD)}`
                                           const claimedFeesToken1Value = `$${formatDollarValue(claimedFeesToken1USD)}`
-                                          const claimedFeesToken0Display = `${formatBalance(claimedFeesToken0)} ${getDisplayTicker(item.position.token0Symbol)}`
-                                          const claimedFeesToken1Display = `${formatBalance(claimedFeesToken1)} ${getDisplayTicker(item.position.token1Symbol)}`
+                                          const claimedFeesToken0Display = `${formatBalance(claimedFeesToken0)} ${getDisplayTicker(item.position.token0Symbol, item.position.token0?.id)}`
+                                          const claimedFeesToken1Display = `${formatBalance(claimedFeesToken1)} ${getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)}`
                                           
                                           // Debug logging for UI display
                                           console.log(`[V3 UI Debug] Position ${item.position.positionId} display:`, {
@@ -8529,7 +8602,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                   setV3PriceToggles(newToggles)
                                                 }}
                                                 className="p-1 rounded-full hover:bg-white/10 transition-colors"
-                                                title={isPriceToggled ? `Show chart in ${getDisplayTicker(item.position.token0Symbol)} terms` : `Show chart in ${getDisplayTicker(item.position.token1Symbol)} terms`}
+                                                title={isPriceToggled ? `Show chart in ${getDisplayTicker(item.position.token0Symbol, item.position.token0?.id)} terms` : `Show chart in ${getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)} terms`}
                                               >
                                                 <ArrowLeftRight className="w-4 h-4 text-gray-400 hover:text-white transition-colors" />
                                               </button>
@@ -8560,8 +8633,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                               
                                               {/* Unclaimed Fees Section - Only show for active positions */}
                                               {!item.isClosed && (
-                                                <div className="ml-14">
-                                                  <div className="text-xs text-gray-400 mb-2">Unclaimed fees:</div>
+                                              <div className="ml-14">
+                                                <div className="text-xs text-gray-400 mb-2">Unclaimed fees:</div>
                                                 <div className="flex items-start justify-between">
                                                   <div className="flex items-center space-x-2 min-h-[2.5rem]">
                                                     {(() => {
@@ -8725,13 +8798,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           displayCurrentPrice = baseCurrentPrice > 0 ? 1 / baseCurrentPrice : 0
                                           displayLowerPrice = baseUpperPrice > 0 ? 1 / baseUpperPrice : 0  // Note: inverted range
                                           displayUpperPrice = baseLowerPrice > 0 ? 1 / baseLowerPrice : 0  // Note: inverted range
-                                          priceUnit = getDisplayTicker(item.position.token0Symbol)
+                                          priceUnit = getDisplayTicker(item.position.token0Symbol, item.position.token0?.id)
                                         } else {
                                           // Show in token1/token0 terms (default)
                                           displayCurrentPrice = baseCurrentPrice
                                           displayLowerPrice = baseLowerPrice
                                           displayUpperPrice = baseUpperPrice
-                                          priceUnit = getDisplayTicker(item.position.token1Symbol)
+                                          priceUnit = getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)
                                         }
                                         
                                         // Calculate chart bounds to center the range and current price

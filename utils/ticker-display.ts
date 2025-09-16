@@ -114,10 +114,15 @@ export function cleanTickerForLogo(symbol: string): string {
  * Get display ticker (for showing to users)
  * This can be different from the logo ticker
  */
-export function getDisplayTicker(ticker: string): string {
+export function getDisplayTicker(ticker: string, contractAddress?: string): string {
   if (!ticker) return ''
   
   let displayTicker = ticker.trim()
+  
+  // Special case: Check for specific HEX contract address
+  if (contractAddress && contractAddress.toLowerCase() === '0x57fde0a71132198bbec939b98976993d8d89d225' && displayTicker === 'HEX') {
+    return 'weHEX'
+  }
   
   // Remove farm suffix "(f)" for display - farms are already labeled with "Farm" badge
   if (displayTicker.endsWith(' (f)')) {
