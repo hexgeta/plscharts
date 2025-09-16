@@ -3574,6 +3574,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     return marketPrice
   }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken, getLPTokenPrice, useTimeShift, timeMachineHexPrice, timeMachineEHexPrice])
 
+  // Helper function to find token by contract address
+  const findTokenByAddress = (address: string): { ticker: string; name: string } | null => {
+    // Search in TOKEN_CONSTANTS first
+    const tokenFromConstants = TOKEN_CONSTANTS.find(token => 
+      token.a && token.a.toLowerCase() === address.toLowerCase()
+    )
+    if (tokenFromConstants) {
+      return { ticker: tokenFromConstants.ticker, name: tokenFromConstants.name }
+    }
+    
+    // Search in MORE_COINS if not found in constants
+    const tokenFromMoreCoins = MORE_COINS.find(token => 
+      token.a && token.a.toLowerCase() === address.toLowerCase()
+    )
+    if (tokenFromMoreCoins) {
+      return { ticker: tokenFromMoreCoins.ticker, name: tokenFromMoreCoins.name }
+    }
+    
+    return null
+  }
+
   // Fetch V3 positions for ALL addresses using the new multiple addresses hook
   const addressStrings = effectiveAddresses.map(addr => addr.address)
   const {
@@ -3587,6 +3608,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     positionCount: nineMmV3PositionCount,
     refetch: refetchV3Positions
   } = useMultiple9MmV3Positions(addressStrings, { getTokenPrice })
+  
+  // Debug: Check what the hook is returning for eHEX positions
+  console.log('[Portfolio Debug] eHEX V3 Positions from hook:', nineMmV3Positions?.filter(pos => 
+    pos.token0Symbol === 'eHEX' || pos.token1Symbol === 'eHEX'
+  ).map(pos => ({
+    id: pos.id,
+    token0Symbol: pos.token0Symbol,
+    token1Symbol: pos.token1Symbol,
+    displayName: pos.displayName
+  })))
   
   // Hook for fetching actual tick data from position manager contract
   const { tickData, isLoading: tickIsLoading, errors: tickErrors, fetchPositionTicks } = useV3PositionTicks()
@@ -3709,13 +3740,27 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             token1Amount: position.values.token1Amount
           },
           
-          // Token Prices Used in Calculation
-          tokenPrices: {
-            token0Symbol: position.pool.token0.symbol,
-            token1Symbol: position.pool.token1.symbol,
-            token0USDPrice: getTokenPrice(position.pool.token0.symbol),
-            token1USDPrice: getTokenPrice(position.pool.token1.symbol)
-          },
+          // Token Prices Used in Calculation - use address-based matching for accurate token identification
+          tokenPrices: (() => {
+            const token0Info = findTokenByAddress(position.pool.token0.id)
+            const token1Info = findTokenByAddress(position.pool.token1.id)
+            
+            const token0Symbol = token0Info?.ticker || position.pool.token0.symbol
+            const token1Symbol = token1Info?.ticker || position.pool.token1.symbol
+            
+            return {
+              token0Symbol,
+              token1Symbol,
+              token0USDPrice: getTokenPrice(token0Symbol),
+              token1USDPrice: getTokenPrice(token1Symbol),
+              // Keep original symbols for debugging
+              originalToken0Symbol: position.pool.token0.symbol,
+              originalToken1Symbol: position.pool.token1.symbol,
+              // Keep token info for reference
+              token0Info,
+              token1Info
+            }
+          })(),
           
           // Calculated Metrics for UI Display
           metrics: {
@@ -4359,7 +4404,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       if (manualV3PoolTypes.size > 0) {
         const originalCount = filteredV3Positions.length
         filteredV3Positions = filteredV3Positions.filter(position => {
-          let detectedPoolType = `${position.pool.token0.symbol}/${position.pool.token1.symbol}`
+          // Use address-based token identification for accurate pool type detection
+          const token0Info = findTokenByAddress(position.pool.token0.id)
+          const token1Info = findTokenByAddress(position.pool.token1.id)
+          
+          const token0Symbol = token0Info?.ticker || position.pool.token0.symbol
+          const token1Symbol = token1Info?.ticker || position.pool.token1.symbol
+          
+          let detectedPoolType = `${token0Symbol}/${token1Symbol}`
           
           // Normalize detected pool type to match manual override normalization
           // Handle token symbol variations more comprehensively
@@ -4671,12 +4723,52 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       }
     }).filter(Boolean) // Remove null entries
     
-    // Sort by USD value (highest first)
+    // Sort by USD value (highest first) - use same calculation as display
     return [...filteredLpTokens].sort((a, b) => {
-      // For V3 positions, use the positionValue directly
-      const aValue = a.isV3Position ? a.positionValue : (a.balanceFormatted * (getLPTokenPrice(a.symbol) || 0))
-      const bValue = b.isV3Position ? b.positionValue : (b.balanceFormatted * (getLPTokenPrice(b.symbol) || 0))
+      // Calculate the same value as displayed in the UI
+      const calculateDisplayValue = (token: any) => {
+        const isAnyV3Position = token.isV3Position || (token.isGroupedV3)
+        
+        if (isAnyV3Position) {
+          // Use custom value if available
+          if (customV3Values.get(token.symbol)) {
+            return parseFloat(customV3Values.get(token.symbol) || '0')
+          }
+          
+          // Sum all position values including unclaimed fees (same as display logic)
+          return (token.positions || []).reduce((total: number, position: any) => {
+            const positionId = position.positionId
+            const rpcTickData = tickData[positionId]
+            let totalUnclaimedFeesUSD = 0
+            
+            if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
+              const token0Price = getTokenPrice(position.token0Symbol) || 0
+              const token1Price = getTokenPrice(position.token1Symbol) || 0
+              const unclaimedFeesToken0 = rpcTickData.tokensOwed0
+              const unclaimedFeesToken1 = rpcTickData.tokensOwed1
+              const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
+              const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
+              totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
+            }
+            
+            // Calculate position value using RPC data (tokens + unclaimed fees)
+            const rpcPositionValue = (rpcTickData?.token0Amount || 0) * (getTokenPrice(position.token0Symbol) || 0) + 
+                                    (rpcTickData?.token1Amount || 0) * (getTokenPrice(position.token1Symbol) || 0) + 
+                                    totalUnclaimedFeesUSD
+            
+            return total + rpcPositionValue
+          }, 0)
+        } else {
+          // For regular LP tokens
+          const tokenPrice = getLPTokenPrice(token.symbol) || 0
+          return token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
+        }
+      }
       
+      const aValue = calculateDisplayValue(a)
+      const bValue = calculateDisplayValue(b)
+      
+      console.log(`[LP Pool Sort] ${a.symbol}: $${aValue?.toFixed(2) || '0'} (${a.isV3Position ? 'V3' : 'LP'}) vs ${b.symbol}: $${bValue?.toFixed(2) || '0'} (${b.isV3Position ? 'V3' : 'LP'})`)
       
       return bValue - aValue // Higher value first
     })
@@ -4690,7 +4782,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     effectiveAddresses,
     customV3Values,
     v3PositionFilter,
-    chainFilter
+    chainFilter,
+    tickData,
+    getTokenPrice
   ])
 
   // Memoized Farm tokens with balances
@@ -5948,7 +6042,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           // For V3 positions, use positionValue (same as displayed in UI)
           usdValue = lpToken.positionValue || 0
           v3PositionsValue += usdValue
-        } else {
+          } else {
           // For regular LP tokens, use balanceFormatted * tokenPrice
           const tokenPrice = getLPTokenPrice(lpToken.symbol) || 0
           usdValue = lpToken.balanceFormatted ? lpToken.balanceFormatted * tokenPrice : 0
@@ -6077,7 +6171,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       // Add PHUX LP positions to address values (only when filter is not 'closed')
       // Note: PHUX positions are mapped by pool address, we need to find which user address holds them
       if (v3PositionFilter !== 'closed') {
-        phuxLPPositions.forEach(position => {
+      phuxLPPositions.forEach(position => {
         // Find which user address holds this LP token
         const addressData = filteredBalances.find(balance => 
           balance.tokenBalances?.some(token => 
@@ -6098,7 +6192,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             })
           }
         }
-        })
+      })
       }
 
     return { totalUsdValue: totalValue, addressValues: addressVals }
@@ -8341,9 +8435,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           const positionKey = `${token.symbol}-${item.position.positionId}`
                                           const isPriceToggled = v3PriceToggles.has(positionKey)
                                           
-                                          // Get token prices
-                                          const token0Price = getTokenPrice(item.position.token0Symbol) || 0
-                                          const token1Price = getTokenPrice(item.position.token1Symbol) || 0
+                                          // Get token prices using address-based symbols (will be calculated below)
+                                          // const token0Price = getTokenPrice(item.position.token0Symbol) || 0
+                                          // const token1Price = getTokenPrice(item.position.token1Symbol) || 0
+                                          
+                                          // Price calculation moved below after address-based symbol calculation
                                           
                                           // Get RPC tick data for this position
                                           const positionId = item.position.positionId
@@ -8377,11 +8473,62 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                               
                                           }
                                           
+                                          // USD values will be calculated after price calculation
+                                          // Force use of address-based token symbols (same logic as displayName)
+                                          const findTokenByAddress = (address: string): { ticker: string; name: string } | null => {
+                                            // Search in TOKEN_CONSTANTS first
+                                            const tokenFromConstants = TOKEN_CONSTANTS.find(token =>
+                                              token.a && token.a.toLowerCase() === address.toLowerCase()
+                                            )
+                                            if (tokenFromConstants) {
+                                              return { ticker: tokenFromConstants.ticker, name: tokenFromConstants.name }
+                                            }
+
+                                            // Search in MORE_COINS if not found in constants
+                                            const tokenFromMoreCoins = MORE_COINS.find(token =>
+                                              token.a && token.a.toLowerCase() === address.toLowerCase()
+                                            )
+                                            if (tokenFromMoreCoins) {
+                                              return { ticker: tokenFromMoreCoins.ticker, name: tokenFromMoreCoins.name }
+                                            }
+
+                                            return null
+                                          }
+
+                                          // Add null checks for pool token data
+                                          const token0Info = item.position.pool?.token0?.id ? findTokenByAddress(item.position.pool.token0.id) : null
+                                          const token1Info = item.position.pool?.token1?.id ? findTokenByAddress(item.position.pool.token1.id) : null
+                                          const token0Symbol = token0Info?.ticker || item.position.pool?.token0?.symbol || 'Unknown'
+                                          const token1Symbol = token1Info?.ticker || item.position.pool?.token1?.symbol || 'Unknown'
+                                          
+                                          // Debug: Check what's happening with token identification
+                                          console.log(`[Breakdown Debug] Position ${item.position.id}:`)
+                                          console.log(`  - token0.id: ${item.position.pool?.token0?.id}`)
+                                          console.log(`  - token0.symbol (from GraphQL): ${item.position.pool?.token0?.symbol}`)
+                                          console.log(`  - token0Info (from findTokenByAddress):`, token0Info)
+                                          console.log(`  - Final token0Symbol: "${token0Symbol}"`)
+                                          console.log(`  - token1.id: ${item.position.pool?.token1?.id}`)
+                                          console.log(`  - token1.symbol (from GraphQL): ${item.position.pool?.token1?.symbol}`)
+                                          console.log(`  - token1Info (from findTokenByAddress):`, token1Info)
+                                          console.log(`  - Final token1Symbol: "${token1Symbol}"`)
+
+                                          // Get token prices using the address-based symbols
+                                          const token0Price = getTokenPrice(token0Symbol) || 0
+                                          const token1Price = getTokenPrice(token1Symbol) || 0
+                                          
                                           // Calculate USD values for both current amounts and unclaimed fees
                                           const token0Value = `$${formatDollarValue(token0Amount * token0Price)}`
                                           const token1Value = `$${formatDollarValue(token1Amount * token1Price)}`
-                                          const token0Display = `${formatBalance(token0Amount)} ${getDisplayTicker(item.position.token0Symbol, item.position.token0?.id)}`
-                                          const token1Display = `${formatBalance(token1Amount)} ${getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)}`
+
+                                          const token0Display = `${formatBalance(token0Amount)} ${token0Symbol}`
+                                          const token1Display = `${formatBalance(token1Amount)} ${token1Symbol}`
+                                          
+                                          // Debug: Log successful address-based matching
+                                          if (item.position.displayName?.includes('eHEX')) {
+                                            console.log(`[eHEX Fixed] Position ${item.position.id}: Now using address-based symbols`)
+                                            console.log(`  - token0Symbol: "${token0Symbol}"`)
+                                            console.log(`  - token1Symbol: "${token1Symbol}"`)
+                                          }
                                           
                                           // Calculate unclaimed fees USD values
                                           const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
@@ -8391,8 +8538,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           // Create unclaimed fees displays
                                           const unclaimedFeesToken0Value = `$${formatDollarValue(unclaimedFeesToken0USD)}`
                                           const unclaimedFeesToken1Value = `$${formatDollarValue(unclaimedFeesToken1USD)}`
-                                          const unclaimedFeesToken0Display = `${formatBalance(unclaimedFeesToken0)} ${getDisplayTicker(item.position.token0Symbol, item.position.token0?.id)}`
-                                          const unclaimedFeesToken1Display = `${formatBalance(unclaimedFeesToken1)} ${getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)}`
+                                          const unclaimedFeesToken0Display = `${formatBalance(unclaimedFeesToken0)} ${token0Symbol}`
+                                          const unclaimedFeesToken1Display = `${formatBalance(unclaimedFeesToken1)} ${token1Symbol}`
                                           
                                           
                                           // Calculate claimed fees for closed positions
@@ -8417,8 +8564,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           // Create claimed fees displays
                                           const claimedFeesToken0Value = `$${formatDollarValue(claimedFeesToken0USD)}`
                                           const claimedFeesToken1Value = `$${formatDollarValue(claimedFeesToken1USD)}`
-                                          const claimedFeesToken0Display = `${formatBalance(claimedFeesToken0)} ${getDisplayTicker(item.position.token0Symbol, item.position.token0?.id)}`
-                                          const claimedFeesToken1Display = `${formatBalance(claimedFeesToken1)} ${getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)}`
+                                          const claimedFeesToken0Display = `${formatBalance(claimedFeesToken0)} ${token0Symbol}`
+                                          const claimedFeesToken1Display = `${formatBalance(claimedFeesToken1)} ${token1Symbol}`
                                           
                                           
                                           return (
@@ -8429,7 +8576,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                 <div className="flex items-center justify-between space-x-2">
                                               <div className="flex items-center space-x-2">
                                                 {(() => {
-                                                  const originalSymbol = item.position.token0Symbol
+                                                  const originalSymbol = token0Symbol
                                                   const cleanedSymbol = cleanTickerForLogo(originalSymbol)
                                                   return (
                                                     <CoinLogo
@@ -8468,7 +8615,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                               
                                               <div className="flex items-center space-x-2">
                                                 {(() => {
-                                                  const originalSymbol = item.position.token1Symbol
+                                                  const originalSymbol = token1Symbol
                                                   const cleanedSymbol = cleanTickerForLogo(originalSymbol)
                                                   return (
                                                     <CoinLogo
@@ -8493,11 +8640,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                               {/* Unclaimed Fees Section - Only show for active positions */}
                                               {!item.isClosed && (
                                               <div className="ml-14">
-                                                <div className="text-xs text-gray-400 mb-2">Unclaimed fees (based on today's price):</div>
+                                                <div className="text-xs text-gray-400 mb-2">Unclaimed fees:</div>
                                                 <div className="flex items-start justify-between">
                                                   <div className="flex items-center space-x-2 min-h-[2.5rem]">
                                                     {(() => {
-                                                      const originalSymbol = item.position.token0Symbol
+                                                      const originalSymbol = token0Symbol
                                                       const cleanedSymbol = cleanTickerForLogo(originalSymbol)
                                                       return (
                                                         <CoinLogo
@@ -8522,7 +8669,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                   
                                                   <div className="flex items-center space-x-2 min-h-[2.5rem]">
                                                     {(() => {
-                                                      const originalSymbol = item.position.token1Symbol
+                                                      const originalSymbol = token1Symbol
                                                       const cleanedSymbol = cleanTickerForLogo(originalSymbol)
                                                       return (
                                                         <CoinLogo
@@ -8552,7 +8699,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                   <div className="flex items-start justify-between">
                                                     <div className="flex items-center space-x-2 min-h-[2.5rem]">
                                                       {(() => {
-                                                        const originalSymbol = item.position.token0Symbol
+                                                        const originalSymbol = token0Symbol
                                                         const cleanedSymbol = cleanTickerForLogo(originalSymbol)
                                                         return (
                                                           <CoinLogo
@@ -8577,7 +8724,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                     
                                                     <div className="flex items-center space-x-2 min-h-[2.5rem]">
                                                       {(() => {
-                                                        const originalSymbol = item.position.token1Symbol
+                                                        const originalSymbol = token1Symbol
                                                         const cleanedSymbol = cleanTickerForLogo(originalSymbol)
                                                         return (
                                                           <CoinLogo
@@ -8666,50 +8813,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           priceUnit = getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)
                                         }
                                         
-                                        // Calculate chart bounds to center the range and current price
+                                        // Calculate chart bounds to include both the position range AND the current price
                                         const rangeSize = displayUpperPrice - displayLowerPrice
                                         const currentPrice = displayCurrentPrice
                                         
-                                        // Find the center point of the range and current price
-                                        const rangeCenter = (displayLowerPrice + displayUpperPrice) / 2
-                                        const centerPoint = (rangeCenter + currentPrice) / 2
+                                        // Find the actual min and max values that need to be displayed
+                                        const actualMin = Math.min(displayLowerPrice, currentPrice)
+                                        const actualMax = Math.max(displayUpperPrice, currentPrice)
+                                        const actualRange = actualMax - actualMin
                                         
-                                        // Calculate padding to ensure good visibility (30% of the range or current price, whichever is larger)
-                                        const padding = Math.max(rangeSize * 0.3, Math.abs(currentPrice) * 0.2, rangeSize * 0.1)
+                                        // Calculate padding to ensure good visibility (10% of the actual range)
+                                        const padding = Math.max(actualRange * 0.1, actualRange * 0.05) // More conservative padding
                                         
-                                        // Calculate min and max prices to include the full position range
-                                        // Start from 0 if the lower price is close to 0, otherwise use a reasonable minimum
-                                        const minPrice = displayLowerPrice < 1 ? 0 : Math.max(0, displayLowerPrice * 0.8)
-                                        const rawMaxPrice = Math.max(centerPoint + padding, displayUpperPrice * 1.1)
+                                        // Calculate min and max prices to include the full range AND current price
+                                        const minPrice = Math.max(0, actualMin - padding)
+                                        const rawMaxPrice = actualMax + padding
                                         
-                                        const maxPrice = (() => {
-                                          // Use 1 significant figure for max price
-                                          if (rawMaxPrice === 0) return 1
-                                          
-                                          // Find the order of magnitude
-                                          const magnitude = Math.floor(Math.log10(Math.abs(rawMaxPrice)))
-                                          const firstDigit = Math.ceil(rawMaxPrice / Math.pow(10, magnitude))
-                                          
-                                          // Return the rounded value with 1 significant figure
-                                          const result = firstDigit * Math.pow(10, magnitude)
-                                          
-                                          // For very small values, use more precision (no 0.01 minimum)
-                                          if (result < 1 && rawMaxPrice > 0) {
-                                            return Math.ceil(rawMaxPrice * 1000) / 1000  // More precision for small values
-                                          }
-                                          
-                                          // For values between 1-10, use more precision to avoid rounding down too much
-                                          if (result >= 1 && result < 10 && rawMaxPrice > result) {
-                                            return Math.ceil(rawMaxPrice * 100) / 100  // Round up to nearest 0.01
-                                          }
-                                          
-                                          // For values around 1-2, be more conservative with rounding
-                                          if (result >= 1 && result <= 2 && rawMaxPrice > result * 0.9) {
-                                            return Math.ceil(rawMaxPrice * 100) / 100  // Round up to nearest 0.01
-                                          }
-                                          
-                                          return result
-                                        })()
+                                        const maxPrice = rawMaxPrice
                                         
                                         // Check if the range should be considered infinite
                                         // Check if this is an infinite range using relative price comparison
@@ -8761,11 +8881,35 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         const currentPricePercent = isInfiniteRange ? 50 : (priceRange > 0 ? ((displayCurrentPrice - minPrice) / priceRange) * 100 : 50)
                                         
                                         
-                                        // Format very large or very small numbers appropriately
+                                        // Format chart boundary labels to 2 significant figures
+                                        const formatChartBoundaryLabel = (price: number): string => {
+                                          if (price === 0) return '0'
+                                          if (Math.abs(price) >= 1000000) {
+                                            return (price / 1000000).toFixed(1) + 'M'
+                                          }
+                                          // Use toPrecision(2) for 2 significant figures
+                                          let formatted = price.toPrecision(2)
+                                          // If toPrecision(2) results in scientific notation, convert it to fixed decimal
+                                          if (formatted.includes('e')) {
+                                            // Determine appropriate fixed decimal places based on magnitude
+                                            if (Math.abs(price) < 0.001) return price.toFixed(6) // For very small numbers
+                                            if (Math.abs(price) < 0.01) return price.toFixed(4) // e.g., 0.0050
+                                            if (Math.abs(price) < 1) return price.toFixed(2) // e.g., 0.79
+                                            if (Math.abs(price) < 10) return price.toFixed(1) // e.g., 1.2
+                                            return price.toFixed(0) // e.g., 12
+                                          }
+                                          // Remove trailing zeros after decimal if it's an integer or ends with .0
+                                          if (formatted.includes('.')) {
+                                            formatted = formatted.replace(/\.?0+$/, '')
+                                          }
+                                          return formatted
+                                        }
+
+                                        // Format very large or very small numbers appropriately (no scientific notation)
                                         const formatTickPrice = (price: number) => {
                                           if (price === 0) return '0'
-                                          if (price < 0.000001) return price.toExponential(2)
-                                          if (price > 1000000) return price.toExponential(2)
+                                          if (price < 0.000001) return '0.000001' // Show minimum readable value instead of scientific notation
+                                          if (price > 1000000) return (price / 1000000).toFixed(1) + 'M' // Use M suffix for millions
                                           if (price < 0.01) return price.toFixed(6)
                                           if (price < 1) return price.toFixed(4)
                                           if (price < 1000) return price.toFixed(2)
@@ -8920,15 +9064,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                             
                                             {/* Price labels */}
                                             <div className="flex justify-between text-[10px] text-gray-500 mt-1">
-                                              <span>0</span>
-                                              <span>{isInfiniteRange ? '∞' : (() => {
-                                                // Format max price to 1 significant figure
-                                                if (maxPrice < 0.01) return maxPrice.toExponential(0)
-                                                if (maxPrice < 0.1) return maxPrice.toFixed(2)
-                                                if (maxPrice < 1) return maxPrice.toFixed(1)
-                                                if (maxPrice < 10) return maxPrice.toFixed(0)
-                                                return maxPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                                              })()}</span>
+                                              <span>{formatChartBoundaryLabel(minPrice)}</span>
+                                              <span>{isInfiniteRange ? '∞' : formatChartBoundaryLabel(maxPrice)}</span>
                                             </div>
                                             
                                             {/* Current price label - positioned directly under green line */}
@@ -8937,7 +9074,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                 className="absolute transform -translate-x-1/2 text-green-400 text-[10px] font-medium"
                                                 style={{ left: `${currentPricePercent}%` }}
                                               >
-                                                {displayCurrentPrice.toPrecision(4)} {priceUnit}
+                                                {formatTickPrice(displayCurrentPrice)} {priceUnit}
                                               </div>
                                             </div>
                                           </div>

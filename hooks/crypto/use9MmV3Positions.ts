@@ -1,6 +1,29 @@
 'use client'
 
 import useSWR from 'swr'
+import { TOKEN_CONSTANTS } from '@/constants/crypto'
+import { MORE_COINS } from '@/constants/more-coins'
+
+// Helper function to find token by contract address
+const findTokenByAddress = (address: string): { ticker: string; name: string } | null => {
+  // Search in TOKEN_CONSTANTS first
+  const tokenFromConstants = TOKEN_CONSTANTS.find(token => 
+    token.a && token.a.toLowerCase() === address.toLowerCase()
+  )
+  if (tokenFromConstants) {
+    return { ticker: tokenFromConstants.ticker, name: tokenFromConstants.name }
+  }
+  
+  // Search in MORE_COINS if not found in constants
+  const tokenFromMoreCoins = MORE_COINS.find(token => 
+    token.a && token.a.toLowerCase() === address.toLowerCase()
+  )
+  if (tokenFromMoreCoins) {
+    return { ticker: tokenFromMoreCoins.ticker, name: tokenFromMoreCoins.name }
+  }
+  
+  return null
+}
 
 // Types for 9MM V3 GraphQL API response (Uniswap V3 schema)
 interface NineMmToken {
@@ -175,9 +198,15 @@ function calculateV3PositionValue(position: NineMmPosition, getTokenPrice?: (sym
   token0Amount = Math.max(0, netToken0) // Only positive amounts represent actual remaining tokens
   token1Amount = Math.max(0, netToken1) // Negative means more withdrawn than deposited
   
-  // Get USD prices with fallback strategy
-  let token0USDPrice = getTokenPrice ? getTokenPrice(pool.token0.symbol) : 0
-  let token1USDPrice = getTokenPrice ? getTokenPrice(pool.token1.symbol) : 0
+  // Get USD prices with fallback strategy - use address-based token identification
+  const token0Info = findTokenByAddress(pool.token0.id)
+  const token1Info = findTokenByAddress(pool.token1.id)
+  
+  const token0Symbol = token0Info?.ticker || pool.token0.symbol
+  const token1Symbol = token1Info?.ticker || pool.token1.symbol
+  
+  let token0USDPrice = getTokenPrice ? getTokenPrice(token0Symbol) : 0
+  let token1USDPrice = getTokenPrice ? getTokenPrice(token1Symbol) : 0
   
   // If USD prices not available, use V3 subgraph relative prices + PLS price as fallback
   if (token0USDPrice === 0 || token1USDPrice === 0) {
@@ -191,10 +220,10 @@ function calculateV3PositionValue(position: NineMmPosition, getTokenPrice?: (sym
       const token1RelativePrice = parseFloat(pool.token1Price) || 0
       
       // If one of the tokens is PLS/WPLS, we can calculate the other
-      if (plsSymbols.includes(pool.token0.symbol.toUpperCase()) && token1RelativePrice > 0) {
+      if (plsSymbols.includes(token0Symbol.toUpperCase()) && token1RelativePrice > 0) {
         token0USDPrice = plsPrice
         token1USDPrice = plsPrice * token1RelativePrice
-      } else if (plsSymbols.includes(pool.token1.symbol.toUpperCase()) && token0RelativePrice > 0) {
+      } else if (plsSymbols.includes(token1Symbol.toUpperCase()) && token0RelativePrice > 0) {
         token1USDPrice = plsPrice
         token0USDPrice = plsPrice * token0RelativePrice
       }
@@ -218,10 +247,7 @@ function calculateV3PositionValue(position: NineMmPosition, getTokenPrice?: (sym
     feesValue,
     totalValue,
     token0Amount,
-    token1Amount,
-    // Also return raw net amounts for display purposes
-    netToken0Amount: netToken0,
-    netToken1Amount: netToken1
+    token1Amount
   }
 }
 
@@ -256,7 +282,17 @@ export function use9MmV3Positions(walletAddress: string | null, options: {
   if (positions.length > 0) {
     console.log(`[9MM V3 Raw Positions]:`)
     positions.forEach((pos, index) => {
-      console.log(`  ${index + 1}. ID: ${pos.id}, Pool: ${pos.pool.token0.symbol}/${pos.pool.token1.symbol}, Fee: ${pos.pool.feeTier}, Liquidity: ${pos.liquidity}`)
+      const token0Info = findTokenByAddress(pos.pool.token0.id)
+      const token1Info = findTokenByAddress(pos.pool.token1.id)
+      const token0Symbol = token0Info?.ticker || pos.pool.token0.symbol
+      const token1Symbol = token1Info?.ticker || pos.pool.token1.symbol
+      
+      // Check if raw position has a displayName property
+      if (pos.displayName) {
+        console.log(`  ${index + 1}. ID: ${pos.id}, Raw displayName: "${pos.displayName}", Calculated: ${token0Symbol}/${token1Symbol}`)
+      } else {
+        console.log(`  ${index + 1}. ID: ${pos.id}, Pool: ${token0Symbol}/${token1Symbol}, Fee: ${pos.pool.feeTier}, Liquidity: ${pos.liquidity}`)
+      }
     })
   }
   
@@ -265,18 +301,50 @@ export function use9MmV3Positions(walletAddress: string | null, options: {
     const values = calculateV3PositionValue(position, getTokenPrice)
     const feePercent = parseInt(position.pool.feeTier) / 10000 // Convert to percentage
     
-    console.log(`[9MM V3 Position] ${position.pool.token0.symbol}/${position.pool.token1.symbol} ${feePercent}%:`)
-    console.log(`  - Position ID: ${position.id}`)
-    console.log(`  - Current Value: $${values.currentValue.toFixed(2)}`)
-    console.log(`  - Fees Value: $${values.feesValue.toFixed(2)}`)
-    console.log(`  - Total Value: $${values.totalValue.toFixed(2)}`)
+    const token0Info = findTokenByAddress(position.pool.token0.id)
+    const token1Info = findTokenByAddress(position.pool.token1.id)
+    const token0Symbol = token0Info?.ticker || position.pool.token0.symbol
+    const token1Symbol = token1Info?.ticker || position.pool.token1.symbol
     
+    // Test: Check if we're finding the right tokens
+    if (position.pool.token0.id === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39' || 
+        position.pool.token1.id === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39') {
+      console.log(`[eHEX Test] Found eHEX position:`, {
+        token0Id: position.pool.token0.id,
+        token0Symbol: position.pool.token0.symbol,
+        token0Info: token0Info,
+        token0SymbolResult: token0Symbol,
+        token1Id: position.pool.token1.id,
+        token1Symbol: position.pool.token1.symbol,
+        token1Info: token1Info,
+        token1SymbolResult: token1Symbol
+      })
+    }
+    
+    // Only log for eHEX positions to reduce noise
+    if (token0Symbol === 'eHEX' || token1Symbol === 'eHEX') {
+      console.log(`[eHEX Hook Debug] Position ${position.id}:`)
+      console.log(`  - token0.id: ${position.pool.token0.id} -> symbol: "${token0Symbol}"`)
+      console.log(`  - token1.id: ${position.pool.token1.id} -> symbol: "${token1Symbol}"`)
+      console.log(`  - displayName: "${token0Symbol} / ${token1Symbol} ${feePercent}%"`)
+    }
+
+    // Check if original position has a displayName that might override ours
+    if (position.displayName) {
+      console.log(`[DisplayName Override Warning] Position ${position.id}:`)
+      console.log(`  - Original displayName: "${position.displayName}"`)
+      console.log(`  - Our calculated displayName: "${token0Symbol} / ${token1Symbol} ${feePercent}%"`)
+    }
+
     return {
       ...position,
       values,
       feePercent,
-      displayName: `${position.pool.token0.symbol} / ${position.pool.token1.symbol} ${feePercent}%`,
-      poolAddress: position.pool.id
+      displayName: `${token0Symbol} / ${token1Symbol} ${feePercent}%`, // This should override any existing displayName
+      poolAddress: position.pool.id,
+      // Add the address-based token symbols for the Portfolio component to use
+      token0Symbol: token0Symbol,
+      token1Symbol: token1Symbol
     }
   })
 
@@ -301,17 +369,29 @@ export function use9MmV3Positions(walletAddress: string | null, options: {
     // Helper functions
     getPositionsByPool: (token0Symbol: string, token1Symbol: string) => {
       return positionsWithValues.filter(pos => {
-        const symbols = [pos.pool.token0.symbol.toUpperCase(), pos.pool.token1.symbol.toUpperCase()]
+        const token0Info = findTokenByAddress(pos.pool.token0.id)
+        const token1Info = findTokenByAddress(pos.pool.token1.id)
+        
+        const posToken0Symbol = token0Info?.ticker || pos.pool.token0.symbol
+        const posToken1Symbol = token1Info?.ticker || pos.pool.token1.symbol
+        
+        const symbols = [posToken0Symbol.toUpperCase(), posToken1Symbol.toUpperCase()]
         return symbols.includes(token0Symbol.toUpperCase()) && 
                symbols.includes(token1Symbol.toUpperCase())
       })
     },
 
     getPositionsByToken: (tokenSymbol: string) => {
-      return positionsWithValues.filter(pos => 
-        pos.pool.token0.symbol.toUpperCase() === tokenSymbol.toUpperCase() ||
-        pos.pool.token1.symbol.toUpperCase() === tokenSymbol.toUpperCase()
-      )
+      return positionsWithValues.filter(pos => {
+        const token0Info = findTokenByAddress(pos.pool.token0.id)
+        const token1Info = findTokenByAddress(pos.pool.token1.id)
+        
+        const posToken0Symbol = token0Info?.ticker || pos.pool.token0.symbol
+        const posToken1Symbol = token1Info?.ticker || pos.pool.token1.symbol
+        
+        return posToken0Symbol.toUpperCase() === tokenSymbol.toUpperCase() ||
+               posToken1Symbol.toUpperCase() === tokenSymbol.toUpperCase()
+      })
     },
 
     getPositionById: (positionId: string) => {
@@ -352,7 +432,15 @@ export function use9MmV3Pools(poolAddresses: string[]) {
       feePercent,
       tvl,
       volume,
-      displayName: `${pool.token0.symbol} / ${pool.token1.symbol} ${feePercent}%`,
+      displayName: (() => {
+        const token0Info = findTokenByAddress(pool.token0.id)
+        const token1Info = findTokenByAddress(pool.token1.id)
+        
+        const token0Symbol = token0Info?.ticker || pool.token0.symbol
+        const token1Symbol = token1Info?.ticker || pool.token1.symbol
+        
+        return `${token0Symbol} / ${token1Symbol} ${feePercent}%`
+      })(),
       address: pool.id
     }
   })
