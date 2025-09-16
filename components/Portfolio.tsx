@@ -4610,22 +4610,35 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     })
     
     // Convert grouped positions to LP tokens format
-    const groupedV3TokensAsLPTokens = Object.values(groupedV3Positions).map((group: any) => ({
-      symbol: group.baseTicker,
-      name: group.name,
-      balanceFormatted: group.positions.length, // Show number of positions instead of balance
-      address: group.address,
-      chain: group.chain,
-      decimals: group.decimals,
-      isV3Position: group.isV3Position,
-      isGroupedV3: group.isGroupedV3,
-      positionValue: group.totalValue,
-      positions: group.positions, // Store individual positions for dropdown
-      // For compatibility with existing code
-      currentValue: group.totalValue,
-      feesValue: 0,
-      originalPositionValue: group.totalValue
-    }))
+    const groupedV3TokensAsLPTokens = Object.values(groupedV3Positions).map((group: any) => {
+      // Calculate if this group has any closed positions (for display purposes)
+      const hasClosedPositions = group.positions.some((position: any) => {
+        const positionValue = position.positionValue || 0
+        const netToken0Amount = position.netToken0Amount || 0
+        const netToken1Amount = position.netToken1Amount || 0
+        const liquidity = position.liquidity || "0"
+        const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
+        return positionValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 0.000001 && Math.abs(netToken1Amount) < 0.000001 && positionValue < 10)
+      })
+      
+      return {
+        symbol: group.baseTicker,
+        name: group.name,
+        balanceFormatted: group.positions.length, // Show number of positions instead of balance
+        address: group.address,
+        chain: group.chain,
+        decimals: group.decimals,
+        isV3Position: group.isV3Position,
+        isGroupedV3: group.isGroupedV3,
+        positionValue: group.totalValue,
+        positions: group.positions, // Store individual positions for dropdown
+        // For compatibility with existing code
+        currentValue: group.totalValue,
+        feesValue: 0,
+        originalPositionValue: group.totalValue,
+        isClosed: hasClosedPositions
+      }
+    })
     
     // Only use grouped V3 positions if both toggles are enabled
     const finalV3Tokens = (showLiquidityPositions && includeLiquidityPositionsFilter) ? groupedV3TokensAsLPTokens : []
@@ -7920,23 +7933,31 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
                       {/* 24h Price Change Column - Pool Ownership on Mobile */}
                       <div className="text-center">
-                        {poolOwnershipPercentage !== null && !isV3PoolClosed ? (
-                          <div className="text-purple-400 text-xs font-medium sm:hidden">
-                            {poolOwnershipPercentage.toFixed(2)}%
-                          </div>
-                        ) : (
+                        {v3PositionFilter === 'closed' ? (
                           <div className="text-gray-400 text-xs sm:hidden">--</div>
+                        ) : (
+                          poolOwnershipPercentage !== null && !isV3PoolClosed ? (
+                            <div className="text-purple-400 text-xs font-medium sm:hidden">
+                              {poolOwnershipPercentage.toFixed(2)}%
+                            </div>
+                          ) : (
+                            <div className="text-gray-400 text-xs sm:hidden">--</div>
+                          )
                         )}
                       </div>
 
                       {/* League Column - Pool Ownership Percentage on Desktop */}
                       <div className="hidden sm:flex flex-col items-center justify-center min-w-[60px]">
-                        {poolOwnershipPercentage !== null && !isV3PoolClosed ? (
-                          <div className="text-purple-400 text-xs font-medium">
-                            {poolOwnershipPercentage.toFixed(2)}%
-                          </div>
-                        ) : (
+                        {v3PositionFilter === 'closed' ? (
                           <div className="text-gray-400 text-xs">--</div>
+                        ) : (
+                          poolOwnershipPercentage !== null && !isV3PoolClosed ? (
+                            <div className="text-purple-400 text-xs font-medium">
+                              {poolOwnershipPercentage.toFixed(2)}%
+                            </div>
+                          ) : (
+                            <div className="text-gray-400 text-xs">--</div>
+                          )
                         )}
                       </div>
                       
@@ -8724,9 +8745,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         // Calculate padding to ensure good visibility (30% of the range or current price, whichever is larger)
                                         const padding = Math.max(rangeSize * 0.3, Math.abs(currentPrice) * 0.2, rangeSize * 0.1)
                                         
-                                        // Calculate min and max prices centered around the center point
-                                        const minPrice = Math.max(0, centerPoint - padding)
-                                        const rawMaxPrice = centerPoint + padding
+                                        // Calculate min and max prices to include the full position range
+                                        // Start from 0 if the lower price is close to 0, otherwise use a reasonable minimum
+                                        const minPrice = displayLowerPrice < 1 ? 0 : Math.max(0, displayLowerPrice * 0.8)
+                                        const rawMaxPrice = Math.max(centerPoint + padding, displayUpperPrice * 1.1)
                                         
                                         const maxPrice = (() => {
                                           // Use 1 significant figure for max price
@@ -8921,8 +8943,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                     <div 
                                                       className="absolute text-[10px] text-gray-500"
                                                       style={{ 
-                                                        left: isInfiniteRange ? '50%' : `${Math.min(95, upperPercent)}%`, // Center for infinity, otherwise right edge with padding
-                                                        transform: 'translateX(-50%)'
+                                                        left: isInfiniteRange ? '50%' : `${upperPercent}%`, // Center for infinity, otherwise right edge flush
+                                                        transform: isInfiniteRange ? 'translateX(-50%)' : 'translateX(-100%)' // Center for infinity, right-align for normal ranges
                                                       }}
                                                     >
                                                       {upperDisplay}
