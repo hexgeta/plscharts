@@ -3092,13 +3092,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         
       case '9MM':
         // Use 9MM GraphQL TVL/shares pricing (same system as PHUX/9INCH)
-        console.log(`[LP Pricing] 9MM lookup for ${symbol}, address: ${tokenConfig.a}, type: ${tokenConfig.type}`)
         
         if (tokenConfig.a && getPhuxLPTokenPrice) {
           // For 9MM LP tokens, use the address directly (no farms for 9MM)
           const nineMmPrice = getPhuxLPTokenPrice(tokenConfig.a)
           if (nineMmPrice?.pricePerShare && nineMmPrice.pricePerShare > 0) {
-            console.log(`[LP Pricing] 9MM LP: ${symbol} = $${nineMmPrice.pricePerShare}`)
             return nineMmPrice.pricePerShare
           }
         }
@@ -3118,7 +3116,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         
       case '9MM':
         // Future: 9MM DEX pricing integration
-        console.log(`[LP Pricing] 9MM pricing not yet implemented for ${symbol}`)
         return 0
         
       default:
@@ -3764,9 +3761,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           }
         }))
       }, null, 2))
-      console.log('=== END 9MM V3 POSITIONS DEBUG DATA ===')
     } else if (validAddressCount > 0 && !is9MmV3Loading) {
-      console.log(`[9MM V3 Debug] No V3 positions found for any of the ${validAddressCount} addresses`)
     }
     */
     // END OF DISABLED DEBUG BLOCK
@@ -3877,26 +3872,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     return tokenConfig?.supply || null
   }
 
-  // Helper function to calculate estimated time remaining for import
-  const getEstimatedTimeRemaining = (): string => {
-    if (!importStartTime || importProgress === 0 || importTotal === 0) {
-      return 'Calculating...'
-    }
-    
-    const elapsed = Date.now() - importStartTime
-    const avgTimePerToken = elapsed / importProgress
-    const remainingTokens = importTotal - importProgress
-    const estimatedTimeRemaining = avgTimePerToken * remainingTokens
-    
-    const minutes = Math.floor(estimatedTimeRemaining / 60000)
-    const seconds = Math.floor((estimatedTimeRemaining % 60000) / 1000)
-    
-    if (minutes > 0) {
-      return `~${minutes}m ${seconds}s remaining`
-    } else {
-      return `~${seconds}s remaining`
-    }
-  }
 
   // Define pooled stake tokens
   const POOLED_STAKE_TOKENS = ['MAXI', 'DECI', 'LUCKY', 'TRIO', 'BASE', 'eMAXI', 'eDECI', 'eLUCKY', 'eTRIO', 'eBASE', 'weMAXI', 'weDECI', 'ICSA', 'eICSA', 'weICSA']
@@ -4275,10 +4250,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       if (tokenConfig?.name?.includes('9MM LP V3')) {
         const hasCustomValue = customV3Values.has(token.symbol) && parseFloat(customV3Values.get(token.symbol) || '0') > 0
         if (!hasCustomValue) {
-          console.log(`[LP Filter] Skipping static V3 LP token (no override): ${token.symbol}`)
           return false
         } else {
-          console.log(`[LP Filter] Keeping static V3 LP token (has override): ${token.symbol}`)
         }
       }
       
@@ -4305,10 +4278,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         const hasCustomValue = customV3Values.has(tokenConfig.ticker) && parseFloat(customV3Values.get(tokenConfig.ticker) || '0') > 0
         const isEnabled = enabledCoins.has(tokenConfig.ticker)
         if (!hasCustomValue || !isEnabled) {
-          console.log(`[Manual LP Filter] Skipping static V3 LP token: ${tokenConfig.ticker} (hasCustomValue: ${hasCustomValue}, isEnabled: ${isEnabled})`)
           return false
         } else {
-          console.log(`[Manual LP Filter] Keeping static V3 LP token (has override and enabled): ${tokenConfig.ticker}`)
         }
       }
       
@@ -4381,14 +4352,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             .replace(/\be(\w+)\b/g, '$1') // "HEX/eDAI" -> "HEX/DAI"  
             .replace(/\bwe(\w+)\b/g, '$1') // "HEX/weDAI" -> "HEX/DAI"
           
-          console.log(`[V3 Override Debug] Manual override pool type: ${symbol} -> ${poolType}`)
-          
           manualV3PoolTypes.add(poolType)
-          console.log(`[V3 Override] Manual override active and enabled for pool type: ${poolType} (${symbol})`)
-        } else if (!isEnabled) {
-          console.log(`[V3 Override] Manual override exists but token is disabled: ${symbol}`)
-        } else if (!hasValue) {
-          console.log(`[V3 Override] Manual override exists but no value set: ${symbol}`)
         }
       })
       
@@ -4403,17 +4367,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             .replace(/\be(\w+)\b/g, '$1') // "eDAI" -> "DAI"  
             .replace(/\bwe(\w+)\b/g, '$1') // "weDAI" -> "DAI"
           
-          console.log(`[V3 Override Debug] Original: ${position.pool.token0.symbol}/${position.pool.token1.symbol}, Normalized: ${detectedPoolType}`)
-          
           const shouldHide = manualV3PoolTypes.has(detectedPoolType)
-          
-          if (shouldHide) {
-            console.log(`[V3 Override] Hiding detected position ${position.displayName} #${position.id} because manual override exists for ${detectedPoolType}`)
-          }
           
           return !shouldHide
         })
-        console.log(`[V3 Override] Filtered detected V3 positions from ${originalCount} to ${filteredV3Positions.length} due to manual overrides`)
       }
     }
     
@@ -4427,9 +4384,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       const customValue = customV3Values.get(positionSymbol)
       const effectivePositionValue = customValue ? parseFloat(customValue) : position.values.totalValue
       
-      console.log(`[V3 Position] ${positionSymbol}: original=$${position.values.totalValue}, custom=${customValue}, effective=$${effectivePositionValue}`)
-      console.log(`[V3 Token Symbols] Position ${position.id}: token0="${position.pool.token0.symbol}", token1="${position.pool.token1.symbol}"`)
-      console.log(`[V3 Tick Data] Position ${position.id}: poolTick="${position.pool.tick}" (tickLower/tickUpper from RPC)`)
       
       return {
         symbol: positionSymbol,
@@ -4527,12 +4481,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       const isTickLoading = tickIsLoading[tokenId]
       const tickError = tickErrors[tokenId]
       
-      console.log(`[V3 PRICE DEBUG] Position ${tokenId}:`, {
-        hasRealTickData: !!realTickData,
-        isTickLoading,
-        tickError: tickError?.message || tickError,
-        realTickData
-      })
       
       let lowerRange: number
       let upperRange: number
@@ -4573,27 +4521,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         upperRange = upperTest
         dataSource = 'RPC_CONTRACT'
         
-        console.log(`[V3 PRICE SUCCESS] Position ${tokenId} using RPC data:`, {
-          rawLowerPrice: realTickData.lowerPrice,
-          rawUpperPrice: realTickData.upperPrice,
-          token0Decimals,
-          token1Decimals,
-          decimalAdjustment,
-          approach1,
-          approach2, 
-          approach3,
-          approach4,
-          finalLowerRange: lowerRange,
-          finalUpperRange: upperRange,
-          tickLower: realTickData.tickLower,
-          tickUpper: realTickData.tickUpper
-        })
       } else {
         // No fallback - only show chart when we have real data
         lowerRange = 0
         upperRange = 0
         dataSource = isTickLoading ? 'LOADING' : (tickError ? 'ERROR' : 'PENDING')
-        console.log(`[V3 PRICE PENDING] Position ${tokenId} waiting:`, { dataSource })
       }
       
       const positionWithPrices = {
@@ -6074,7 +6006,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           }
         }
         
-        console.log(`[LP Total Debug] ${lpToken.symbol}: usdValue=$${usdValue.toFixed(2)}, isV3=${lpToken.isV3Position}, positionValue=${lpToken.positionValue}`)
         
         // Add to address values array
         const addressData = filteredBalances.find(balance => 
@@ -6096,11 +6027,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       })
       
       // Add each LP type subtotal to the main total
-      console.log(`[LP Subtotal Debug] V3 Positions: $${v3PositionsValue.toFixed(2)}`)
-      console.log(`[LP Subtotal Debug] PHUX LP: $${phuxLPValue.toFixed(2)}`)
-      console.log(`[LP Subtotal Debug] 9INCH LP: $${nineInchLPValue.toFixed(2)}`)
-      console.log(`[LP Subtotal Debug] PulseX LP: $${pulsexLPValue.toFixed(2)}`)
-      console.log(`[LP Subtotal Debug] Other LP: $${otherLPValue.toFixed(2)}`)
       
       totalValue += v3PositionsValue
       totalValue += phuxLPValue
@@ -8246,21 +8172,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 const liquidity = position.liquidity || "0"
                                 const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
                                 
-                                // Debug logging for closed position detection
-                                console.log(`[V3 Closed Debug] Position ${position.positionId}:`, {
-                                  positionValue,
-                                  netToken0Amount,
-                                  netToken1Amount,
-                                  currentToken0Amount: position.token0Amount,
-                                  currentToken1Amount: position.token1Amount,
-                                  liquidity,
-                                  isLiquidityZero,
-                                  debugNetAmounts: position.debugNetAmounts,
-                                  isClosed: positionValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 1e-10 && Math.abs(netToken1Amount) < 1e-10 && positionValue < 10),
-                                  condition1: positionValue < 1,
-                                  condition2: isLiquidityZero,
-                                  condition3: Math.abs(netToken0Amount) < 1e-10 && Math.abs(netToken1Amount) < 1e-10 && positionValue < 10
-                                })
                                 
                                 // Position is closed if:
                                 // 1. Position value is very low (< $1), OR
@@ -8438,15 +8349,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           const positionId = item.position.positionId
                                           const rpcTickData = tickData[positionId]
                                           
-                                          // Debug logging for position #134858
-                                          if (positionId === '134858') {
-                                            console.log('🔍 [DEBUG] Position #134858 rpcTickData:', rpcTickData)
-                                            console.log('🔍 [DEBUG] Position #134858 tokensOwed0:', rpcTickData?.tokensOwed0)
-                                            console.log('🔍 [DEBUG] Position #134858 tokensOwed1:', rpcTickData?.tokensOwed1)
-                                            console.log('🔍 [DEBUG] Position #134858 netToken0Amount:', item.position.netToken0Amount)
-                                            console.log('🔍 [DEBUG] Position #134858 netToken1Amount:', item.position.netToken1Amount)
-                                            console.log('🔍 [DEBUG] Position #134858 isClosed:', item.isClosed)
-                                          }
                                           
                                           // Use RPC token amounts if available, otherwise fallback to net amounts
                                           let token0Amount = 0
@@ -8463,10 +8365,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                               unclaimedFeesToken0 = rpcTickData.tokensOwed0
                                               unclaimedFeesToken1 = rpcTickData.tokensOwed1
                                               
-                                            // Debug logging for position #134858
-                                            if (positionId === '134858') {
-                                              console.log('🔍 [DEBUG] Position #134858 using RPC data path')
-                                            }
                                           } else {
                                             // Fallback to net amounts if RPC calculation fails
                                             const isPositionClosed = item.isClosed
@@ -8477,12 +8375,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                               unclaimedFeesToken0 = 0
                                               unclaimedFeesToken1 = 0
                                               
-                                            // Debug logging for position #134858
-                                            if (positionId === '134858') {
-                                              console.log('🔍 [DEBUG] Position #134858 using FALLBACK data path')
-                                              console.log('🔍 [DEBUG] Position #134858 fallback token0Amount:', token0Amount)
-                                              console.log('🔍 [DEBUG] Position #134858 fallback token1Amount:', token1Amount)
-                                            }
                                           }
                                           
                                           // Calculate USD values for both current amounts and unclaimed fees
@@ -8515,46 +8407,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           const claimedFeesToken0 = totalCollectedFeesToken0 - totalWithdrawnToken0
                                           const claimedFeesToken1 = totalCollectedFeesToken1 - totalWithdrawnToken1
                                           
-                                          // Enhanced debug logging for claimed fees
-                                          console.log(`[CLAIMED FEES DEBUG] Position ${item.position.positionId}:`, {
-                                            isClosed: item.isClosed,
-                                            positionData: {
-                                              withdrawnToken0: item.position.withdrawnToken0,
-                                              withdrawnToken1: item.position.withdrawnToken1,
-                                              collectedFeesToken0: item.position.collectedFeesToken0,
-                                              collectedFeesToken1: item.position.collectedFeesToken1,
-                                              depositedToken0: item.position.depositedToken0,
-                                              depositedToken1: item.position.depositedToken1
-                                            },
-                                            calculatedValues: {
-                                              totalWithdrawnToken0,
-                                              totalWithdrawnToken1,
-                                              claimedFeesToken0,
-                                              claimedFeesToken1
-                                            },
-                                            tokenPrices: {
-                                              token0Price,
-                                              token1Price,
-                                              token0Symbol: item.position.token0Symbol,
-                                              token1Symbol: item.position.token1Symbol
-                                            }
-                                          })
                                           
                                           // Calculate claimed fees USD values
                                           const claimedFeesToken0USD = claimedFeesToken0 * token0Price
                                           const claimedFeesToken1USD = claimedFeesToken1 * token1Price
                                           const totalClaimedFeesUSD = claimedFeesToken0USD + claimedFeesToken1USD
                                           
-                                          // Debug USD calculations
-                                          console.log(`[CLAIMED FEES USD DEBUG] Position ${item.position.positionId}:`, {
-                                            claimedFeesToken0,
-                                            claimedFeesToken1,
-                                            token0Price,
-                                            token1Price,
-                                            claimedFeesToken0USD,
-                                            claimedFeesToken1USD,
-                                            totalClaimedFeesUSD
-                                          })
                                           
                                           // Create claimed fees displays
                                           const claimedFeesToken0Value = `$${formatDollarValue(claimedFeesToken0USD)}`
@@ -8562,47 +8420,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           const claimedFeesToken0Display = `${formatBalance(claimedFeesToken0)} ${getDisplayTicker(item.position.token0Symbol, item.position.token0?.id)}`
                                           const claimedFeesToken1Display = `${formatBalance(claimedFeesToken1)} ${getDisplayTicker(item.position.token1Symbol, item.position.token1?.id)}`
                                           
-                                          // Debug logging for UI display
-                                          console.log(`[V3 UI Debug] Position ${item.position.positionId} display:`, {
-                                            calculationMethod: rpcTickData && rpcTickData.token0Amount !== undefined ? "RPC_TOKEN_AMOUNTS" : "NET_AMOUNTS",
-                                            token0Amount,
-                                            token1Amount,
-                                            unclaimedFeesToken0,
-                                            unclaimedFeesToken1,
-                                            token0Symbol: item.position.token0Symbol,
-                                            token1Symbol: item.position.token1Symbol,
-                                            // Show comparison between different calculation methods
-                                            hookToken0Amount: item.position.token0Amount,
-                                            hookToken1Amount: item.position.token1Amount,
-                                            netToken0Amount: item.position.netToken0Amount,
-                                            netToken1Amount: item.position.netToken1Amount,
-                                            // RPC data for comparison
-                                            rpcLiquidity: rpcTickData?.liquidity,
-                                            rpcToken0Amount: rpcTickData?.token0Amount,
-                                            rpcToken1Amount: rpcTickData?.token1Amount,
-                                            rpcTokensOwed0: rpcTickData?.tokensOwed0,
-                                            rpcTokensOwed1: rpcTickData?.tokensOwed1,
-                                            rpcToken0: rpcTickData?.token0,
-                                            rpcToken1: rpcTickData?.token1,
-                                            rpcFee: rpcTickData?.fee,
-                                            rpcCurrentTick: rpcTickData?.currentTick,
-                                            currentValue: item.position.currentValue,
-                                            token0Price,
-                                            token1Price,
-                                            unclaimedFeesToken0USD,
-                                            unclaimedFeesToken1USD,
-                                            totalUnclaimedFeesUSD,
-                                            // Claimed fees data
-                                            isClosed: item.isClosed,
-                                            totalWithdrawnToken0,
-                                            totalWithdrawnToken1,
-                                            claimedFeesToken0,
-                                            claimedFeesToken1,
-                                            claimedFeesToken0USD,
-                                            claimedFeesToken1USD,
-                                            totalClaimedFeesUSD,
-                                            debugNetAmounts: item.position.debugNetAmounts
-                                          })
                                           
                                           return (
                                             <>
@@ -8906,21 +8723,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         
                                         
                                         
-                                        // Debug: Log position data to understand what's missing
-                                        console.log(`[V3 Chart Render Debug] Position ${item.position.positionId || item.position.id}:`, {
-                                          rawLowerPrice: item.rawLowerPrice,
-                                          rawUpperPrice: item.rawUpperPrice,
-                                          displayLowerPrice,
-                                          displayUpperPrice,
-                                          upperTick,
-                                          currentPrice,
-                                          isInfiniteRange,
-                                          hasValidRange: item.rawLowerPrice > 0 && item.rawUpperPrice > 0,
-                                          tickDataSource: item.position.tickDataSource,
-                                          realTickLower: item.position.realTickLower,
-                                          realTickUpper: item.position.realTickUpper,
-                                          relativeCheck: `${displayUpperPrice} > ${currentPrice} * 1000 = ${displayUpperPrice > currentPrice * 1000}`
-                                        })
                                         
                                         const priceRange = maxPrice - minPrice
                                         
@@ -8958,22 +8760,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         // Position current price on the chart
                                         const currentPricePercent = isInfiniteRange ? 50 : (priceRange > 0 ? ((displayCurrentPrice - minPrice) / priceRange) * 100 : 50)
                                         
-                                        console.log(`[V3 Chart Debug] Position ${item.position.positionId}:`, {
-                                          rawLowerPrice: item.rawLowerPrice,
-                                          rawUpperPrice: item.rawUpperPrice,
-                                          currentPrice,
-                                          maxPrice,
-                                          rawMaxPrice,
-                                          priceRange,
-                                          isInfiniteRange,
-                                          isInfiniteLower,
-                                          lowerPercent,
-                                          upperPercent,
-                                          currentPricePercent,
-                                          width,
-                                          hasRealData: item.rawLowerPrice > 0 && item.rawUpperPrice > 0,
-                                          rangeType: isInfiniteRange && isInfiniteLower ? '0-to-infinity' : isInfiniteRange ? 'finite-to-infinity' : 'finite'
-                                        })
                                         
                                         // Format very large or very small numbers appropriately
                                         const formatTickPrice = (price: number) => {
