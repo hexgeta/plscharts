@@ -32,7 +32,6 @@ export function useFontCache() {
             }
           }
         } catch (error) {
-          console.warn('Font loading check failed:', error);
           setFontError(true);
         }
       };

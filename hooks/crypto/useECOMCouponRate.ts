@@ -94,7 +94,6 @@ export function useECOMCouponRate(
       return result
       
     } catch (err) {
-      console.error('Error calculating eCOM start bonus:', err)
       return null
     }
   }, [prices, stakedDays, tShares])
@@ -112,7 +111,6 @@ export function useECOMCouponRate(
       return rate
       
     } catch (err) {
-      console.error('Error calculating eCOM coupon rate:', err)
       return null
     }
   }, [eComStartBonus, prices, eHexPrincipal])

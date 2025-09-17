@@ -167,7 +167,6 @@ async function getTokenBalance(
 async function getAddressBalances(address: string, chainId: number, enabledCoins?: Set<string>, customTokens?: any[], mode?: 'auto-detect' | 'auto-detect-extended' | 'manual' | 'manual-extended', includeLiquidityPositions?: boolean): Promise<BalanceData> {
   try {
     const chainName = chainId === 369 ? 'PulseChain' : 'Ethereum'
-    console.log(`[usePortfolioBalance] Fetching balances for ${address} on ${chainName}`)
     
     // Get native balance (PLS or ETH) - check if native tokens are enabled
     const nativeSymbol = chainId === 369 ? 'PLS' : 'ETH'
@@ -196,20 +195,6 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
       // NOTE: enabledCoins filtering moved to after balance checking
     )
 
-    console.log(`[usePortfolioBalance] ⏱️ TIMING DEBUG: ${chainName} for ${address} (mode: ${currentMode})`)
-    console.log(`[usePortfolioBalance] 📊 TOKEN COUNTS:`, {
-      baseTokensCount: (currentMode === 'auto-detect' || currentMode === 'manual') ? TOKEN_CONSTANTS.length : TOKEN_CONSTANTS.length + MORE_COINS.length,
-      allTokensCount: allTokens.length,
-      relevantTokensAfterFilter: relevantTokens.length,
-      lpTokensFiltered: includeLiquidityPositions === false ? allTokens.filter(t => t.chain === chainId && t.type === "lp").length : 0,
-      mode: currentMode,
-      includeLiquidityPositions,
-      chainId,
-      chainName,
-      enabledCoinsProvided: !!enabledCoins,
-      enabledCoinsCount: enabledCoins ? enabledCoins.size : 'unlimited'
-    })
-
     // Get token balances in batches to avoid overwhelming the RPC
     const batchSize = 25 // Test larger batch size - increase until you see errors
     const tokenBalances: TokenBalance[] = []
@@ -223,7 +208,6 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
       const totalBatches = Math.ceil(relevantTokens.length / batchSize)
       
       const batchTimer = Date.now()
-      console.log(`[usePortfolioBalance] Processing batch ${batchNum}/${totalBatches} (${batch.length} tokens) for ${address} on ${chainName}`)
       
       // Add debug log to panel for batch progress
       if (typeof window !== 'undefined' && (window as any).addDebugLog) {
@@ -243,19 +227,15 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
         if (tokenBalance.error) {
           totalErrors++
           if (tokenBalance.error.includes('429') || tokenBalance.error.includes('rate limit')) {
-            console.error(`[usePortfolioBalance] 🚨 RATE LIMIT HIT - Batch size ${batchSize} is too large!`)
           }
-          console.warn(`[usePortfolioBalance] Error fetching ${tokenBalance.symbol}:`, tokenBalance.error)
         } else {
           totalSuccessful++
           if (tokenBalance.balanceFormatted > 0) {
             tokenBalances.push(tokenBalance)
-            console.log(`[usePortfolioBalance] Found balance: ${tokenBalance.balanceFormatted} ${tokenBalance.symbol}`)
           }
         }
       })
 
-      console.log(`[usePortfolioBalance] Batch ${batchNum} completed in ${batchDuration}ms (${totalErrors} errors so far)`)
       
       // Add batch completion to debug panel
       if (typeof window !== 'undefined' && (window as any).addDebugLog) {
@@ -270,9 +250,7 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
       }
     }
 
-    console.log(`[usePortfolioBalance] Batch processing complete for ${address} on ${chainName}: ${totalSuccessful} successful, ${totalErrors} errors, ${tokenBalances.length} with balances`)
 
-    console.log(`[usePortfolioBalance] Found ${tokenBalances.length} tokens with balances for ${address} on ${chainName}`)
 
     return {
       address,
@@ -290,7 +268,6 @@ async function getAddressBalances(address: string, chainId: number, enabledCoins
       tokenBalances
     }
   } catch (error: any) {
-    console.error(`[usePortfolioBalance] Error fetching balances for ${address} on chain ${chainId}:`, error)
     const nativeSymbol = chainId === 369 ? 'PLS' : 'ETH'
     const nativeName = chainId === 369 ? 'PulseChain' : 'Ethereum'
     
@@ -325,7 +302,6 @@ async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<s
     return []
   }
 
-  console.log(`[usePortfolioBalance] 🚀 STARTING FETCH for ${addresses.length} addresses at ${new Date().toISOString()}`)
   const startTime = Date.now()
   
   // Fetch balances for all addresses on both chains
@@ -345,16 +321,12 @@ async function fetchAllAddressBalances(addresses: string[], enabledCoins?: Set<s
   const failedBalances = allBalanceData.filter(data => data.error)
   
   if (failedBalances.length > 0) {
-    console.warn(`[usePortfolioBalance] ${failedBalances.length} address/chain combinations failed:`)
     failedBalances.forEach(failed => {
-      console.warn(`[usePortfolioBalance] Failed: ${failed.address} on chain ${failed.chain} - ${failed.error}`)
     })
   }
   
   const endTime = Date.now()
   const totalDuration = endTime - startTime
-  console.log(`[usePortfolioBalance] ✅ COMPLETED FETCH in ${totalDuration}ms (${(totalDuration/1000).toFixed(1)}s)`)
-  console.log(`[usePortfolioBalance] Successfully fetched balances for ${validBalances.length}/${addresses.length * 2} address/chain combinations`)
   
   return validBalances
 }
@@ -369,7 +341,6 @@ export function usePortfolioBalance(walletAddresses: string[], enabledCoins?: Se
     `${BALANCE_CACHE_KEYS.balances(walletAddresses)}-coins:${enabledCoinsArray.join(',')}-custom:${customTokensIds.join(',')}-mode:${currentMode}-lp:${lpEnabled}` : null
   
   // Debug: Log when this hook is called and with what cache key
-  console.log('[usePortfolioBalance] Hook called with addresses:', walletAddresses.length, 'enabled coins:', enabledCoinsArray.length, 'custom tokens:', customTokensIds.length, 'cacheKey:', cacheKey)
   
   const { data: balances, error, isLoading, mutate } = useSWR(
     cacheKey,

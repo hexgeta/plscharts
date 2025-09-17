@@ -144,7 +144,6 @@ export const useHexStakes = (addresses: string[]) => {
               const result = await response.json();
               
               if (result.errors) {
-                console.error(`[${chain}] GraphQL errors:`, result.errors);
                 hasMore = false;
                 return { stakes: [], stakeEnds: [] };
               }
@@ -158,7 +157,6 @@ export const useHexStakes = (addresses: string[]) => {
                 hasMore = false;
               }
             } catch (error) {
-              console.error(`[${chain}] Error fetching stakes:`, error);
               hasMore = false;
             }
           }
@@ -195,7 +193,6 @@ export const useHexStakes = (addresses: string[]) => {
               const result = await response.json();
               
               if (result.errors) {
-                console.error(`[${chain}] GraphQL errors:`, result.errors);
                 hasMore = false;
                 break;
               }
@@ -209,7 +206,6 @@ export const useHexStakes = (addresses: string[]) => {
                 hasMore = false;
               }
             } catch (error) {
-              console.error(`[${chain}] Error fetching stake ends:`, error);
               hasMore = false;
             }
           }
@@ -224,14 +220,12 @@ export const useHexStakes = (addresses: string[]) => {
         // Process each chain
         const chains: ('ETH' | 'PLS')[] = ['ETH', 'PLS'];
         for (const chain of chains) {
-          console.log(`Processing ${chain} chain...`);
           const { stakes: chainStakes, stakeEnds } = await fetchAllStakesFromChain(SUBGRAPH_URLS[chain], chain);
           
           // Add stake ends to the global map with chain-specific keys
           stakeEnds.forEach((stakeEnd: any) => {
             const key = `${chain}-${stakeEnd.stakeId}`;
             allStakeEndsMap.set(key, stakeEnd);
-            console.log(`Added stake end to map: ${key}`, stakeEnd);
           });
           
           // Process stakes using the global stake ends map
@@ -240,12 +234,7 @@ export const useHexStakes = (addresses: string[]) => {
             const stakeEndKey = `${chain}-${stakeId}`;
             const stakeEnd = allStakeEndsMap.get(stakeEndKey);
             
-            // Debug logging
-            console.log(`Processing stake ${stakeEndKey}:`, {
-              hasStakeEnd: !!stakeEnd,
-              penalty: stakeEnd?.penalty,
-              servedDays: stakeEnd?.servedDays
-            });
+            // Debug logging removed
             
             const stakeStartDay = Number(stake.startDay);
             const stakeEndDay = Number(stake.startDay) + Number(stake.stakedDays);
@@ -273,30 +262,24 @@ export const useHexStakes = (addresses: string[]) => {
                 if (actualEndDay < promisedEndDay) {
                   // Ended early = EES
                   isEES = true;
-                  console.log(`[${chain}] Stake ${stakeId}: INACTIVE (EES - ended early with penalty: ${stakeEnd.penalty} Hearts, served ${servedDays} days)`);
                 } else if (actualEndDay > promisedEndDay) {
                   // Ended late = Late End (not EES)
                   isOverdue = true;
                   const daysLate = actualEndDay - promisedEndDay;
-                  console.log(`[${chain}] Stake ${stakeId}: INACTIVE (Late End - ended ${daysLate} days late with penalty: ${stakeEnd.penalty} Hearts)`);
                 } else {
                   // Ended exactly on time but with penalty (rare edge case)
-                  console.log(`[${chain}] Stake ${stakeId}: INACTIVE (ended on time with penalty: ${stakeEnd.penalty} Hearts)`);
                 }
               } else {
-                console.log(`[${chain}] Stake ${stakeId}: INACTIVE (ended successfully after ${servedDays} days)`);
               }
             } else if (!isStillActive) {
               status = 'active';
               isOverdue = true;
               actualProgress = calculateProgress(stake.startDay, stakeEndDay.toString());
               daysLeft = calculateDaysUntilMaturity(stakeEndDay.toString());
-              console.log(`[${chain}] Stake ${stakeId}: ACTIVE (overdue)`);
             } else {
               status = 'active';
               actualProgress = calculateProgress(stake.startDay, stakeEndDay.toString());
               daysLeft = calculateDaysUntilMaturity(stakeEndDay.toString());
-              console.log(`[${chain}] Stake ${stakeId}: ACTIVE`);
             }
             
                           // Calculate the original promised end date
@@ -309,19 +292,14 @@ export const useHexStakes = (addresses: string[]) => {
               const penaltyHex = stakeEnd?.penalty ? Number(stakeEnd.penalty) / 1e8 : 0;
               const principleHex = Number(stake.stakedHearts) / 1e8;
               const yieldHex = (() => {
-                console.log(`[${chain}] Native Stake ${stakeId}: Yield calculation - stakeStartDay: ${stakeStartDay}, actualEndDay: ${actualEndDay}, currentDay: ${currentDay}`);
-                console.log(`[${chain}] Native Stake ${stakeId}: T-Shares: ${Number(stake.stakeTShares)}`);
                 
                 const cachedYield = getCachedYield(stakeId, chain, currentDay);
-                console.log(`[${chain}] Native Stake ${stakeId}: Cached yield: ${cachedYield}`);
                 
                 if (cachedYield) {
-                  console.log(`[${chain}] Native Stake ${stakeId}: Using cached yield: ${cachedYield} HEX`);
                   return cachedYield;
                 }
                 
                 const dailyPayouts = getDailyPayoutsForRange(chain, stakeStartDay, actualEndDay);
-                console.log(`[${chain}] Native Stake ${stakeId}: Daily payouts length: ${dailyPayouts?.length || 0}`);
                 
                 const calculatedYield = calculateYieldForStake(
                   dailyPayouts, 
@@ -329,7 +307,6 @@ export const useHexStakes = (addresses: string[]) => {
                   stakeStartDay, 
                   actualEndDay
                 );
-                console.log(`[${chain}] Native Stake ${stakeId}: Manual calculation result: ${calculatedYield} HEX`);
                 return calculatedYield;
               })();
               
@@ -338,7 +315,6 @@ export const useHexStakes = (addresses: string[]) => {
               // Net yield is the effective yield after penalty (can be negative if penalty > yield)
               const netYieldHex = yieldHex - penaltyHex;
               
-              console.log(`[${chain}] Native Stake ${stakeId}: Penalty calculation - penaltyHex: ${penaltyHex}, netYieldHex: ${netYieldHex}, totalHex: ${totalHex}`);
 
               return {
                 id: `${chain}-${stake.id}`,
@@ -369,7 +345,6 @@ export const useHexStakes = (addresses: string[]) => {
         setStakes(allProcessedStakes);
         setIsLoading(false);
       } catch (error) {
-        console.error('Error fetching stakes:', error);
         setError('Failed to fetch stakes');
         setIsLoading(false);
       }
@@ -379,7 +354,6 @@ export const useHexStakes = (addresses: string[]) => {
     if (isCacheReady) {
       fetchStakes();
     } else if (!isCacheReady && addresses.length > 0) {
-      console.log('[HEX Stakes] Waiting for cache to be ready...');
     }
   }, [addressesString, isCacheReady]); // Include cache readiness in dependencies
 

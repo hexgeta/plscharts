@@ -110,7 +110,6 @@ function isTokenTransfer(tx: any): boolean {
   ]
   
   if (irrelevantMethods.includes(tx.method)) {
-    console.log('[isTokenTransfer] ⏭️ Skipping irrelevant method:', tx.hash?.slice(0, 10), tx.method)
     return false
   }
   
@@ -128,7 +127,6 @@ function isTokenTransfer(tx: any): boolean {
          (tx.value && tx.valueFormatted && tx.valueFormatted > 0) // PLS transfers
   
   if (isToken) {
-    console.log('[isTokenTransfer] ✅ Identified relevant token transfer/trade:', tx.hash?.slice(0, 10), tx.method, tx.txTypes)
   }
   
   return isToken
@@ -140,7 +138,6 @@ function extractTokenInfo(tx: any): { symbol: string; address: string; amount: n
 
     // Check if it's a native PLS transfer first (most common)
     if (tx.value && tx.valueFormatted && tx.valueFormatted > 0) {
-      console.log(`[extractTokenInfo] ✅ Found PLS transfer: ${tx.valueFormatted} PLS`)
       return {
         symbol: 'PLS',
         address: 'native',
@@ -163,7 +160,6 @@ function extractTokenInfo(tx: any): { symbol: string; address: string; amount: n
         if (tx.decodedInput?.parameters) {
           // Look for amount parameter (usually the last or second-to-last numeric parameter)
           const params = tx.decodedInput.parameters
-          console.log(`[extractTokenInfo] Decoded params for ${tokenConfig.ticker}:`, params)
           
           // Try different strategies to find the amount
           for (let i = params.length - 1; i >= 0; i--) {
@@ -175,7 +171,6 @@ function extractTokenInfo(tx: any): { symbol: string; address: string; amount: n
               const parsedAmount = parseInt(param) / Math.pow(10, decimals)
               if (parsedAmount > 0) {
                 amount = parsedAmount
-                console.log(`[extractTokenInfo] ✅ Parsed amount from string param ${i}: ${amount} (${param} / 10^${decimals})`)
                 break
               }
             }
@@ -185,7 +180,6 @@ function extractTokenInfo(tx: any): { symbol: string; address: string; amount: n
               const decimals = tokenConfig.decimals || 18
               const parsedAmount = param / Math.pow(10, decimals)
               amount = parsedAmount
-              console.log(`[extractTokenInfo] ✅ Parsed amount from number param ${i}: ${amount} (${param} / 10^${decimals})`)
               break
             }
             
@@ -197,11 +191,9 @@ function extractTokenInfo(tx: any): { symbol: string; address: string; amount: n
                 const parsedAmount = Number(bigIntValue) / Math.pow(10, decimals)
                 if (parsedAmount > 0) {
                   amount = parsedAmount
-                  console.log(`[extractTokenInfo] ✅ Parsed amount from BigInt param ${i}: ${amount}`)
                   break
                 }
               } catch (e) {
-                console.log(`[extractTokenInfo] Failed to parse BigInt param ${i}:`, param)
               }
             }
             
@@ -213,34 +205,28 @@ function extractTokenInfo(tx: any): { symbol: string; address: string; amount: n
                   const decimals = tokenConfig.decimals || 18
                   const parsedAmount = hexValue / Math.pow(10, decimals)
                   amount = parsedAmount
-                  console.log(`[extractTokenInfo] ✅ Parsed amount from hex param ${i}: ${amount} (${param} = ${hexValue})`)
                   break
                 }
               } catch (e) {
-                console.log(`[extractTokenInfo] Failed to parse hex param ${i}:`, param)
               }
             }
           }
           
           if (amount === 0) {
-            console.log(`[extractTokenInfo] ⚠️ No amount found in params for ${tokenConfig.ticker}. Will try alternative methods...`)
           }
         } else {
-          console.log(`[extractTokenInfo] ⚠️ No decoded input parameters for ${tokenConfig.ticker}`)
         }
         
         // If still no amount found, try to estimate from transaction patterns
         if (amount === 0) {
           // For token transfers, sometimes the amount isn't in decoded params
           // Try to use a reasonable default or estimate based on context
-          console.log(`[extractTokenInfo] 🔍 Attempting fallback estimation for ${tokenConfig.ticker}...`)
           
           // If this is a token transfer method, assume some amount was transferred
           if (tx.method === 'transfer' || tx.method === 'transferFrom') {
             // Use a placeholder amount that indicates a transfer occurred
             // This isn't ideal but better than 0 for cost basis calculations
             amount = 1 // Will be corrected when we implement better parsing
-            console.log(`[extractTokenInfo] 🔧 Using placeholder amount for ${tokenConfig.ticker} transfer: ${amount}`)
           }
         }
 
@@ -251,18 +237,11 @@ function extractTokenInfo(tx: any): { symbol: string; address: string; amount: n
           // For transfer(to, amount) or transferFrom(from, to, amount)
           // The recipient address is usually the first parameter for transfer, second for transferFrom
           const params = tx.decodedInput.parameters
-          console.log(`[extractTokenInfo] Analyzing transfer direction for ${tokenConfig.ticker}:`, {
-            method: tx.method,
-            params: params,
-            txFrom: tx.from,
-            userAddress: 'Will be determined by caller'
-          })
           
           // Note: We'll determine the actual direction in the caller function
           // where we have access to the user's address
         }
 
-        console.log(`[extractTokenInfo] ✅ Found token transfer: ${amount} ${tokenConfig.ticker} (${tx.to})`)
         return {
           symbol: tokenConfig.ticker,
           address: tx.to,
@@ -270,29 +249,24 @@ function extractTokenInfo(tx: any): { symbol: string; address: string; amount: n
           transferType
         }
       } else {
-        console.log(`[extractTokenInfo] ❌ Unknown token contract: ${tx.to} - checking token list...`)
         
         // Check if this contract exists in our token constants
         const possibleToken = TOKEN_CONSTANTS.find(token => 
           token.a?.toLowerCase() === tx.to?.toLowerCase()
         )
         if (possibleToken) {
-          console.log(`[extractTokenInfo] 🔍 Found token in constants but filtered out: ${possibleToken.ticker} (${possibleToken.a})`)
         } else {
-          console.log(`[extractTokenInfo] 🔍 Contract ${tx.to} not found in TOKEN_CONSTANTS at all`)
         }
       }
     }
 
     // Pattern 2: DEX interactions - try to infer received tokens
     if (tx.method?.includes('swap') || tx.method?.includes('exchange') || tx.method === 'multicall' || tx.txTypes?.includes('token_transfer')) {
-      console.log(`[extractTokenInfo] 🔄 Found DEX interaction:`, tx.method, tx.txTypes, 'attempting to parse...')
       
       // For DEX transactions, we need to look at txTypes for clues about which tokens were involved
       if (tx.txTypes?.includes('token_transfer')) {
         // Look through known tokens to see if any might match this transaction
         // This is a heuristic approach - we'll try to match based on timing and your current holdings
-        console.log(`[extractTokenInfo] 🔍 DEX transaction with token_transfer type - this likely involved receiving tokens`)
         
         // For now, we'll return a special marker that indicates this was a DEX transaction
         // The caller can then try to match this with tokens you currently hold
@@ -305,10 +279,8 @@ function extractTokenInfo(tx: any): { symbol: string; address: string; amount: n
       }
     }
 
-    console.log(`[extractTokenInfo] ❌ No token info extracted for tx ${tx.hash?.slice(0, 10)}`)
     return null
   } catch (error) {
-    console.error('[extractTokenInfo] Error extracting token info:', error)
     return null
   }
 }
@@ -324,21 +296,12 @@ function getTokenTransferDirection(tx: any, userAddress: string, tokenInfo: any)
       tx.method?.includes('exchange') || 
       tx.method === 'multicall') {
     
-    console.log(`[getTokenTransferDirection] 🔄 DEX transaction detected - assuming RECEIVED tokens`)
     return 'in' // For DEX transactions, assume user received tokens
   }
   
   // For direct token transfers, we need to look at the decoded parameters to find the actual recipient
   if (tx.decodedInput?.parameters && (tx.method === 'transfer' || tx.method === 'transferFrom')) {
     const params = tx.decodedInput.parameters
-    
-    console.log(`[getTokenTransferDirection] Analyzing ${tokenInfo.symbol} transfer:`, {
-      method: tx.method,
-      params: params,
-      txFrom: tx.from,
-      userAddress: userAddress,
-      hash: tx.hash?.slice(0, 10)
-    })
     
     let recipientAddress: any = null
     
@@ -352,13 +315,10 @@ function getTokenTransferDirection(tx: any, userAddress: string, tokenInfo: any)
     
     if (recipientAddress && typeof recipientAddress === 'string') {
       const recipientLower = (recipientAddress as string).toLowerCase()
-      console.log(`[getTokenTransferDirection] Found recipient: ${recipientLower}, user: ${user}`)
       
       if (recipientLower === user) {
-        console.log(`[getTokenTransferDirection] ✅ User is RECIPIENT - this is an INCOMING transfer`)
         return 'in'
       } else if (from === user) {
-        console.log(`[getTokenTransferDirection] ✅ User is SENDER - this is an OUTGOING transfer`)
         return 'out'
       }
     }
@@ -370,7 +330,6 @@ function getTokenTransferDirection(tx: any, userAddress: string, tokenInfo: any)
   if (from === user) return 'out'
   if (to === user) return 'in'
   
-  console.log(`[getTokenTransferDirection] ⚠️ Could not determine direction, defaulting to 'out'`)
   return 'out'
 }
 
@@ -426,11 +385,9 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
   // Basic enriched transactions without historic prices
   const baseEnrichedTransactions = useMemo(() => {
     if (!rawTransactions?.transactions) {
-      console.log('[useEnrichedTransactions] ❌ No raw transactions available')
       return []
     }
 
-    console.log(`[useEnrichedTransactions] 📊 Processing ${rawTransactions.transactions.length} transactions for address ${address}`)
 
     const enriched = rawTransactions.transactions.map((tx): EnrichedTransaction => {
       const timestampDate = new Date(tx.timestamp)
@@ -466,7 +423,6 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
 
     const tokenTransferCount = enriched.filter(tx => tx.isTokenTransfer).length
     const skippedCount = enriched.length - tokenTransferCount
-    console.log(`[useEnrichedTransactions] ✅ Found ${tokenTransferCount} relevant token transfers out of ${enriched.length} total transactions (skipped ${skippedCount} irrelevant transactions like staking, approvals, etc.)`)
 
     return enriched
   }, [rawTransactions, address])
@@ -486,7 +442,6 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
     
     // Don't re-fetch if we've already processed these exact transactions
     if (fetchedTransactionsRef.current === transactionIds) {
-      console.log('[useEnrichedTransactions] Already fetched prices for these transactions, skipping')
       return
     }
 
@@ -523,15 +478,12 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
     if (priceRequestsArray.length === 0) return
 
     setPricesFetching(true)
-    console.log(`[useEnrichedTransactions] Fetching historic prices for ${priceRequestsArray.length} unique token/date combinations from ${tokenTransactions.length} transactions`)
 
     const fetchAllPrices = async () => {
       const priceResults: Record<string, number> = {}
       const totalRequests = priceRequestsArray.length
       
-      console.log(`[useEnrichedTransactions] Starting to fetch ${totalRequests} historic prices:`)
       priceRequestsArray.forEach((req, i) => {
-        console.log(`  ${i+1}. ${req.symbol} (${req.address}) on ${new Date(req.timestamp * 1000).toDateString()} ${req.isNative ? '[NATIVE→WPLS]' : ''}`)
       })
       
       setPricesProgress({ total: totalRequests, fetched: 0, percentage: 0 })
@@ -541,7 +493,6 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
         const priceKey = `${request.address}-${request.timestamp}`
         
         const tokenDescription = request.isNative ? `${request.symbol} (using WPLS price)` : request.symbol
-        console.log(`[useEnrichedTransactions] Fetching price ${i+1}/${totalRequests}: ${tokenDescription} at ${new Date(request.timestamp * 1000).toDateString()}`)
         
         try {
           const historicPrice = await fetchHistoricPrice(request.address, request.timestamp)
@@ -549,16 +500,13 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
           if (historicPrice !== null && historicPrice !== undefined) {
             if (historicPrice > 0) {
               priceResults[priceKey] = historicPrice
-              console.log(`[useEnrichedTransactions] ✅ Found historic price for ${tokenDescription}: $${historicPrice}`)
               
               // For native PLS, also store under the native key for easy lookup
               if (request.isNative) {
                 const nativeKey = `native-${request.timestamp}`
                 priceResults[nativeKey] = historicPrice
-                console.log(`[useEnrichedTransactions] ✅ Stored PLS price under native key: ${nativeKey}`)
               }
             } else {
-              console.log(`[useEnrichedTransactions] ⚠️ Found zero price for ${tokenDescription} (API returned: $${historicPrice})`)
               // Store zero price to indicate we have data but it's zero
               priceResults[priceKey] = 0
               if (request.isNative) {
@@ -567,17 +515,9 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
               }
             }
           } else {
-            console.log(`[useEnrichedTransactions] ❌ No price data found for ${tokenDescription} (returned: ${historicPrice})`)
-            console.log(`[useEnrichedTransactions] 🔍 Debug - Raw API response for key ${priceKey}:`, {
-              address: request.address,
-              symbol: request.symbol,
-              timestamp: request.timestamp,
-              date: new Date(request.timestamp * 1000).toDateString(),
-              historicPrice
-            })
+            // No price data found for this request
           }
         } catch (error) {
-          console.warn(`[useEnrichedTransactions] ❌ Failed to fetch historic price for ${tokenDescription}:`, error)
         }
         
         // Update progress
@@ -591,8 +531,6 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
 
       setHistoricPrices(priceResults)
       setPricesFetching(false)
-      console.log(`[useEnrichedTransactions] 🎯 FINAL RESULT: Fetched ${Object.keys(priceResults).length} historic prices for ${totalRequests} requests`)
-      console.log(`[useEnrichedTransactions] Price results:`, priceResults)
     }
 
     fetchAllPrices()
@@ -600,8 +538,6 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
 
   // Final enriched transactions with historic prices
   const enrichedTransactions = useMemo(() => {
-    console.log(`[useEnrichedTransactions] Applying historic prices to ${baseEnrichedTransactions.length} transactions`)
-    console.log(`[useEnrichedTransactions] Available historic prices:`, Object.keys(historicPrices))
     
     const result = baseEnrichedTransactions.map(tx => {
       if (tx.isTokenTransfer && tx.tokenInfo) {
@@ -615,11 +551,9 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
         const historicPrice = historicPrices[priceKey]
         
         const tokenDescription = isNative ? `${tx.tokenInfo.symbol} (native PLS)` : tx.tokenInfo.symbol
-        console.log(`[useEnrichedTransactions] Checking price for ${tokenDescription} on ${new Date(dayTimestamp * 1000).toDateString()}: key=${priceKey}, price=${historicPrice}`)
         
         if (historicPrice !== undefined) {
           if (historicPrice > 0) {
-            console.log(`[useEnrichedTransactions] ✅ Applied historic price $${historicPrice} to ${tokenDescription}`)
             const valueUSD = tx.tokenInfo.amount * historicPrice
             return {
               ...tx,
@@ -634,7 +568,6 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
               }))
             }
           } else {
-            console.log(`[useEnrichedTransactions] ⚠️ Applied zero historic price to ${tokenDescription} (price data exists but is $0)`)
             return {
               ...tx,
               tokenInfo: {
@@ -649,7 +582,6 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
             }
           }
         } else {
-          console.log(`[useEnrichedTransactions] ❌ No historic price found for ${tokenDescription}`)
         }
       }
       return tx
@@ -657,7 +589,6 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
     
     const withPrices = result.filter(tx => tx.tokenInfo?.historicPriceUSD !== undefined).length
     const withPositivePrices = result.filter(tx => tx.tokenInfo?.historicPriceUSD !== undefined && tx.tokenInfo.historicPriceUSD > 0).length
-    console.log(`[useEnrichedTransactions] Final result: ${withPrices} transactions have historic prices applied (${withPositivePrices} with positive prices, ${withPrices - withPositivePrices} with zero prices)`)
     
     return result
   }, [baseEnrichedTransactions, historicPrices])
@@ -665,11 +596,9 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
   // Calculate token summary for cost basis
   const tokenSummary = useMemo(() => {
     if (!enrichedTransactions.length) {
-      console.log('[useEnrichedTransactions] No enriched transactions for token summary')
       return []
     }
 
-    console.log(`[useEnrichedTransactions] Calculating token summary from ${enrichedTransactions.length} enriched transactions`)
 
     const tokenMap = new Map<string, {
       symbol: string
@@ -692,15 +621,6 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
       
       // Special handling for DEX transactions
       if (tx.tokenInfo.symbol === 'DEX_TRANSACTION') {
-        console.log(`[useEnrichedTransactions] 🔄 Found DEX transaction: ${tx.hash?.slice(0, 10)}, method: ${tx.method}, direction: ${tx.direction}`)
-        console.log(`[useEnrichedTransactions] 🔄 DEX transaction details:`, {
-          timestamp: new Date(tx.timestamp).toLocaleDateString(),
-          method: tx.method,
-          txTypes: tx.txTypes,
-          to: tx.to,
-          from: tx.from
-        })
-        
         // For now, skip DEX transactions until we can properly identify the tokens
         // TODO: Implement proper DEX transaction parsing
         skippedNoTokenInfo++
@@ -709,22 +629,12 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
       
       if (!tx.tokenInfo.amount) {
         skippedNoAmount++
-        console.log(`[useEnrichedTransactions] ❌ Skipping ${tx.tokenInfo.symbol} - no amount (${tx.tokenInfo.amount})`)
-        console.log(`[useEnrichedTransactions] 📋 Transaction details for ${tx.tokenInfo.symbol}:`, {
-          hash: tx.hash?.slice(0, 10),
-          method: tx.method,
-          timestamp: new Date(tx.timestamp).toLocaleDateString(),
-          direction: tx.direction,
-          txTypes: tx.txTypes,
-          decodedInput: tx.decodedInput
-        })
         return
       }
 
       processedTokenTxs++
       const { symbol, address: tokenAddress, amount } = tx.tokenInfo
       
-      console.log(`[useEnrichedTransactions] ✅ Processing token tx: ${symbol}, amount: ${amount}, direction: ${tx.direction}, price: $${tx.tokenInfo?.historicPriceUSD || 'No price'}`)
       
       if (!tokenMap.has(symbol)) {
         tokenMap.set(symbol, {
@@ -750,9 +660,7 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
         })
         
         if (userInitiated) {
-          console.log(`[useEnrichedTransactions] 📈 Added PURCHASE: ${amount} ${symbol} at $${price} (user-initiated transaction)`)
         } else {
-          console.log(`[useEnrichedTransactions] 🎁 Added RECEIVED: ${amount} ${symbol} at $0 cost basis (sent by someone else)`)
         }
       } else if (tx.direction === 'out') {
         tokenData.sells.push({
@@ -760,16 +668,12 @@ export function useEnrichedTransactions(address: string): UseEnrichedTransaction
           price: tx.tokenInfo?.historicPriceUSD || 0,
           timestamp: tx.timestampDate
         })
-        console.log(`[useEnrichedTransactions] 📉 Added SELL: ${amount} ${symbol} at $${tx.tokenInfo?.historicPriceUSD || 0}`)
       } else {
         skippedBadDirection++
-        console.log(`[useEnrichedTransactions] ❌ Skipping ${symbol} - unknown direction: ${tx.direction}`)
       }
     })
 
-    console.log(`[useEnrichedTransactions] 📊 SUMMARY: Processed ${processedTokenTxs} token txs, Skipped: ${skippedNoTokenInfo} (no token info), ${skippedNoAmount} (no amount), ${skippedBadDirection} (bad direction)`)
 
-    console.log(`[useEnrichedTransactions] 🎯 Processed ${processedTokenTxs} token transactions, found ${tokenMap.size} unique tokens`)
 
     // Calculate cost basis for each token
     return Array.from(tokenMap.values()).map(tokenData => {

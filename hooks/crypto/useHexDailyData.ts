@@ -90,7 +90,6 @@ const isCacheValid = (lastUpdated: string): boolean => {
   // Cache is valid if it was created AFTER the most recent 1am UTC
   const isValid = cacheTime > lastOneAm.getTime();
   
-  console.log(`[HEX Cache] Validation: Cache from ${new Date(cacheTime).toISOString()}, Last 1am: ${lastOneAm.toISOString()}, Valid: ${isValid}`);
   
   return isValid;
 };
@@ -112,22 +111,18 @@ const getCachedHexData = (): HexDailyDataCache | null => {
     );
     
     if (maxDataDay < 2060) {
-      console.log(`[HEX Cache] FORCE REFRESH: Cached data too old (latest day: ${maxDataDay}), removing stale cache`);
       localStorage.removeItem('hex-daily-data-persistent-cache');
       return null;
     }
     
     // Check if cache is still valid
     if (isCacheValid(data.lastUpdated)) {
-      console.log('[HEX Cache] Using valid persistent cache from localStorage');
       return data;
     } else {
-      console.log('[HEX Cache] Persistent cache expired, removing');
       localStorage.removeItem('hex-daily-data-persistent-cache');
       return null;
     }
   } catch (error) {
-    console.error('[HEX Cache] Error reading persistent cache:', error);
     localStorage.removeItem('hex-daily-data-persistent-cache');
     return null;
   }
@@ -139,9 +134,7 @@ const saveCachedHexData = (data: HexDailyDataCache): void => {
   
   try {
     localStorage.setItem('hex-daily-data-persistent-cache', JSON.stringify(data));
-    console.log('[HEX Cache] Saved data to persistent cache');
   } catch (error) {
-    console.error('[HEX Cache] Error saving to persistent cache:', error);
   }
 };
 
@@ -160,7 +153,6 @@ const fetchDailyPayoutsFromChain = async (url: string, chain: 'ETH' | 'PLS'): Pr
   let skip = 0;
   const first = 1000;
   
-  console.log(`[HEX Daily Cache] Fetching daily payouts from ${chain}...`);
   
   while (hasMore) {
     const query = `{
@@ -193,7 +185,6 @@ const fetchDailyPayoutsFromChain = async (url: string, chain: 'ETH' | 'PLS'): Pr
       const result = await response.json();
       
       if (result.errors) {
-        console.error(`[${chain}] GraphQL errors:`, result.errors);
         hasMore = false;
         continue;
       }
@@ -206,18 +197,15 @@ const fetchDailyPayoutsFromChain = async (url: string, chain: 'ETH' | 'PLS'): Pr
         
         // Log progress every 1000 records
         if (skip % 1000 === 0) {
-          console.log(`[${chain}] Fetched ${allPayouts.length} daily payout records...`);
         }
       } else {
         hasMore = false;
       }
     } catch (error) {
-      console.error(`[${chain}] Error fetching daily payouts:`, error);
       hasMore = false;
     }
   }
   
-  console.log(`[${chain}] Completed: ${allPayouts.length} daily payout records`);
   return allPayouts;
 };
 
@@ -228,7 +216,6 @@ const fetchShareRatesFromChain = async (url: string, chain: 'ETH' | 'PLS'): Prom
   let skip = 0;
   const first = 1000;
 
-  console.log(`[HEX Daily Cache] Fetching share rates from ${chain}...`);
 
   while (hasMore) {
   const query = `{
@@ -262,7 +249,6 @@ const fetchShareRatesFromChain = async (url: string, chain: 'ETH' | 'PLS'): Prom
     const result = await response.json();
     
     if (result.errors) {
-      console.error(`[${chain}] GraphQL errors:`, result.errors);
         hasMore = false;
         continue;
     }
@@ -275,18 +261,15 @@ const fetchShareRatesFromChain = async (url: string, chain: 'ETH' | 'PLS'): Prom
         
         // Log progress every 1000 records
         if (skip % 1000 === 0) {
-          console.log(`[${chain}] Fetched ${allRates.length} share rate records...`);
         }
       } else {
         hasMore = false;
       }
   } catch (error) {
-    console.error(`[${chain}] Error fetching share rates:`, error);
       hasMore = false;
     }
   }
   
-  console.log(`[${chain}] Completed: ${allRates.length} share rate records`);
   return allRates;
 };
 
@@ -298,7 +281,6 @@ const fetchHexDailyData = async (): Promise<HexDailyDataCache> => {
     return cachedData; // Return cached data immediately
   }
   
-  console.log('[HEX Daily Cache] Starting background fetch of all daily data...');
   const startTime = Date.now();
   
   // Fetch data from both chains in parallel
@@ -317,8 +299,6 @@ const fetchHexDailyData = async (): Promise<HexDailyDataCache> => {
   const endTime = Date.now();
   const duration = (endTime - startTime) / 1000;
   
-  console.log(`[HEX Daily Cache] Completed in ${duration.toFixed(2)}s: ETH(${ethPayouts.length} payouts, ${ethShareRates.length} rates), PLS(${plsPayouts.length} payouts, ${plsShareRates.length} rates)`);
-  console.log(`[HEX Daily Cache] Data range: Day ${minDay} to ${maxDay}`);
 
   const result: HexDailyDataCache = {
     dailyPayouts: {
@@ -488,7 +468,6 @@ export const useHexYieldCache = () => {
       lastUpdated: new Date().toISOString(),
     };
     
-    console.log(`[HEX Yield Cache] Caching ${yields.length} yield calculations`);
     mutate(newCache, false); // Update cache without revalidation
   };
 

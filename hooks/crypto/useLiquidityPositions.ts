@@ -93,8 +93,6 @@ export function useLPTokenPrices() {
 
     // Process 9INCH pools
     if (nineInchPools && nineInchPools.length > 0) {
-      console.log(`[LP Pricing] Processing ${nineInchPools.length} 9INCH pools`)
-      console.log(`[LP Pricing] Looking for 9INCH/BBC pool with address: 0xb543812ddebc017976f867da710ddb30cca22929`)
       nineInchPools.forEach(pool => {
         const totalLiquidity = parseFloat(pool.totalLiquidity) || 0
         const totalShares = parseFloat(pool.totalShares) || 0
@@ -102,8 +100,6 @@ export function useLPTokenPrices() {
         // Calculate price per share (TVL / total shares)
         const pricePerShare = totalShares > 0 ? totalLiquidity / totalShares : 0
 
-        console.log(`[LP Pricing] 9INCH pool ${pool.address}: TVL=$${totalLiquidity}, Shares=${totalShares}, PricePerShare=$${pricePerShare}`)
-        console.log(`[LP Pricing] 9INCH pool tokens: ${pool.tokens.map(t => t.symbol).join('/')} (${pool.name})`)
 
         if (pricePerShare > 0) {
           const lpTokenPrice: LPTokenPrice = {
@@ -127,15 +123,10 @@ export function useLPTokenPrices() {
           // Also map by pool ID for convenience
           priceMap.set(pool.id, lpTokenPrice)
           
-          console.log(`[LP Pricing] Added 9INCH LP token: ${pool.address.toLowerCase()} = $${pricePerShare}`)
         } else {
-          console.warn(`[LP Pricing] Skipping 9INCH pool ${pool.address}: invalid price (TVL=${totalLiquidity}, Shares=${totalShares})`)
         }
       })
     } else {
-      console.warn(`[LP Pricing] No 9INCH pools available. nineInchPools:`, nineInchPools)
-      console.warn(`[LP Pricing] 9INCH loading state:`, nineInchLoading)
-      console.warn(`[LP Pricing] 9INCH error:`, nineInchError)
     }
 
     return priceMap
@@ -190,7 +181,6 @@ export function useLiquidityPositions(
         
         // Safety check: if shares seems too large (>1B), likely using raw balance - apply decimals
         if (shares > 1000000000) {
-          console.warn(`[LP] Applying decimal adjustment to ${lpTokenPrice.poolName}: ${shares} -> ${shares / 1e18}`)
           shares = shares / 1e18 // Most LP tokens use 18 decimals
         }
         
@@ -198,12 +188,6 @@ export function useLiquidityPositions(
 
         // Debug log only for extremely large values that are clearly wrong
         if (valueUSD > 100000000) { // > $100M
-          console.warn(`[LP] Large value: ${lpTokenPrice.poolName} = $${valueUSD.toLocaleString()}`, {
-            shares,
-            pricePerShare: lpTokenPrice.pricePerShare,
-            totalLiquidity: lpTokenPrice.totalLiquidity,
-            totalShares: lpTokenPrice.totalShares
-          })
         }
 
         if (shares > 0 && valueUSD > 0.01) { // Filter out dust positions
@@ -229,7 +213,6 @@ export function useLiquidityPositions(
     
     // Only log if total is extremely large (likely wrong)
     if (total > 1000000000) { // > $1B
-      console.warn(`[LP] Total value: $${total.toLocaleString()} (${positions.length} positions)`)
     }
     
     return total

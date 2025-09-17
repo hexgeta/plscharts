@@ -128,7 +128,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             return parsed
           }
         } catch (e) {
-          console.error('Error parsing saved selected addresses:', e)
+          // Error parsing saved selected addresses
         }
       }
     }
@@ -201,7 +201,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         try {
           return JSON.parse(saved)
         } catch (e) {
-          console.error('Failed to parse custom tokens from localStorage:', e)
+          // Failed to parse custom tokens from localStorage
         }
       }
     }
@@ -274,7 +274,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         try {
           return new Set(JSON.parse(saved))
         } catch (e) {
-          console.warn('Failed to parse saved enabled coins:', e)
+          // Failed to parse saved enabled coins
         }
       }
     }
@@ -308,7 +308,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           const parsed = JSON.parse(saved)
           return new Map(Object.entries(parsed))
         } catch (e) {
-          console.warn('Failed to parse saved custom balances:', e)
+          // Failed to parse saved custom balances
         }
       }
     }
@@ -324,7 +324,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           const parsed = JSON.parse(saved)
           return new Map(Object.entries(parsed))
         } catch (e) {
-          console.warn('Failed to parse saved custom V3 values:', e)
+          // Failed to parse saved custom V3 values
         }
       }
     }
@@ -587,7 +587,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
       return balanceFormatted
     } catch (error) {
-      console.error(`Error fetching balance for ${tokenAddress}:`, error)
       return 0
     }
   }
@@ -891,7 +890,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       (window as any).addDebugLog(type, operation, details)
     } else if (SHOW_DEBUG_PANEL) {
       // Fallback: log to console if DebugPanel isn't ready yet
-      console.log(`[Debug] ${type.toUpperCase()}: ${operation}`, details || '')
+      // Debug logging removed
     }
   }, [SHOW_DEBUG_PANEL])
 
@@ -1004,7 +1003,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         })
         setEditingStates(initialEditingStates)
       } catch (e) {
-        console.error('Error parsing saved addresses:', e)
+        // Error parsing saved addresses
       }
     }
 
@@ -1134,14 +1133,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   const findBestDexPair = async (contractAddress: string, chain: number): Promise<string> => {
     try {
       const chainName = chain === 1 ? 'ethereum' : 'pulsechain'
-      console.log(`[findBestDexPair] Looking for pairs for ${contractAddress} on ${chainName}`)
       
       // Use DexScreener API to find pairs for this token
       const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`)
       const data = await response.json()
       
       if (!data.pairs || data.pairs.length === 0) {
-        console.warn(`[findBestDexPair] No pairs found for ${contractAddress}`)
         return ''
       }
       
@@ -1157,7 +1154,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       })
       
       if (chainPairs.length === 0) {
-        console.warn(`[findBestDexPair] No pairs found for ${contractAddress} on ${chainName}`)
         return ''
       }
       
@@ -1169,11 +1165,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       })
       
       const bestPair = sortedPairs[0]
-      console.log(`[findBestDexPair] Found best pair: ${bestPair.pairAddress} with $${bestPair.liquidity?.usd || 0} liquidity`)
       
       return bestPair.pairAddress || ''
     } catch (error) {
-      console.error(`[findBestDexPair] Error finding pair for ${contractAddress}:`, error)
       return ''
     }
   }
@@ -1265,7 +1259,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         // Handle logo result
         if (logoResult.status === 'fulfilled' && logoResult.value) {
           updates.logoUrl = logoResult.value
-          console.log('[Logo] Successfully fetched logo for token:', logoResult.value)
         }
         
         // Apply updates if we have any
@@ -1302,7 +1295,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         prev.map(token => token.id === editingTokenId ? customToken : token)
       )
       
-      console.log('[addCustomToken] Updated existing token:', customToken)
     } else {
       // Add new token
     // Mark as newly enabled for green styling and ? placeholder FIRST
@@ -1324,7 +1316,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         window.plausible('Added New Custom Token')
       }
       
-      console.log('[addCustomToken] Added new token:', customToken)
     }
 
     // Reset form and clear errors
@@ -1358,7 +1349,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       // Open the custom token section
       setIsCustomTokenSectionOpen(true)
       
-      console.log('[editCustomToken] Editing token:', tokenToEdit)
     }
   }
 
@@ -2247,7 +2237,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   // Get all addresses for balance checking - memoize to prevent unnecessary re-fetches
   const allAddressStrings = useMemo(() => {
     const strings = effectiveAddresses.map(addr => addr.address)
-    console.log('Portfolio Debug - Creating new address strings array:', strings)
     return strings
   }, [effectiveAddresses])
 
@@ -2257,7 +2246,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   // Fetch HSI stakes data for user's addresses
   const { stakes: hsiStakes, isLoading: hsiStakesLoading, error: hsiStakesError, hasStakes: hasHsiStakes } = useHsiStakes(allAddressStrings)
   
-  console.log('Portfolio Debug - Using address strings:', allAddressStrings)
 
   // Determine effective mode based on coin detection mode and include more tokens setting
   // Auto-detect mode: includeMoreTokens ? 'auto-detect-extended' : 'auto-detect'
@@ -2349,7 +2337,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           balanceFormatted: customBalances.has(token.symbol)
             ? (() => {
                 const customValue = parseFloat(customBalances.get(token.symbol) || '0')
-                console.log(`[Custom Balance Applied] ${token.symbol}: stored="${customBalances.get(token.symbol)}" -> parsed=${customValue}`)
                 return customValue
               })()
             : token.balanceFormatted
@@ -2470,7 +2457,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     return applyCustomBalances(filteredBalances, selectedAddressIds)
   }, [allRawBalances, coinDetectionMode, enabledCoins, pendingEnabledCoins, customBalances, selectedAddressIds])
-  console.log('Portfolio Debug - Balance hook result:', { balances: rawBalances, balancesLoading, balancesError })
 
   // Clear newly enabled tokens when there's a significant data change (but not when just editing balances)
   useEffect(() => {
@@ -2675,7 +2661,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   ])
 
   // Minimal debug logging (only when needed)
-  // console.log('[Portfolio] Component render - balances:', balances?.length, 'tickers:', allTokenTickers.length, 'chainFilter:', chainFilter, 'selectedIds:', selectedAddressIds.length)
 
   // Fetch prices for all tokens with balances
   const { prices: rawPrices, isLoading: pricesLoading } = useTokenPrices(allTokenTickers, { customTokens })
@@ -2749,7 +2734,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Get all tokens with balances combined from all addresses (or filtered by selected address)
   const { filteredBalances, mainTokensWithBalances } = useMemo(() => {
-    // console.log('[Portfolio] Filtering balances - chainFilter:', chainFilter, 'selectedAddressIds:', selectedAddressIds.length)
     
     if (!balances || !Array.isArray(balances)) {
       return { filteredBalances: [], mainTokensWithBalances: [] }
@@ -2865,7 +2849,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     if (lpPrice.pricePerToken && lpPrice.pricePerToken > 0) {
       lpTokenPrices[ticker] = lpPrice.pricePerToken
     } else if (lpPrice.error) {
-      console.error(`[Portfolio] Error fetching ${ticker} LP price:`, lpPrice.error)
     }
     
     // Store LP data for detailed display (underlying token breakdown)
@@ -2953,12 +2936,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     
     // Special handling for farm tokens - use address matching for PLSX V1, ticker mapping for others
     if (tokenConfig.type === 'farm') {
-      console.log(`[Farm Pricing] Processing farm token: ${symbol}`)
-      console.log(`[Farm Pricing] Token config:`, { name: tokenConfig.name, platform: tokenConfig.platform, address: tokenConfig.a })
       
       // For PLSX V1 farms, match by contract address since they share the same address as their LP token
       if (tokenConfig.name === 'PLSX V1 Farm' && tokenConfig.a) {
-        console.log(`[Farm Pricing] PLSX V1 farm detected, matching by address: ${tokenConfig.a}`)
         
         // Find LP token with the same contract address
         const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
@@ -2969,33 +2949,23 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         )
         
         if (lpTokenConfig) {
-          console.log(`[Farm Pricing] Found matching LP token by address: ${lpTokenConfig.ticker}`)
           const lpPrice = lpTokenPrices[lpTokenConfig.ticker]
           if (lpPrice && lpPrice > 0) {
             return lpPrice
           } else {
-            console.warn(`[Farm Pricing] No PLSX LP price found for ${lpTokenConfig.ticker}. Price value:`, lpPrice)
           }
         } else {
-          console.warn(`[Farm Pricing] No LP token found with matching address ${tokenConfig.a}`)
         }
         return 0
       }
       
       // For PHUX/9INCH farms, use the existing ticker-based mapping
       const correspondingLPTicker = farmToLPMapping[symbol]
-      console.log(`[Farm Pricing] Farm token ${symbol}, mapped to LP ticker: ${correspondingLPTicker}`)
-      console.log(`[Farm Pricing] Available farm mappings:`, Object.keys(farmToLPMapping).filter(k => k.includes('9INCH')))
-      console.log(`[Farm Pricing] Exact farm token ticker:`, JSON.stringify(symbol))
-      console.log(`[Farm Pricing] Mapping keys that contain BBC:`, Object.keys(farmToLPMapping).filter(k => k.includes('BBC')))
       
       if (correspondingLPTicker) {
         // Find the actual LP token config to get its address and platform
         const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
         const lpTokenConfig = allTokens.find(token => token.ticker === correspondingLPTicker && token.type === 'lp')
-        console.log(`[Farm Pricing] LP token config found:`, lpTokenConfig?.ticker, lpTokenConfig?.platform)
-        console.log(`[Farm Pricing] Looking for LP ticker:`, JSON.stringify(correspondingLPTicker))
-        console.log(`[Farm Pricing] Available 9INCH LP tickers:`, allTokens.filter(t => t.type === 'lp' && t.ticker.includes('9INCH')).map(t => t.ticker))
         
         if (lpTokenConfig) {
         // For PHUX LP tokens, use PHUX pricing
@@ -3018,21 +2988,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           }
         } else {
             // For PulseX LP tokens, use PulseX pricing
-            console.log(`[Farm Pricing] Looking for PulseX LP price for farm ${symbol} -> LP ${correspondingLPTicker}`)
             const lpPrice = lpTokenPrices[correspondingLPTicker]
             if (lpPrice && lpPrice > 0) {
-              console.log(`[Farm Pricing] ${symbol} using PulseX LP ${correspondingLPTicker} price = $${lpPrice}`)
               return lpPrice
             } else {
-              console.warn(`[Farm Pricing] No PulseX LP price found for ${correspondingLPTicker}. Price value:`, lpPrice)
             }
           }
         }
       } else {
-        console.warn(`[Farm Pricing] No corresponding LP token found for farm ${symbol}. Checked mapping:`, correspondingLPTicker)
       }
       
-      console.warn(`[Farm Pricing] Returning 0 for farm ${symbol}`)
       return 0
     }
     
@@ -3043,16 +3008,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         if (tokenConfig.a && getPhuxLPTokenPrice) {
           const phuxPrice = getPhuxLPTokenPrice(tokenConfig.a)
           if (phuxPrice?.pricePerShare && phuxPrice.pricePerShare > 0) {
-            console.log(`[LP Pricing] PHUX: ${symbol} = $${phuxPrice.pricePerShare}`)
             return phuxPrice.pricePerShare
           }
         }
-        console.warn(`[LP Pricing] PHUX price not found for ${symbol}`)
         return 0
         
       case '9INCH':
         // Use 9INCH GraphQL TVL/shares pricing
-        console.log(`[LP Pricing] 9INCH lookup for ${symbol}, address: ${tokenConfig.a}, type: ${tokenConfig.type}`)
         
         if (tokenConfig.type === 'farm') {
           // For farm tokens, we need to map to the corresponding LP token address
@@ -3068,26 +3030,21 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           }
           
           const lpAddress = farmToLPMapping[tokenConfig.a]
-          console.log(`[LP Pricing] 9INCH farm ${symbol} -> LP address: ${lpAddress}`)
           
           if (lpAddress && getPhuxLPTokenPrice) {
             const nineInchPrice = getPhuxLPTokenPrice(lpAddress)
             if (nineInchPrice?.pricePerShare && nineInchPrice.pricePerShare > 0) {
-              console.log(`[LP Pricing] 9INCH Farm: ${symbol} = $${nineInchPrice.pricePerShare}`)
               return nineInchPrice.pricePerShare
             } else {
-              console.warn(`[LP Pricing] 9INCH Farm: No price data for LP ${lpAddress}`)
             }
           }
         } else if (tokenConfig.a && getPhuxLPTokenPrice) {
           // For LP tokens, use the address directly
           const nineInchPrice = getPhuxLPTokenPrice(tokenConfig.a)
           if (nineInchPrice?.pricePerShare && nineInchPrice.pricePerShare > 0) {
-            console.log(`[LP Pricing] 9INCH LP: ${symbol} = $${nineInchPrice.pricePerShare}`)
             return nineInchPrice.pricePerShare
           }
         }
-        console.warn(`[LP Pricing] 9INCH price not found for ${symbol}`)
         return 0
         
       case '9MM':
@@ -3100,7 +3057,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             return nineMmPrice.pricePerShare
           }
         }
-        console.warn(`[LP Pricing] 9MM price not found for ${symbol}`)
         return 0
         
       case 'PLSX V1':
@@ -3108,10 +3064,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         // Use existing PulseX pricing system
         const pulsexPrice = lpTokenPrices[symbol]
         if (pulsexPrice && pulsexPrice > 0) {
-          console.log(`[LP Pricing] PulseX: ${symbol} = $${pulsexPrice}`)
           return pulsexPrice
         }
-        console.warn(`[LP Pricing] PulseX price not found for ${symbol}`)
         return 0
         
       case '9MM':
@@ -3122,10 +3076,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         // Fallback: try PulseX for backwards compatibility
         const fallbackPrice = lpTokenPrices[symbol]
         if (fallbackPrice && fallbackPrice > 0) {
-          console.log(`[LP Pricing] Fallback PulseX: ${symbol} = $${fallbackPrice}`)
           return fallbackPrice
         }
-        console.warn(`[LP Pricing] No pricing method found for ${symbol} (platform: ${tokenConfig.platform})`)
         return 0
     }
   }, [lpTokenPrices, getPhuxLPTokenPrice, customTokens])
@@ -3155,9 +3107,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       if (tickerMatch) {
         token0Symbol = tickerMatch[1]
         token1Symbol = tickerMatch[2]
-        console.log(`[LP Override] ${lpSymbol}: API tokens were ${lpData.token0.symbol}/${lpData.token1.symbol}, overriding with ${token0Symbol}/${token1Symbol}`)
       } else {
-        console.warn(`[LP Override] ${lpSymbol}: Could not parse tokens from ticker "${lpTokenConfig.ticker}", using API symbols`)
       }
     }
 
@@ -3203,19 +3153,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         const ethRolling30Avg = calculateRolling30DayAvg(ethPayouts);
         const plsRolling30Avg = calculateRolling30DayAvg(plsPayouts);
         
-        console.log('📊 DAILY PAYOUT VALUES FOR PROJECTED YIELD:');
-        console.log('='.repeat(80));
-        console.log('🔹 ETH CHAIN:');
-        console.log(`   📈 Latest Daily: ${latestEthPayout.payoutPerTShare} (Day ${latestEthPayout.endDay})`);
-        console.log(`   📊 Rolling 30-Day Avg: ${ethRolling30Avg}`);
-        console.log('');
-        console.log('🔸 PLS CHAIN:');
-        console.log(`   📈 Latest Daily: ${latestPlsPayout.payoutPerTShare} (Day ${latestPlsPayout.endDay})`);
-        console.log(`   📊 Rolling 30-Day Avg: ${plsRolling30Avg}`);
-        console.log('');
-        console.log('💡 Projected yield now uses the 30-DAY ROLLING AVERAGE for more stable projections');
-        console.log('📈 Latest daily values shown for comparison with the average being used');
-        console.log('='.repeat(80));
       }
     }
   }, [hexDailyDataCacheForEES]);
@@ -3491,7 +3428,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           return plsVirtualPrice
         }
         // If API data not available, return 0 (no fallback)
-        console.warn('PLS virtual price API data not available for USDT/USDC/DAI pool')
         return 0
       }
       
@@ -3555,21 +3491,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // Handle WPLS -> PLS price mapping (WPLS should have same price as PLS)
     if (symbol === 'WPLS') {
       const plsPrice = prices['PLS']?.price || 0
-      console.log(`[Token Price] WPLS mapped to PLS: ${plsPrice}`)
       return plsPrice
     }
     
     // Handle DAI -> weDAI price mapping (9MM V3 API returns "DAI" but our constants use "weDAI")
     if (symbol === 'DAI') {
       const weDaiPrice = prices['weDAI']?.price || 0
-      console.log(`[Token Price] DAI mapped to weDAI: ${weDaiPrice}`)
       return weDaiPrice
     }
     
     // Use market price
     const marketPrice = prices[symbol]?.price || 0
     if (marketPrice === 0) {
-      console.warn(`[Token Price] No price found for symbol: ${symbol}. Available prices:`, Object.keys(prices))
     }
     return marketPrice
   }, [isStablecoin, shouldUseBackingPrice, useBackingPrice, prices, getBackingPerToken, getLPTokenPrice, useTimeShift, timeMachineHexPrice, timeMachineEHexPrice])
@@ -3609,15 +3542,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     refetch: refetchV3Positions
   } = useMultiple9MmV3Positions(addressStrings, { getTokenPrice })
   
-  // Debug: Check what the hook is returning for eHEX positions
-  console.log('[Portfolio Debug] eHEX V3 Positions from hook:', nineMmV3Positions?.filter(pos => 
-    pos.token0Symbol === 'eHEX' || pos.token1Symbol === 'eHEX'
-  ).map(pos => ({
-    id: pos.id,
-    token0Symbol: pos.token0Symbol,
-    token1Symbol: pos.token1Symbol,
-    displayName: pos.displayName
-  })))
   
   // Hook for fetching actual tick data from position manager contract
   const { tickData, isLoading: tickIsLoading, errors: tickErrors, fetchPositionTicks } = useV3PositionTicks()
@@ -3672,7 +3596,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   // Helper function to calculate user's share of underlying tokens in PHUX LP using hardcoded composition
   const calculatePhuxLPUnderlyingTokens = useCallback((lpSymbol: string, userLPBalance: number, lpAddress: string) => {
     if (userLPBalance <= 0) {
-      console.log(`[PHUX LP Debug] Early return: userLPBalance=${userLPBalance}`)
       return null
     }
     
@@ -3816,7 +3739,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     const tokenConfig = allTokens.find(token => token.ticker === lpSymbol)
     
     if (!tokenConfig || !tokenConfig.composition) {
-      console.log(`[PHUX LP Debug] No composition data for ${lpSymbol}`)
       return null
     }
 
@@ -3824,7 +3746,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     const lpTokenPrice = getLPTokenPrice(lpSymbol)
     const totalUsdValue = userLPBalance * lpTokenPrice
     
-    console.log(`[PHUX LP Debug] ${lpSymbol}: userLPBalance=${userLPBalance}, lpTokenPrice=${lpTokenPrice}, totalUsdValue=${totalUsdValue}`)
 
     // Calculate user's underlying tokens based on USD weights and token prices
     const underlyingTokens = tokenConfig.composition.map(comp => {
@@ -3841,10 +3762,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         // Fallback: assume $0.01 per token to show meaningful amounts
         const fallbackPrice = 0.01
         userTokenAmount = tokenUsdValue / fallbackPrice
-        console.log(`[PHUX LP Debug] ${comp.ticker}: Using fallback price $${fallbackPrice} for display`)
       }
       
-      console.log(`[PHUX LP Debug] Token ${comp.ticker}: weight=${comp.weight}%, tokenPrice=${tokenPrice}, usdValue=${tokenUsdValue}, userAmount=${userTokenAmount}`)
       
       return {
         symbol: comp.ticker,
@@ -3853,14 +3772,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       }
     })
 
-    console.log(`[PHUX LP Debug] Final tokens:`, underlyingTokens)
     return { tokens: underlyingTokens }
   }, [customTokens, getLPTokenPrice, getTokenPrice])
 
   // Helper function to calculate user's share of underlying tokens in 9INCH LP
   const calculate9InchLPUnderlyingTokens = useCallback((lpSymbol: string, userLPBalance: number, lpAddress: string) => {
     if (userLPBalance <= 0) {
-      console.log(`[9INCH LP Debug] Early return: userLPBalance=${userLPBalance}`)
       return null
     }
     
@@ -3868,17 +3785,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     const nineInchPrice = getPhuxLPTokenPrice ? getPhuxLPTokenPrice(lpAddress) : null
     
     if (!nineInchPrice || !nineInchPrice.tokens || nineInchPrice.tokens.length !== 2) {
-      console.log(`[9INCH LP Debug] No valid pool data for ${lpSymbol} at ${lpAddress}`)
       return null
     }
     
-    console.log(`[9INCH LP Debug] Pool data tokens:`, nineInchPrice.tokens.map(t => ({ symbol: t.symbol, address: t.address })))
     
     // Use the actual token symbols from the pool data instead of parsing the ticker
     const token0Symbol = nineInchPrice.tokens[0].symbol
     const token1Symbol = nineInchPrice.tokens[1].symbol
     
-    console.log(`[9INCH LP Debug] Using actual pool token symbols: ${token0Symbol}, ${token1Symbol}`)
     
     // For 9INCH pools, we'll estimate 50/50 split since we don't have exact reserve data
     const totalUsdValue = userLPBalance * (nineInchPrice.pricePerShare || 0)
@@ -3889,13 +3803,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     const token0Price = getTokenPrice(token0Symbol)
     const token1Price = getTokenPrice(token1Symbol)
     
-    console.log(`[9INCH LP Debug] Token prices: ${token0Symbol}=$${token0Price}, ${token1Symbol}=$${token1Price}`)
-    console.log(`[9INCH LP Debug] USD values: ${token0Symbol}=$${token0UsdValue.toFixed(2)}, ${token1Symbol}=$${token1UsdValue.toFixed(2)}`)
     
     const token0Amount = token0Price > 0 ? token0UsdValue / token0Price : 0
     const token1Amount = token1Price > 0 ? token1UsdValue / token1Price : 0
     
-    console.log(`[9INCH LP Debug] ${lpSymbol}: Total=$${totalUsdValue.toFixed(2)}, ${token0Symbol}=${token0Amount.toFixed(4)} ($${token0UsdValue.toFixed(2)}), ${token1Symbol}=${token1Amount.toFixed(4)} ($${token1UsdValue.toFixed(2)})`)
     
     return {
       token0: {
@@ -4025,7 +3936,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             
             weightedAPY += apy * userTShares
             
-            console.log(`[Pooled APY] ${token.symbol}: ${currentBacking.toFixed(4)} backing / 1 initial = ${((currentBacking / 1 - 1) * 100).toFixed(2)}% total return over ${daysSinceLaunch} days = ${apy.toFixed(2)}% APY`)
           }
         
         tokens.push({
@@ -4035,7 +3945,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           value: tokenValue
         })
         
-        console.log(`[Pooled Stakes] ${token.symbol}: ${token.balanceFormatted} tokens / ${tokenSupply} supply * ${poolTotalTShares} pool T-shares = ${userTShares.toFixed(2)} user T-shares`)
       }
     })
 
@@ -4053,9 +3962,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     // Debug: Log all unique status values found in the stakes data
     if (currentStakes && currentStakes.length > 0) {
       const uniqueStatuses = [...new Set(currentStakes.map(stake => stake.status))]
-      console.log(`[${activeStakesTab.toUpperCase()} Stakes Debug] Unique status values found:`, uniqueStatuses)
-      console.log(`[${activeStakesTab.toUpperCase()} Stakes Debug] Current filter:`, stakeStatusFilter)
-      console.log(`[${activeStakesTab.toUpperCase()} Stakes Debug] Total stakes before filtering:`, currentStakes.length)
     }
 
     const filtered = currentStakes
@@ -4134,19 +4040,12 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
   // Always show all possible status types regardless of data
   const availableStatuses = useMemo(() => {
     const allPossibleStatuses = ['active', 'inactive']
-    console.log('[HEX Stakes Debug] Showing all possible statuses:', allPossibleStatuses)
     return allPossibleStatuses
   }, [])
 
   // Debug: Log section visibility conditions
   useEffect(() => {
-    console.log('[HEX Stakes Debug] Section visibility check:', {
-      hasAddresses: effectiveAddresses.length > 0,
-      showHexStakes: showHexStakes,
-      hasStakes: hasStakes,
-      hexStakesLength: hexStakes?.length || 0,
-      filteredStakesLength: filteredStakes.length
-    })
+    // Debug logging removed
   }, [effectiveAddresses.length, showHexStakes, hasStakes, hexStakes?.length, filteredStakes.length])
 
   // Reset displayed stakes count when filters change
@@ -4156,8 +4055,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
   // Memoized sorted tokens to prevent re-sorting on every render
   const sortedTokens = useMemo(() => {
-    console.log(`[SORT MEMO] Running sortedTokens memo - sortField: ${tokenSortField}, direction: ${tokenSortDirection}`)
-    console.log(`[SORT MEMO] Settings: dustFilter=${dustFilter}, hideTokensWithoutPrice=${hideTokensWithoutPrice}`)
     if (!mainTokensWithBalances.length || !prices) return []
     
     // First filter by dust threshold and price data availability, then sort
@@ -4352,10 +4249,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       const selectedAddresses = selectedAddressIds.map(id => {
         const foundAddr = effectiveAddresses.find(addr => addr.id === id)
         const address = foundAddr?.address?.toLowerCase()
-        console.log(`[Address Debug] ID ${id} -> found address: ${address}`)
         return address
       }).filter(Boolean)
-      console.log(`[Address Debug] effectiveAddresses:`, effectiveAddresses.map(a => ({id: a.id, address: a.address})))
       
       filteredV3Positions = nineMmV3Positions.filter(position => {
         const positionOwner = position.owner.toLowerCase()
@@ -4768,7 +4663,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       const aValue = calculateDisplayValue(a)
       const bValue = calculateDisplayValue(b)
       
-      console.log(`[LP Pool Sort] ${a.symbol}: $${aValue?.toFixed(2) || '0'} (${a.isV3Position ? 'V3' : 'LP'}) vs ${b.symbol}: $${bValue?.toFixed(2) || '0'} (${b.isV3Position ? 'V3' : 'LP'})`)
       
       return bValue - aValue // Higher value first
     })
@@ -4837,7 +4731,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       decimals: tokenConfig.decimals || 18
     }))
     
-    console.log(`[Farm Debug] Manual farm tokens: ${selectedAddressIds.length > 0 ? 'filtered out due to address selection' : `${manualFarmTokens.length} tokens`}`)
     
     // Add farm tokens with custom balances that might not be in mainTokensWithBalances
     // But skip them if address filtering is active (since they're not associated with any specific address)
@@ -4906,7 +4799,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           if (tickerMatch) {
             underlyingTokens.push(tickerMatch[1]) // token0 (e.g. pUSDC)
             underlyingTokens.push(tickerMatch[2]) // token1 (e.g. WPLS)
-            console.log(`[Price Fetch] Adding LP underlying tokens from ${lpToken.symbol}: ${tickerMatch[1]}, ${tickerMatch[2]}`)
           }
         }
       })
@@ -5119,7 +5011,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         }
       }, 2000)
     } catch (err) {
-      console.error('Failed to copy address:', err)
     }
   }, [])
 
@@ -5137,7 +5028,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         }
       }, 2000)
     } catch (err) {
-      console.error('Failed to copy transaction hash:', err)
     }
   }, [])
 
@@ -5219,7 +5109,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       // Check if this is a custom balance - if so, show exact number with commas
       if (customBalances.has(token.symbol)) {
         const customValue = parseFloat(customBalances.get(token.symbol) || '0')
-        console.log(`[Display Amount] ${token.symbol}: stored="${customBalances.get(token.symbol)}" -> display="${customValue.toLocaleString('en-US')}"`)
         return customValue.toLocaleString('en-US')
       }
       
@@ -6687,49 +6576,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     hexDailyCacheReady
   ])
 
-  // Debug logging
-  console.log('Portfolio Debug:', {
-    addresses: addresses.length,
-    balancesLoading,
-    pricesLoading,
-    maxiLoading,
-    balancesError,
-    maxiError,
-    balances: balances ? balances.length : 'null',
-    prices: prices ? Object.keys(prices).length : 'null',
-    maxiData: maxiData ? Object.keys(maxiData).length : 'null',
-    allTokenTickers,
-    filteredBalances: filteredBalances.length,
-    sortedTokens: sortedTokens.length
-  })
 
   // Additional debugging for isEverythingReady condition
-  console.log('Portfolio Debug - isEverythingReady check:', {
-    addressesLength: addresses.length,
-    hasAddresses: addresses.length > 0,
-    balancesLoading,
-    pricesLoading,
-    maxiLoading,
-    hexStakesLoading,
-    hasBalancesError: !!balancesError,
-    hasMaxiError: !!maxiError,
-    hasBalances: balances && balances.length > 0,
-    hasPrices: prices && Object.keys(prices).length > 0,
-    hasMaxiData: maxiData && Object.keys(maxiData).length > 0,
-    hexStakesCount: filteredStakes?.length || 0,
-    showHexStakes,
-    hexStakesError,
-    allAddressStrings,
-    isEverythingReady
-  })
 
-  // Debug filteredBalances
-  console.log('Portfolio Debug - filteredBalances:', {
-    chainFilter,
-    balancesRaw: balances,
-    filteredBalances,
-    mainTokensWithBalances
-  })
 
   // Generate portfolio analysis for detective mode
   const generatePortfolioAnalysis = useCallback(async () => {
@@ -6737,7 +6586,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
     // Check if HEX daily data cache is ready
     if (!hexDailyCacheReady) {
-      console.log('🕵️ Detective Mode: Waiting for HEX daily data cache to be ready')
       return
     }
 
@@ -6912,7 +6760,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
 
       if (!response.ok) {
         const errorResult = await response.json()
-        console.error('Portfolio Analysis API Error:', errorResult)
         
         if (response.status === 429) {
           setAnalysisError(`Rate limit exceeded: ${errorResult.message}`)
@@ -6923,10 +6770,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       }
 
       const result = await response.json()
-      console.log('Portfolio Analysis Result:', result)
       setPortfolioAnalysis(result.analysis)
     } catch (error) {
-      console.error('Error generating portfolio analysis:', error)
       setAnalysisError(`Error: ${error.message || 'Unable to generate portfolio analysis at this time.'}`)
     } finally {
       setAnalysisLoading(false)
@@ -6972,7 +6817,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         !portfolioAnalysis && 
         !analysisLoading && 
         !analysisError) {
-      console.log('🕵️ Detective Mode: Starting portfolio analysis...')
       generatePortfolioAnalysis()
     }
   }, [detectiveMode, isEverythingReady, effectiveAddresses.length, portfolioAnalysis, analysisLoading, analysisError, generatePortfolioAnalysis])
@@ -7813,9 +7657,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 
                 // Debug PHUX LP pricing and config lookup
                 if (token.symbol.includes('PHUX') || token.symbol === 'Prime PHUX') {
-                  console.log(`[LP Section] ${token.symbol}: tokenPrice = $${tokenPrice}, balance = ${token.balanceFormatted}`)
-                  console.log(`[LP Config] ${token.symbol}: found config = ${!!tokenConfig}, name = "${tokenConfig?.name}", platform = "${tokenConfig?.platform}"`)
-                  console.log(`[LP Config] Available tokens with 'PHUX':`, allTokensForConfig.filter(t => t.ticker.includes('PHUX')).map(t => ({ticker: t.ticker, name: t.name})))
                 }
                 
                 // Check if this is any type of V3 position (dynamic from API or static from constants)
@@ -7918,12 +7759,10 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                   const poolPrice = getPhuxLPTokenPrice(tokenConfig.a)
                   if (poolPrice?.totalShares && token.balanceFormatted) {
                     poolOwnershipPercentage = (token.balanceFormatted / poolPrice.totalShares) * 100
-                    console.log(`[${tokenConfig.platform} LP Ownership] ${token.symbol}: ${token.balanceFormatted} / ${poolPrice.totalShares} = ${poolOwnershipPercentage.toFixed(4)}% of pool`)
                   }
                 } else if (lpData && lpData.totalSupply && token.balanceFormatted) {
                   // For PulseX pools, use existing lpTokenData
                   poolOwnershipPercentage = (token.balanceFormatted / parseFloat(lpData.totalSupply)) * 100
-                  console.log(`[PulseX LP Ownership] ${token.symbol}: ${token.balanceFormatted} / ${lpData.totalSupply} = ${poolOwnershipPercentage.toFixed(4)}% of pool`)
                 }
                 
                 // This logging was moved above to the individual platform sections
@@ -8127,7 +7966,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                           if (isAnyV3Position && customV3Values.has(token.symbol)) {
                             const hasCustomValue = parseFloat(customV3Values.get(token.symbol) || '0') > 0
                             if (hasCustomValue) {
-                              console.log(`[V3 Dropdown] Hiding dropdown for manual V3 override: ${token.symbol}`)
                               return false
                             }
                           }
@@ -8292,18 +8130,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 const isInRange = (isInfiniteLower || currentPoolPrice >= rawLowerPrice) && 
                                                  (isInfiniteUpper || currentPoolPrice <= rawUpperPrice)
                                 
-                                console.log(`[V3 RANGE CHECK] Position ${position.positionId}:`, {
-                                  currentPoolPrice,
-                                  rawLowerPrice,
-                                  rawUpperPrice,
-                                  upperTick,
-                                  isInfiniteUpper,
-                                  isInfiniteLower,
-                                  isInRange,
-                                  comparison: `${currentPoolPrice} >= ${rawLowerPrice} && ${currentPoolPrice} <= ${rawUpperPrice}`,
-                                  infiniteLogic: `(${isInfiniteLower} || ${currentPoolPrice} >= ${rawLowerPrice}) && (${isInfiniteUpper} || ${currentPoolPrice} <= ${rawUpperPrice})`,
-                                  relativeCheck: `${rawUpperPrice} > ${currentPrice} * 1000 = ${rawUpperPrice > currentPrice * 1000}`
-                                })
                                 
                                 // Add current price indicator before this position if it falls in this range
                                 if (posIndex === 0 || (currentPrice >= lowerPrice && currentPrice <= upperPrice)) {
@@ -8501,16 +8327,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           const token0Symbol = token0Info?.ticker || item.position.pool?.token0?.symbol || 'Unknown'
                                           const token1Symbol = token1Info?.ticker || item.position.pool?.token1?.symbol || 'Unknown'
                                           
-                                          // Debug: Check what's happening with token identification
-                                          console.log(`[Breakdown Debug] Position ${item.position.id}:`)
-                                          console.log(`  - token0.id: ${item.position.pool?.token0?.id}`)
-                                          console.log(`  - token0.symbol (from GraphQL): ${item.position.pool?.token0?.symbol}`)
-                                          console.log(`  - token0Info (from findTokenByAddress):`, token0Info)
-                                          console.log(`  - Final token0Symbol: "${token0Symbol}"`)
-                                          console.log(`  - token1.id: ${item.position.pool?.token1?.id}`)
-                                          console.log(`  - token1.symbol (from GraphQL): ${item.position.pool?.token1?.symbol}`)
-                                          console.log(`  - token1Info (from findTokenByAddress):`, token1Info)
-                                          console.log(`  - Final token1Symbol: "${token1Symbol}"`)
 
                                           // Get token prices using the address-based symbols
                                           const token0Price = getTokenPrice(token0Symbol) || 0
@@ -8524,11 +8340,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           const token1Display = `${formatBalance(token1Amount)} ${token1Symbol}`
                                           
                                           // Debug: Log successful address-based matching
-                                          if (item.position.displayName?.includes('eHEX')) {
-                                            console.log(`[eHEX Fixed] Position ${item.position.id}: Now using address-based symbols`)
-                                            console.log(`  - token0Symbol: "${token0Symbol}"`)
-                                            console.log(`  - token1Symbol: "${token1Symbol}"`)
-                                          }
                                           
                                           // Calculate unclaimed fees USD values
                                           const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
@@ -9153,7 +8964,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                   {(() => {
                                     const token0Price = getTokenPrice(underlyingTokens.token0.symbol)
                                     const token0UsdValue = underlyingTokens.token0.amount * token0Price
-                                    console.log(`[LP Token0 Price] ${underlyingTokens.token0.symbol}: price=${token0Price}, amount=${underlyingTokens.token0.amount}, usdValue=${token0UsdValue}`)
                                     return token0Price > 0 ? (
                                       <div className="text-white text-xs font-medium">
                                         ${formatDollarValue(token0UsdValue)}
@@ -9179,7 +8989,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                   {(() => {
                                     const token1Price = getTokenPrice(underlyingTokens.token1.symbol)
                                     const token1UsdValue = underlyingTokens.token1.amount * token1Price
-                                    console.log(`[LP Token1 Price] ${underlyingTokens.token1.symbol}: price=${token1Price}, amount=${underlyingTokens.token1.amount}, usdValue=${token1UsdValue}`)
                                     return token1Price > 0 ? (
                                       <div className="text-white text-xs font-medium">
                                         ${formatDollarValue(token1UsdValue)}
@@ -13328,7 +13137,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                     // Check if this is a V3 position (has 9MM LP V3 name, includes both static and dynamic V3 positions)
                                     const isV3Position = token.name?.includes('9MM LP V3')
                                     
-                                    console.log(`[V3 Detection] ${token.ticker}: isV3Position=${isV3Position}, name="${token.name}"`)
                                     
                                     if (isV3Position) {
                                       // V3 Position: Use USD value input
@@ -13345,13 +13153,11 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                                 newCustomV3Values.delete(token.ticker)
                                               } else {
                                                 const parsedValue = parseInputValue(e.target.value)
-                                                console.log(`[Custom V3 Value Input] ${token.ticker}: input="${e.target.value}" -> parsed="${parsedValue}"`)
                                                 newCustomV3Values.set(token.ticker, parsedValue)
                                                 
                                                 // Auto-enable liquidity positions for V3 positions
                                                 const currentLiquidityPositions = pendingShowLiquidityPositions !== null ? pendingShowLiquidityPositions : showLiquidityPositions
                                                 if (!currentLiquidityPositions) {
-                                                  console.log(`[Auto-Enable] Enabling liquidity positions for V3 position: ${token.ticker}`)
                                                   setPendingShowLiquidityPositions(true)
                                                 }
                                               }
@@ -13376,7 +13182,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                       } else {
                                         // Store the parsed value (without commas) for calculations
                                         const parsedValue = parseInputValue(e.target.value)
-                                        console.log(`[Custom Balance Input] ${token.ticker}: input="${e.target.value}" -> parsed="${parsedValue}"`)
                                         newCustomBalances.set(token.ticker, parsedValue)
                                         
                                         // Auto-enable liquidity positions if this is a farm or LP token
@@ -13384,7 +13189,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         if ((tokenType === 'farm' || tokenType === 'lp') && parseFloat(parsedValue) > 0) {
                                           const currentLiquidityPositions = pendingShowLiquidityPositions !== null ? pendingShowLiquidityPositions : showLiquidityPositions
                                           if (!currentLiquidityPositions) {
-                                            console.log(`[Auto-Enable] Enabling liquidity positions for ${tokenType} token: ${token.ticker}`)
                                             setPendingShowLiquidityPositions(true)
                                           }
                                         }
@@ -13440,7 +13244,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                       const newCustomV3Values = new Map(customV3Values)
                                       newCustomV3Values.delete(token.ticker)
                                       setCustomV3Values(newCustomV3Values)
-                                      console.log(`[V3 Toggle OFF] Cleared custom V3 value for ${token.ticker}`)
                                     }
                                     
                                     // Remove green styling when toggling OFF non-custom tokens

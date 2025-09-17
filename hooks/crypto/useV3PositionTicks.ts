@@ -188,7 +188,6 @@ async function getCurrentTickFromPool(poolAddress: string): Promise<number> {
     const [sqrtPriceX96, tick] = result
     return Number(tick)
   } catch (error) {
-    console.error(`[V3 RPC] Error getting current tick from pool ${poolAddress}:`, error)
     return 0
   }
 }
@@ -262,7 +261,6 @@ export interface V3PositionTickData {
 
 // SWR fetcher function for V3 position data
 const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V3PositionTickData> => {
-  console.log(`[V3 SWR] Fetching position ${tokenId}`)
   
   const result = await client.readContract({
     address: POSITION_MANAGER_ADDRESS as `0x${string}`,
@@ -278,7 +276,6 @@ const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V
   const token0Decimals = getTokenDecimals(token0)
   const token1Decimals = getTokenDecimals(token1)
   
-  console.log(`[V3 Position ${tokenId}] Token decimals - token0: ${token0Decimals}, token1: ${token1Decimals}`)
   
   // Get current tick from pool if pool address is provided
   let currentTick = 0
@@ -309,19 +306,6 @@ const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V
     token1Amount = amounts.token1Amount
   }
 
-  console.log(`[V3 SWR] Position ${tokenId} fetched successfully:`, {
-    tickLower: tickLowerNum,
-    tickUpper: tickUpperNum,
-    lowerPrice: lowerPrice,
-    upperPrice: upperPrice,
-    liquidity: liquidity.toString(),
-    token0: token0,
-    token1: token1,
-    fee: Number(fee),
-    currentTick,
-    token0Amount,
-    token1Amount
-  })
 
   // Get real-time unclaimed fees using static call to collect function
   let tokensOwed0Adjusted = 0
@@ -345,12 +329,7 @@ const fetchV3Position = async (tokenId: string, poolAddress?: string): Promise<V
     tokensOwed0Adjusted = Number(collectResult.result[0]) / Math.pow(10, token0Decimals)
     tokensOwed1Adjusted = Number(collectResult.result[1]) / Math.pow(10, token1Decimals)
     
-    console.log(`[V3 SWR] Position ${tokenId} real-time unclaimed fees:`, {
-      token0: tokensOwed0Adjusted,
-      token1: tokensOwed1Adjusted
-    })
   } catch (error) {
-    console.warn(`[V3 SWR] Failed to get real-time fees for position ${tokenId}, using tokensOwed:`, error)
     // Fallback to tokensOwed values
     tokensOwed0Adjusted = Number(tokensOwed0) / Math.pow(10, token0Decimals)
     tokensOwed1Adjusted = Number(tokensOwed1) / Math.pow(10, token1Decimals)
@@ -388,10 +367,8 @@ export function useV3PositionTick(tokenId: string | null, poolAddress?: string) 
       errorRetryCount: 5,
       errorRetryInterval: 2000,
       onError: (error) => {
-        console.error(`[V3 SWR Error] Position ${tokenId}:`, error.message)
       },
       onSuccess: (data) => {
-        console.log(`[V3 SWR Success] Position ${tokenId} loaded`)
       }
     }
   )

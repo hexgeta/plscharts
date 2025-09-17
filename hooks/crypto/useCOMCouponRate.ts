@@ -95,7 +95,6 @@ export function useCOMCouponRate(
       return result
       
     } catch (err) {
-      console.error('Error calculating COM start bonus:', err)
       return null
     }
   }, [prices, stakedDays, tShares])
@@ -113,7 +112,6 @@ export function useCOMCouponRate(
       return rate
       
     } catch (err) {
-      console.error('Error calculating COM coupon rate:', err)
       return null
     }
   }, [comStartBonus, prices, hexPrincipal])

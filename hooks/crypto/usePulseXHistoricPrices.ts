@@ -104,7 +104,6 @@ async function fetchGraphQL(endpoint: string, query: string, variables: any): Pr
 
     return data.data
   } catch (error) {
-    console.error(`GraphQL fetch error for ${endpoint}:`, error)
     throw error
   }
 }
@@ -132,7 +131,6 @@ export function usePulseXHistoricPrices(): UsePulseXHistoricPricesResult {
       // Convert to day timestamp (start of day)
       const dayTimestamp = Math.floor(timestampSeconds / 86400) * 86400
 
-      console.log(`[usePulseXHistoricPrices] Fetching price for ${tokenAddress} at ${new Date(dayTimestamp * 1000).toISOString()}`)
 
       // Try PulseX v1 first (has more comprehensive data based on testing)
       try {
@@ -146,13 +144,11 @@ export function usePulseXHistoricPrices(): UsePulseXHistoricPricesResult {
           const priceUSD = parseFloat(priceData.priceUSD)
           
           if (priceUSD > 0) {
-            console.log(`[usePulseXHistoricPrices] Found v1 price: $${priceUSD} for ${tokenAddress} at ${new Date(dayTimestamp * 1000).toDateString()}`)
             setIsLoading(false)
             return priceUSD
           }
         }
       } catch (v1Error) {
-        console.warn('[usePulseXHistoricPrices] v1 query failed:', v1Error)
       }
 
       // Try PulseX v2 as fallback
@@ -167,27 +163,22 @@ export function usePulseXHistoricPrices(): UsePulseXHistoricPricesResult {
           const priceUSD = parseFloat(priceData.priceUSD)
           
           if (priceUSD > 0) {
-            console.log(`[usePulseXHistoricPrices] Found v2 price: $${priceUSD} for ${tokenAddress} at ${new Date(dayTimestamp * 1000).toDateString()}`)
             setIsLoading(false)
             return priceUSD
           }
         }
       } catch (v2Error) {
-        console.warn('[usePulseXHistoricPrices] v2 query failed:', v2Error)
       }
 
       // If no direct price found, try to get it from pair data
-      console.log('[usePulseXHistoricPrices] No direct price found, trying pair data...')
       
       // This could be enhanced to calculate price from pair reserves
       // For now, return null if no direct price is found
       
-      console.log(`[usePulseXHistoricPrices] No historic price found for ${tokenAddress}`)
       setIsLoading(false)
       return null
 
     } catch (error) {
-      console.error('[usePulseXHistoricPrices] Error fetching historic price:', error)
       setError(error)
       setIsLoading(false)
       return null

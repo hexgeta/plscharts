@@ -64,7 +64,6 @@ const isCacheValid = (): boolean => {
     
     return cacheTime > cutoff.getTime()
   } catch (error) {
-    console.error('[Cache] Error checking cache validity:', error)
     return false
   }
 }
@@ -77,10 +76,8 @@ const getCachedTokenBalance = (cacheKey: string): TokenBalance | null => {
     const cached = localStorage.getItem(`${CACHE_KEYS.TOKEN_BALANCES}_${cacheKey}`)
     if (!cached) return null
     
-    console.log(`[getTokenBalance] Cache HIT for ${cacheKey.split('-')[2]}`)
     return JSON.parse(cached)
   } catch (error) {
-    console.error('[Cache] Error reading token balance cache:', error)
     return null
   }
 }
@@ -91,7 +88,6 @@ const cacheTokenBalance = (cacheKey: string, tokenBalance: TokenBalance): void =
     localStorage.setItem(`${CACHE_KEYS.TOKEN_BALANCES}_${cacheKey}`, JSON.stringify(tokenBalance))
     localStorage.setItem(CACHE_KEYS.TIMESTAMP, Date.now().toString())
   } catch (error) {
-    console.error('[Cache] Error caching token balance:', error)
   }
 }
 
@@ -160,7 +156,6 @@ const getTokenBalance = async (tokenAddress: string, walletAddress: string, deci
     return cached
   }
 
-  console.log(`[getTokenBalance] Cache MISS - fetching ${symbol}`)
   
   try {
     // ERC-20 balanceOf(address) function signature
@@ -210,7 +205,6 @@ const getTokenBalance = async (tokenAddress: string, walletAddress: string, deci
 
     return tokenBalance
   } catch (error) {
-    console.error(`Error fetching balance for ${symbol}:`, error)
     return {
       address: tokenAddress,
       symbol,
@@ -227,7 +221,6 @@ const getTokenBalance = async (tokenAddress: string, walletAddress: string, deci
 // Function to get all balances for an address
 async function getAddressBalances(address: string, chain: 'ethereum' | 'pulsechain'): Promise<BalanceData> {
   try {
-    console.log(`[useBridgeBalanceCheck] Fetching balances for ${address} on ${chain}`)
     
     // Get native balance
     const nativeBalance = await getNativeBalance(address, chain)
@@ -241,7 +234,6 @@ async function getAddressBalances(address: string, chain: 'ethereum' | 'pulsecha
       token.a.length === 42 // Valid address format
     )
 
-    console.log(`[useBridgeBalanceCheck] Checking ${relevantTokens.length} tokens for ${address} on ${chain}`)
 
     // Get token balances in batches to avoid overwhelming the RPC
     const batchSize = 10
@@ -274,7 +266,6 @@ async function getAddressBalances(address: string, chain: 'ethereum' | 'pulsecha
     // Filter out tokens with zero balance for cleaner display
     const nonZeroTokenBalances = tokenBalances.filter(token => token.balanceFormatted > 0)
 
-    console.log(`[useBridgeBalanceCheck] Found ${nonZeroTokenBalances.length} tokens with balances`)
 
     return {
       address,
@@ -284,7 +275,6 @@ async function getAddressBalances(address: string, chain: 'ethereum' | 'pulsecha
       tokenBalances: nonZeroTokenBalances
     }
   } catch (error) {
-    console.error(`[useBridgeBalanceCheck] Error fetching balances for ${address} on ${chain}:`, error)
     return {
       address,
       chain,
@@ -317,10 +307,8 @@ const clearOldCache = (): void => {
         }
       })
       localStorage.removeItem(CACHE_KEYS.TIMESTAMP)
-      console.log('[Cache] Cleared old cache entries')
     }
   } catch (error) {
-    console.error('[Cache] Error clearing old cache:', error)
   }
 }
 
@@ -347,7 +335,6 @@ const hasCachedBalanceData = (walletAddress: string): boolean => {
             }
           }
         } catch (error) {
-          console.error('[Cache] Error validating cached token:', error)
         }
       }
     })
@@ -355,14 +342,11 @@ const hasCachedBalanceData = (walletAddress: string): boolean => {
     const hasValidData = validTokenCount >= 5 // Require at least 5 tokens to consider cache valid
     
     if (hasValidData) {
-      console.log(`[useBridgeBalanceCheck] Found cached balance data with ${validTokenCount} tokens, skipping fetch`)
     } else {
-      console.log(`[useBridgeBalanceCheck] Insufficient cached data (${validTokenCount} tokens), will fetch fresh`)
     }
     
     return hasValidData
   } catch (error) {
-    console.error('[Cache] Error checking cached balance data:', error)
     return false
   }
 }
@@ -379,10 +363,8 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
   const { data, error: swrError, isLoading: swrLoading } = useSWR(
     cacheKey, // Always fetch when we have a wallet address
     async () => {
-      console.log(`[useBridgeBalanceCheck] Fetching data for ${walletAddress}`)
       const result = await getAddressBalances(walletAddress, 'ethereum')
       
-      console.log(`[useBridgeBalanceCheck] Fetched ${result.tokenBalances?.length || 0} tokens`)
       
       return result
     },
@@ -393,21 +375,14 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
       dedupingInterval: 60 * 60 * 1000, // 1 hour deduping
       revalidateIfStale: true, // Allow revalidation if data is stale
       onSuccess: (data) => {
-        console.log(`[useBridgeBalanceCheck] SWR fetch completed for ${walletAddress} - got ${data?.tokenBalances?.length || 0} tokens`)
       },
       onError: (error) => {
-        console.error(`[useBridgeBalanceCheck] SWR error for ${walletAddress}:`, error)
       }
     }
   )
   
   // Simplified effect: Just use SWR data directly
   useEffect(() => {
-    console.log('[useBridgeBalanceCheck] useEffect triggered:', {
-      hasData: !!data,
-      swrLoading,
-      swrDataTokens: data?.tokenBalances?.length || 0
-    })
 
     // Use SWR data directly - no complex cache reconstruction
     const balanceArray = data ? [data] : []
@@ -416,10 +391,7 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
     setError(swrError)
     
     if (data) {
-      console.log(`[useBridgeBalanceCheck] Set ${data.tokenBalances?.length || 0} tokens from SWR`)
-      console.log(`[useBridgeBalanceCheck] TOKENS:`, data.tokenBalances?.map(t => t.symbol) || [])
     } else if (!swrLoading) {
-      console.log('[useBridgeBalanceCheck] Set empty array - no data and not loading')
     }
   }, [data, swrLoading, swrError, walletAddress])
   

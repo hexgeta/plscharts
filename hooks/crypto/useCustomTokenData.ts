@@ -77,7 +77,6 @@ export function useCustomTokenData(
         const name = nameResult ? hexToString(nameResult) : null
         const symbol = symbolResult ? hexToString(symbolResult) : null
 
-        console.log(`Fetching data for ${contractAddress} on ${chain}`)
         
         setData({
           totalSupply,
@@ -87,15 +86,7 @@ export function useCustomTokenData(
           symbol
         })
         
-        console.log(`Token data fetched:`, {
-          symbol,
-          name,
-          totalSupply,
-          price: dexScreenerPrice,
-          decimals
-        })
       } catch (err) {
-        console.error('Error fetching custom token data:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch token data')
         setData(null)
       } finally {
@@ -143,7 +134,6 @@ async function makeRpcCall(rpcUrl: string, contractAddress: string, functionSig:
 
     return result.result
   } catch (error) {
-    console.error('RPC call failed:', error)
     return null
   }
 }
@@ -177,7 +167,6 @@ function hexToString(hex: string): string | null {
     const uint8Array = new Uint8Array(bytes.slice(0, actualLength))
     return decoder.decode(uint8Array)
   } catch (error) {
-    console.error('Error decoding hex string:', error)
     return null
   }
 }
@@ -189,14 +178,12 @@ async function fetchDexScreenerPrice(contractAddress: string, chain: 'ethereum' 
     const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`)
     
     if (!response.ok) {
-      console.warn(`DexScreener API error: ${response.status}`)
       return null
     }
 
     const data = await response.json()
     
     if (!data.pairs || data.pairs.length === 0) {
-      console.warn('No trading pairs found on DexScreener')
       return null
     }
 
@@ -207,7 +194,6 @@ async function fetchDexScreenerPrice(contractAddress: string, chain: 'ethereum' 
     )
 
     if (chainPairs.length === 0) {
-      console.warn(`No pairs found for chain: ${chain}`)
       return null
     }
 
@@ -220,11 +206,9 @@ async function fetchDexScreenerPrice(contractAddress: string, chain: 'ethereum' 
 
     const price = parseFloat(bestPair.priceUsd)
     
-    console.log(`DexScreener price for ${contractAddress} on ${chain}:`, price)
     return isNaN(price) ? null : price
 
   } catch (error) {
-    console.error('Error fetching DexScreener price:', error)
     return null
   }
 }
@@ -236,17 +220,14 @@ const downloadAndCacheImage = async (imageUrl: string, cacheKey: string): Promis
     if (typeof window !== 'undefined') {
       const cached = localStorage.getItem(`tokenImage_${cacheKey}`)
       if (cached) {
-        console.log(`[ImageCache] Using cached image for ${cacheKey}`)
         return cached
       }
     }
 
-    console.log(`[ImageCache] Downloading image from ${imageUrl}`)
     
     // Download the image
     const response = await fetch(imageUrl)
     if (!response.ok) {
-      console.warn(`[ImageCache] Failed to download image: ${response.status}`)
       return imageUrl // Fallback to original URL
     }
 
@@ -262,9 +243,7 @@ const downloadAndCacheImage = async (imageUrl: string, cacheKey: string): Promis
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(`tokenImage_${cacheKey}`, base64)
-        console.log(`[ImageCache] Cached image for ${cacheKey} (${Math.round(base64.length / 1024)}KB)`)
       } catch (e) {
-        console.warn('[ImageCache] Failed to cache image in localStorage (probably too large):', e)
         return imageUrl // Fallback to original URL if caching fails
       }
     }
@@ -272,7 +251,6 @@ const downloadAndCacheImage = async (imageUrl: string, cacheKey: string): Promis
     return base64
 
   } catch (error) {
-    console.error('[ImageCache] Error downloading/caching image:', error)
     return imageUrl // Fallback to original URL
   }
 }
@@ -280,19 +258,16 @@ const downloadAndCacheImage = async (imageUrl: string, cacheKey: string): Promis
 // New function to fetch token image from DexScreener
 export async function fetchTokenImageFromDexScreener(contractAddress: string, chain: 'ethereum' | 'pulsechain'): Promise<string | null> {
   try {
-    console.log(`[DexScreener] Fetching token image for ${contractAddress} on ${chain}`)
     
     const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`)
     
     if (!response.ok) {
-      console.warn(`[DexScreener] API error: ${response.status}`)
       return null
     }
 
     const data = await response.json()
     
     if (!data.pairs || data.pairs.length === 0) {
-      console.warn('[DexScreener] No trading pairs found')
       return null
     }
 
@@ -303,7 +278,6 @@ export async function fetchTokenImageFromDexScreener(contractAddress: string, ch
     )
 
     if (chainPairs.length === 0) {
-      console.warn(`[DexScreener] No pairs found for chain: ${chain}`)
       return null
     }
 
@@ -326,7 +300,6 @@ export async function fetchTokenImageFromDexScreener(contractAddress: string, ch
     if (isBaseToken || isQuoteToken) {
       // The imageUrl is in the pair's info object for the token we're looking for
       if (bestPair.info?.imageUrl) {
-        console.log(`[DexScreener] Found token image:`, bestPair.info.imageUrl)
         
         // Download and cache the image locally
         const cacheKey = `${contractAddress}_${chain}`.toLowerCase()
@@ -336,11 +309,9 @@ export async function fetchTokenImageFromDexScreener(contractAddress: string, ch
       }
     }
     
-    console.warn('[DexScreener] No token image found in API response')
     return null
 
   } catch (error) {
-    console.error('[DexScreener] Error fetching token image:', error)
     return null
   }
 } 

@@ -66,7 +66,6 @@ const fetchHistoricalShareRates = async (fromDay: number): Promise<ShareRatePoin
       const result = await response.json();
       
       if (result.errors) {
-        console.error('GraphQL errors:', result.errors);
         break;
       }
 
@@ -79,7 +78,6 @@ const fetchHistoricalShareRates = async (fromDay: number): Promise<ShareRatePoin
         hasMore = false;
       }
     } catch (error) {
-      console.error('Error fetching share rates:', error);
       break;
     }
   }
@@ -104,7 +102,6 @@ const fetchHistoricalPrices = async (pairAddress: string): Promise<PricePoint[]>
       price: parseFloat(point.priceUsd)
     }));
   } catch (error) {
-    console.error('Error fetching historical prices:', error);
     return [];
   }
 };
@@ -150,7 +147,6 @@ const calculateCOMRate = (
 
     return { rate, tShares, comStartBonus };
   } catch (err) {
-    console.error('Error calculating COM rate:', err);
     return null;
   }
 };

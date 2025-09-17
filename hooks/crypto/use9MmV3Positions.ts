@@ -23,6 +23,7 @@ const findTokenByAddress = (address: string): { ticker: string; name: string } |
   }
   
   return null
+  
 }
 
 // Types for 9MM V3 GraphQL API response (Uniswap V3 schema)
@@ -144,7 +145,6 @@ const POOLS_BY_IDS_QUERY = `
 
 // GraphQL fetcher for 9MM V3
 const graphqlFetcher = async (query: string, variables: any = {}): Promise<any> => {
-  console.log('[9MM V3 GraphQL] Making request to 9MM V3 API...')
   const response = await fetch('https://graph.9mm.pro/subgraphs/name/pulsechain/9mm-v3-latest', {
     method: 'POST',
     headers: {
@@ -157,15 +157,12 @@ const graphqlFetcher = async (query: string, variables: any = {}): Promise<any> 
   })
 
   if (!response.ok) {
-    console.error(`[9MM V3 GraphQL] Request failed: ${response.status} ${response.statusText}`)
     throw new Error(`9MM V3 GraphQL request failed: ${response.status} ${response.statusText}`)
   }
 
   const result = await response.json()
-  console.log(`[9MM V3 GraphQL] Response received:`, result)
 
   if (result.errors) {
-    console.error('9MM V3 GraphQL errors:', result.errors)
     throw new Error(`9MM V3 GraphQL errors: ${result.errors.map((e: any) => e.message).join(', ')}`)
   }
 
@@ -276,11 +273,9 @@ export function use9MmV3Positions(walletAddress: string | null, options: {
 
   const positions = data?.data?.positions || []
   
-  console.log(`[9MM V3 Positions] Loaded ${positions.length} positions for ${walletAddress}`)
   
   // Log each raw position for debugging duplicates
   if (positions.length > 0) {
-    console.log(`[9MM V3 Raw Positions]:`)
     positions.forEach((pos, index) => {
       const token0Info = findTokenByAddress(pos.pool.token0.id)
       const token1Info = findTokenByAddress(pos.pool.token1.id)
@@ -289,9 +284,7 @@ export function use9MmV3Positions(walletAddress: string | null, options: {
       
       // Check if raw position has a displayName property
       if (pos.displayName) {
-        console.log(`  ${index + 1}. ID: ${pos.id}, Raw displayName: "${pos.displayName}", Calculated: ${token0Symbol}/${token1Symbol}`)
       } else {
-        console.log(`  ${index + 1}. ID: ${pos.id}, Pool: ${token0Symbol}/${token1Symbol}, Fee: ${pos.pool.feeTier}, Liquidity: ${pos.liquidity}`)
       }
     })
   }
@@ -309,31 +302,11 @@ export function use9MmV3Positions(walletAddress: string | null, options: {
     // Test: Check if we're finding the right tokens
     if (position.pool.token0.id === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39' || 
         position.pool.token1.id === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39') {
-      console.log(`[eHEX Test] Found eHEX position:`, {
-        token0Id: position.pool.token0.id,
-        token0Symbol: position.pool.token0.symbol,
-        token0Info: token0Info,
-        token0SymbolResult: token0Symbol,
-        token1Id: position.pool.token1.id,
-        token1Symbol: position.pool.token1.symbol,
-        token1Info: token1Info,
-        token1SymbolResult: token1Symbol
-      })
     }
     
-    // Only log for eHEX positions to reduce noise
-    if (token0Symbol === 'eHEX' || token1Symbol === 'eHEX') {
-      console.log(`[eHEX Hook Debug] Position ${position.id}:`)
-      console.log(`  - token0.id: ${position.pool.token0.id} -> symbol: "${token0Symbol}"`)
-      console.log(`  - token1.id: ${position.pool.token1.id} -> symbol: "${token1Symbol}"`)
-      console.log(`  - displayName: "${token0Symbol} / ${token1Symbol} ${feePercent}%"`)
-    }
 
     // Check if original position has a displayName that might override ours
     if (position.displayName) {
-      console.log(`[DisplayName Override Warning] Position ${position.id}:`)
-      console.log(`  - Original displayName: "${position.displayName}"`)
-      console.log(`  - Our calculated displayName: "${token0Symbol} / ${token1Symbol} ${feePercent}%"`)
     }
 
     return {
@@ -419,7 +392,6 @@ export function use9MmV3Pools(poolAddresses: string[]) {
 
   const pools = data?.data?.pools || []
   
-  console.log(`[9MM V3 Pools] Loaded ${pools.length} pools`)
   
   // Convert pools to a more usable format
   const poolsWithMeta = pools.map(pool => {

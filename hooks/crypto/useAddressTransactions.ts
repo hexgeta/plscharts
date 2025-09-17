@@ -71,7 +71,6 @@ async function fetchTransactions(address: string): Promise<TransactionData> {
   }
 
   try {
-    console.log(`[useAddressTransactions] Fetching ALL transactions for ${address} from PLSfolio API`)
     
     const allTransactions: any[] = []
     let nextPageParams: any = null
@@ -83,7 +82,6 @@ async function fetchTransactions(address: string): Promise<TransactionData> {
     
     do {
       pageCount++
-      console.log(`[useAddressTransactions] Fetching page ${pageCount} from: ${url}`)
       
       try {
         const response = await fetch(url, {
@@ -94,7 +92,6 @@ async function fetchTransactions(address: string): Promise<TransactionData> {
         })
 
         if (!response.ok) {
-          console.error(`[useAddressTransactions] API error on page ${pageCount}: ${response.status} ${response.statusText}`)
           throw new Error(`PLSfolio API error: ${response.status} ${response.statusText}`)
         }
 
@@ -106,11 +103,9 @@ async function fetchTransactions(address: string): Promise<TransactionData> {
 
         // Add transactions from this page
         allTransactions.push(...data.items)
-        console.log(`[useAddressTransactions] Page ${pageCount}: ${data.items.length} transactions (total so far: ${allTransactions.length})`)
 
         // Check if there are more pages
         nextPageParams = data.next_page_params
-        console.log(`[useAddressTransactions] Next page params:`, nextPageParams)
         
         if (nextPageParams && pageCount < maxPages) {
           // Build URL for next page using ALL pagination parameters (cursor-based pagination)
@@ -121,9 +116,7 @@ async function fetchTransactions(address: string): Promise<TransactionData> {
             }
           })
           url = `${PLSFOLIO_API}/transactions/${address}?${params.toString()}`
-          console.log(`[useAddressTransactions] Next page URL: ${url}`)
         } else {
-          console.log(`[useAddressTransactions] No more pages or hit max limit. NextPageParams exists: ${!!nextPageParams}, PageCount: ${pageCount}/${maxPages}`)
         }
         
         // Small delay to be nice to the API
@@ -131,13 +124,11 @@ async function fetchTransactions(address: string): Promise<TransactionData> {
           await new Promise(resolve => setTimeout(resolve, 100))
         }
       } catch (pageError) {
-        console.error(`[useAddressTransactions] Error fetching page ${pageCount}:`, pageError)
         // Break the loop on error to prevent infinite attempts
         break
       }
     } while (nextPageParams && pageCount < maxPages)
 
-    console.log(`[useAddressTransactions] Finished! Fetched ${allTransactions.length} transactions across ${pageCount} pages`)
 
     // Convert PLSfolio format to our format
     const transactions: Transaction[] = allTransactions.map((item: any) => ({
@@ -166,7 +157,6 @@ async function fetchTransactions(address: string): Promise<TransactionData> {
       fromName: item.from?.name || undefined
     }))
     
-    console.log(`[useAddressTransactions] Successfully fetched ${transactions.length} transactions from ALL PAGES`)
     
     return {
       address,
@@ -176,7 +166,6 @@ async function fetchTransactions(address: string): Promise<TransactionData> {
       timestamp: new Date().toISOString()
     }
   } catch (error) {
-    console.error(`[useAddressTransactions] Error fetching transactions:`, error)
     throw error
   }
 }
@@ -204,7 +193,6 @@ export function useAddressTransactions(address: string): UseAddressTransactionsR
       errorRetryCount: 2,
       errorRetryInterval: 1000,
       onError: (error) => {
-        console.error('[useAddressTransactions] SWR Error:', error)
         setError(error)
       },
       onSuccess: () => {

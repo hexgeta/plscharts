@@ -44,7 +44,6 @@ export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h
   const { prices } = useTokenPrices([symbol]);
   const priceData = prices[symbol];
   
-  console.log('[useHistoricPriceChange] symbol:', symbol, 'field:', field);
   
   // Get cached data from localStorage if available
   const getCachedData = () => {
@@ -99,7 +98,6 @@ export function useHistoricPriceChange(symbol: string, periods: Period[] = ['24h
           // All-time-low
           const min = parsed.reduce((min, row) => row.price < min.price ? row : min, parsed[0]);
           if (symbol === 'eHEX') {
-            console.log('[ATL] eHEX min:', { date: min.date, price: min.price });
           }
           result[period] = min && min.price > 0 ? ((latest.price - min.price) / min.price) * 100 : null;
         } else {

@@ -91,7 +91,6 @@ async function fetchLPDataFromEndpoint(subgraph: string, addresses: string[], en
   const result = await response.json()
   
   if (result.errors) {
-    console.error(`[All LP Prices] ${endpointName} GraphQL errors:`, result.errors)
     throw new Error(`${endpointName} GraphQL error: ${result.errors[0]?.message || 'Unknown error'}`)
   }
 
@@ -121,7 +120,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
       } else if (platform === '9MM') {
         nineMmPools.push({ ticker, address })
       } else {
-        console.warn(`[All LP Prices] Unknown platform for ${ticker}: ${platform}`)
       }
     })
     
@@ -166,7 +164,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
           allResults.push(result)
         })
       } catch (error) {
-        console.error('[All LP Prices] V2 fetch failed:', error)
         // Add failed results for V2 pools
         v2Pools.forEach(({ ticker, address }) => {
           allResults.push({
@@ -219,7 +216,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
           allResults.push(result)
         })
       } catch (error) {
-        console.error('[All LP Prices] V1 fetch failed:', error)
         // Add failed results for V1 pools
         v1Pools.forEach(({ ticker, address }) => {
           allResults.push({
@@ -252,7 +248,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
           allResults.push(result)
         })
       } catch (error) {
-        console.error('[All LP Prices] PHUX processing failed:', error)
         phuxPools.forEach(({ ticker, address }) => {
           allResults.push({
             ticker,
@@ -284,7 +279,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
           allResults.push(result)
         })
       } catch (error) {
-        console.error('[All LP Prices] 9INCH processing failed:', error)
         nineInchPools.forEach(({ ticker, address }) => {
           allResults.push({
             ticker,
@@ -301,7 +295,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
     // Fetch 9MM pools if any exist
     if (nineMmPools.length > 0) {
       try {
-        console.log(`[All LP Prices] Processing ${nineMmPools.length} 9MM pools`)
         
         // For 9MM pools, delegate to the same GraphQL pricing system as PHUX/9INCH
         nineMmPools.forEach(({ ticker, address }) => {
@@ -314,11 +307,9 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
             error: null
           }
           
-          console.log(`[All LP Prices] ➡️ 9MM ${ticker}: Delegating to 9MM pricing system`)
           allResults.push(result)
         })
       } catch (error) {
-        console.error('[All LP Prices] 9MM processing failed:', error)
         nineMmPools.forEach(({ ticker, address }) => {
           allResults.push({
             ticker,
@@ -334,7 +325,6 @@ async function fetchAllLPData(lpAddresses: { ticker: string; address: string }[]
 
     return allResults
   } catch (error) {
-    console.error('[All LP Prices] Error fetching LP data:', error)
     throw error
   }
 }

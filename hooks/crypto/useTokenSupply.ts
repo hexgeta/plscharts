@@ -33,7 +33,6 @@ function getMillisecondsUntilNext1AMUTC(): number {
 }
 
 export const useTokenSupply = (tokenTicker: string | null): UseTokenSupplyResult => {
-  console.log(`[useTokenSupply] Starting fetch for ${tokenTicker}`);
   
   // First try to get supply from bulk cache
   const cachedSupplies = getCachedSupplies();
@@ -55,18 +54,15 @@ export const useTokenSupply = (tokenTicker: string | null): UseTokenSupplyResult
       errorRetryInterval: 2000,
       onSuccess: (data: TokenSupplyData) => {
         if (data && tokenTicker) {
-          console.log(`[useTokenSupply] Successfully fetched supply for ${tokenTicker}:`, data.totalSupply);
         }
       },
       onError: (error) => {
-        console.error(`[useTokenSupply] Error fetching supply for ${tokenTicker}:`, error);
       }
     }
   );
 
   // Return cached supply if available, otherwise API data
   if (cachedSupply) {
-    console.log(`[Token Supply] Using cached supply for ${tokenTicker}:`, cachedSupply);
     return {
       totalSupply: cachedSupply,
       loading: false,

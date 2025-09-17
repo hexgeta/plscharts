@@ -61,7 +61,6 @@ const LP_TOKEN_QUERY = `
 
 async function fetchLPData(lpAddress: string): Promise<LPTokenData | null> {
   try {
-    console.log(`[PulseX LP] Fetching data for LP token: ${lpAddress}`)
     
     const response = await fetch(PULSEX_V2_SUBGRAPH, {
       method: 'POST',
@@ -83,26 +82,18 @@ async function fetchLPData(lpAddress: string): Promise<LPTokenData | null> {
     const result = await response.json()
     
     if (result.errors) {
-      console.error('[PulseX LP] GraphQL errors:', result.errors)
       throw new Error(`GraphQL error: ${result.errors[0]?.message || 'Unknown error'}`)
     }
 
     const lpData = result.data?.pair
     
     if (!lpData) {
-      console.warn(`[PulseX LP] No LP data found for address: ${lpAddress}`)
       return null
     }
 
-    console.log(`[PulseX LP] Successfully fetched data:`, {
-      pair: `${lpData.token0?.symbol}/${lpData.token1?.symbol}`,
-      reserveUSD: lpData.reserveUSD,
-      totalSupply: lpData.totalSupply
-    })
 
     return lpData
   } catch (error) {
-    console.error('[PulseX LP] Error fetching LP data:', error)
     throw error
   }
 }
@@ -137,7 +128,6 @@ export function usePulseXLPData(lpAddress: string): UsePulseXLPDataResult {
             const pricePerLPToken = totalValueUSD / totalSupply
             setPricePerToken(pricePerLPToken)
             
-            console.log(`[PulseX LP] Calculated price per LP token: $${pricePerLPToken.toFixed(6)}`)
           }
         }
       } catch (err) {

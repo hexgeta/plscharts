@@ -82,7 +82,6 @@ const PAIR_BY_ID_QUERY = `
 
 // GraphQL fetcher
 const graphqlFetcher = async (query: string, variables: any = {}): Promise<any> => {
-  console.log('[9INCH GraphQL] Making request to 9INCH API...')
   const response = await fetch('https://subgraphs.9inch.io/subgraphs/name/pulsechain/v2', {
     method: 'POST',
     headers: {
@@ -95,15 +94,12 @@ const graphqlFetcher = async (query: string, variables: any = {}): Promise<any> 
   })
 
   if (!response.ok) {
-    console.error(`[9INCH GraphQL] Request failed: ${response.status} ${response.statusText}`)
     throw new Error(`9INCH GraphQL request failed: ${response.status} ${response.statusText}`)
   }
 
   const result = await response.json()
-  console.log(`[9INCH GraphQL] Response received:`, result)
 
   if (result.errors) {
-    console.error('9INCH GraphQL errors:', result.errors)
     throw new Error(`9INCH GraphQL errors: ${result.errors.map((e: any) => e.message).join(', ')}`)
   }
 
@@ -120,7 +116,6 @@ export function use9InchSpecificPools(addresses: string[]) {
       // Fetch each pool individually by address
       for (const address of addresses) {
         try {
-          console.log(`[9INCH] Fetching pool: ${address}`)
           const result = await graphqlFetcher(PAIR_BY_ID_QUERY, { id: address.toLowerCase() })
           
           if (result.data?.pair) {
@@ -129,10 +124,6 @@ export function use9InchSpecificPools(addresses: string[]) {
             const totalShares = parseFloat(pair.totalSupply) || 0
             const pricePerShare = totalShares > 0 ? totalLiquidity / totalShares : 0
             
-            console.log(`[9INCH] ${pair.token0.symbol}/${pair.token1.symbol} (${address}):`)
-            console.log(`  - TVL: $${totalLiquidity}`)
-            console.log(`  - Total Supply: ${totalShares}`)
-            console.log(`  - Price Per Share: $${pricePerShare}`)
             
             pools.push({
               id: pair.id,
@@ -159,10 +150,8 @@ export function use9InchSpecificPools(addresses: string[]) {
               ]
             })
           } else {
-            console.warn(`[9INCH] Pool not found: ${address}`)
           }
         } catch (err) {
-          console.error(`[9INCH] Error fetching pool ${address}:`, err)
         }
       }
       
@@ -216,7 +205,6 @@ export function use9InchPools(options: {
   const pairs = data?.data?.pairs || []
   
   // Convert pairs to pools format for compatibility
-  console.log(`[9INCH Pools] Loaded ${pairs.length} pairs from GraphQL API`)
   
   const pools = pairs.map(pair => {
     // Calculate price per share from the two key metrics
@@ -224,14 +212,9 @@ export function use9InchPools(options: {
     const totalShares = parseFloat(pair.totalSupply) || 0
     const pricePerShare = totalShares > 0 ? totalLiquidity / totalShares : 0
     
-    console.log(`[9INCH Pools] ${pair.token0.symbol}/${pair.token1.symbol} (${pair.id}):`)
-    console.log(`  - TVL (reserveUSD): $${totalLiquidity}`)
-    console.log(`  - Total Supply: ${totalShares}`)
-    console.log(`  - Price Per Share: $${pricePerShare}`)
     
     // Check if this is the BBC pool we're looking for
     if (pair.id.toLowerCase() === '0xb543812ddebc017976f867da710ddb30cca22929') {
-      console.log(`🎯 FOUND THE 9INCH/BBC POOL WE'RE LOOKING FOR!`)
     }
     
     return {

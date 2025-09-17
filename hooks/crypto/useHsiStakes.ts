@@ -151,7 +151,6 @@ export const useHsiStakes = (addresses: string[]) => {
               const result = await response.json();
               
               if (result.errors) {
-                console.error(`[${chain}] HSI GraphQL errors:`, result.errors);
                 hasMore = false;
                 return [];
               }
@@ -165,7 +164,6 @@ export const useHsiStakes = (addresses: string[]) => {
                 hasMore = false;
               }
             } catch (error) {
-              console.error(`[${chain}] Error fetching HSI stakes:`, error);
               hasMore = false;
             }
           }
@@ -178,7 +176,6 @@ export const useHsiStakes = (addresses: string[]) => {
         // Process each chain
         const chains: ('ETH' | 'PLS')[] = ['ETH', 'PLS'];
         for (const chain of chains) {
-          console.log(`Processing ${chain} HSI stakes...`);
           const chainStakes = await fetchAllHsiStakesFromChain(HSI_SUBGRAPH_URLS[chain], chain);
           
           const processedChainStakes = chainStakes.map((stake: any) => {
@@ -209,18 +206,14 @@ export const useHsiStakes = (addresses: string[]) => {
                 if (actualEndDay < promisedEndDay) {
                   // Ended early = EES
                   isEES = true;
-                  console.log(`[${chain}] HSI Stake ${stakeId}: INACTIVE (EES - ended early with penalty: ${stake.stakePenalty} Hearts)`);
                 } else if (actualEndDay > promisedEndDay) {
                   // Ended late = Late End (not EES)
                   isOverdue = true;
                   const daysLate = actualEndDay - promisedEndDay;
-                  console.log(`[${chain}] HSI Stake ${stakeId}: INACTIVE (Late End - ended ${daysLate} days late with penalty: ${stake.stakePenalty} Hearts)`);
                 } else {
                   // Ended exactly on time but with penalty (rare edge case)
-                  console.log(`[${chain}] HSI Stake ${stakeId}: INACTIVE (ended on time with penalty: ${stake.stakePenalty} Hearts)`);
                 }
               } else {
-                console.log(`[${chain}] HSI Stake ${stakeId}: INACTIVE (ended successfully)`);
               }
             } else if (!isStillActive) {
               // Stake ended but no actual end day recorded
@@ -234,7 +227,6 @@ export const useHsiStakes = (addresses: string[]) => {
               }
               actualProgress = calculateProgress(stake.stakeStartDay, stakeEndDay.toString());
               daysLeft = calculateDaysUntilMaturity(stakeEndDay.toString());
-              console.log(`[${chain}] HSI Stake ${stakeId}: ACTIVE ${isOverdue ? '(overdue)' : ''}`);
             }
             
             // Calculate the original promised end date
@@ -261,7 +253,6 @@ export const useHsiStakes = (addresses: string[]) => {
               const payoutRaw = Number(stake.stakePayout);
               const principalRaw = Number(stake.stakeAmount);
               
-              console.log(`[${chain}] HSI Stake ${stakeId}: Raw values - stakePayout: ${payoutRaw}, stakeAmount: ${principalRaw}`);
               
               // Test different conversions
               const payout8 = payoutRaw / 1e8;
@@ -269,10 +260,6 @@ export const useHsiStakes = (addresses: string[]) => {
               const principal12 = principalRaw / 1e12;
               const principal16 = principalRaw / 1e16;
               
-              console.log(`[${chain}] HSI Stake ${stakeId}: Testing scales:`);
-              console.log(`  1e8 scale: payout ${payout8}, principal ${principal8} = yield ${payout8 - principal8}`);
-              console.log(`  1e12 scale: payout ${payout8}, principal ${principal12} = yield ${payout8 - principal12}`);
-              console.log(`  1e16 scale: payout ${payout8}, principal ${principal16} = yield ${payout8 - principal16}`);
               
               // Use the scale that makes sense (payout > principal)
               let payoutHex = payout8;
@@ -285,18 +272,13 @@ export const useHsiStakes = (addresses: string[]) => {
               }
               
               yieldHex = Math.max(0, payoutHex - principalHex);
-              console.log(`[${chain}] HSI Stake ${stakeId}: Final calculation - payout: ${payoutHex} HEX, principal: ${principalHex} HEX, yield: ${yieldHex} HEX`);
             } else {
               // Fallback to calculation method
-              console.log(`[${chain}] HSI Stake ${stakeId}: Fallback calculation - stakeStartDay: ${stakeStartDay}, actualEndDay: ${actualEndDay}, currentDay: ${currentDay}`);
-              console.log(`[${chain}] HSI Stake ${stakeId}: T-Shares raw: ${stake.stakeShares}, converted: ${Number(stake.stakeShares) / 1e12}`);
               
               const cachedYield = getCachedYield(stakeId, chain, currentDay);
-              console.log(`[${chain}] HSI Stake ${stakeId}: Cached yield: ${cachedYield}`);
               
               if (!cachedYield) {
                 const dailyPayouts = getDailyPayoutsForRange(chain, stakeStartDay, actualEndDay);
-                console.log(`[${chain}] HSI Stake ${stakeId}: Daily payouts length: ${dailyPayouts?.length || 0}`);
                 
                 const calculatedYield = calculateYieldForStake(
                   dailyPayouts, 
@@ -305,10 +287,8 @@ export const useHsiStakes = (addresses: string[]) => {
                   actualEndDay
                 );
                 yieldHex = calculatedYield;
-                console.log(`[${chain}] HSI Stake ${stakeId}: Manual calculation result: ${calculatedYield} HEX`);
               } else {
                 yieldHex = cachedYield;
-                console.log(`[${chain}] HSI Stake ${stakeId}: Using cached yield: ${cachedYield} HEX`);
               }
             }
             
@@ -322,10 +302,6 @@ export const useHsiStakes = (addresses: string[]) => {
             // Net yield is the effective yield after penalty (can be negative if penalty > yield)
             const netYieldHex = finalYieldHex - penaltyHex;
             
-            console.log(`[${chain}] HSI Stake ${stakeId}: BEFORE Math.max - yieldHex: ${yieldHex}`);
-            console.log(`[${chain}] HSI Stake ${stakeId}: AFTER Math.max - finalYieldHex: ${finalYieldHex}`);
-            console.log(`[${chain}] HSI Stake ${stakeId}: Penalty calculation - penaltyHex: ${penaltyHex}, netYieldHex: ${netYieldHex}`);
-            console.log(`[${chain}] HSI Stake ${stakeId}: Final object - principleHex: ${principleHex}, yieldHex: ${finalYieldHex}, penaltyHex: ${penaltyHex}, netYieldHex: ${netYieldHex}, total: ${totalHex}`);
             
             return {
               id: `${chain}-hsi-${stake.id}`,
@@ -363,7 +339,6 @@ export const useHsiStakes = (addresses: string[]) => {
         setStakes(allProcessedStakes);
         setIsLoading(false);
       } catch (error) {
-        console.error('Error fetching HSI stakes:', error);
         setError('Failed to fetch HSI stakes');
         setIsLoading(false);
       }

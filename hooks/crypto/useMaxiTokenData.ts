@@ -79,9 +79,7 @@ export function useMaxiTokenData() {
           return hasSignificantChange ? apiData.tokens : prevData
         })
         
-        console.log('[useMaxiTokenData] Fetched MAXI token data:', Object.keys(apiData.tokens))
       } catch (err) {
-        console.error('[useMaxiTokenData] Error fetching MAXI data:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch MAXI data')
       } finally {
         setIsLoading(false)
