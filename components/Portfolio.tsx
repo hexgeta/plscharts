@@ -4852,10 +4852,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       return balance.toExponential(2)
     }
     
+    // Handle very large numbers that should be displayed as billions instead of thousands of millions
     if (balance >= 1e15) return (balance / 1e15).toFixed(1) + 'Q' // Quadrillion
     if (balance >= 1e12) return (balance / 1e12).toFixed(1) + 'T' // Trillion
     if (balance >= 1e9) return (balance / 1e9).toFixed(1) + 'B'   // Billion
-    if (balance >= 1e6) return (balance / 1e6).toFixed(1) + 'M'   // Million
+    if (balance >= 1e6) {
+      // For numbers in millions, check if they're large enough to display as billions
+      const millions = balance / 1e6
+      if (millions >= 1000) {
+        return (balance / 1e9).toFixed(1) + 'B' // Convert to billions for large millions
+      }
+      return millions.toFixed(1) + 'M'   // Million
+    }
     if (balance < 10) return balance.toFixed(2)
     return Math.floor(balance).toLocaleString('en-US')
   }
@@ -4915,7 +4923,14 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     if (balance >= 1e15) return formatWithSuffix(balance / 1e15, 'Q') // Quadrillion
     if (balance >= 1e12) return formatWithSuffix(balance / 1e12, 'T') // Trillion
     if (balance >= 1e9) return formatWithSuffix(balance / 1e9, 'B')   // Billion
-    if (balance >= 1e6) return formatWithSuffix(balance / 1e6, 'M')   // Million
+    if (balance >= 1e6) {
+      // For numbers in millions, check if they're large enough to display as billions
+      const millions = balance / 1e6
+      if (millions >= 1000) {
+        return formatWithSuffix(balance / 1e9, 'B') // Convert to billions for large millions
+      }
+      return formatWithSuffix(balance / 1e6, 'M')   // Million
+    }
     if (balance >= 1e3) return formatWithSuffix(balance / 1e3, 'K')   // Thousand
     
     // For small amounts, show appropriate precision for 3 significant figures
@@ -8423,8 +8438,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           const token0Value = `$${formatDollarValue(token0Amount * token0Price)}`
                                           const token1Value = `$${formatDollarValue(token1Amount * token1Price)}`
 
-                                          const token0Display = `${formatBalance(token0Amount)} ${token0Symbol}`
-                                          const token1Display = `${formatBalance(token1Amount)} ${token1Symbol}`
+                                          const token0Display = `${formatBalance(token0Amount)} ${getDisplayTicker(token0Symbol)}`
+                                          const token1Display = `${formatBalance(token1Amount)} ${getDisplayTicker(token1Symbol)}`
                                           
                                           // Debug: Log successful address-based matching
                                           
@@ -8436,8 +8451,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           // Create unclaimed fees displays
                                           const unclaimedFeesToken0Value = `$${formatDollarValue(unclaimedFeesToken0USD)}`
                                           const unclaimedFeesToken1Value = `$${formatDollarValue(unclaimedFeesToken1USD)}`
-                                          const unclaimedFeesToken0Display = `${formatBalance(unclaimedFeesToken0)} ${token0Symbol}`
-                                          const unclaimedFeesToken1Display = `${formatBalance(unclaimedFeesToken1)} ${token1Symbol}`
+                                          const unclaimedFeesToken0Display = `${formatBalance(unclaimedFeesToken0)} ${getDisplayTicker(token0Symbol)}`
+                                          const unclaimedFeesToken1Display = `${formatBalance(unclaimedFeesToken1)} ${getDisplayTicker(token1Symbol)}`
                                           
                                           
                                           // Calculate claimed fees for closed positions
@@ -8462,8 +8477,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           // Create claimed fees displays
                                           const claimedFeesToken0Value = `$${formatDollarValue(claimedFeesToken0USD)}`
                                           const claimedFeesToken1Value = `$${formatDollarValue(claimedFeesToken1USD)}`
-                                          const claimedFeesToken0Display = `${formatBalance(claimedFeesToken0)} ${token0Symbol}`
-                                          const claimedFeesToken1Display = `${formatBalance(claimedFeesToken1)} ${token1Symbol}`
+                                          const claimedFeesToken0Display = `${formatBalance(claimedFeesToken0)} ${getDisplayTicker(token0Symbol)}`
+                                          const claimedFeesToken1Display = `${formatBalance(claimedFeesToken1)} ${getDisplayTicker(token1Symbol)}`
                                           
                                           
                                           return (
@@ -8720,8 +8735,16 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         const actualMax = Math.max(displayUpperPrice, currentPrice)
                                         const actualRange = actualMax - actualMin
                                         
-                                        // Calculate padding to ensure good visibility (10% of the actual range)
-                                        const padding = Math.max(actualRange * 0.1, actualRange * 0.05) // More conservative padding
+                                        // Calculate padding to ensure good visibility
+                                        // For very small ranges, use a minimum padding to ensure the range is visible
+                                        let padding
+                                        if (actualRange === 0) {
+                                          // If range is 0 (current price equals both bounds), create a small range around it
+                                          padding = Math.max(currentPrice * 0.1, 0.0000001) // 10% of current price or minimum value
+                                        } else {
+                                          // Use 10% of the actual range, but ensure minimum padding for very small ranges
+                                          padding = Math.max(actualRange * 0.1, actualRange * 0.05, actualRange * 0.01)
+                                        }
                                         
                                         // Calculate min and max prices to include the full range AND current price
                                         const minPrice = Math.max(0, actualMin - padding)
@@ -8776,7 +8799,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                         
                                         
                                         // Position current price on the chart
-                                        const currentPricePercent = isInfiniteRange ? 50 : (priceRange > 0 ? ((displayCurrentPrice - minPrice) / priceRange) * 100 : 50)
+                                        let currentPricePercent = isInfiniteRange ? 50 : (priceRange > 0 ? ((displayCurrentPrice - minPrice) / priceRange) * 100 : 50)
+                                        
+                                        // Only apply clamping if the current price would be very close to the edges
+                                        // This prevents the green line from being cut off while preserving accurate positioning
+                                        const minVisiblePercent = 1 // Reduced from 2% to 1% for better accuracy
+                                        const maxVisiblePercent = 99 // Reduced from 98% to 99% for better accuracy
+                                        
+                                        // Only clamp if the current price is extremely close to the edges (within 1%)
+                                        if (currentPricePercent < minVisiblePercent) {
+                                          currentPricePercent = minVisiblePercent
+                                        } else if (currentPricePercent > maxVisiblePercent) {
+                                          currentPricePercent = maxVisiblePercent
+                                        }
                                         
                                         
                                         // Format chart boundary labels to 2 significant figures
