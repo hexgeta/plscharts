@@ -7780,8 +7780,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 let poolOwnershipPercentage = null
                 
                 // Check if V3 position is closed (for display purposes)
-                const totalPositionValue = token.positionValue || 0
-                const isV3PoolClosed = isAnyV3Position && totalPositionValue === 0
+                const isV3PoolClosed = isAnyV3Position && usdValue === 0
                 
                 if (isAnyV3Position) {
                   // For V3 positions, calculate ownership as position value / pool TVL
@@ -7793,16 +7792,15 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                     const firstPosition = token.positions[0]
                     const poolTVL = parseFloat(firstPosition.pool?.totalValueLockedUSD || '0')
                     
-                    if (poolTVL > 0 && totalPositionValue > 0) {
-                      poolOwnershipPercentage = (totalPositionValue / poolTVL) * 100
+                    if (poolTVL > 0 && usdValue > 0) {
+                      poolOwnershipPercentage = (usdValue / poolTVL) * 100
                     }
-                  } else if (token.pool?.totalValueLockedUSD && token.positionValue) {
+                  } else if (token.pool?.totalValueLockedUSD && usdValue > 0) {
                     // For single V3 positions
                     const poolTVL = parseFloat(token.pool.totalValueLockedUSD)
-                    const positionValue = token.positionValue
                     
                     if (poolTVL > 0) {
-                      poolOwnershipPercentage = (positionValue / poolTVL) * 100
+                      poolOwnershipPercentage = (usdValue / poolTVL) * 100
                       }
                     }
                   }
