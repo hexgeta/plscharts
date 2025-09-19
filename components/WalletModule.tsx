@@ -58,7 +58,7 @@ export function WalletProvider({ children, enabled = false }: WalletProviderProp
         }
       }
     } catch (error) {
-      console.error('Failed to connect wallet:', error)
+      // Failed to connect wallet
     }
   }
 
@@ -82,7 +82,7 @@ export function WalletProvider({ children, enabled = false }: WalletProviderProp
             setIsConnected(true)
           }
         } catch (error) {
-          console.error('Failed to check wallet connection:', error)
+          // Failed to check wallet connection
         }
       }
     }

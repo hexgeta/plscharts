@@ -4349,6 +4349,19 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       feePercent: position.feePercent,
       token0Symbol: position.pool.token0.symbol,
       token1Symbol: position.pool.token1.symbol,
+      // Add token addresses for proper lookup
+      token0: {
+        id: position.pool.token0.id,
+        symbol: position.pool.token0.symbol,
+        name: position.pool.token0.name,
+        decimals: position.pool.token0.decimals
+      },
+      token1: {
+        id: position.pool.token1.id,
+        symbol: position.pool.token1.symbol,
+        name: position.pool.token1.name,
+        decimals: position.pool.token1.decimals
+      },
       // Actual token amounts from V3 position calculation
       token0Amount: position.values.token0Amount,
       token1Amount: position.values.token1Amount,
@@ -4390,6 +4403,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       token1Price: position.pool.token1Price,
       // Pool data for ownership calculation and tick calculations
       pool: {
+        id: position.pool.id,
+        name: position.pool.name,
         totalValueLockedUSD: position.pool.totalValueLockedUSD,
         volumeUSD: position.pool.volumeUSD,
         liquidity: position.pool.liquidity,
@@ -4637,21 +4652,30 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             let totalUnclaimedFeesUSD = 0
             
             if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
-              const token0Price = getTokenPrice(position.token0Symbol) || 0
-              const token1Price = getTokenPrice(position.token1Symbol) || 0
+              // Use address-based token lookup for accurate symbols (same as in position breakdown)
+              const token0Info = position.token0?.id ? findTokenByAddress(position.token0.id) : null
+              const token1Info = position.token1?.id ? findTokenByAddress(position.token1.id) : null
+              const token0Symbol = token0Info?.ticker || position.token0Symbol || 'Unknown'
+              const token1Symbol = token1Info?.ticker || position.token1Symbol || 'Unknown'
+              
+              const token0Price = getTokenPrice(token0Symbol) || 0
+              const token1Price = getTokenPrice(token1Symbol) || 0
               const unclaimedFeesToken0 = rpcTickData.tokensOwed0
               const unclaimedFeesToken1 = rpcTickData.tokensOwed1
               const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
               const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
               totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
+              
+              // Calculate position value using RPC data (tokens + unclaimed fees) with correct symbols
+              const rpcPositionValue = (rpcTickData?.token0Amount || 0) * token0Price + 
+                                      (rpcTickData?.token1Amount || 0) * token1Price + 
+                                      totalUnclaimedFeesUSD
+              
+              return total + rpcPositionValue
+            } else {
+              // Fallback if no RPC data - use position value or 0
+              return total + (position.positionValue || 0)
             }
-            
-            // Calculate position value using RPC data (tokens + unclaimed fees)
-            const rpcPositionValue = (rpcTickData?.token0Amount || 0) * (getTokenPrice(position.token0Symbol) || 0) + 
-                                    (rpcTickData?.token1Amount || 0) * (getTokenPrice(position.token1Symbol) || 0) + 
-                                    totalUnclaimedFeesUSD
-            
-            return total + rpcPositionValue
           }, 0)
         } else {
           // For regular LP tokens
@@ -5928,8 +5952,43 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         let usdValue = 0
         
         if (lpToken.isV3Position) {
-          // For V3 positions, use positionValue (same as displayed in UI)
-          usdValue = lpToken.positionValue || 0
+          // For V3 positions, use the same calculation as displayed in UI (corrected token symbols)
+          if (customV3Values.get(lpToken.symbol)) {
+            usdValue = parseFloat(customV3Values.get(lpToken.symbol) || '0')
+          } else {
+            // Sum all position values including unclaimed fees (same as display logic)
+            usdValue = (lpToken.positions || []).reduce((total: number, position: any) => {
+              const positionId = position.positionId
+              const rpcTickData = tickData[positionId]
+              let totalUnclaimedFeesUSD = 0
+              
+              if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
+                // Use address-based token lookup for accurate symbols (same as in position breakdown)
+                const token0Info = position.token0?.id ? findTokenByAddress(position.token0.id) : null
+                const token1Info = position.token1?.id ? findTokenByAddress(position.token1.id) : null
+                const token0Symbol = token0Info?.ticker || position.token0Symbol || 'Unknown'
+                const token1Symbol = token1Info?.ticker || position.token1Symbol || 'Unknown'
+                
+                const token0Price = getTokenPrice(token0Symbol) || 0
+                const token1Price = getTokenPrice(token1Symbol) || 0
+                const unclaimedFeesToken0 = rpcTickData.tokensOwed0
+                const unclaimedFeesToken1 = rpcTickData.tokensOwed1
+                const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
+                const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
+                totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
+                
+                // Calculate position value using RPC data (tokens + unclaimed fees) with correct symbols
+                const rpcPositionValue = (rpcTickData?.token0Amount || 0) * token0Price + 
+                                        (rpcTickData?.token1Amount || 0) * token1Price + 
+                                        totalUnclaimedFeesUSD
+                
+                return total + rpcPositionValue
+              } else {
+                // Fallback if no RPC data - use position value or 0
+                return total + (position.positionValue || 0)
+              }
+            }, 0)
+          }
           v3PositionsValue += usdValue
           } else {
           // For regular LP tokens, use balanceFormatted * tokenPrice
@@ -7620,8 +7679,8 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              {/* Surrounding Ticks Toggle */}
-              <button
+              {/* Surrounding Ticks Toggle - COMMENTED OUT */}
+              {/* <button
                 onClick={() => setShowSurroundingTicks(!showSurroundingTicks)}
                 className={`px-3 py-1 rounded-full text-xs font-medium focus:outline-none flex items-center justify-center gap-1 ${
                   showSurroundingTicks 
@@ -7632,7 +7691,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
               >
                 <div className="w-2 h-2 bg-red-500/30 rounded-sm"></div>
                 Others
-              </button>
+              </button> */}
             </div>
           </div>
           
@@ -7679,22 +7738,31 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                        let totalUnclaimedFeesUSD = 0
                        
                        if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
-                         const token0Price = getTokenPrice(position.token0Symbol) || 0
-                         const token1Price = getTokenPrice(position.token1Symbol) || 0
+                         // Use address-based token lookup for accurate symbols (same as in position breakdown)
+                         const token0Info = position.token0?.id ? findTokenByAddress(position.token0.id) : null
+                         const token1Info = position.token1?.id ? findTokenByAddress(position.token1.id) : null
+                         const token0Symbol = token0Info?.ticker || position.token0Symbol || 'Unknown'
+                         const token1Symbol = token1Info?.ticker || position.token1Symbol || 'Unknown'
+                         
+                         const token0Price = getTokenPrice(token0Symbol) || 0
+                         const token1Price = getTokenPrice(token1Symbol) || 0
                          // tokensOwed0 and tokensOwed1 are now already decimal adjusted from the V3 hook
                          const unclaimedFeesToken0 = rpcTickData.tokensOwed0
                          const unclaimedFeesToken1 = rpcTickData.tokensOwed1
                          const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
                          const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
                          totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
+                         
+                         // Calculate position value using RPC data (tokens + unclaimed fees) with correct symbols
+                         const rpcPositionValue = (rpcTickData?.token0Amount || 0) * token0Price + 
+                                                 (rpcTickData?.token1Amount || 0) * token1Price + 
+                                                 totalUnclaimedFeesUSD
+                         
+                         return total + rpcPositionValue
+                       } else {
+                         // Fallback if no RPC data - use position value or 0
+                         return total + (position.positionValue || 0)
                        }
-                       
-                       // Calculate position value using RPC data (tokens + unclaimed fees)
-                       const rpcPositionValue = (rpcTickData?.token0Amount || 0) * (getTokenPrice(position.token0Symbol) || 0) + 
-                                               (rpcTickData?.token1Amount || 0) * (getTokenPrice(position.token1Symbol) || 0) + 
-                                               totalUnclaimedFeesUSD
-                       
-                       return total + rpcPositionValue
                      }, 0)
                     )
                   : token.balanceFormatted ? token.balanceFormatted * tokenPrice : 0
@@ -8180,15 +8248,41 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 const rpcTickData = tickData[positionId]
                                 let totalUnclaimedFeesUSD = 0
                                 
+                                // Calculate position value using RPC data
+                                let totalPositionValue = 0
+                                
                                 if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
-                                  const token0Price = getTokenPrice(item.position.token0Symbol) || 0
-                                  const token1Price = getTokenPrice(item.position.token1Symbol) || 0
+                                  // Use address-based token lookup for accurate symbols
+                                  const token0Info = item.position.token0?.id ? findTokenByAddress(item.position.token0.id) : null
+                                  const token1Info = item.position.token1?.id ? findTokenByAddress(item.position.token1.id) : null
+                                  const token0Symbol = token0Info?.ticker || item.position.token0?.symbol || 'Unknown'
+                                  const token1Symbol = token1Info?.ticker || item.position.token1?.symbol || 'Unknown'
+                                  
+                                  const token0Price = getTokenPrice(token0Symbol) || 0
+                                  const token1Price = getTokenPrice(token1Symbol) || 0
                                   // tokensOwed0 and tokensOwed1 are now already decimal adjusted from the V3 hook
                                   const unclaimedFeesToken0 = rpcTickData.tokensOwed0
                                   const unclaimedFeesToken1 = rpcTickData.tokensOwed1
                                   const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
                                   const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
                                   totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
+                                  
+                                  // Calculate total position value
+                                  totalPositionValue = (rpcTickData.token0Amount || 0) * token0Price + 
+                                                     (rpcTickData.token1Amount || 0) * token1Price + 
+                                                     totalUnclaimedFeesUSD
+                                } else {
+                                  // Fallback calculation if no RPC data
+                                  // Use address-based token lookup for accurate symbols
+                                  const token0Info = item.position.token0?.id ? findTokenByAddress(item.position.token0.id) : null
+                                  const token1Info = item.position.token1?.id ? findTokenByAddress(item.position.token1.id) : null
+                                  const token0Symbol = token0Info?.ticker || item.position.token0?.symbol || 'Unknown'
+                                  const token1Symbol = token1Info?.ticker || item.position.token1?.symbol || 'Unknown'
+                                  
+                                  const token0Price = getTokenPrice(token0Symbol) || 0
+                                  const token1Price = getTokenPrice(token1Symbol) || 0
+                                  totalPositionValue = (item.position.netToken0Amount || 0) * token0Price + 
+                                                     (item.position.netToken1Amount || 0) * token1Price
                                 }
                                 
                                 return (
@@ -8196,9 +8290,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                     <div className="space-y-3">
                                       <div className="flex items-center space-x-3">
                                         <div className="text-white text-xl font-medium">
-                                          ${formatDollarValue((rpcTickData?.token0Amount || 0) * (getTokenPrice(item.position.token0Symbol) || 0) + 
-                                                             (rpcTickData?.token1Amount || 0) * (getTokenPrice(item.position.token1Symbol) || 0) + 
-                                                             totalUnclaimedFeesUSD)}
+                                          ${formatDollarValue(totalPositionValue)}
                                         </div>
                                         <div className={`text-xs px-2 py-1 rounded-full ${
                                           item.isClosed
@@ -8300,32 +8392,52 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                           }
                                           
                                           // USD values will be calculated after price calculation
-                                          // Force use of address-based token symbols (same logic as displayName)
-                                          const findTokenByAddress = (address: string): { ticker: string; name: string } | null => {
-                                            // Search in TOKEN_CONSTANTS first
-                                            const tokenFromConstants = TOKEN_CONSTANTS.find(token =>
-                                              token.a && token.a.toLowerCase() === address.toLowerCase()
-                                            )
-                                            if (tokenFromConstants) {
-                                              return { ticker: tokenFromConstants.ticker, name: tokenFromConstants.name }
-                                            }
-
-                                            // Search in MORE_COINS if not found in constants
-                                            const tokenFromMoreCoins = MORE_COINS.find(token =>
-                                              token.a && token.a.toLowerCase() === address.toLowerCase()
-                                            )
-                                            if (tokenFromMoreCoins) {
-                                              return { ticker: tokenFromMoreCoins.ticker, name: tokenFromMoreCoins.name }
-                                            }
-
-                                            return null
-                                          }
+                                          // Use the main findTokenByAddress function (defined earlier in the component)
 
                                           // Add null checks for pool token data
-                                          const token0Info = item.position.pool?.token0?.id ? findTokenByAddress(item.position.pool.token0.id) : null
-                                          const token1Info = item.position.pool?.token1?.id ? findTokenByAddress(item.position.pool.token1.id) : null
-                                          const token0Symbol = token0Info?.ticker || item.position.pool?.token0?.symbol || 'Unknown'
-                                          const token1Symbol = token1Info?.ticker || item.position.pool?.token1?.symbol || 'Unknown'
+                                          const token0Info = item.position.token0?.id ? findTokenByAddress(item.position.token0.id) : null
+                                          const token1Info = item.position.token1?.id ? findTokenByAddress(item.position.token1.id) : null
+                                          
+                                          // Fallback: If address-based lookup fails, try to parse from pool name or use API symbols
+                                          let token0Symbol = token0Info?.ticker || item.position.token0?.symbol || 'Unknown'
+                                          let token1Symbol = token1Info?.ticker || item.position.token1?.symbol || 'Unknown'
+                                          
+                                          // If we still have "Unknown" or the API symbols look wrong, try to parse from pool name
+                                          if (token0Symbol === 'Unknown' || token1Symbol === 'Unknown' || 
+                                              (token0Symbol === token1Symbol && token0Symbol !== 'Unknown')) {
+                                            
+                                            // Try to parse from pool name (e.g., "HEX / WPLS 0.25% 9MM V3 LP")
+                                            const poolName = item.position.pool?.name || ''
+                                            const poolNameMatch = poolName.match(/([A-Za-z0-9]+)\s*\/\s*([A-Za-z0-9]+)/)
+                                            
+                                            if (poolNameMatch) {
+                                              const parsedToken0 = poolNameMatch[1]
+                                              const parsedToken1 = poolNameMatch[2]
+                                              
+                                              // Use parsed tokens if they look more reasonable than the API symbols
+                                              if (token0Symbol === 'Unknown' || token0Symbol === token1Symbol) {
+                                                token0Symbol = parsedToken0
+                                              }
+                                              if (token1Symbol === 'Unknown' || token0Symbol === token1Symbol) {
+                                                token1Symbol = parsedToken1
+                                              }
+                                            }
+                                          }
+                                          
+                                          // Debug logging to understand token lookup issues
+                                          if (token0Symbol === 'Unknown' || token1Symbol === 'Unknown') {
+                                            console.log('V3 Token Lookup Debug:', {
+                                              poolName: item.position.pool?.name || 'Unknown Pool',
+                                              token0Address: item.position.token0?.id,
+                                              token0Symbol: item.position.token0?.symbol,
+                                              token0Info: token0Info,
+                                              finalToken0Symbol: token0Symbol,
+                                              token1Address: item.position.token1?.id,
+                                              token1Symbol: item.position.token1?.symbol,
+                                              token1Info: token1Info,
+                                              finalToken1Symbol: token1Symbol
+                                            })
+                                          }
                                           
 
                                           // Get token prices using the address-based symbols
@@ -12537,7 +12649,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                       <input
                         type="number"
                         min="0"
-                        value={validatorCount === 0 ? '' : validatorCount}
+                        value={validatorCount}
                         onChange={(e) => setValidatorCount(Math.max(0, parseInt(e.target.value) || 0))}
                         onBlur={() => {
                           if (window.plausible) window.plausible('Edits Validator Count');

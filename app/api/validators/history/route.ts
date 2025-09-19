@@ -40,7 +40,6 @@ export async function GET(request: NextRequest) {
       .order('date', { ascending: true });
 
     if (error) {
-      console.error('Error fetching validator history:', error);
       throw new Error(`Database error: ${error.message}`);
     }
 
@@ -93,8 +92,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Validator history API error:', error);
-    
     return NextResponse.json(
       { 
         success: false,

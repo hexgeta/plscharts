@@ -115,7 +115,6 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
       return NextResponse.json({ analysis, prompt: analysisPrompt, portfolioData })
 
     } catch (aiError) {
-      console.error('AI generation error:', aiError)
       return NextResponse.json({ 
         error: 'AI Generation Error',
         message: aiError instanceof Error ? aiError.message : 'Failed to generate analysis',
@@ -123,7 +122,6 @@ Write a witty 2-3 sentence analysis starting with "This user" about their crypto
       }, { status: 500 })
     }
   } catch (error) {
-    console.error('Portfolio analysis error:', error)
     return NextResponse.json({ 
       error: 'Internal Server Error',
       message: error instanceof Error ? error.message : 'Failed to process request',

@@ -17,8 +17,6 @@ function getSecondsUntilNext1AMUTC(): number {
 }
 
 export async function GET(request: NextRequest) {
-  console.log('[Bulk Token Supplies] Starting bulk fetch');
-  
   try {
     // Initialize Supabase client
     const supabase = createClient(
@@ -27,14 +25,12 @@ export async function GET(request: NextRequest) {
     );
 
     // Get the latest supply for all tokens in one query
-    console.log('[Bulk Token Supplies] Querying all token supplies');
     const { data, error } = await supabase
       .from('daily_token_supplies')
       .select('ticker, total_supply_formatted, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('[Bulk Token Supplies] Supabase error:', error);
       return NextResponse.json({ error: 'Failed to fetch token supplies' }, { status: 500 });
     }
 
@@ -53,8 +49,6 @@ export async function GET(request: NextRequest) {
     // Add hardcoded supplies (these override DB values)
     Object.assign(latestSupplies, HARDCODED_SUPPLIES);
 
-    console.log(`[Bulk Token Supplies] Found supplies for ${Object.keys(latestSupplies).length} tokens`);
-    
     // Calculate cache duration until next 1 AM UTC
     const maxAge = getSecondsUntilNext1AMUTC();
     
@@ -73,7 +67,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[Bulk Token Supplies] Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

@@ -72,8 +72,6 @@ interface BlockResult {
 }
 
 async function tryStakingContract(contractAddress: string): Promise<any> {
-  console.log(`Trying staking contract: ${contractAddress}`);
-  
   for (const [functionName, signature] of Object.entries(STAKING_FUNCTIONS)) {
     try {
       const response = await fetch(PULSECHAIN_RPC, {
@@ -98,8 +96,6 @@ async function tryStakingContract(contractAddress: string): Promise<any> {
       const result: RPCResponse = await response.json();
       
       if (!result.error && result.result && result.result !== '0x') {
-        console.log(`✅ Function ${functionName} succeeded on ${contractAddress}: ${result.result}`);
-        
         // Try to decode the result
         if (result.result.length > 2) {
           try {
@@ -114,12 +110,11 @@ async function tryStakingContract(contractAddress: string): Promise<any> {
             }
           } catch (e) {
             // Could be array or complex data
-            console.log(`Complex result from ${functionName}: ${result.result.slice(0, 100)}...`);
           }
         }
       }
     } catch (error) {
-      console.log(`${functionName} error on ${contractAddress}:`, error);
+      // Function call failed
     }
   }
   
@@ -127,8 +122,6 @@ async function tryStakingContract(contractAddress: string): Promise<any> {
 }
 
 async function tryBeaconAPI(): Promise<any> {
-  console.log('🔍 Trying Beacon API endpoints...');
-  
   const beaconEndpoints = [
     '/eth/v1/beacon/states/head/validators',
     '/eth/v1/beacon/states/finalized/validators', 
@@ -141,8 +134,6 @@ async function tryBeaconAPI(): Promise<any> {
 
   for (const endpoint of beaconEndpoints) {
     try {
-      console.log(`Trying Beacon API endpoint: ${endpoint}`);
-      
       const response = await fetch(`${PULSECHAIN_BEACON_API}${endpoint}`, {
         method: 'GET',
         headers: {
@@ -151,21 +142,12 @@ async function tryBeaconAPI(): Promise<any> {
         },
       });
 
-      console.log(`Beacon API ${endpoint} status: ${response.status}`);
-      
       if (response.ok) {
         const result = await response.json();
-        console.log(`✅ Beacon API ${endpoint} success:`, Object.keys(result));
         
         // Check for validator data
         if (result.data && Array.isArray(result.data)) {
-          console.log(`Found ${result.data.length} items in ${endpoint}`);
-          
           if (endpoint.includes('validators')) {
-            // Log first few validators to see structure
-            if (result.data.length > 0) {
-              console.log('Sample validator data:', JSON.stringify(result.data.slice(0, 3), null, 2));
-            }
             
             return {
               method: 'beacon_api',
@@ -176,7 +158,6 @@ async function tryBeaconAPI(): Promise<any> {
             };
           }
         } else if (result.data && typeof result.data === 'object') {
-          console.log(`Beacon API ${endpoint} returned object:`, Object.keys(result.data));
           return {
             method: 'beacon_api',
             endpoint: endpoint,
@@ -186,10 +167,9 @@ async function tryBeaconAPI(): Promise<any> {
         }
       } else {
         const errorText = await response.text();
-        console.log(`❌ Beacon API ${endpoint} failed: ${response.status} - ${errorText.slice(0, 200)}`);
       }
     } catch (error) {
-      console.log(`❌ Beacon API ${endpoint} error:`, error);
+      // Beacon API endpoint failed
     }
   }
   
@@ -257,20 +237,14 @@ function filterActiveValidators(validators: any[]): any[] {
     return isCurrentlyActive;
   });
   
-  console.log(`Filtered ${activeValidators.length} active validators from ${validators.length} total`);
   return activeValidators;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Fetching PulseChain validator information...');
-    
     // First try Beacon API
-    console.log('🔍 Trying Beacon API first...');
     const beaconResult = await tryBeaconAPI();
     if (beaconResult && beaconResult.count) {
-      console.log(`✅ Found validator data via Beacon API!`);
-      
       // Filter for active validators
       const activeValidators = filterActiveValidators(beaconResult.validators || []);
       
@@ -280,8 +254,6 @@ export async function GET(request: NextRequest) {
         return sum + balance;
       }, 0);
       
-      console.log(`Total PLS staked: ${totalStaked} Gwei (${totalStaked / 1e9} PLS)`);
-      
       // Sort active validators by balance (descending) to get the largest ones
       const sortedActiveValidators = activeValidators.sort((a, b) => {
         const balanceA = parseInt(a.balance || '0');
@@ -290,10 +262,7 @@ export async function GET(request: NextRequest) {
       });
       
       // Group ALL active validators by withdrawal credentials
-      console.log(`Processing ${activeValidators.length} active validators for grouping...`);
       const groupedValidators = groupValidatorsByWithdrawalCredentials(activeValidators);
-      console.log(`Created ${groupedValidators.length} validator groups`);
-      
       // Get status counts
       const statusCounts: Record<string, number> = {};
       beaconResult.validators?.forEach((validator: any) => {
@@ -334,7 +303,6 @@ export async function GET(request: NextRequest) {
         }
       });
     } else if (beaconResult && beaconResult.data) {
-      console.log(`✅ Found some data via Beacon API (${beaconResult.endpoint})`);
       return NextResponse.json({
         success: true,
         data: {
@@ -353,11 +321,9 @@ export async function GET(request: NextRequest) {
     }
 
     // First try to find staking contracts
-    console.log('🔍 Searching for staking contracts...');
     for (const contractAddress of POTENTIAL_STAKING_CONTRACTS) {
       const stakingResult = await tryStakingContract(contractAddress);
       if (stakingResult) {
-        console.log(`✅ Found validator data via staking contract!`);
         return NextResponse.json({
           success: true,
           data: {
@@ -388,7 +354,6 @@ export async function GET(request: NextRequest) {
 
     for (const method of methods) {
       try {
-        console.log(`Trying RPC method: ${method}`);
         const response = await fetch(PULSECHAIN_RPC, {
           method: 'POST',
           headers: {
@@ -406,7 +371,6 @@ export async function GET(request: NextRequest) {
         
         if (!result.error && result.result && Array.isArray(result.result)) {
           const validators = result.result;
-          console.log(`✅ Found ${validators.length} validators using ${method}`);
           
           return NextResponse.json({
             success: true,
@@ -421,9 +385,8 @@ export async function GET(request: NextRequest) {
             }
           });
         }
-        console.log(`${method} failed or returned no data`);
       } catch (error) {
-        console.log(`${method} error:`, error);
+        // RPC method failed
       }
     }
 
@@ -448,8 +411,6 @@ export async function GET(request: NextRequest) {
 
     const latestBlockHex = latestBlockResult.result;
     const latestBlock = parseInt(latestBlockHex, 16);
-    
-    console.log(`Latest block: ${latestBlock}`);
 
     // Analyze last 1000 blocks to find unique validators/miners (increased from 100)
     const blocksToCheck = 1000;
@@ -506,8 +467,6 @@ export async function GET(request: NextRequest) {
     const uniqueValidatorsList = Array.from(validators);
     const validatorCount = uniqueValidatorsList.length;
 
-    console.log(`✅ Found ${validatorCount} unique validators from ${recentValidators.length} recent blocks`);
-
     const validatorResponse: ValidatorResponse = {
       count: validatorCount,
       recentValidators: recentValidators.slice(-20), // Last 20 validator activities
@@ -525,8 +484,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Failed to fetch PulseChain validators:', error);
-    
     return NextResponse.json({
       success: false,
       error: error.message,

@@ -63,7 +63,6 @@ const fetchWithRetry = async (url: string, retries = 3, delay = 1000) => {
       return response;
     } catch (error) {
       if (i === retries - 1) throw error;
-      console.log(`Retry ${i + 1}/${retries}: Request failed, waiting before retry...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -91,8 +90,6 @@ async function getOrCreateProgress(supabase: any, date: string): Promise<Progres
   }
 
   if (existing && !existing.is_complete) {
-    console.log(`📄 Resuming from page ${existing.last_page + 1}, collected ${existing.total_collected} holders so far`);
-    
     // Build next_page_params from stored values
     const nextPageParams = existing.last_address_hash ? {
       address_hash: existing.last_address_hash,
@@ -123,7 +120,6 @@ async function getOrCreateProgress(supabase: any, date: string): Promise<Progres
     throw insertError;
   }
 
-  console.log('📄 Starting fresh collection from page 1');
   return {
     lastPage: 0,
     nextPageParams: null,
@@ -153,7 +149,7 @@ async function updateProgress(supabase: any, date: string, progress: Partial<Pro
     .eq('date', date);
 
   if (error) {
-    console.error('Error updating progress:', error);
+    // Error updating progress
   }
 }
 
@@ -170,15 +166,11 @@ async function fetchComHoldersFromPage(
   const DELAY_BETWEEN_REQUESTS = 50;
   let consecutive404s = 0;
 
-  console.log(`🔄 Starting collection from page ${startPage + 1}, maxPages: ${maxPages}`);
-
   while (hasNextPage && pageCount < startPage + maxPages) {
     try {
       const queryParams = currentPageParams
         ? '?' + new URLSearchParams(currentPageParams as Record<string, string>).toString()
         : '';
-      
-      console.log(`📊 Fetching page ${pageCount + 1}...`);
       
       let retries = 3;
       let response;
@@ -196,12 +188,10 @@ async function fetchComHoldersFromPage(
             got404 = true;
           }
           
-          console.log(`Retry ${4-retries}/3: Got status ${response.status}, waiting before retry...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
           retries--;
         } catch (error) {
           if (retries === 1) throw error;
-          console.log(`Retry ${4-retries}/3: Request failed, waiting before retry...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
           retries--;
         }
@@ -210,7 +200,6 @@ async function fetchComHoldersFromPage(
       if (got404) {
         consecutive404s++;
         if (consecutive404s >= 3) {
-          console.log('🏁 Got 3 consecutive 404s, assuming end of data reached');
           hasNextPage = false;
           break;
         }
@@ -223,7 +212,6 @@ async function fetchComHoldersFromPage(
       const data = await response.json();
       
       if (!data?.items?.length) {
-        console.log('🏁 No more items, collection complete');
         hasNextPage = false;
         break;
       }
@@ -244,15 +232,12 @@ async function fetchComHoldersFromPage(
         await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
       }
 
-      console.log(`✅ Page ${pageCount} completed. Total holders: ${holders.length}`);
     } catch (error) {
-      console.error('❌ Error fetching page:', error);
       throw error;
     }
   }
 
   const isComplete = !hasNextPage || consecutive404s >= 3;
-  console.log(`📊 Batch complete. Collected ${holders.length} holders in ${pageCount - startPage} pages. Complete: ${isComplete}`);
   
   return { 
     holders, 
@@ -264,8 +249,6 @@ async function fetchComHoldersFromPage(
 // League calculation helper functions
 async function getTotalSupply(supabase: any): Promise<number> {
   try {
-    console.log('📊 Fetching COM total supply from database...');
-    
     const { data, error } = await supabase
       .from('daily_token_supplies')
       .select('total_supply_formatted')
@@ -276,7 +259,6 @@ async function getTotalSupply(supabase: any): Promise<number> {
       .single();
 
     if (error) {
-      console.error('Error fetching COM supply from database:', error);
       throw error;
     }
 
@@ -285,10 +267,8 @@ async function getTotalSupply(supabase: any): Promise<number> {
     }
 
     const totalSupply = parseFloat(data.total_supply_formatted);
-    console.log('📊 COM Total Supply from DB:', totalSupply.toLocaleString());
     return totalSupply;
   } catch (error) {
-    console.error('Error fetching COM supply:', error);
     throw error;
   }
 }
@@ -305,15 +285,11 @@ function getLeague(percentage: number): LeagueData {
 async function getAllHolders(supabase: any): Promise<ComHolder[]> {
   const today = new Date().toISOString().split('T')[0];
   
-  console.log('📊 Fetching all COM holders from database...');
-  
   // First get the count to make sure we fetch all records
   const { count } = await supabase
     .from('com_holders')
     .select('*', { count: 'exact', head: true })
     .eq('date', today);
-  
-  console.log(`📊 Total COM holders in database: ${count}`);
   
   // Supabase has a default limit of 1000, so we need to paginate
   const allHolders: ComHolder[] = [];
@@ -321,8 +297,6 @@ async function getAllHolders(supabase: any): Promise<ComHolder[]> {
   let from = 0;
   
   while (from < (count || 0)) {
-    console.log(`📊 Fetching page: ${from} to ${from + pageSize - 1}`);
-    
     const { data, error } = await supabase
       .from('com_holders')
       .select('address, is_contract, balance')
@@ -331,7 +305,6 @@ async function getAllHolders(supabase: any): Promise<ComHolder[]> {
       .range(from, from + pageSize - 1);
 
     if (error) {
-      console.error('Error fetching holders page:', error);
       throw error;
     }
 
@@ -341,19 +314,13 @@ async function getAllHolders(supabase: any): Promise<ComHolder[]> {
 
     allHolders.push(...data);
     from += pageSize;
-    
-    console.log(`✅ Loaded ${data.length} holders from this page. Total so far: ${allHolders.length}`);
   }
 
-  console.log(`✅ Final total: ${allHolders.length} holders loaded from database`);
-  
   return allHolders;
 }
 
 async function clearLeagueTable(supabase: any): Promise<void> {
   const today = new Date().toISOString().split('T')[0];
-
-  console.log('🗑️ Clearing league_com table for fresh start...');
 
   try {
     const { error } = await supabase
@@ -362,20 +329,16 @@ async function clearLeagueTable(supabase: any): Promise<void> {
       .eq('date', today);
 
     if (error) {
-      console.error('Error clearing league_com table:', error);
       throw error;
     }
 
-    console.log('✅ league_com table cleared successfully');
   } catch (error) {
-    console.error('❌ Error during league table cleanup:', error);
     throw error;
   }
 }
 
 async function getTotalHolders() {
   try {
-    console.log('📊 Fetching total holders count from API...');
     const url = `https://api.scan.pulsechain.com/api/v2/tokens/${COM_CONTRACT}/counters`;
     
     const response = await fetch(url);
@@ -386,21 +349,14 @@ async function getTotalHolders() {
     const data = await response.json();
     const totalHolders = parseInt(data.token_holders_count) || 0;
     
-    console.log(`📊 Total COM holders from API: ${totalHolders.toLocaleString()}`);
     return totalHolders;
   } catch (error) {
-    console.error('Error fetching total holders from API:', error);
     // Fallback to a reasonable estimate if API fails
-    console.log('📊 Using fallback estimate: 367,867 holders');
     return 367867;
   }
 }
 
 async function calculateLeagueStatistics(holders: ComHolder[], totalSupply: number): Promise<Record<string, LeagueStats>> {
-  console.log('📊 Calculating  league statistics...');
-  console.log(`📊 Total  Supply: ${totalSupply.toLocaleString()}`);
-  console.log(`📊 Total Holders to Process: ${holders.length}`);
-  
   // Get total holders from API
   const totalHoldersFromAPI = await getTotalHolders();
   
@@ -427,11 +383,6 @@ async function calculateLeagueStatistics(holders: ComHolder[], totalSupply: numb
   for (const holder of holders) {
     const percentage = (holder.balance / totalSupply) * 100;
     const league = getLeague(percentage);
-    
-    // Debug first few holders
-    if (totalAllHolders < 5) {
-      console.log(`📊 Holder ${totalAllHolders + 1}: Balance=${holder.balance.toLocaleString()}, Percentage=${percentage.toFixed(8)}%, League=${league.emoji} ${league.name}`);
-    }
     
     // Update stats
     leagueStats[league.emoji].all_holders++;

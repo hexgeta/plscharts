@@ -74,7 +74,6 @@ export default function GasTracker() {
       }
     } catch (err) {
       setError('Error fetching current gas data');
-      console.error('Current gas data fetch error:', err);
     }
   };
 
@@ -91,7 +90,6 @@ export default function GasTracker() {
       }
     } catch (err) {
       setError('Error fetching historical gas data');
-      console.error('Historical gas data fetch error:', err);
     }
   };
 
@@ -145,9 +143,6 @@ export default function GasTracker() {
     const ethHistory = historicalGasData.data.ethereum.feeHistory;
     const plsHistory = historicalGasData.data.pulsechain.feeHistory;
     
-    console.log('ETH fee history length:', ethHistory.baseFeePerGas.length);
-    console.log('PLS fee history length:', plsHistory.baseFeePerGas.length);
-    
     // Convert baseFeePerGas from hex to gwei, then to USD
     const ethBaseFees = ethHistory.baseFeePerGas.map(fee => {
       const gasPriceGwei = parseInt(fee, 16) / 1e9;
@@ -165,7 +160,6 @@ export default function GasTracker() {
     });
     
     const maxLength = Math.min(ethBaseFees.length, plsBaseFees.length);
-    console.log('Chart data length:', maxLength);
     
     return Array.from({ length: maxLength }, (_, i) => ({
       blockIndex: i,

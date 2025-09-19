@@ -27,7 +27,7 @@ export function DebugPanel({ show, renderCount, onAddLog }: DebugPanelProps) {
         try {
           return JSON.parse(saved)
         } catch (e) {
-          console.error('Error parsing saved debug panel position:', e)
+          // Error parsing saved debug panel position
         }
       }
     }

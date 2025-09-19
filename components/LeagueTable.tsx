@@ -338,19 +338,7 @@ export default React.memo(function LeagueTable({
 
   // Add debugging for popup tokens
   if (!hasPreloadedPrice || !hasPreloadedSupply) {
-    console.log(`LeagueTable ${tokenTicker} (individual fetch):`, {
-      hasPreloadedPrice,
-      hasPreloadedSupply,
-    tokenPrice,
-    totalSupply,
-      priceLoading,
-    supplyLoading,
-      hasValidPriceData,
-      hasValidSupplyData,
-      loading,
-      priceError,
-      supplyError
-    })
+    // Individual fetch needed
   }
 
   // Calculate user's current league based on their balance

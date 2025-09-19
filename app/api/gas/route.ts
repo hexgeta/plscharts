@@ -155,8 +155,6 @@ async function fetchGasPrice(rpcUrl: string, networkName: string): Promise<GasDa
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Fetching gas price data for Ethereum and PulseChain...');
-
     // Check if historical data is requested (for caching)
     const { searchParams } = new URL(request.url);
     const includeHistory = searchParams.get('history') !== 'false';
@@ -188,8 +186,6 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString()
     };
 
-    console.log(`✅ Gas prices fetched - ETH: ${ethereumGwei.toFixed(2)} gwei, PLS: ${pulsechainGwei.toFixed(6)} gwei`);
-
     const response = NextResponse.json(responseData);
 
     // Only cache when historical data is included (since historical data doesn't change)
@@ -210,8 +206,6 @@ export async function GET(request: NextRequest) {
     return response;
 
   } catch (error: any) {
-    console.error('❌ Failed to fetch gas prices:', error);
-    
     return NextResponse.json({
       success: false,
       error: error.message,

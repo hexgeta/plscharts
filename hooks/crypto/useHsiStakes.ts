@@ -238,14 +238,7 @@ export const useHsiStakes = (addresses: string[]) => {
             // Calculate yield using the same method as native stakes
             let yieldHex = 0;
             
-            // Debug logging for yield calculation
-            console.log(`[${chain}] HSI Stake ${stakeId} yield calculation:`, {
-              stakePayout: stake.stakePayout,
-              stakeAmount: stake.stakeAmount,
-              isActive: stake.isActive,
-              actualEndDay,
-              stakeStartDay
-            });
+            // Debug logging removed
             
             if (stake.stakePayout && Number(stake.stakePayout) > 0) {
               // For ended stakes with payout data
@@ -348,7 +341,7 @@ export const useHsiStakes = (addresses: string[]) => {
     if (isCacheReady) {
       fetchHsiStakes();
     } else if (!isCacheReady && addresses.length > 0) {
-      console.log('[HSI Stakes] Waiting for cache to be ready...');
+      // Cache not ready, waiting...
     }
   }, [addressesString, isCacheReady]);
 

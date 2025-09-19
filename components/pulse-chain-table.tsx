@@ -104,9 +104,6 @@ export function PulseChainTable({ LoadingComponent }: PulseChainTableProps) {
   }
 
   // If we have an error, we should still show the table
-  if (error) {
-    console.error('Error loading token prices:', error);
-  }
 
   // Container component - motion or regular div
   const Container = showMotion ? motion.div : 'div';

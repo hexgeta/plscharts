@@ -80,26 +80,8 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
       
       const result = tickerMatch || nameMatch || contractMatch
       
-      // Debug specific searches
-      if (search.toLowerCase() === 'hex' || search.toLowerCase() === 'pls' || search.toLowerCase().includes('0xb6a3af5d') || search.toLowerCase().includes('0x62bd78d')) {
-        console.log(`Token: ${token.ticker}, ticker: "${tickerLower}", name: "${nameLower}", contract: "${contractLower}", search: "${searchLower}", tickerMatch: ${tickerMatch}, nameMatch: ${nameMatch}, contractMatch: ${contractMatch}, result: ${result}`)
-      }
-      
       return result
     })
-    
-    console.log('Filtered tokens count:', tokens.length)
-    console.log('First 10 filtered tokens:', tokens.slice(0, 10).map(t => t.ticker))
-    
-    // Debug contract address searches specifically
-    if (search.toLowerCase().includes('0x62bd78d') || search.toLowerCase().includes('0xb6a3af5d')) {
-      console.log('=== CONTRACT ADDRESS SEARCH DEBUG ===')
-      console.log('Search term:', search)
-      console.log('looksLikeAddress(search):', looksLikeAddress(search))
-      console.log('isValidAddress(search):', isValidAddress(search))
-      console.log('filteredTokens.length:', tokens.length)
-      console.log('filteredTokens:', tokens.map(t => ({ ticker: t.ticker, contract: t.a })))
-    }
 
     // Sort tokens based on priority and relevance
     tokens.sort((a, b) => {
@@ -121,26 +103,19 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
         // Find the official tokens for this exact search term
         const officialTokens = OFFICIAL_TOKENS_MAP[searchLower] || []
         
-        console.log(`Searching for: "${searchLower}", official tokens:`, officialTokens)
-        
         const aIsOfficial = officialTokens.includes(a.ticker)
         const bIsOfficial = officialTokens.includes(b.ticker)
-        
-        console.log(`Comparing ${a.ticker} (official: ${aIsOfficial}) vs ${b.ticker} (official: ${bIsOfficial})`)
         
         // Official tokens first (in their specified order)
         if (aIsOfficial && bIsOfficial) {
           const aIndex = officialTokens.indexOf(a.ticker)
           const bIndex = officialTokens.indexOf(b.ticker)
-          console.log(`Both official: ${a.ticker} index ${aIndex}, ${b.ticker} index ${bIndex}`)
           return aIndex - bIndex
         }
         if (aIsOfficial) {
-          console.log(`${a.ticker} is official, ${b.ticker} is not - a wins`)
           return -1
         }
         if (bIsOfficial) {
-          console.log(`${b.ticker} is official, ${a.ticker} is not - b wins`)
           return 1
         }
         
@@ -170,8 +145,6 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
         return a.ticker.localeCompare(b.ticker)
       }
     })
-
-    console.log('Final sorted tokens:', tokens.slice(0, 10).map(t => t.ticker))
 
     return tokens.slice(0, 50) // Limit to 50 results for performance
   })()
@@ -209,7 +182,6 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
 
   // Wrap onOpenChange to add debugging
   const handleOpenChange = (newOpen: boolean) => {
-    console.log('TokenSearch onOpenChange called with:', newOpen);
     onOpenChange(newOpen);
   };
 
@@ -264,11 +236,7 @@ export function TokenSearch({ open, onOpenChange }: TokenSearchProps) {
             )}
 
             {/* Token Search Results */}
-            {(() => {
-              console.log('About to render tokens. filteredTokens.length:', filteredTokens.length)
-              console.log('looksLikeAddress(search):', looksLikeAddress(search))
-              return filteredTokens.length > 0
-            })() && (
+            {filteredTokens.length > 0 && (
               <CommandGroup heading="Tokens">
                 {filteredTokens.map((token) => (
                   <CommandItem

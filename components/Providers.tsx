@@ -17,7 +17,7 @@ function HexDataPreloader() {
   
   // Log preload status for debugging (only in development)
   if (process.env.NODE_ENV === 'development' && isPreloaded && lastUpdated) {
-    console.log(`[HEX Cache] Daily data preloaded successfully at ${new Date(lastUpdated).toLocaleTimeString()}`)
+    // Daily data preloaded successfully
   }
   
   return null // This component doesn't render anything

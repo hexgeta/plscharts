@@ -278,18 +278,11 @@ export default function LeaguesPage() {
       
       // Debug logging for failed tokens
       if (!isValid) {
-        console.log(`[LeaguesPage] Token ${ticker} failed validation:`, {
-          priceData,
-          supplyData,
-          hasPrice: priceData && priceData.price > 0,
-          hasSupply: supplyData && supplyData > 0
-        });
+        // Token failed validation
       }
       
       return isValid;
     }).length;
-    
-    console.log(`[LeaguesPage] Valid tokens: ${validTokenCount}/${MAIN_TOKENS.length}`);
     
     // Show the page if we have data for at least 50% of tokens
     return validTokenCount >= Math.ceil(MAIN_TOKENS.length * 0.5);

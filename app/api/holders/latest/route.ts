@@ -50,7 +50,6 @@ export async function GET() {
 
     return NextResponse.json({ data: leagueData })
   } catch (error) {
-    console.error('Error fetching latest league data:', error)
     return NextResponse.json(
       { error: 'Failed to fetch league data' },
       { status: 500 }

@@ -34,7 +34,6 @@ export const CachedIcon = memo<CachedIconProps>((props) => {
     const IconComponent = Icons[name]
     
     if (!IconComponent) {
-      console.warn(`Icon "${name}" not found in Icons`)
       return null
     }
     

@@ -178,7 +178,6 @@ export default function HexStakesViewer() {
       // The address will be auto-populated via useEffect when wallet connects
       
     } catch (err: any) {
-      console.error('Wallet connection error:', err)
       if (err.code === 4001) {
         setError('Wallet connection was rejected by user')
       } else if (err.code === -32002) {
@@ -197,7 +196,6 @@ export default function HexStakesViewer() {
         return
       }
 
-      console.log('Starting stake end process:', { stakeId, stakeIndex, chain, connectedAddress })
       setEndingStake({ stakeId, stakeIndex, chain })
       
       // Get chain ID for the network
@@ -210,14 +208,10 @@ export default function HexStakesViewer() {
         return
       }
 
-      console.log('Using HEX contract address:', hexAddress)
-
       // Check if we're on the correct network
       if (typeof window !== 'undefined' && window.ethereum) {
         const currentChainId = await window.ethereum.request({ method: 'eth_chainId' })
         const currentChainIdNumber = parseInt(currentChainId, 16)
-        
-        console.log('Current chain ID:', currentChainIdNumber, 'Expected:', chainId)
         
         if (currentChainIdNumber !== chainId) {
           // Try to switch networks automatically
@@ -236,7 +230,6 @@ export default function HexStakesViewer() {
               })
             }
             // If successful, continue with the transaction
-            console.log('Network switched successfully')
           } catch (switchError: any) {
             if (switchError.code === 4902) {
               // Network not added, try to add it
@@ -256,7 +249,6 @@ export default function HexStakesViewer() {
                       blockExplorerUrls: ['https://scan.pulsechain.com'],
                     }],
                   })
-                  console.log('PulseChain network added successfully')
                 } catch (addError) {
                   setError('Failed to add PulseChain network. Please add it manually.')
                   setEndingStake(null)
@@ -278,18 +270,6 @@ export default function HexStakesViewer() {
         const stakeIdHex = parseInt(stakeId).toString(16).padStart(64, '0')
         const txData = `0xcd1de2b2${stakeIndexHex}${stakeIdHex}`
         
-        console.log('🔄 STAKE END TRANSACTION:', {
-          stakeName: `Stake ${stakeId}`,
-          stakeIndex,
-          stakeId,
-          stakeIndexHex,
-          stakeIdHex,
-          txData,
-          contractAddress: HEX_ADDRESSES[chainId],
-          functionSelector: '0xcd1de2b2 (stakeEnd)',
-          decodedCall: `stakeEnd(${stakeIndex}, ${stakeId})`
-        })
-
         // Execute the transaction
         const txParams = {
           from: connectedAddress,
@@ -298,24 +278,12 @@ export default function HexStakesViewer() {
           gas: '0x7A120', // 500000 gas
         }
         
-        console.log('Sending transaction with params:', txParams)
-
         const txHash = await window.ethereum.request({
           method: 'eth_sendTransaction',
           params: [txParams],
         })
 
-        console.log('Transaction submitted:', txHash)
         setSuccessMessage(`✅ Transaction submitted: ${txHash}`)
-
-        console.log('🚀 TRANSACTION SUBMITTED:', {
-          txHash,
-          explorer: chainId === 369 
-            ? `https://scan.pulsechain.com/tx/${txHash}`
-            : `https://etherscan.io/tx/${txHash}`,
-          stakeName: `Stake ${stakeId}`,
-          action: 'stakeEnd'
-        })
         
         // Monitor transaction status
         const checkTransaction = async () => {
@@ -326,18 +294,11 @@ export default function HexStakesViewer() {
             })
             
             if (receipt) {
-              console.log('✅ TRANSACTION RECEIPT:', receipt)
               if (receipt.status === '0x1') {
-                console.log('✅ STAKE END SUCCESS:', {
-                  txHash,
-                  stakeName: `Stake ${stakeId}`,
-                  message: 'Stake ended successfully on blockchain!'
-                })
                 setSuccessMessage('✅ Stake ended successfully! Refreshing data...')
                 // Force refresh the stakes data
                 setTimeout(() => window.location.reload(), 2000)
               } else {
-                console.error('❌ TRANSACTION FAILED:', { txHash, receipt })
                 setError('❌ Transaction failed. Please check the transaction hash on the block explorer.')
                 setEndingStake(null)
         }
@@ -346,7 +307,6 @@ export default function HexStakesViewer() {
               setTimeout(checkTransaction, 3000)
             }
           } catch (err) {
-            console.error('Error checking transaction:', err)
             // Fallback: assume success after 10 seconds
             setTimeout(() => {
               setSuccessMessage('⏳ Transaction should be confirmed. Refreshing data...')
@@ -359,7 +319,6 @@ export default function HexStakesViewer() {
         setTimeout(checkTransaction, 5000)
       }
     } catch (err: any) {
-      console.error('End stake error:', err)
       if (err.code === 4001) {
         setError('Transaction was rejected by user')
       } else if (err.code === -32603) {
@@ -378,19 +337,10 @@ export default function HexStakesViewer() {
       return
     }
 
-    console.log('Initiating stake end for stake:', stake)
-    
     // For HEX stakes, the stakeIndex is usually the array index in the stakes list
     // We need to find the actual index in the user's stakes array
     const stakeIndex = hexStakes?.findIndex(s => s.stakeId === stake.stakeId) ?? 0
     const daysLeft = stake.daysLeft || 0
-    
-    console.log('Stake details:', { 
-      stakeId: stake.stakeId, 
-      stakeIndex, 
-      chain: stake.chain, 
-      daysLeft 
-    })
     
     if (daysLeft > 0) {
       // Show warning for early end
