@@ -4535,12 +4535,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
     const groupedV3TokensAsLPTokens = Object.values(groupedV3Positions).map((group: any) => {
       // Calculate if this group has any closed positions (for display purposes)
       const hasClosedPositions = group.positions.some((position: any) => {
-        const positionValue = position.positionValue || 0
-        const netToken0Amount = position.netToken0Amount || 0
-        const netToken1Amount = position.netToken1Amount || 0
+        // Use the liquidity field directly from the graph endpoint
         const liquidity = position.liquidity || "0"
-        const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
-        return positionValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 0.000001 && Math.abs(netToken1Amount) < 0.000001 && positionValue < 10)
+        return liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
       })
       
       return {
@@ -4581,12 +4578,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       // For V3 positions, filter the individual positions within each group
       if (token.positions && Array.isArray(token.positions)) {
         const filteredPositions = token.positions.filter((position: any) => {
-          const positionValue = position.positionValue || 0
-          const netToken0Amount = position.netToken0Amount || 0
-          const netToken1Amount = position.netToken1Amount || 0
+          // Use the liquidity field directly from the graph endpoint
           const liquidity = position.liquidity || "0"
-          const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
-          const isClosed = positionValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 0.000001 && Math.abs(netToken1Amount) < 0.000001 && positionValue < 10)
+          const isClosed = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
           
           switch (v3PositionFilter) {
             case 'active':
@@ -4615,12 +4609,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
       }
       
       // Fallback for individual V3 positions (not grouped)
-      const positionValue = token.positionValue || 0
-      const netToken0Amount = token.netToken0Amount || 0
-      const netToken1Amount = token.netToken1Amount || 0
+      // Use the liquidity field directly from the graph endpoint
       const liquidity = token.liquidity || "0"
-      const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
-      const isClosed = positionValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 0.000001 && Math.abs(netToken1Amount) < 0.000001 && positionValue < 10)
+      const isClosed = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
       
       switch (v3PositionFilter) {
         case 'active':
@@ -4640,6 +4631,18 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         const isAnyV3Position = token.isV3Position || (token.isGroupedV3)
         
         if (isAnyV3Position) {
+          // Check if this V3 position group has any closed positions
+          const hasClosedPositions = token.positions?.some((position: any) => {
+            // Use the liquidity field directly from the graph endpoint
+            const liquidity = position.liquidity || "0"
+            return liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
+          })
+          
+          // Hard code $0 for all closed positions
+          if (hasClosedPositions) {
+            return 0
+          }
+          
           // Use custom value if available
           if (customV3Values.get(token.symbol)) {
             return parseFloat(customV3Values.get(token.symbol) || '0')
@@ -4669,9 +4672,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
               // Calculate position value using RPC data (tokens + unclaimed fees) with correct symbols
               const rpcPositionValue = (rpcTickData?.token0Amount || 0) * token0Price + 
                                       (rpcTickData?.token1Amount || 0) * token1Price + 
-                                      totalUnclaimedFeesUSD
-              
-              return total + rpcPositionValue
+                                    totalUnclaimedFeesUSD
+            
+            return total + rpcPositionValue
             } else {
               // Fallback if no RPC data - use position value or 0
               return total + (position.positionValue || 0)
@@ -5892,12 +5895,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
           if (lpToken.positions && Array.isArray(lpToken.positions)) {
             // Filter positions based on v3PositionFilter
             const filteredPositions = lpToken.positions.filter((position: any) => {
-              const positionValue = position.positionValue || 0
-              const netToken0Amount = position.netToken0Amount || 0
-              const netToken1Amount = position.netToken1Amount || 0
+              // Use the liquidity field directly from the graph endpoint (same as display logic)
               const liquidity = position.liquidity || "0"
-              const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
-              const isClosed = positionValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 0.000001 && Math.abs(netToken1Amount) < 0.000001 && positionValue < 10)
+              const isClosed = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
               
               switch (v3PositionFilter) {
                 case 'active':
@@ -5916,12 +5916,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
             }
           } else {
             // For individual V3 positions (not grouped), apply the same filter logic
-            const positionValue = lpToken.positionValue || 0
-            const netToken0Amount = lpToken.netToken0Amount || 0
-            const netToken1Amount = lpToken.netToken1Amount || 0
+            // Use the liquidity field directly from the graph endpoint (same as display logic)
             const liquidity = lpToken.liquidity || "0"
-            const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
-            const isClosed = positionValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 0.000001 && Math.abs(netToken1Amount) < 0.000001 && positionValue < 10)
+            const isClosed = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
             
             switch (v3PositionFilter) {
               case 'active':
@@ -5952,42 +5949,54 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         let usdValue = 0
         
         if (lpToken.isV3Position) {
-          // For V3 positions, use the same calculation as displayed in UI (corrected token symbols)
-          if (customV3Values.get(lpToken.symbol)) {
-            usdValue = parseFloat(customV3Values.get(lpToken.symbol) || '0')
+          // Check if this V3 position group has any closed positions
+          const hasClosedPositions = lpToken.positions?.some((position: any) => {
+            // Use the liquidity field directly from the graph endpoint
+            const liquidity = position.liquidity || "0"
+            return liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
+          })
+          
+          // Hard code $0 for all closed positions
+          if (hasClosedPositions) {
+            usdValue = 0
           } else {
-            // Sum all position values including unclaimed fees (same as display logic)
-            usdValue = (lpToken.positions || []).reduce((total: number, position: any) => {
-              const positionId = position.positionId
-              const rpcTickData = tickData[positionId]
-              let totalUnclaimedFeesUSD = 0
-              
-              if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
-                // Use address-based token lookup for accurate symbols (same as in position breakdown)
-                const token0Info = position.token0?.id ? findTokenByAddress(position.token0.id) : null
-                const token1Info = position.token1?.id ? findTokenByAddress(position.token1.id) : null
-                const token0Symbol = token0Info?.ticker || position.token0Symbol || 'Unknown'
-                const token1Symbol = token1Info?.ticker || position.token1Symbol || 'Unknown'
+            // For V3 positions, use the same calculation as displayed in UI (corrected token symbols)
+            if (customV3Values.get(lpToken.symbol)) {
+              usdValue = parseFloat(customV3Values.get(lpToken.symbol) || '0')
+            } else {
+              // Sum all position values including unclaimed fees (same as display logic)
+              usdValue = (lpToken.positions || []).reduce((total: number, position: any) => {
+                const positionId = position.positionId
+                const rpcTickData = tickData[positionId]
+                let totalUnclaimedFeesUSD = 0
                 
-                const token0Price = getTokenPrice(token0Symbol) || 0
-                const token1Price = getTokenPrice(token1Symbol) || 0
-                const unclaimedFeesToken0 = rpcTickData.tokensOwed0
-                const unclaimedFeesToken1 = rpcTickData.tokensOwed1
-                const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
-                const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
-                totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
-                
-                // Calculate position value using RPC data (tokens + unclaimed fees) with correct symbols
-                const rpcPositionValue = (rpcTickData?.token0Amount || 0) * token0Price + 
-                                        (rpcTickData?.token1Amount || 0) * token1Price + 
-                                        totalUnclaimedFeesUSD
-                
-                return total + rpcPositionValue
-              } else {
-                // Fallback if no RPC data - use position value or 0
-                return total + (position.positionValue || 0)
-              }
-            }, 0)
+                if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
+                  // Use address-based token lookup for accurate symbols (same as in position breakdown)
+                  const token0Info = position.token0?.id ? findTokenByAddress(position.token0.id) : null
+                  const token1Info = position.token1?.id ? findTokenByAddress(position.token1.id) : null
+                  const token0Symbol = token0Info?.ticker || position.token0Symbol || 'Unknown'
+                  const token1Symbol = token1Info?.ticker || position.token1Symbol || 'Unknown'
+                  
+                  const token0Price = getTokenPrice(token0Symbol) || 0
+                  const token1Price = getTokenPrice(token1Symbol) || 0
+                  const unclaimedFeesToken0 = rpcTickData.tokensOwed0
+                  const unclaimedFeesToken1 = rpcTickData.tokensOwed1
+                  const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
+                  const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
+                  totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
+                  
+                  // Calculate position value using RPC data (tokens + unclaimed fees) with correct symbols
+                  const rpcPositionValue = (rpcTickData?.token0Amount || 0) * token0Price + 
+                                          (rpcTickData?.token1Amount || 0) * token1Price + 
+                                          totalUnclaimedFeesUSD
+                  
+                  return total + rpcPositionValue
+                } else {
+                  // Fallback if no RPC data - use position value or 0
+                  return total + (position.positionValue || 0)
+                }
+              }, 0)
+            }
           }
           v3PositionsValue += usdValue
           } else {
@@ -6020,32 +6029,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
         // If filter is 'closed', don't contribute to total value (force to 0)
         if (v3PositionFilter === 'closed') {
           usdValue = 0
-          // Reset the categorized values too
-          if (lpToken.isV3Position) {
-            v3PositionsValue -= (lpToken.positionValue || 0)
-          } else {
-            const allTokens = [...TOKEN_CONSTANTS, ...MORE_COINS, ...(customTokens || [])]
-            const tokenConfig = allTokens.find(token => token.ticker === lpToken.symbol)
-            const platform = tokenConfig?.platform || 'unknown'
-            const tokenPrice = getLPTokenPrice(lpToken.symbol) || 0
-            const originalValue = lpToken.balanceFormatted ? lpToken.balanceFormatted * tokenPrice : 0
-            
-            switch (platform) {
-              case 'PHUX':
-                phuxLPValue -= originalValue
-                break
-              case '9INCH':
-                nineInchLPValue -= originalValue
-                break
-              case 'PLSX V1':
-              case 'PLSX V2':
-                pulsexLPValue -= originalValue
-                break
-              default:
-                otherLPValue -= originalValue
-                break
-            }
-          }
+          // Don't add to any categorized values for closed positions
         }
         
         
@@ -7756,9 +7740,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                          // Calculate position value using RPC data (tokens + unclaimed fees) with correct symbols
                          const rpcPositionValue = (rpcTickData?.token0Amount || 0) * token0Price + 
                                                  (rpcTickData?.token1Amount || 0) * token1Price + 
-                                                 totalUnclaimedFeesUSD
-                         
-                         return total + rpcPositionValue
+                                               totalUnclaimedFeesUSD
+                       
+                       return total + rpcPositionValue
                        } else {
                          // Fallback if no RPC data - use position value or 0
                          return total + (position.positionValue || 0)
@@ -8115,12 +8099,13 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                               const sortedPositions = [...token.positions].sort((a, b) => {
                                 // Calculate status priority for each position
                                 const getStatusPriority = (pos: any) => {
-                                  const posValue = pos.positionValue || 0
-                                  const netToken0Amount = pos.netToken0Amount || 0
-                                  const netToken1Amount = pos.netToken1Amount || 0
+                                  // Use the liquidity field directly from the graph endpoint
                                   const liquidity = pos.liquidity || "0"
-                                  const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
-                                  const isClosed = posValue < 1 || isLiquidityZero || (Math.abs(netToken0Amount) < 1e-10 && Math.abs(netToken1Amount) < 1e-10 && posValue < 10)
+                                  const isClosed = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
+                                  
+                                  if (isClosed) return 3 // Closed (lowest priority)
+                                  
+                                  // For active positions, check if they're in range
                                   const rawLower = pos.rawLowerPrice || 0
                                   const rawUpper = pos.rawUpperPrice || 0
                                   const currentPoolPrice = parseFloat(token.positions[0]?.token1Price || '0')
@@ -8132,7 +8117,6 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                   const isInRange = (isInfiniteLower || currentPoolPrice >= rawLower) && 
                                                    (isInfiniteUpper || currentPoolPrice <= rawUpper)
                                   
-                                  if (isClosed) return 3 // Closed (lowest priority)
                                   if (isInRange) return 1 // Active: In Range (highest priority)  
                                   return 2 // Active: Out of Range (middle priority)
                                 }
@@ -8166,21 +8150,9 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 const upperPrice = rawUpperPrice
                                 
                                 // Determine if position is closed based on the displayed position value and net token amounts
-                                const positionValue = position.positionValue || 0
-                                const netToken0Amount = position.netToken0Amount || 0
-                                const netToken1Amount = position.netToken1Amount || 0
+                                // Determine if position is closed using the liquidity field directly from the graph endpoint
                                 const liquidity = position.liquidity || "0"
-                                const isLiquidityZero = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
-                                
-                                
-                                // Position is closed if:
-                                // 1. Position value is very low (< $1), OR
-                                // 2. Liquidity is 0 (no liquidity remaining), OR
-                                // 3. Both net token amounts are dust amounts (very close to 0, including scientific notation)
-                                //    AND the position value is also low (not just fees remaining)
-                                const isClosed = positionValue < 1 || 
-                                               isLiquidityZero ||
-                                               (Math.abs(netToken0Amount) < 1e-10 && Math.abs(netToken1Amount) < 1e-10 && positionValue < 10)
+                                const isClosed = liquidity === "0" || liquidity === 0 || parseFloat(liquidity) === 0
                                 
                                 // Calculate if position is in range using price comparison instead of ticks
                                 // Current price should be between rawLowerPrice and rawUpperPrice
@@ -8251,38 +8223,43 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                                 // Calculate position value using RPC data
                                 let totalPositionValue = 0
                                 
+                                // Hard code $0 for closed positions
+                                if (item.isClosed) {
+                                  totalPositionValue = 0
+                                } else {
                                 if (rpcTickData && rpcTickData.tokensOwed0 !== undefined && rpcTickData.tokensOwed1 !== undefined) {
-                                  // Use address-based token lookup for accurate symbols
-                                  const token0Info = item.position.token0?.id ? findTokenByAddress(item.position.token0.id) : null
-                                  const token1Info = item.position.token1?.id ? findTokenByAddress(item.position.token1.id) : null
-                                  const token0Symbol = token0Info?.ticker || item.position.token0?.symbol || 'Unknown'
-                                  const token1Symbol = token1Info?.ticker || item.position.token1?.symbol || 'Unknown'
-                                  
-                                  const token0Price = getTokenPrice(token0Symbol) || 0
-                                  const token1Price = getTokenPrice(token1Symbol) || 0
+                                    // Use address-based token lookup for accurate symbols
+                                    const token0Info = item.position.token0?.id ? findTokenByAddress(item.position.token0.id) : null
+                                    const token1Info = item.position.token1?.id ? findTokenByAddress(item.position.token1.id) : null
+                                    const token0Symbol = token0Info?.ticker || item.position.token0?.symbol || 'Unknown'
+                                    const token1Symbol = token1Info?.ticker || item.position.token1?.symbol || 'Unknown'
+                                    
+                                    const token0Price = getTokenPrice(token0Symbol) || 0
+                                    const token1Price = getTokenPrice(token1Symbol) || 0
                                   // tokensOwed0 and tokensOwed1 are now already decimal adjusted from the V3 hook
                                   const unclaimedFeesToken0 = rpcTickData.tokensOwed0
                                   const unclaimedFeesToken1 = rpcTickData.tokensOwed1
                                   const unclaimedFeesToken0USD = unclaimedFeesToken0 * token0Price
                                   const unclaimedFeesToken1USD = unclaimedFeesToken1 * token1Price
                                   totalUnclaimedFeesUSD = unclaimedFeesToken0USD + unclaimedFeesToken1USD
-                                  
-                                  // Calculate total position value
-                                  totalPositionValue = (rpcTickData.token0Amount || 0) * token0Price + 
-                                                     (rpcTickData.token1Amount || 0) * token1Price + 
-                                                     totalUnclaimedFeesUSD
-                                } else {
-                                  // Fallback calculation if no RPC data
-                                  // Use address-based token lookup for accurate symbols
-                                  const token0Info = item.position.token0?.id ? findTokenByAddress(item.position.token0.id) : null
-                                  const token1Info = item.position.token1?.id ? findTokenByAddress(item.position.token1.id) : null
-                                  const token0Symbol = token0Info?.ticker || item.position.token0?.symbol || 'Unknown'
-                                  const token1Symbol = token1Info?.ticker || item.position.token1?.symbol || 'Unknown'
-                                  
-                                  const token0Price = getTokenPrice(token0Symbol) || 0
-                                  const token1Price = getTokenPrice(token1Symbol) || 0
-                                  totalPositionValue = (item.position.netToken0Amount || 0) * token0Price + 
-                                                     (item.position.netToken1Amount || 0) * token1Price
+                                    
+                                    // Calculate total position value
+                                    totalPositionValue = (rpcTickData.token0Amount || 0) * token0Price + 
+                                                       (rpcTickData.token1Amount || 0) * token1Price + 
+                                                       totalUnclaimedFeesUSD
+                                  } else {
+                                    // Fallback calculation if no RPC data
+                                    // Use address-based token lookup for accurate symbols
+                                    const token0Info = item.position.token0?.id ? findTokenByAddress(item.position.token0.id) : null
+                                    const token1Info = item.position.token1?.id ? findTokenByAddress(item.position.token1.id) : null
+                                    const token0Symbol = token0Info?.ticker || item.position.token0?.symbol || 'Unknown'
+                                    const token1Symbol = token1Info?.ticker || item.position.token1?.symbol || 'Unknown'
+                                    
+                                    const token0Price = getTokenPrice(token0Symbol) || 0
+                                    const token1Price = getTokenPrice(token1Symbol) || 0
+                                    totalPositionValue = (item.position.netToken0Amount || 0) * token0Price + 
+                                                       (item.position.netToken1Amount || 0) * token1Price
+                                  }
                                 }
                                 
                                 return (
