@@ -3155,6 +3155,44 @@ ticker: "9INCH \/ PLSX (f)",
 decimals: 18,
 name: "9INCH Farm V2",
 type: "farm"
+},
+// BSC (Binance Smart Chain) tokens
+{
+chain: 56,
+a: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", // WBNB
+dexs: null,
+ticker: "WBNB",
+decimals: 18,
+name: "Wrapped BNB",
+type: "token"
+},
+{
+chain: 56,
+a: "0x7CD8c22D3F4b66230F73D7FfCB48576233c3fe33", // MEGALAND
+dexs: null,
+ticker: "MEGALAND",
+decimals: 18,
+name: "METAGALAXY LAND",
+type: "token"
+},
+{
+chain: 56,
+a: "0x55d398326f99059fF775485246999027B3197955", // BSC-USD
+dexs: null,
+ticker: "BSC-USD",
+decimals: 18,
+name: "Binance-Peg BSC-USD",
+type: "token"
+},
+{
+chain: 369,
+a: "0xa5B0D537CeBE97f087Dc5FE5732d70719caaEc1D", // hUSDC
+dexs: null,
+ticker: "hUSDC",
+decimals: 6,
+name: "Hyperlane USDC",
+type: "token",
+supply: 0 // Will be updated by cron job
 }
 ];
 

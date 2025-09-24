@@ -19,10 +19,12 @@ export default function Bridge() {
     maximus: ['eMAXI', 'eDECI', 'eLUCKY', 'eTRIO', 'eBASE']
   }
   
-  // All tokens we need prices for (including 'w' prefix for maximus tokens)
+  // All tokens we need prices for (including 'w' prefix for maximus tokens and BSC tokens)
   const ALL_PRICE_TICKERS = [
     ...EXPECTED_BRIDGE_TOKENS.main,
-    ...EXPECTED_BRIDGE_TOKENS.maximus.map(token => `w${token}`)
+    ...EXPECTED_BRIDGE_TOKENS.maximus.map(token => `w${token}`),
+    // BSC tokens
+    'WBNB', 'MEGALAND', 'BSC-USD'
   ]
   
   // Track client-side hydration to prevent hydration mismatches
@@ -46,6 +48,15 @@ export default function Bridge() {
       tokenCount: b.tokenBalances?.length || 0,
       tokens: b.tokenBalances?.map(t => t.symbol) || []
     })) : []
+  })
+
+  // Debug BSC specifically
+  const bscBalance = balances?.find(b => b.chain === 'bsc')
+  console.log('[Bridge Debug] BSC Balance:', {
+    hasBSC: !!bscBalance,
+    bscTokenCount: bscBalance?.tokenBalances?.length || 0,
+    bscTokens: bscBalance?.tokenBalances?.map(t => `${t.symbol}: ${t.balanceFormatted}`) || [],
+    bscError: bscBalance?.error
   })
 
   // Get CST supply from cached supplies - only on client to prevent hydration mismatch
@@ -83,8 +94,8 @@ export default function Bridge() {
       addressData.tokenBalances?.map(token => {
         let tokenPrice = 0
         
-        // Use $1 for stablecoins
-        if (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT') {
+        // Use $1 for stablecoins (works for both Ethereum and BSC)
+        if (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT' || token.symbol === 'BSC-USD') {
           tokenPrice = 1
         }
         // Use "w" prefix for Maximus tokens
@@ -92,7 +103,7 @@ export default function Bridge() {
           const priceTicker = `w${token.symbol}`
           tokenPrice = prices[priceTicker]?.price || 0
         }
-        // Use regular ticker for other tokens
+        // Use regular ticker for other tokens (including BSC tokens)
         else {
           tokenPrice = prices[token.symbol]?.price || 0
         }
@@ -198,6 +209,27 @@ export default function Bridge() {
     )
     
     console.log('[Bridge Debug] maximusTokensWithBalances created with tokens:', tokensWithBalances.map(t => `${t.symbol}:${t.balanceFormatted}`))
+    
+    return tokensWithBalances
+  }, [isClient, balances])
+
+  // Get BSC tokens with balances - only on client
+  const bscTokensWithBalances = useMemo(() => {
+    if (!isClient || !balances || !Array.isArray(balances)) {
+      return []
+    }
+    
+    // Only include BSC tokens that actually have balances > 0
+    const tokensWithBalances = balances.flatMap(addressData => 
+      addressData.tokenBalances?.filter(token => 
+        addressData.chain === 'bsc' && token.balanceFormatted > 0
+      ).map(token => ({
+        ...token,
+        chain: addressData.chain
+      })) || []
+    )
+    
+    console.log('[Bridge Debug] bscTokensWithBalances created with tokens:', tokensWithBalances.map(t => `${t.symbol}:${t.balanceFormatted}`))
     
     return tokensWithBalances
   }, [isClient, balances])
@@ -443,6 +475,109 @@ export default function Bridge() {
                 const tokenPrice = prices[priceTicker]?.price || 0
                 const usdValue = token.balanceFormatted * tokenPrice
                 
+                const displayAmount = formatBalance(token.balanceFormatted)
+                
+                return (
+                <div key={`${token.chain}-${token.symbol}-${tokenIndex}`} className="flex items-top justify-between py-1">
+                  <div className="flex items-top space-x-3">
+                    <div className="flex-shrink-0">
+                      <CoinLogo
+                        symbol={token.symbol}
+                        size="md"
+                        className="rounded-none"
+                        variant="default"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-medium text-sm md:text-md">
+                        {displayAmount} {token.symbol}
+                      </div>
+                      {/* Supply percentage - small text underneath token */}
+                      <div className="text-gray-400 text-[10px]">
+                        {(() => {
+                          const supply = getTokenSupply(token.symbol)
+                          if (!supply || token.balanceFormatted === 0) return ''
+                          const percentage = (token.balanceFormatted / supply) * 100
+                          return formatPercentage(percentage)
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                  {/* USD value only */}
+                  <div className="flex items-top">
+                    <div className="text-white font-medium text-sm md:text-lg">
+                      ${formatBalance(usdValue)}
+                    </div>
+                  </div>
+                </div>
+              )})}
+          </div>
+        </motion.div>
+      )}
+
+      {/* BSC Tokens Table - Binance Bridge Stuff */}
+      {(bscTokensWithBalances.length > 0 || bscBalance) && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ 
+            duration: 0.5,
+            delay: 0.6,
+            ease: [0.23, 1, 0.32, 1]
+          }}
+          className="bg-black border-2 border-white/10 rounded-2xl p-6 max-w-[460px] w-full"
+        >
+          <div className="text-center mb-4">
+            <h3 className="text-lg font-bold text-yellow-400">Binance Bridge Stuff</h3>
+            {bscBalance && bscTokensWithBalances.length === 0 && (
+              <div className="text-sm text-gray-400 mt-2">
+                No BSC tokens found for this address
+                {bscBalance.error && <div className="text-red-400">Error: {bscBalance.error}</div>}
+              </div>
+            )}
+          </div>
+          <div className="space-y-1">
+            {bscTokensWithBalances
+              .sort((a, b) => {
+                let aPrice = 0
+                let bPrice = 0
+                
+                // Use $1 for stablecoins
+                if (a.symbol === 'DAI' || a.symbol === 'USDC' || a.symbol === 'USDT' || a.symbol === 'BSC-USD') {
+                  aPrice = 1
+                } else {
+                  aPrice = prices[a.symbol]?.price || 0
+                }
+                
+                if (b.symbol === 'DAI' || b.symbol === 'USDC' || b.symbol === 'USDT' || b.symbol === 'BSC-USD') {
+                  bPrice = 1
+                } else {
+                  bPrice = prices[b.symbol]?.price || 0
+                }
+                
+                const aValue = a.balanceFormatted * aPrice
+                const bValue = b.balanceFormatted * bPrice
+                
+                // Primary sort by USD value descending
+                const valueDiff = bValue - aValue
+                if (Math.abs(valueDiff) > 0.01) { // If USD values differ by more than 1 cent
+                  return valueDiff
+                }
+                
+                // Secondary sort by token amount descending
+                return b.balanceFormatted - a.balanceFormatted
+              })
+              .map((token, tokenIndex) => {
+                let tokenPrice = 0
+                
+                // Use $1 for stablecoins
+                if (token.symbol === 'DAI' || token.symbol === 'USDC' || token.symbol === 'USDT' || token.symbol === 'BSC-USD') {
+                  tokenPrice = 1
+                } else {
+                  tokenPrice = prices[token.symbol]?.price || 0
+                }
+                
+                const usdValue = token.balanceFormatted * tokenPrice
                 const displayAmount = formatBalance(token.balanceFormatted)
                 
                 return (
