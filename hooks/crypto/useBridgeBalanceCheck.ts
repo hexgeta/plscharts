@@ -9,7 +9,7 @@ import { TOKEN_CONSTANTS } from '@/constants/crypto'
 const RPC_ENDPOINTS = {
   pulsechain: 'https://rpc-pulsechain.g4mm4.io',
   ethereum: 'https://rpc-ethereum.g4mm4.io',
-  bsc: 'https://bsc-rpc.publicnode.com' // Updated BSC endpoint
+  bsc: 'https://bsc-dataseed.binance.org' // Alternative BSC endpoint
 }
 
 interface TokenBalance {

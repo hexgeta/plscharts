@@ -3169,7 +3169,7 @@ type: "token"
 {
 chain: 56,
 a: "0x7CD8c22D3F4b66230F73D7FfCB48576233c3fe33", // MEGALAND
-dexs: null,
+dexs: "0x394FE1da5aacfdc22Bcd2A99945E49A04b9c8b64",
 ticker: "MEGALAND",
 decimals: 18,
 name: "METAGALAXY LAND",
@@ -3191,8 +3191,7 @@ dexs: null,
 ticker: "hUSDC",
 decimals: 6,
 name: "Hyperlane USDC",
-type: "token",
-supply: 0 // Will be updated by cron job
+type: "token"
 }
 ];
 
