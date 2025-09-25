@@ -464,7 +464,7 @@ export default function Bridge() {
           animate={{ opacity: 1, y: -38 }}
           transition={{ 
             duration: 0.5,
-            delay: 0.2,
+            delay: 0.18,
             ease: [0.23, 1, 0.32, 1]
           }}
           className="bg-black border-2 border-white/10 rounded-b-2xl p-6 max-w-[330px] md:max-w-[440px]  w-full relative"
@@ -524,7 +524,7 @@ export default function Bridge() {
                   {/* USD value only */}
                   <div className="flex items-center">
                     <div className="text-white font-medium text-sm md:text-lg">
-                      ${formatBalance(usdValue)}
+                      {tokenPrice > 0 ? `$${formatBalance(usdValue)}` : '--'}
                     </div>
                   </div>
                 </div>
