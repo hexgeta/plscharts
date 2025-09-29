@@ -305,8 +305,8 @@ export default function GasTracker() {
 
             {[
               { name: 'Send Native', gas: 21000 },
-              { name: 'Coin Approval', gas: 45000 },
-              { name: 'Send Coin', gas: 65000 },
+              { name: 'Token Approval', gas: 45000 },
+              { name: 'Send Token', gas: 65000 },
               { name: 'Stake HEX', gas: 90000 },
               { name: 'Bridge', gas: 114556 },
               { name: 'Swap', gas: 356190 },
@@ -381,7 +381,7 @@ export default function GasTracker() {
                 Gas Price History (Last 24 hrs)
               </h2>
               <ResponsiveContainer width="100%" height="90%">
-                <LineChart data={chartData} margin={{ top: 20, right: 5, left: 5, bottom: 20 }}>
+                <ComposedChart data={chartData} margin={{ top: 20, right: 5, left: 5, bottom: 20 }}>
                   <CartesianGrid 
                     strokeDasharray="3 3" 
                     stroke="rgba(136, 136, 136, 0.2)" 
@@ -469,7 +469,7 @@ export default function GasTracker() {
                     hide={!visibleLines.pulsechain}
                     activeDot={{ r: 4, fill: 'rgba(236, 72, 153, 1)', stroke: 'white' }}
                   />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </motion.div>
