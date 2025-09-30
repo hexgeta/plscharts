@@ -486,6 +486,13 @@ export const TOKEN_CONSTANTS = [{
   ticker: "vPLS",
   decimals: 18,
   name: "Vouch Staked PLS"
+}, {
+  chain: 369,
+  a: "0xD34f5ADC24d8Cc55C1e832Bdf65fFfDF80D1314f",
+  dexs: "0x801C369cB1443c087Cd327DfB53AECf378F6ff85",
+  ticker: "VOUCH",
+  decimals: 18,
+  name: "VOUCH"
 },
 {
   chain: 369,
