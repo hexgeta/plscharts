@@ -18,6 +18,11 @@ const MarketingBanner = () => {
       image: '/marketing-banner-2.png', 
       link: '/advertise',
       alt: 'PlsCharts Advertising - Place your ad here'
+    },
+    {
+      image: '/marketing-banner-3.png',
+      link: null,
+      alt: 'AgoráX - Peer-to-peer pooled HEX stake trading'
     }
   ]
   
@@ -54,15 +59,8 @@ const MarketingBanner = () => {
               width: `${banners.length * 100}%`
             }}
           >
-            {banners.map((banner, index) => (
-              <Link
-                key={index}
-                href={banner.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block relative flex-shrink-0 cursor-pointer"
-                style={{ width: `${100 / banners.length}%` }}
-              >
+            {banners.map((banner, index) => {
+              const content = (
                 <Image
                   src={banner.image}
                   alt={banner.alt}
@@ -70,8 +68,29 @@ const MarketingBanner = () => {
                   className="object-cover"
                   priority={index === 0}
                 />
-              </Link>
-            ))}
+              )
+              
+              return banner.link ? (
+                <Link
+                  key={index}
+                  href={banner.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block relative flex-shrink-0 cursor-pointer"
+                  style={{ width: `${100 / banners.length}%` }}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div
+                  key={index}
+                  className="block relative flex-shrink-0"
+                  style={{ width: `${100 / banners.length}%` }}
+                >
+                  {content}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
