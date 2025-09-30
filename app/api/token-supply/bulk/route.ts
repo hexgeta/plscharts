@@ -28,11 +28,15 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('daily_token_supplies')
       .select('ticker, total_supply_formatted, created_at')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(10000); // Increase limit to ensure we get all tokens
 
     if (error) {
+      console.error('[Bulk API] Supabase error:', error);
       return NextResponse.json({ error: 'Failed to fetch token supplies' }, { status: 500 });
     }
+
+    console.log('[Bulk API] Total rows returned:', data?.length);
 
     // Group by ticker and get the latest entry for each
     const latestSupplies: Record<string, number> = {};
@@ -46,8 +50,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Add hardcoded supplies (these override DB values)
-    Object.assign(latestSupplies, HARDCODED_SUPPLIES);
+    // Add hardcoded supplies (only for tokens not found in DB)
+    for (const [ticker, supply] of Object.entries(HARDCODED_SUPPLIES)) {
+      if (!(ticker in latestSupplies)) {
+        latestSupplies[ticker] = supply;
+      }
+    }
 
     // Calculate cache duration until next 1 AM UTC
     const maxAge = getSecondsUntilNext1AMUTC();

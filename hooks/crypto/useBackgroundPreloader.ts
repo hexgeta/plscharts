@@ -260,7 +260,7 @@ const preloadCoinLogos = async (): Promise<void> => {
     ];
     
     // Combine with common logos and additional known tokens
-    const allLogos = [
+    const allLogos: string[] = [
       ...commonLogos, // Include common ones again in case they failed
       ...allTokenTickers, // All tokens from our data sources
       // Additional tokens from various sources that might not be in our constants
@@ -279,7 +279,7 @@ const preloadCoinLogos = async (): Promise<void> => {
     // Phase 2: Load remaining logos more slowly to not overwhelm the browser
     const loadRemainingLogos = async () => {
       const batchSize = 10; // Load 10 at a time
-      const batches = [];
+      const batches: string[][] = [];
       
       for (let i = 0; i < uniqueLogos.length; i += batchSize) {
         batches.push(uniqueLogos.slice(i, i + batchSize));
@@ -370,6 +370,17 @@ export const useBackgroundPreloader = () => {
     lastUpdated: data?.lastUpdated,
     totalSupplies: data?.count || 0,
   };
+};
+
+// Clear token supplies cache
+export const clearTokenSuppliesCache = (): void => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.removeItem(CACHE_KEYS.TOKEN_SUPPLIES);
+  } catch (error) {
+    console.error('Failed to clear token supplies cache:', error);
+  }
 };
 
 // Export utility functions for other hooks to use

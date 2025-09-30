@@ -8,7 +8,8 @@ import { TOKEN_CONSTANTS } from '@/constants/crypto'
 // RPC endpoints from the existing cron job
 const RPC_ENDPOINTS = {
   pulsechain: 'https://rpc-pulsechain.g4mm4.io',
-  ethereum: 'https://rpc-ethereum.g4mm4.io'
+  ethereum: 'https://rpc-ethereum.g4mm4.io',
+  bsc: 'https://bsc-dataseed.binance.org' // Alternative BSC endpoint
 }
 
 interface TokenBalance {
@@ -24,7 +25,7 @@ interface TokenBalance {
 
 interface BalanceData {
   address: string
-  chain: 'ethereum' | 'pulsechain'
+  chain: 'ethereum' | 'pulsechain' | 'bsc'
   timestamp: string
   nativeBalance: TokenBalance
   tokenBalances: TokenBalance[]
@@ -91,10 +92,12 @@ const cacheTokenBalance = (cacheKey: string, tokenBalance: TokenBalance): void =
   }
 }
 
-// Function to get native balance (ETH/PLS) using eth_getBalance
-async function getNativeBalance(address: string, chain: 'ethereum' | 'pulsechain'): Promise<TokenBalance> {
+// Function to get native balance (ETH/PLS/BNB) using eth_getBalance
+async function getNativeBalance(address: string, chain: 'ethereum' | 'pulsechain' | 'bsc'): Promise<TokenBalance> {
   try {
-    const rpcUrl = chain === 'ethereum' ? RPC_ENDPOINTS.ethereum : RPC_ENDPOINTS.pulsechain
+    const rpcUrl = chain === 'ethereum' ? RPC_ENDPOINTS.ethereum : 
+                   chain === 'pulsechain' ? RPC_ENDPOINTS.pulsechain : 
+                   RPC_ENDPOINTS.bsc
     
     const response = await fetch(rpcUrl, {
       method: 'POST',
@@ -125,8 +128,8 @@ async function getNativeBalance(address: string, chain: 'ethereum' | 'pulsechain
 
     return {
       address: '0x0', // Native token
-      symbol: chain === 'ethereum' ? 'ETH' : 'PLS',
-      name: chain === 'ethereum' ? 'Ethereum' : 'PulseChain',
+      symbol: chain === 'ethereum' ? 'ETH' : chain === 'pulsechain' ? 'PLS' : 'BNB',
+      name: chain === 'ethereum' ? 'Ethereum' : chain === 'pulsechain' ? 'PulseChain' : 'Binance Smart Chain',
       balance: balanceWei.toString(),
       balanceFormatted,
       decimals: 18,
@@ -135,8 +138,8 @@ async function getNativeBalance(address: string, chain: 'ethereum' | 'pulsechain
   } catch (error) {
     return {
       address: '0x0',
-      symbol: chain === 'ethereum' ? 'ETH' : 'PLS',
-      name: chain === 'ethereum' ? 'Ethereum' : 'PulseChain',
+      symbol: chain === 'ethereum' ? 'ETH' : chain === 'pulsechain' ? 'PLS' : 'BNB',
+      name: chain === 'ethereum' ? 'Ethereum' : chain === 'pulsechain' ? 'PulseChain' : 'Binance Smart Chain',
       balance: '0',
       balanceFormatted: 0,
       decimals: 18,
@@ -219,14 +222,14 @@ const getTokenBalance = async (tokenAddress: string, walletAddress: string, deci
 }
 
 // Function to get all balances for an address
-async function getAddressBalances(address: string, chain: 'ethereum' | 'pulsechain'): Promise<BalanceData> {
+async function getAddressBalances(address: string, chain: 'ethereum' | 'pulsechain' | 'bsc'): Promise<BalanceData> {
   try {
     
     // Get native balance
     const nativeBalance = await getNativeBalance(address, chain)
 
     // Get relevant tokens for the chain
-    const chainId = chain === 'ethereum' ? 1 : 369
+    const chainId = chain === 'ethereum' ? 1 : chain === 'pulsechain' ? 369 : 56
     const relevantTokens = TOKEN_CONSTANTS.filter(token => 
       token.chain === chainId && 
       token.a !== "0x0" && // Skip native tokens
@@ -243,7 +246,10 @@ async function getAddressBalances(address: string, chain: 'ethereum' | 'pulsecha
       const batch = relevantTokens.slice(i, i + batchSize)
       
       const batchPromises = batch.map(async (token) => {
-        const tokenBalance = await getTokenBalance(token.a, address, token.decimals, token.ticker, chain === 'ethereum' ? RPC_ENDPOINTS.ethereum : RPC_ENDPOINTS.pulsechain)
+        const rpcUrl = chain === 'ethereum' ? RPC_ENDPOINTS.ethereum : 
+                       chain === 'pulsechain' ? RPC_ENDPOINTS.pulsechain : 
+                       RPC_ENDPOINTS.bsc
+        const tokenBalance = await getTokenBalance(token.a, address, token.decimals, token.ticker, rpcUrl)
         // getTokenBalance now returns a complete TokenBalance object
         return tokenBalance
       })
@@ -281,8 +287,8 @@ async function getAddressBalances(address: string, chain: 'ethereum' | 'pulsecha
       timestamp: new Date().toISOString(),
       nativeBalance: {
         address: '0x0',
-        symbol: chain === 'ethereum' ? 'ETH' : 'PLS',
-        name: chain === 'ethereum' ? 'Ethereum' : 'PulseChain',
+        symbol: chain === 'ethereum' ? 'ETH' : chain === 'pulsechain' ? 'PLS' : 'BNB',
+        name: chain === 'ethereum' ? 'Ethereum' : chain === 'pulsechain' ? 'PulseChain' : 'Binance Smart Chain',
         balance: '0',
         balanceFormatted: 0,
         decimals: 18,
@@ -363,10 +369,13 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
   const { data, error: swrError, isLoading: swrLoading } = useSWR(
     cacheKey, // Always fetch when we have a wallet address
     async () => {
-      const result = await getAddressBalances(walletAddress, 'ethereum')
+      // Fetch both Ethereum and BSC balances
+      const [ethereumResult, bscResult] = await Promise.all([
+        getAddressBalances(walletAddress, 'ethereum'),
+        getAddressBalances(walletAddress, 'bsc')
+      ])
       
-      
-      return result
+      return [ethereumResult, bscResult]
     },
     {
       revalidateOnFocus: false,
@@ -385,7 +394,7 @@ export function useBridgeBalanceCheck(walletAddress: string): UseBridgeBalanceCh
   useEffect(() => {
 
     // Use SWR data directly - no complex cache reconstruction
-    const balanceArray = data ? [data] : []
+    const balanceArray = data ? data : []
     setBalances(balanceArray)
     setIsLoading(swrLoading)
     setError(swrError)
