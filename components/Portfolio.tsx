@@ -12534,7 +12534,7 @@ export default function Portfolio({ detectiveMode = false, detectiveAddress, ees
                               <div>
                                 <label className="text-xs text-gray-400 block mb-1">eHEX Price</label>
                                 <div className="relative">
-                                  <span className="absolute left-2 top-1 transform -translate-y-1/2 text-gray-400 text-sm">$</span>
+                                  <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">$</span>
                                   <input
                                     type="number"
                                     step="0.0001"
